@@ -213,22 +213,51 @@ BALANCE.chest = {
    ser ameaca e vira so contador de abate subindo. O dobro de vida devolve o
    tempo que o corpo passa em tela sem devolver a parede de um-inimigo-tres-
    tiros: com oito vezes mais corpos, o pulso de abate continua sendo leva. */
+/* Damage DOUBLED across the whole cast — contact, shot and death blast alike,
+   bosses included. Unlike HP, damage has no boss-specific curve (`bossHpExp` is
+   HP only), so leaving the bosses out would have made them the softest hit of
+   the late game relative to the trash walking beside them.
+
+   The argument is the other half of the density trade the spawn block makes.
+   With `maxAlive` at 4400 the horde arrives as a wall, and standing inside that
+   wall used to cost so little that positioning — the ONLY input this game has —
+   stopped being a decision.
+
+   What it costs, measured (driver_balance, 4 runs x 5 policies, same seeds,
+   against origin/master):
+
+     policy      median survival    ->  doubled
+     aleatorio        2:04              1:54
+     focado           7:46              1:57
+     misto           10:14              1:57
+     amplo            2:35              2:03
+     agressivo        4:03              4:03
+
+   `focado` and `misto` are the two that answer for the health of the climax,
+   and they are the two that collapse: the run now ends before the second
+   milestone, so capstones fall from 6/20 to 3/20 and metamorphoses with them.
+   The power step survives (8.5x under both) — the pilot still ramps, it just
+   does not live long enough to spend the ramp.
+
+   The levers to walk this back are `touchDps` on the common bodies, and
+   `hardDmgGrowth`, which compounds on top of these numbers every 15s past
+   `hardAt`. */
 const ENEMIES = {
   ghoul: {
     id: "ghoul", art: 3.0, name: "Ghoul",
-    radius: 13, hp: 20, speed: 130, touchDps: 8, xp: 1,
+    radius: 13, hp: 20, speed: 130, touchDps: 16, xp: 1,
     color: "#7fae5a", weight: 6, lateWeight: 4, minTime: 0,
     deathSfx: "flesh",
   },
   skeleton: {
     id: "skeleton", art: 3.2, name: "Skeleton Warrior",
-    radius: 15, hp: 52, speed: 92, touchDps: 12, xp: 3,
+    radius: 15, hp: 52, speed: 92, touchDps: 24, xp: 3,
     color: "#cfc8b0", weight: 3, lateWeight: 4, minTime: 45,
     deathSfx: "bone",       // esqueleto estala mais e esmaga menos
   },
   abomination: {
     id: "abomination", art: 3.23, name: "Abomination",
-    radius: 26, hp: 240, speed: 56, touchDps: 22, xp: 12,
+    radius: 26, hp: 240, speed: 56, touchDps: 44, xp: 12,
     color: "#9a6b4f", weight: 1, lateWeight: 2, minTime: 180,
     deathSfx: "rot",        // massa de carne: grave e molhado
   },
@@ -244,33 +273,33 @@ const ENEMIES = {
      a PAL reserva para horda. */
   ganarg: {
     id: "ganarg", art: 3.0, name: "Gan'arg Sapador",
-    radius: 11, hp: 28, speed: 150, touchDps: 6, xp: 2,
+    radius: 11, hp: 28, speed: 150, touchDps: 12, xp: 2,
     color: "#8790a8", weight: 4, lateWeight: 5, minTime: 60,
     deathSfx: "bone",
     /* O touchDps e baixo DE PROPOSITO: a ameaca dele nao e o encosto, e a
        morte. Ele transforma "deixei a horda chegar" numa conta paga de uma
        vez, e e a unica peca do elenco que muda COMO se joga em vez de quanto
        se apanha. */
-    deathBlast: { radius: 70, damage: 16 },
+    deathBlast: { radius: 70, damage: 32 },
   },
   felbat: {
     id: "felbat", art: 3.0, name: "Morcego Fel",
-    radius: 12, hp: 36, speed: 205, touchDps: 10, xp: 4,
+    radius: 12, hp: 36, speed: 205, touchDps: 20, xp: 4,
     color: "#3a2456", weight: 3, lateWeight: 5, minTime: 120,
   },
   inquisitor: {
     id: "inquisitor", art: 3.75, name: "Inquisidora Man'ari",
-    radius: 16, hp: 80, speed: 70, touchDps: 8, xp: 10,
+    radius: 16, hp: 80, speed: 70, touchDps: 16, xp: 10,
     color: "#5f3b80", weight: 1, lateWeight: 1, minTime: 150,
     /* O primeiro inimigo COMUM que atira — `ranged` ja existia e so o chefe
        usava. Peso 1 nao e timidez: com maxAlive em 4400 um peso 2 poria ~400
        atiradoras vivas, e ai a chuva de projetil e dano E custo de frame. */
     ranged: true,
-    shootInterval: 3.2, shootDamage: 7, shootSpeed: 240, shootRange: 380,
+    shootInterval: 3.2, shootDamage: 14, shootSpeed: 240, shootRange: 380,
   },
   fellord: {
     id: "fellord", art: 3.0, name: "Fel Lord",
-    radius: 30, hp: 840, speed: 66, touchDps: 34, xp: 34,
+    radius: 30, hp: 840, speed: 66, touchDps: 68, xp: 34,
     /* weight 0 + lateWeight 3: corpo que so existe depois de hardAt, quando
        pickType troca de peso. Maior que o Abomination e mais rapido que ele —
        e o corpo que FECHA a rota, nao o que persegue. */
@@ -279,18 +308,18 @@ const ENEMIES = {
   },
   dreadlord: {
     id: "dreadlord", art: 3.0, name: "Dreadlord",
-    radius: 38, hp: 1400, speed: 48, touchDps: 30, xp: 120,
+    radius: 38, hp: 1400, speed: 48, touchDps: 60, xp: 120,
     color: "#b23cff", weight: 0, minTime: 300,
     deathSfx: "flesh",
     boss: true, ranged: true,
-    shootInterval: 1.9, shootDamage: 18, shootSpeed: 280, shootRange: 600,
+    shootInterval: 1.9, shootDamage: 36, shootSpeed: 280, shootRange: 600,
   },
   /* Chefe corpo a corpo, e o contrario exato do Dreadlord, que atira e mantem
      distancia. Depois dos 7 min o jogo passa a ter dois desenhos de chefe em
      vez de um repetido. */
   annihilan: {
     id: "annihilan", art: 3.0, name: "Aniquilador",
-    radius: 44, hp: 2600, speed: 44, touchDps: 52, xp: 220,
+    radius: 44, hp: 2600, speed: 44, touchDps: 104, xp: 220,
     color: "#a4735a", weight: 0, minTime: 420,
     deathSfx: "rot",
     boss: true,
