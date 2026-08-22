@@ -22,7 +22,7 @@ class UI {
       pause: $("pause"), pausePanel: $("pausePanel"),
       chest: $("chest"), chestList: $("chestList"), chestRarity: $("chestRarity"),
       gameover: $("gameover"), stats: $("stats"),
-      classGrid: $("classGrid"), speedRow: $("speedRow"), startBtn: $("startBtn"),
+      classGrid: $("classGrid"), startBtn: $("startBtn"),
     };
     $("restartBtn").onclick = () => this.game.start();
     $("chestBtn").onclick = () => this.closeChest();
@@ -52,13 +52,6 @@ class UI {
         g.selectedClass = id;
         for (const c of this.el.classGrid.children) c.classList.remove("selected");
         card.classList.add("selected");
-      };
-    }
-    for (const b of this.el.speedRow.querySelectorAll(".speed-btn")) {
-      b.onclick = () => {
-        g.selectedSpeed = +b.dataset.spd;
-        for (const o of this.el.speedRow.querySelectorAll(".speed-btn")) o.classList.remove("active");
-        b.classList.add("active");
       };
     }
     this.el.startBtn.onclick = () => g.start();
