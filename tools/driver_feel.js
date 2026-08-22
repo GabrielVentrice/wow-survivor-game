@@ -167,11 +167,21 @@ else console.log(`  ok o stop mais longo segurou ${worstStreak} frames (limite $
 if (died) console.log(`  -- o piloto morreu aos ${died.toFixed(0)}s; a medida vale ate ali`);
 
 /* Encosto (`touch`) cobra por sub-step enquanto houver contato. Um stop por
-   cobrança faria o jogo arrastar exatamente quando a horda fecha. */
+   cobrança faria o jogo arrastar exatamente quando a horda fecha.
+
+   The pilot's HP is pinned across the loop on purpose: 120 charges of 1 on a
+   100 HP bar kills him, and a dead pilot stops the clock for the same reason a
+   hitstop does. Without the pin this asserts on how long he survives, not on
+   whether the charge froze anything — it passed or failed on leftover state
+   from the run above. */
 g.start();
 g._hitstop = 0; g._hitstopCd = 0;
 const cl0 = g.clock;
-for (let i = 0; i < 120; i++) { g.damagePlayer(1, "touch"); now += FR * 1000; g._loop(now); }
+for (let i = 0; i < 120; i++) {
+  g.damagePlayer(1, "touch");
+  g.player.hp = g.player.maxHp;
+  now += FR * 1000; g._loop(now);
+}
 if (g.clock - cl0 < FR * 100) fail(`dano de encosto congelou o jogo (${(g.clock - cl0).toFixed(2)}s de 2s)`);
 else console.log("  ok dano de encosto nao para o jogo");
 
