@@ -98,7 +98,7 @@ else console.log("  ok N silencia a trilha");
 g.music.setMuted(false);
 
 // a trilha e FUNDO: nunca pode chegar perto do volume dos efeitos
-if (!(TRACK_LEVEL.playing < 0.4)) fail(`arquivo em ${TRACK_LEVEL.playing}: alto demais para fundo`);
+if (!(TRACK_LEVEL.playing < 0.1)) fail(`arquivo em ${TRACK_LEVEL.playing}: alto demais para fundo`);
 else console.log(`  ok niveis de fundo — arquivo ${TRACK_LEVEL.playing}, procedural em jogo`);
 
 try {

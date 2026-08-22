@@ -35,7 +35,7 @@ const vJogo = __track.els[g.music.file.cur].volume;
 // trilha nao pode quebrar o teste
 if (Math.abs(vJogo - TRACK_LEVEL.playing) > 0.02) {
   fail(`volume em jogo ${vJogo.toFixed(2)}, esperado ${TRACK_LEVEL.playing}`);
-} else if (TRACK_LEVEL.playing > 0.2) {
+} else if (TRACK_LEVEL.playing > 0.1) {
   fail(`nivel ${TRACK_LEVEL.playing} nao e volume de fundo`);
 } else console.log(`  ok volume converge para ${vJogo.toFixed(2)} em jogo (bem atras dos efeitos)`);
 

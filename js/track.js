@@ -147,7 +147,7 @@ class Track {
 /* Volume por estado. Trilha de fundo tem que ficar bem ATRAS dos efeitos: se
    competir com o som de morte e de acerto, o jogador perde informacao de
    combate. Todo o ajuste de "esta alta demais" mora nestes quatro numeros. */
-const TRACK_LEVEL = { menu: 0.14, playing: 0.11, paused: 0.05, gameover: 0, off: 0 };
+const TRACK_LEVEL = { menu: 0.07, playing: 0.055, paused: 0.022, gameover: 0, off: 0 };
 
 class Soundtrack {
   constructor(src, opts) {

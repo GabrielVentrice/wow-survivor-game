@@ -147,9 +147,9 @@ class Music {
     const g = this.nodes.master.gain;
     // fundo e fundo: os efeitos de combate tem que passar por cima
     const level = this.muted || !this.on ? 0
-      : this.state === "paused" ? 0.028
-      : this.state === "menu" ? 0.062
-      : 0.075;
+      : this.state === "paused" ? 0.014
+      : this.state === "menu" ? 0.032
+      : 0.038;
     g.cancelScheduledValues(this.ctx.currentTime);
     g.setValueAtTime(Math.max(0.0001, g.value), this.ctx.currentTime);
     g.linearRampToValueAtTime(level, this.ctx.currentTime + 1.2);
