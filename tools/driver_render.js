@@ -53,11 +53,24 @@ const b = g.scenery._chunk(3, -7).map((p) => `${p.kind}@${p.x.toFixed(1)},${p.y.
 if (a !== b) fail("chunk nao e deterministico — os destrocos mudam ao revisitar");
 else console.log(`  ok chunk (3,-7) reproduz os mesmos ${a.split("|").length} props`);
 
-// todo tipo declarado precisa ter funcao de desenho
+// todo tipo declarado precisa de grade, e a grade precisa desenhar 1:1
 for (const k of PROP_KINDS) {
-  if (typeof PROPS[k] !== "function") fail(`prop "${k}" sem funcao de desenho`);
+  const art = PROP_ART[k];
+  if (!art) { fail(`prop "${k}" sem grade em PROP_ART`); continue; }
+  const w = art.rows[0].length;
+  if (art.rows.some((r) => r.length !== w)) fail(`prop "${k}": linhas de larguras diferentes`);
+  const chars = new Set(art.rows.join("").split("").filter((c) => c !== "."));
+  for (const c of chars) if (!art.pal[c]) fail(`prop "${k}" usa "${c}" sem cor na paleta dele`);
+  for (const c in art.pal) if (!chars.has(c)) fail(`prop "${k}": "${c}" na paleta e sem uso na grade`);
+  const sp = propSprite(k, 0);
+  // o degrau tem que ser o MESMO de todo o elenco: uma celula, um pixel de
+  // buffer. Prop desenhado no dobro e o mixel silencioso
+  if (sp.canvas.width !== w || sp.w !== w * PIXEL_UNIT) {
+    fail(`prop "${k}" nao desenha 1:1 (${sp.canvas.width}px de grade para ${sp.w} de mundo)`);
+  }
+  if (propSprite(k, 1).canvas === sp.canvas) fail(`prop "${k}" sem espelho — variacao nenhuma`);
 }
-console.log(`  ok ${PROP_KINDS.length} tipos de prop com desenho (${Object.keys(STATIC_PROPS).length} cacheados)`);
+console.log(`  ok ${PROP_KINDS.length} grades de prop, 1:1 e com espelho`);
 
 // todo demonio precisa de sprite proprio — o orbe generico e fallback, nao padrao
 for (const kind in MINIONS) {
@@ -157,7 +170,8 @@ if (g.scenery.chunks.size > SCENERY.maxChunkCache + 1) {
 // pixel grid will not take a canvas stretched by 1.07), so the cache gained a
 // third dimension. The ceiling still catches the accident that matters:
 // caching by a continuous `s` would blow this up inside the first minute.
-const PROP_CACHE_MAX = Object.keys(STATIC_PROPS).length * 4 * PROP_BUCKETS;
+// sem degrau de tamanho, o cache e finito por construcao: tipo x espelho
+const PROP_CACHE_MAX = PROP_KINDS.length * 2;
 if (PROP_CACHE.size > PROP_CACHE_MAX) {
   fail(`cache de sprite de prop estourou: ${PROP_CACHE.size} (teto ${PROP_CACHE_MAX})`);
 } else console.log(`  ok cache de sprite de prop em ${PROP_CACHE.size} entradas (teto ${PROP_CACHE_MAX})`);

@@ -257,6 +257,14 @@ class Player {
   }
 }
 
+/* Enemies come from a Pool, so holding a reference to one across frames is a
+   trap: once dead the object returns to `free` and is REBORN as a different
+   creature, somewhere else, at full hp. Anything that keeps a target between
+   frames (the homing projectile) needs to know the object in hand is still the
+   same creature — `hp > 0` does not prove it, since the recycled one has hp
+   too. The stamp costs one integer per spawn and settles it. */
+let ENEMY_GEN = 0;
+
 class Enemy {
   constructor() {
     this.x = 0; this.y = 0;
@@ -265,6 +273,7 @@ class Enemy {
   }
   // recebe o tipo, a posicao inicial e o `scale` da fase de dificuldade
   reset(obj, type, x, y, scale) {
+    this.gen = ++ENEMY_GEN;
     this.type = type;
     this.x = x; this.y = y;
     this.radius = type.radius;
@@ -443,6 +452,15 @@ class Projectile {
     this.homing = o.homing || false;
     this.speed = o.speed || Math.hypot(o.vx, o.vy);
     this.turnRate = o.turnRate || 0;
+    /* The enemy THIS shot was fired at. Without it, `auto_target` with
+       `targets: 2` picked two enemies, fired twice... and both shots, born at
+       the same point, resolved to the same `nearestEnemy` and went for the same
+       creature — the second target was never attacked and the `targets` stat
+       did nothing on screen. */
+    this.target = o.target || null;
+    this.targetGen = this.target ? this.target.gen : 0;
+    // Seconds until homing kicks in. > 0 only on a shot born in a fan.
+    this.fanDelay = o.fanDelay || 0;
     this.pierce = o.pierce || 0;
     this.reflected = false;
     if (this.pierce > 0) { this.hits = this.hits || new Set(); this.hits.clear(); }
@@ -820,15 +838,29 @@ class SpawnManager {
       game.enemies.spawn(this.pickType(game.elapsed), x, y, this.scale);
     }
   }
+  /* Quem e o chefe da vez sai do dado, nao de um id cravado: todo tipo com
+     `boss: true` cujo `minTime` ja passou entra no sorteio. Enquanto era
+     `ENEMIES.dreadlord` na mao, acrescentar um segundo chefe era mudar o
+     motor; agora e acrescentar uma entrada. */
+  bossPool(elapsed) {
+    const pool = [];
+    for (const id in ENEMIES) {
+      const t = ENEMIES[id];
+      if (t.boss && elapsed >= t.minTime) pool.push(t);
+    }
+    return pool;
+  }
   spawnBoss(game) {
     const reach = this._reach(game);
     const n = this.bossCount(game.elapsed);
+    const pool = this.bossPool(game.elapsed);
+    if (!pool.length) return;
     const base = Math.random() * Math.PI * 2;
     for (let i = 0; i < n; i++) {
       const a = base + (Math.PI * 2 / n) * i;
       const x = game.player.x + Math.cos(a) * reach;
       const y = game.player.y + Math.sin(a) * reach;
-      game.enemies.spawn(ENEMIES.dreadlord, x, y, this.scale);
+      game.enemies.spawn(pool[(Math.random() * pool.length) | 0], x, y, this.scale);
     }
     game.onBossSpawn(n);
   }

@@ -961,6 +961,80 @@ const SPRITE_DATA = {
       "...oo..oo...",
     ],
   },
+  /* Sapador: a 11 pixels ele precisa dizer UMA coisa — que carrega bomba.
+     O elmo e a lente sao a silhueta, mas quem ensina o jogador a mata-lo
+     longe sao as cargas quentes nas costas, unica massa morna num corpo
+     de aco frio. As orelhas de goblin do desenho sairam: a 1px de
+     espessura elas leriam como antena, nao como orelha. */
+  ganarg: {
+    pal: { o: PAL.inkCold, d: PAL.steel0, m: PAL.steel1, l: PAL.steel2, D: PAL.emb0, M: PAL.emb1, L: PAL.emb2, e: PAL.azure1 },
+    rows: [
+      "LMooooooo..",
+      "LDollllmmo.",
+      "LDollmmddo.",
+      "LDoleemddo.",
+      "MDoleemddo.",
+      "MDollmmddo.",
+      "ooolmdddo..",
+      ".ollmdddmo.",
+      ".oldoooldo.",
+      ".omdo.omdo.",
+      ".omdo.omdo.",
+    ],
+  },
+  /* Morcego: a leitura dele E a envergadura, entao a asa toma tantas
+     colunas quanto o corpo e recua na fatia mais escura da rampa (D/M/L
+     = vio0..vio2 contra vio0..vio2 do corpo). Vista de lado, como o
+     felhunter: bicho de quatro membros de frente vira mancha.
+     Sem perna separada na ultima linha de proposito — ele voa, e
+     walkFrames deve ginga-lo em vez de faze-lo pisar. */
+  felbat: {
+    pal: { o: PAL.inkDeep, d: PAL.vio0, m: PAL.vio1, l: PAL.vio2, D: PAL.vio1, M: PAL.vio2, L: PAL.vio3, e: PAL.blood1 },
+    rows: [
+      "oLMo..........oLMo",
+      "LLMMo..oooo..oLLMM",
+      "MLMDMoolllmooLLMDD",
+      "MMMMDMlemmemLLMMDD",
+      "oMMMDDllmmddLLMDDo",
+      ".oMMDDmlmmddMMDDo.",
+      "..oMDDmlmmddMDDo..",
+      "...oooomlmdoooo...",
+      "......omlmdo......",
+      ".......omdo.......",
+      ".......omdo.......",
+      "........oo........",
+    ],
+  },
+  /* Inquisidora: a 20 linhas o rosto nao existe, entao a leitura sao os
+     SEIS BRACOS e o capuz. Os tres pares saem em alturas diferentes para
+     nao virarem uma massa so, e cada um tem sua coluna de contorno.
+     O ouro (D/M/L) e o unico material claro e mora nos pulsos: e ele que
+     conta os bracos a distancia. Manto sem perna — ela desliza. */
+  inquisitor: {
+    pal: { o: PAL.inkDeep, d: PAL.vio1, m: PAL.vio2, l: PAL.vio3, D: PAL.gold0, M: PAL.gold1, L: PAL.gold2, e: PAL.blood1 },
+    rows: [
+      "....olllmo....",
+      "...ollmmdmo...",
+      "...ollmmddo...",
+      "...omeddedo...",
+      "...ommddddo...",
+      ".ooooMMMDoooo.",
+      "omlmolllmolldo",
+      "oMmdollmdomdMo",
+      "oMmdollmdomdMo",
+      ".oooollmdoooo.",
+      "omlmollmdolldo",
+      "oMmdollmdomdMo",
+      "oMmdollmdomdMo",
+      ".oooollmdoooo.",
+      "omlmollmdolldo",
+      "oMmdollmdomdMo",
+      "oMmmllmmmmddMo",
+      ".ooollmmddooo.",
+      "..ommmdddddo..",
+      "..ommmdddddo..",
+    ],
+  },
   abomination: {
     pal: { o: PAL.inkWarm, d: PAL.meat0, m: PAL.meat1, l: PAL.meat2, B: PAL.bone1, e: PAL.gold2 },
     rows: [
@@ -992,6 +1066,47 @@ const SPRITE_DATA = {
       "....oldddo........oldddo....",
       "....oldddo........oldddo....",
       "....oooooo........oooooo....",
+    ],
+  },
+  /* Fel Lord: o muro da fase dura. Maior que o Abomination (30 linhas
+     contra 28) e o unico corpo do elenco com ombreira de metal — e a
+     ombreira, nao o chifre, que diz 'isso vem blindado'. O braco-lamina
+     desce colado ao corpo pela direita: lamina atravessada viraria barra.
+     Pele em emb (quente), armadura em steel (frio): o contraste de
+     temperatura e o que separa as duas massas sem precisar de vao. */
+  fellord: {
+    pal: { o: PAL.inkWarm, d: PAL.emb0, m: PAL.emb1, l: PAL.emb2, D: PAL.steel0, M: PAL.steel1, L: PAL.steel2, B: PAL.bone1, e: PAL.blood1 },
+    rows: [
+      "....oBBo.......oBBo....",
+      "...oBBBo.......oBBBo...",
+      "...oBBo.........oBBo...",
+      "...oBBo.........oBBo...",
+      "....oBBoooooooooBBo....",
+      ".....oollllllmmmoo.....",
+      "......olllmmmdddo......",
+      "......omllemedddo......",
+      "......omllmmmdddo......",
+      "..oooo.olllmmddo.oooo..",
+      ".oLLLMolllmmmddmoLLLMo.",
+      "oLLMDDolllmmmdddoLLMDMo",
+      "oMLMDDolllmmmdddoLLMDDo",
+      "oMMDDDolllmmmdddoMMDDDo",
+      ".oMMDDolllmmmdddoMMDDo.",
+      ".omllmolllmmmdddollldo.",
+      "..ommdolllmmmdddolmdo..",
+      "..omddolllmmmdddomddo..",
+      "...ommmllmmmmmdddddooo.",
+      "....ooolllmmmdddoooLLMo",
+      "......ommmddddddo.oLMDo",
+      "......ommmddddddo.oLMDo",
+      "......oLLLLLLMMMo.oLMDo",
+      "......oMMMDDDDDDo.oLMDo",
+      "......oMMMDDDDDDo.oLMDo",
+      ".....olllmooolllmooLMDo",
+      ".....ollmdo.ollmdooMDDo",
+      ".....ollmdo.ollmdooMDDo",
+      ".....ommddo.ommddo.ooo.",
+      ".....ommddo.ommddo.....",
     ],
   },
   dreadlord: {
@@ -1035,6 +1150,60 @@ const SPRITE_DATA = {
       "........oldddddddo......oldddddddo..........",
       "........oldddddddo......oldddddddo..........",
       "........oooooooooo......oooooooooo..........",
+    ],
+  },
+  /* Aniquilador: chefe corpo a corpo, e o contrario do Dreadlord — que
+     tem asa e atira. Aqui a ameaca e MASSA: 44 linhas, chifres que se
+     abrem para fora dos ombros e bracos escancarados. O que ele precisa
+     dizer a distancia e 'isso nao para', entao nada dele e fino: chifre,
+     presa, dedo e cauda tem 2+ pixels de espessura em toda a extensao. */
+  annihilan: {
+    pal: { o: PAL.inkWarm, d: PAL.meat0, m: PAL.meat1, l: PAL.meat2, D: PAL.bone0, M: PAL.bone1, L: PAL.bone2, e: PAL.blood1 },
+    rows: [
+      "...oLDo.....................oMMo...",
+      "..oLMDo.....................oMMMo..",
+      "..oLDo.......................oLDo..",
+      "..oMDo.......................oLDo..",
+      "..oMDo.......................oLDo..",
+      "...oMMo.....ooooooooooo.....oLDo...",
+      "...oMDDo...olllllllmmmmo...oMDDo...",
+      "....oMDDo.olllllmmmmdddmo.oMDDo....",
+      ".....ooo..olllleemeeddddo..ooo.....",
+      "..........omllllmmmmddddo..........",
+      "..........ommlllmmmmddddo..........",
+      "...........ommllmmmddddo...........",
+      "............ommlmmmdddo............",
+      ".............omllmmddo.............",
+      "..............ollmddo..............",
+      ".........ooooolllmmdmooooo.........",
+      "........ollllllmmmmmdmmmmmo........",
+      "....oooolllllllmmmmmmdddddmoooo....",
+      "...olllllllllmmmmmmmmmdddddmmmmo...",
+      "..ollllllllllmmmmmmmmmdddddddddmo..",
+      ".ollllmmlllllmmmmmmmmmmdddddddddmo.",
+      "olllllmmllllmmmmmmmmmmmddddddddddmo",
+      "omlmddoomllllllmmmmmmddddddoollmddo",
+      "omlmddoomllllllmmmmmmddddddoollmddo",
+      ".omlmdo.omlllllmmmmmddddddo.ollmdo.",
+      ".ommmdmoommllllmmmmmddddddoollmddo.",
+      ".oommmdo.ommlllmmmmmdddddo.ollddoo.",
+      "oMLMmmddo.ommlllmmmmddddo.ommddLLDo",
+      "oMDDomddo..omllldddddddo..omddoMDDo",
+      ".oMDDooo...oolllddddddoo...oooMDDo.",
+      "..ooo.....ollmddooollmmmo.ommmooo..",
+      "..........ollmddo.ollmddo..omdmo...",
+      "..........ollmddo.ollmddo...ommmo..",
+      "..........ollmddo.ollmddo....olmdo.",
+      "..........ollmddo.ollmddo....olddo.",
+      "..........ollmddo.ollmddo...omddo..",
+      "..........ollmddo.ollmddo..omddo...",
+      "..........ollmddo.ollmddo...ooo....",
+      "..........ommdddo.ommdddo..........",
+      "..........ommdddo.ommdddo..........",
+      ".........oLLLLMMo.oLLLLMMo.........",
+      ".........oLLMMDDo.oLLMMDDo.........",
+      ".........oMMDDDDo.oMMDDDDo.........",
+      ".........oMMDDDDo.oMMDDDDo.........",
     ],
   },
   // Imp: cabecao, chifres curtos, asinhas de morcego. O menor bipede.

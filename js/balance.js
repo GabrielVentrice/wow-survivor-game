@@ -32,6 +32,24 @@ const BALANCE = {
        impede que uma tela cheia de explosão vire apresentação de slides. */
     hitstop: { big: 0.034, boss: 0.11, hurt: 0.067, cooldown: 0.26 },
   },
+
+  /* Homing projectiles. `fanDelay` is the only number here and it exists for
+     one reason: homing and spread cancel each other out. `updateProjectiles`
+     re-aims every frame, so at turnRate 9 the 0.21rad fan that "Salva" opens is
+     gone in two frames — measured, the 4 shots never get more than 1.1 units
+     apart against a radius of 6, and read as ONE fat projectile all run.
+
+     The delay only applies to a shot born in a fan; a lone bolt stays stubborn
+     from frame one, which is Incinerate's identity.
+
+     0.1 is the knee of the curve, and the curve was measured on both sides.
+     Against a target 400 units out the fan peaks at 5.1 radii for 2 shots, 11.1
+     for 4 and 22.7 for 7 — unambiguous — while every shot still connects, the
+     first at ~0.7s. Going to 0.15 buys roughly half again as much spread and
+     costs about twice the damage on the piercing tier-5, which is not a trade
+     worth making: past ~5 radii the fan already reads as separate shots and the
+     extra width is only width. */
+  projectile: { fanDelay: 0.1 },
   spawn: {
     /* Densidade QUADRUPLICADA em relação ao tuning original (dobrada duas
        vezes: uma no tuning de rampagem, outra por pedido depois dele).
@@ -198,6 +216,51 @@ const ENEMIES = {
     color: "#9a6b4f", weight: 1, lateWeight: 2, minTime: 180,
     deathSfx: "rot",        // massa de carne: grave e molhado
   },
+  /* --- A Vanguarda Ardente ------------------------------------------------
+     A Legiao nao desembarca de uma vez: cada casta entra por `minTime`, e o
+     que separa uma da outra nao e HP, e a FORMA DA PRESSAO. Com movimento como
+     unico input, inimigo novo so vale quando muda a pergunta que o jogador
+     responde com o corpo — encostar, parar, andar em linha reta, fugir.
+
+     Nenhuma delas acende em verde-fel. `fel0..2` vem de AXIS_PALETTE.corruption
+     e e literalmente a cor da build do jogador: um inimigo aceso nela lê como
+     spell dele com mil corpos em tela. Olho vermelho e lente fria, que e o que
+     a PAL reserva para horda. */
+  ganarg: {
+    id: "ganarg", art: 3.0, name: "Gan'arg Sapador",
+    radius: 11, hp: 14, speed: 150, touchDps: 6, xp: 2,
+    color: "#8790a8", weight: 4, lateWeight: 5, minTime: 60,
+    deathSfx: "bone",
+    /* O touchDps e baixo DE PROPOSITO: a ameaca dele nao e o encosto, e a
+       morte. Ele transforma "deixei a horda chegar" numa conta paga de uma
+       vez, e e a unica peca do elenco que muda COMO se joga em vez de quanto
+       se apanha. */
+    deathBlast: { radius: 70, damage: 16 },
+  },
+  felbat: {
+    id: "felbat", art: 3.0, name: "Morcego Fel",
+    radius: 12, hp: 18, speed: 205, touchDps: 10, xp: 4,
+    color: "#3a2456", weight: 3, lateWeight: 5, minTime: 120,
+  },
+  inquisitor: {
+    id: "inquisitor", art: 3.75, name: "Inquisidora Man'ari",
+    radius: 16, hp: 40, speed: 70, touchDps: 8, xp: 10,
+    color: "#5f3b80", weight: 1, lateWeight: 1, minTime: 150,
+    /* O primeiro inimigo COMUM que atira — `ranged` ja existia e so o chefe
+       usava. Peso 1 nao e timidez: com maxAlive em 2200 um peso 2 poria ~200
+       atiradoras vivas, e ai a chuva de projetil e dano E custo de frame. */
+    ranged: true,
+    shootInterval: 3.2, shootDamage: 7, shootSpeed: 240, shootRange: 380,
+  },
+  fellord: {
+    id: "fellord", art: 3.0, name: "Fel Lord",
+    radius: 30, hp: 420, speed: 66, touchDps: 34, xp: 34,
+    /* weight 0 + lateWeight 3: corpo que so existe depois de hardAt, quando
+       pickType troca de peso. Maior que o Abomination e mais rapido que ele —
+       e o corpo que FECHA a rota, nao o que persegue. */
+    color: "#9c471b", weight: 0, lateWeight: 3, minTime: 300,
+    deathSfx: "bone",
+  },
   dreadlord: {
     id: "dreadlord", art: 3.0, name: "Dreadlord",
     radius: 38, hp: 1400, speed: 48, touchDps: 30, xp: 120,
@@ -205,6 +268,16 @@ const ENEMIES = {
     deathSfx: "flesh",
     boss: true, ranged: true,
     shootInterval: 1.9, shootDamage: 18, shootSpeed: 280, shootRange: 600,
+  },
+  /* Chefe corpo a corpo, e o contrario exato do Dreadlord, que atira e mantem
+     distancia. Depois dos 7 min o jogo passa a ter dois desenhos de chefe em
+     vez de um repetido. */
+  annihilan: {
+    id: "annihilan", art: 3.0, name: "Aniquilador",
+    radius: 44, hp: 2600, speed: 44, touchDps: 52, xp: 220,
+    color: "#a4735a", weight: 0, minTime: 420,
+    deathSfx: "rot",
+    boss: true,
   },
 };
 
