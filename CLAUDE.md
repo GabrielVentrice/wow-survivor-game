@@ -34,6 +34,11 @@ sprite e os botões copiam a referência pronta (`SPRITE_DATA.ghoul
 (js/sprites.js)`) para pedir um ajuste. Sprite sem dono aparece na seção
 "Sem uso" — é lá que arte órfã fica visível antes de virar peso morto.
 
+`open icons.html` abre a **folha de contato dos ícones**: as 59 grades em osso
+nos três tamanhos em que o jogo as desenha, e a tira de cada eixo acima dos
+cards — é na tira que a repetição aparece, e foi ela que denunciou as
+primitivas. Peça sem desenho próprio nasce com tarja vermelha.
+
 `open vfx.html` abre a **galeria de animações**: o que cada mecânica DESENHA em
 tela. Cada card monta um mundo minúsculo com as mesmas classes do jogo
 (`Player`, `Enemy`, `Projectile`, `AreaEffect`, `Minion`, `VfxLayer`) e desenha
@@ -88,6 +93,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
+| `js/ui-icons.js` | `UI_ICONS` — a grade 16x16 de cada peça, passiva e capstone |
 | `js/ui-glyph.js` | `UI_PAL` + `Glyph` — a paleta da UI e o que substitui todo emoji |
 | `js/ui.js` | `UI` — HUD, tela de level-up, tela de etapa, pausa, baú, game over |
 | `js/game.js` | `Game` — estado, loop, funil de dano, colisões |
@@ -254,29 +260,48 @@ Um `grep -nE 'border-radius|text-shadow|blur|gradient|backdrop' index.html` é
 metade da verificação. A única `border-radius` permitida é o tile **redondo da
 passiva**, que é a forma que separa "não dispara" de "spell" sem usar cor.
 
-#### O glifo: sprite em osso, ou uma das dez primitivas
+#### O glifo: um desenho por peça, e a primitiva só para o que não tem
 
-`Glyph.svg(id, size)` (`js/ui-glyph.js`) devolve SVG em linha, em duas fontes e
-nesta ordem:
+`Glyph.svg(id, size)` (`js/ui-glyph.js`) devolve SVG em linha, em três fontes e
+**nesta ordem**:
 
-1. **O gerador do mundo.** Se a peça invoca um demônio que já existe em
-   `SPRITE_DATA`, o ícone é aquela grade desenhada em osso monocromático — a
-   arte do jogo, sem cor própria, com a silhueta fazendo o trabalho.
-2. **Uma das dez primitivas** de traço 4 (`quadrado`, `placa`, `círculo`,
-   `anel`, `losango`, `losango vazado`, `barra`, `duas barras`, `barra
-   horizontal`, `duas barras horizontais`). Não há grade em osso para as trinta
-   e poucas spells que não invocam nada, e inventar uma ilustração por spell
-   seria arte que envelhece na primeira mudança de catálogo. A primitiva não
-   *ilustra* a spell: ela a **distingue**, que é o único trabalho que um ícone
-   de 32px faz de verdade.
+1. **A grade própria da peça** (`UI_ICONS`, `js/ui-icons.js`): 16×16 em osso
+   monocromático, `#` cheio e `.` vazio.
+2. **O gerador do mundo.** Se a peça invoca um demônio que já existe em
+   `SPRITE_DATA`, o ícone é a grade *dele* — o único caso em que o ícone pode
+   ser a coisa em vez de um símbolo dela.
+3. **Uma das dez primitivas** de traço 4. É **fallback**, não acervo.
+
+**A ordem custou uma regressão para ser aprendida.** Por um tempo as dez
+primitivas *foram* o acervo, e o resultado, medido na tira do HUD: nove peças,
+**quatro marcas distintas** — dois `|`, dois `●`, dois `=` — e duas peças
+diferentes caindo na mesma forma. O emoji que elas substituíram era pior
+esteticamente e **melhor em reconhecimento**, e trocar reconhecimento por
+estética num elemento cuja única função é ser reconhecido é uma troca ruim.
+`driver_cards` agora **reprova peça sem desenho próprio**: primitiva sem dono é
+dívida, não acervo.
+
+Regras da grade, e as três primeiras são o que separa ícone legível de mancha:
+
+- **O vazio dentro da silhueta é que a torna legível a 30px** — buraco de olho,
+  vão de costela, miolo de anel. Desenho sem furo vira borrão.
+- **Traço de 2 células onde puder.** Traço de 1 célula some quando o ícone é
+  desenhado a 24px na linha compacta da pausa.
+- **Família importa tanto quanto distinção.** As de fogo compartilham a chama,
+  as de podridão o crânio, as de defesa o escudo. Na tira o jogador lê o eixo
+  pela cor, a família pela silhueta e a peça pelo detalhe — nessa ordem.
+- Uma peça, uma ideia: a 16px não cabe cena, cabe um objeto.
+
+`open icons.html` é a **folha de contato** do acervo, e ela existe pelo mesmo
+motivo que `sprites.html`: um ícone sozinho sempre parece bom, e o defeito só
+aparece no conjunto. Cada peça aparece nos três tamanhos em que o jogo desenha
+(24 na pausa, 30 no HUD, 56 na carta) e, acima dos cards, **a tira** — os ícones
+enfileirados do jeito que o HUD os enfileira, que é onde a repetição aparece.
+Card bonito e tira ilegível é acervo ruim.
 
 Saída é SVG e não canvas porque a UI é DOM: um `<svg>` entra em qualquer
 `innerHTML` que já existe, herda `currentColor` e escala com a moldura sem
 borrar. Continua sendo arte gerada em runtime — zero arquivo de imagem.
-
-Peça nova sem entrada em `PRIMITIVA_DE` **não cai num quadrado genérico**: o
-hash do `id` espalha entre as dez, então ela nasce distinguível antes de alguém
-escolher a forma dela à mão.
 
 #### As quatro espécies de botão: preenchimento é custo
 
@@ -319,6 +344,13 @@ acrescentar:
 - **O relógio perde a terceira linha e as três cores.** Eram tempo, etapa e
   abates em branco, âmbar e verde — e etapa e abates não são estados de eixo,
   então não podem falar em cor de eixo. Viraram uma linha só, em osso.
+
+**Os pips da tira contam o caminho MAIS FUNDO**, os cinco degraus, como em toda
+outra tela. Já foram três — um por caminho, aceso acima do tier gratuito —, e
+isso responde "tem caminho investido?" quando a pergunta que a tira faz é "quão
+fundo está a minha build?". O trilho deles é `rgba(237,231,218,.18)` e não
+`--osso-100`: dois quase-pretos encostados fazem a tira dizer **posse** em vez
+de progresso.
 
 **Toast tem teto de três**, a opacidade do fundo cai por idade
 (`.92` → `.82` → `.70`) e o excedente vira uma linha `+N eventos`. Cinco toasts
@@ -630,6 +662,10 @@ inércia.
   1, 3 ou 5, com `lateWeight` trocando os pesos depois de `hardAt`, quando um
   tier avulso não muda mais o jogo. Mexer nesses números é mexer na velocidade
   em que a build fecha; `driver_chest` mede as duas pontas.
+  **A largura da tela acompanha o prêmio** (480 / 560 / 640): a 640 fixos, um
+  baú comum entrega uma linha só e o `CONTINUAR` — 64px de altura, largura
+  inteira — vira o elemento mais pesado de uma tela que quase não tem conteúdo,
+  e o botão passa a ser o assunto.
 
 ### As duas batidas: level-up aprofunda, etapa compromete
 
@@ -787,12 +823,23 @@ da morte não entrega nada**.
 - **`min-height`, nunca `height`.** Com altura fixa uma descrição que quebra em
   quatro linhas transborda e invade a linha vizinha. Vale para toda linha que
   contém texto.
+- **A largura da tela vira distância entre a descrição e o selo**, então o
+  conteúdo é travado em **1200px** e a coluna de texto em **720px**. Com os 1360
+  da tela inteira sobrava um vão de quase 500px no meio da linha, e o selo — o
+  único botão preenchido do jogo — encostava na borda direita lendo como
+  etiqueta em vez de botão. Coluna de texto mais larga que 720 também deixa de
+  ser lida de relance.
 - **A mesa nem sempre tem três.** No fim da run o catálogo esgota e sobram duas
   ofertas, ou uma — e como são linhas empilhadas, a sobrevivente ocupa a largura
   inteira em vez de encolher num canto com dois buracos ao lado.
 - **O número anunciado é o creditado.** Com o eixo no teto ou o pool no fim,
   `addAxis` entrega menos; `getMilestoneOffers` devolve `gain` real ao lado do
   `want` de tabela, e o driver compara os dois em toda oferta de toda etapa.
+- **O slot do eixo aberto sai da mesa quando o eixo não anda mais.** A regra
+  abaixo valia só para as cartas sorteadas: com o eixo comprometido no teto de
+  15, o slot fixo continuava oferecendo `SÓ O EIXO +0 · eixo no teto` — um botão
+  clicável que não faz nada, na única tela cujo clique não se desfaz. Se as duas
+  maneiras zeram, o slot inteiro sai e o sorteio ocupa o lugar dele.
 - **E carta que credita +0 não é oferta, é botão morto.** O sorteio pula spell
   cujo eixo não anda mais, e se ainda assim a mesa inteira ficar em zero — todo
   eixo com espaço já teve o catálogo esgotado — o fallback seco entra no lugar

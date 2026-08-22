@@ -565,11 +565,20 @@ class BuildSystem {
     //    ser referencia visual).
     for (const axisId in AXES) {
       if (this.axis[axisId] < M.unlockAt) continue;
-      const piece = pegar(porEixo[axisId] || []);
+      /* Maneira que credita ZERO nao entra. A regra ja valia para as cartas
+         sorteadas e faltava aqui: com o eixo comprometido no teto de 15, o slot
+         fixo oferecia "SÓ O EIXO +0 · eixo no teto" — um botao que o jogador
+         pode clicar e que nao faz nada, na unica tela do jogo cujo clique nao
+         se desfaz. Se as duas maneiras zeram, o slot inteiro sai da mesa e o
+         sorteio ocupa o lugar dele: eixo que nao anda nao tem pergunta a fazer. */
+      const seco = real(axisId, M.axisPoints);
+      const piece = seco || real(axisId, M.spellPoints) ? pegar(porEixo[axisId] || []) : null;
+      const molhado = piece ? real(axisId, M.spellPoints) : 0;
+      if (!seco && !molhado) continue;
       out.push({
         kind: "milestone", axisId, axis: AXES[axisId], piece, locked: true,
-        dry: { want: M.axisPoints, gain: real(axisId, M.axisPoints) },
-        wet: piece ? { want: M.spellPoints, gain: real(axisId, M.spellPoints) } : null,
+        dry: seco ? { want: M.axisPoints, gain: seco } : null,
+        wet: molhado ? { want: M.spellPoints, gain: molhado } : null,
       });
     }
 

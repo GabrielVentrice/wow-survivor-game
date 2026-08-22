@@ -39,10 +39,22 @@ function stubEl(id) {
        por variavel CSS (`--acc`), e um proxy que devolve "" para toda
        propriedade fazia a chamada estourar. Devolvendo no-op, o codigo real de
        montagem de tela roda no headless em vez de ser desviado pelo driver. */
-    style: new Proxy({}, {
-      get: (t, k) => (k === "setProperty" || k === "removeProperty" ? () => {} : ""),
-      set: () => true,
-    }),
+    /* `style` LEMBRA o que foi escrito. Um proxy que devolvia "" para tudo
+       deixava o codigo de montagem rodar, mas quem le de volta uma variavel
+       que acabou de escrever (a previa, que remonta a tela a partir do que a
+       UI produziu) recebia vazio e caia no default — a tela conferida deixava
+       de ser a tela do jogo. */
+    style: (() => {
+      const props = {};
+      return new Proxy(props, {
+        get: (t, k) => (
+          k === "setProperty" ? (n, v) => { props[n] = v; } :
+          k === "getPropertyValue" ? (n) => props[n] || "" :
+          k === "removeProperty" ? (n) => { delete props[n]; } :
+          (k in props ? props[k] : "")),
+        set: (t, k, v) => { props[k] = v; return true; },
+      });
+    })(),
     dataset: {}, children: [], width: 0, height: 0,
     classList: { add: () => {}, remove: () => {}, toggle: () => {}, contains: () => false },
     appendChild(c) { this.children.push(c); return c; },

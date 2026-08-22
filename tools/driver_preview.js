@@ -60,6 +60,7 @@ const take = (id, label, offers, hoverIdx) => {
    os dois estados em que os numeros da carta mudam de peso. */
 const msShots = [];
 let chest = null;
+let msAberta = false;
 const takeMs = (idx, label) => {
   const offers = g.build.getMilestoneOffers();
   if (!offers.length) return;
@@ -106,6 +107,11 @@ for (let r = 0; r < 300; r++) {
       const alvo = ms.find((o) => o.locked)
                 || ms.find((o) => o.axisId === "corruption")
                 || ms[0];
+      /* A fase ABERTA e capturada assim que ela existe, e nao no fim do laco:
+         desde que o slot de eixo no teto saiu da mesa, empilhar ate 15/15 fazia
+         a tela da fase aberta simplesmente nao acontecer mais — e ela e uma das
+         duas que esta previa existe para mostrar. */
+      if (alvo.locked && !msAberta) { msAberta = true; takeMs(11, "fase aberta — o eixo comprometido virou slot fixo com as duas maneiras"); }
       g.build.applyMilestone(alvo, !alvo.dry);
     }
   }
@@ -119,6 +125,9 @@ for (let r = 0; r < 300; r++) {
       count: document.getElementById("chestCount").textContent,
       pips: document.getElementById("chestPips").innerHTML,
       list: document.getElementById("chestList").innerHTML,
+      // a coluna estreita junto com o premio: sem carregar a var, a previa
+      // mostrava sempre a largura de lendario
+      w: document.getElementById("chest").style.getPropertyValue("--bau-w") || "640px",
     };
     g.ui.closeChest();
   }
@@ -131,9 +140,6 @@ for (let r = 0; r < 300; r++) {
   g.ui.applyOffer(offers[Math.floor(Math.random() * offers.length)]);
 }
 
-// Fase ABERTA: um eixo passou de `unlockAt` e agora tem slot fixo com os dois
-// lados, enquanto os outros slots seguem sorteados.
-takeMs(11, "fase aberta — o eixo comprometido virou slot fixo com as duas maneiras");
 
 let body = "";
 for (const sh of shots) {
@@ -261,10 +267,11 @@ const bau = chest || {
   count: document.getElementById("chestCount").textContent,
   pips: document.getElementById("chestPips").innerHTML,
   list: document.getElementById("chestList").innerHTML,
+  w: document.getElementById("chest").style.getPropertyValue("--bau-w") || "640px",
 };
 shell("chestList"); shell("chestPips");   // confere que os ids nao sumiram
 frame("baú · a escada de raridade sem matiz novo", "tela-bau",
-  `<div class="bau-col">
+  `<div class="bau-col" style="--bau-w:${bau.w}">
     <div class="bau-head"><span class="bau-selo ch1"></span><h2 class="display-l">Baú do Dreadlord</h2></div>
     <div class="bau-rar"><span class="rotulo">${bau.rarity}</span>
       <span class="rar-pips">${bau.pips}</span>

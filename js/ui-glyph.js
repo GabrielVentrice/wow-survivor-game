@@ -155,10 +155,16 @@ const Glyph = {
     const chave = id + "@" + s;
     let out = this._cache.get(chave);
     if (out !== undefined) return out;
+    /* Ordem: a grade PROPRIA da peca, depois a grade do demonio que ela
+       invoca, e so entao a primitiva. A primitiva e fallback — quando ela
+       virou o acervo inteiro, nove pecas na tira do HUD deram quatro marcas
+       distintas e duas pecas diferentes caiam na mesma forma. */
     const spr = GLIFO_SPRITE[id];
-    out = spr && typeof SPRITE_DATA !== "undefined" && SPRITE_DATA[spr]
-      ? this._sprite(SPRITE_DATA[spr], s)
-      : this._prim(this.primitivaDe(id), s);
+    out = typeof UI_ICONS !== "undefined" && UI_ICONS[id]
+      ? this._sprite({ rows: UI_ICONS[id] }, s)
+      : spr && typeof SPRITE_DATA !== "undefined" && SPRITE_DATA[spr]
+        ? this._sprite(SPRITE_DATA[spr], s)
+        : this._prim(this.primitivaDe(id), s);
     this._cache.set(chave, out);
     return out;
   },
@@ -172,6 +178,15 @@ const Glyph = {
     let h = 0;
     for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
     return PRIMITIVA_ORDEM[Math.abs(h) % PRIMITIVA_ORDEM.length];
+  },
+
+  /* Quem ainda nao tem desenho proprio. O contact sheet (`icons.html`) usa
+     isto para listar o que falta: primitiva sem dono e divida, nao acervo. */
+  temDesenho(id) {
+    if (typeof UI_ICONS !== "undefined" && UI_ICONS[id]) return "grade";
+    const spr = GLIFO_SPRITE[id];
+    if (spr && typeof SPRITE_DATA !== "undefined" && SPRITE_DATA[spr]) return "sprite";
+    return null;
   },
 
   _prim(nome, s) {

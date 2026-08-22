@@ -184,9 +184,15 @@ class UI {
       if (n >= STRIP.hud) break;
       n++;
       const d = inst.def;
+      /* Os pips contam o caminho MAIS FUNDO, os cinco degraus, como em toda
+         outra tela. Antes eram tres — um por caminho, aceso acima do tier
+         gratuito —, e isso responde "tem caminho investido?" quando a pergunta
+         que a tira faz e "quao fundo esta a minha build?". */
+      let top = 0;
+      for (const pid in inst.paths) if (inst.paths[pid] > top) top = inst.paths[pid];
       let pips = "";
-      for (const pid in inst.paths) {
-        pips += `<i class="${inst.paths[pid] > PATH_RULES.freeTier ? "on" : ""}"></i>`;
+      for (let i = 0; i < PATH_RULES.tiers; i++) {
+        pips += `<i class="${i < top ? "on" : ""}"></i>`;
       }
       /* Spell CONCLUIDA: ela e a unica que ganha adorno em volta do warlock, e
          a tira precisa dizer QUAL esta ardendo la. Uma linha na cor do eixo no
@@ -908,6 +914,12 @@ class UI {
     g.addShake(rarity.shake);
 
     const luz = results.length >= 5 ? "r5" : results.length >= 3 ? "r3" : "r1";
+    /* Bau comum entrega UMA linha; a 640px o botao de continuar virava o
+       elemento mais largo e mais pesado de uma tela quase vazia. A coluna
+       estreita junto com o premio, entao a proporcao entre o que caiu e o que
+       se faz com isso continua a mesma nas tres raridades. */
+    this.el.chest.style.setProperty("--bau-w",
+      results.length >= 5 ? "640px" : results.length >= 3 ? "560px" : "480px");
     this.el.chestList.innerHTML = results.length
       ? results.map((r) => `<div class="chest-row ${luz}" style="${this.eixoVars(r.def.axis)}">
           <span class="bau-ic">${Glyph.svg(r.def.id, 28)}</span>
@@ -1012,20 +1024,8 @@ class UI {
     if (!rows.length) dmg = `<div class="pa-vazio">Nada causou dano ainda.</div>`;
 
     dmg += `<div class="painel-div"></div>`;
-    const caps = [];
-    for (const id of b.capstones) caps.push(CAPSTONES[id].name);
     const prox = this.nearestCapstone();
-    /* Uma linha, e ela diz em que FORMA o warlock esta. Ela ja foi a escada
-       inteira, e a escada deixou de existir: com uma forma por capstone as dez
-       sao irmas e nao degraus, entao listar as outras nove seria listar rotas
-       que esta run nao tomou. Quanto falta para a proxima e o que a linha
-       "Proximo" logo abaixo ja responde, e ela responde melhor — pelo capstone,
-       que e o que o jogador de fato persegue. */
-    const f = g.player.forms[g.player.formIdx];
-    dmg += `<div class="pa-linha"><span>Metamorfose</span><b>${
-      f && f.name ? f.name : "nenhuma"}</b></div>`;
-    dmg += `<div class="pa-linha"><span>Capstones</span><b>${
-      caps.length ? caps.join(" · ") : "nenhum"}</b></div>`;
+    dmg += this.marcosHtml();
     dmg += `<div class="pa-linha"><span>Próximo</span><b>${
       prox ? (prox.missing
         ? `${prox.cap.name} a ${prox.gaps.map((x) => `${x.need} de ${x.axis.name}`).join(" e ")}`
@@ -1038,6 +1038,26 @@ class UI {
   }
 
   hidePause() { this.el.pause.classList.add("hidden"); }
+
+  /* Metamorfose e capstones em duas linhas — ou uma so, quando a segunda
+     repetiria a primeira.
+
+     Desde que cada capstone ganhou a SUA forma, o nome da forma e o nome do
+     capstone sao a mesma palavra: um game over de Colheita mostrava
+     "Metamorfose: Colheita" e "Capstones: Colheita" empilhados, e duas linhas
+     dizendo a mesma coisa leem como bug de dado, nao como reforco. A linha da
+     forma so aparece quando ela ACRESCENTA: e o caso do Iniciado, que vem de
+     spell concluida e nao de capstone, e o de quem nao fechou capstone nenhum. */
+  marcosHtml() {
+    const g = this.game, b = g.build;
+    const f = g.player.forms[g.player.formIdx];
+    const caps = [];
+    for (const id of b.capstones) caps.push(CAPSTONES[id].name);
+    const linha = (rot, val) => `<div class="pa-linha"><span>${rot}</span><b>${val}</b></div>`;
+    const repete = f && f.name && caps.includes(f.name);
+    return (repete ? "" : linha("Metamorfose", f && f.name ? f.name : "nenhuma")) +
+      linha("Capstones", caps.length ? caps.join(" · ") : "nenhum");
+  }
 
   /* Dano por peca, ordenado. Peca com 0 de dano NAO aparece: linha zerada numa
      lista ordenada por dano so ocupa o lugar de quem tem o que dizer. */
@@ -1098,14 +1118,9 @@ class UI {
 
     this.el.goLine.textContent = this.runLine(rows, total);
 
-    const f = g.player.forms[g.player.formIdx];
-    const caps = [];
-    for (const id of b.capstones) caps.push(CAPSTONES[id].name);
     let auras = 0;
     for (const inst of b.pieces.values()) if (b.isComplete(inst)) auras++;
-    this.el.goExtra.innerHTML =
-      `<div class="pa-linha"><span>Metamorfose</span><b>${f && f.name ? f.name : "nenhuma"}</b></div>` +
-      `<div class="pa-linha"><span>Capstones</span><b>${caps.length ? caps.join(" · ") : "nenhum"}</b></div>` +
+    this.el.goExtra.innerHTML = this.marcosHtml() +
       `<div class="pa-linha"><span>Auras acesas</span><b>${auras}</b></div>`;
 
     this.el.gameover.classList.remove("hidden");

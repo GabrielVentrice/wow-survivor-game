@@ -29,6 +29,7 @@ DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homin
 DRIVER=driver_preview.js node tools/harness.js . # escreve tools/telas-preview.html: as 6 telas de UI (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
+PAGE=icons.html   DRIVER=driver_gallery.js node tools/harness.js .  # folha de contato dos ícones: idem
 DRIVER=driver_balance.js node tools/harness.js . 5 16   # balanceamento (5 runs x 4 políticas)
 DRIVER=driver_perf.js node tools/harness.js . 12        # custo de frame com a horda no teto
 ```
