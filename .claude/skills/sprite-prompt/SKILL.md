@@ -53,6 +53,21 @@ criatura é:
 
 Um acento, no máximo dois. O prompt já cobra o teto de 14% dos pixels.
 
+**`--prop` — e o default é NÃO ter.** Sem a flag o prompt proíbe qualquer objeto
+na mão, e isso é de propósito: um adereço comprido é a coisa que mais estraga
+uma referência. A pá do ghoul veio segurada na horizontal, atravessando o dobro
+da largura do corpo — no tamanho final ela vira **uma barra**, e ainda empurra o
+corpo para fora do centro do enquadramento.
+
+Só passe `--prop` quando o objeto for a identidade da criatura (o machado do
+felguard, o cajado do conjurador), e saiba que o prompt vai exigir que ele seja
+segurado **na vertical, colado ao corpo**. Nenhuma outra orientação sobrevive:
+a 14 colunas, qualquer coisa atravessada some dentro de si mesma.
+
+Se o adereço é característico mas não cabe na vertical, a decisão certa é
+**deixar ele fora do prompt** e resolver na descrição — "gravedigger", "ghoul de
+cemitério" — em vez de gerar uma imagem que vai ser recortada depois.
+
 **`--ink`** pela temperatura do corpo: `cold` para void/steel/azul, `warm`
 para rot/meat/emb/gold/stone, `deep` para vio e para corpo de material misto.
 
@@ -78,6 +93,27 @@ A outra regra: **ameaça se lê como tamanho antes de se ler como cor.** Nenhuma
 criatura pode ser maior que um chefe. Em progressão de formas (aprendiz →
 corrompido → demônio), cada degrau é uma linha ou duas a mais.
 
+**Sprite que já existe tem a ALTURA trancada.** Trocar a arte de uma criatura do
+elenco não é escolher grade nova: o número de linhas está amarrado ao `art`
+(`ENEMIES`) ou ao `scale` (`MINIONS`), e mudar isso muda o tuning. Confira antes
+de decidir:
+
+```bash
+grep -n -A3 '<id>:' js/balance.js            # art atual
+awk '/^  <id>: \{/,/^  \},$/' js/sprites.js  # quantas linhas a grade tem hoje
+```
+
+Mantenha as linhas e a substituição sai com zero mudança de balanceamento. A
+**largura é livre** — ela não entra na conta do degrau, então dá para alargar a
+grade sem mexer em número nenhum.
+
+**Dois pixels é o piso de qualquer coisa que precise ser lida como massa.** O
+prompt já cobra isso do modelo, mas vale na hora de escolher a criatura: chifre,
+presa, cauda, garra e antena desenhados com um pixel de espessura leem como
+*linha*, não como parte do corpo. O ghoul passou uma rodada inteira parecendo
+inseto por causa disso. Se a criatura só se distingue por um apêndice fino, ela
+não se distingue neste tamanho — escolha outra assinatura.
+
 ## 3. Sobre fatia repetida
 
 `CLAUDE.md` diz que a fatia é a identidade — mas hoje quase toda família já tem
@@ -96,7 +132,8 @@ couber em nenhuma família — e avise que isso mexe na `PAL` e passa por
 python3 tools/make_sprite_prompt.py --silhouette --name "<em inglês>" --grid <WxH> \
     --view <front|side> [--vary "o que varia entre as seis"]
 python3 tools/make_sprite_prompt.py --name "<em inglês>" --grid <WxH> --view <front|side> \
-    --ramp <tok> --ink <cold|deep|warm> [--second <tok>] [--accent <tok> ...] [--living]
+    --ramp <tok> --ink <cold|deep|warm> [--second <tok>] [--accent <tok> ...] \
+    [--living] [--prop "<objeto na mão>"]
 ```
 
 **`--living`** sempre que a criatura estiver viva: sem ele o script descreve

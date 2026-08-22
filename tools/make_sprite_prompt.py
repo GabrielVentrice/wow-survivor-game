@@ -57,6 +57,9 @@ def main():
     ap.add_argument("--materials", type=int, default=4, help="distinct materials allowed")
     ap.add_argument("--living", action="store_true",
                     help="a criatura esta VIVA: renomeia os materiais que descrevem cadaver")
+    ap.add_argument("--prop", default=None, metavar="TEXT",
+                    help="objeto na mao (arma, ferramenta, cajado). SEM isto o prompt "
+                         "proibe qualquer objeto — adereco comprido e decisao explicita")
     ap.add_argument("--vary", default=None,
                     help="o que deve variar entre as silhuetas (default: contorno generico)")
     ap.add_argument("--silhouette", action="store_true", help="emit the step-0 silhouette prompt")
@@ -64,6 +67,18 @@ def main():
 
     pal = palette()
     W, H = (int(v) for v in a.grid.lower().split("x"))
+    # Two art pixels is the floor for anything meant to read as a mass. Below it
+    # the feature lands on one cell and the eye calls it a line — a 1px horn is
+    # an antenna, and no colour fixes that.
+    thin = round(200.0 / H)
+    if a.prop:
+        prop_txt = (f"\nHELD PROP: {a.prop}. It is held VERTICALLY, close to the body, its\n"
+                    "length running parallel to the torso, and it stays inside the body's\n"
+                    "silhouette box. Held across the body it becomes one horizontal bar at this\n"
+                    "size and takes the whole sprite with it.")
+    else:
+        prop_txt = ("\nThe character holds NOTHING: no weapon, no tool, no staff, no banner, no\n"
+                    "chain, no lantern. Empty hands, clearly drawn.")
     def slice3(tok, what):
         """Three consecutive steps of one ramp. The slice IS the identity: two
         creatures of the same material differ by which three they take."""
@@ -118,6 +133,7 @@ labels, numbers, borders, frames, watermark, cropped limbs.""")
         fam2, steps2 = slice3(a.second, "--second")
         ramp_txt += "\n" + "\n".join(f"  {t:<8} {pal[t]}   {LABEL[i]} of the {name_of(fam2)}"
                                       for i, t in enumerate(steps2))
+    no_prop = "" if a.prop else "\nALSO FORBIDDEN: any held object, weapon, tool or accessory."
     acc_txt = "\n".join(f"  {t:<8} {pal[t]}   accent — eyes / runes / fire ONLY, never a body surface"
                         for t in a.accent) or "  (none — this creature has no glowing part)"
 
@@ -132,10 +148,15 @@ No perspective, no foreshortening, no tilt, no dynamic angle. One single figure.
 
 POSE: neutral idle, standing, weight even, arms readable and clear of the torso
 so the silhouette does not merge. Feet flat on an implied ground line.
+{prop_txt}
 
 PROPORTION: chunky and exaggerated — head roughly one third of total height,
-hands, horns and weapon oversized. Everything that must read has to survive
-being shrunk to {H} pixels tall. Fine detail is worse than no detail.
+hands and horns oversized. Everything that must read has to survive being
+shrunk to {H} pixels tall. Fine detail is worse than no detail.
+NOTHING that must read may be thinner than {thin}% of the figure's height: that
+is the two pixels it gets once this drawing is reduced to {H} rows. A horn, a
+tusk, a claw or a tail drawn as a LINE comes back as an antenna. Draw them as
+masses with real width.
 
 RENDERING — this is the part that matters most:
 - Flat cel shading with EXACTLY THREE values per material: shadow, base, light.
@@ -162,13 +183,14 @@ figure glows, it is wrong.
 BACKGROUND: flat solid #FF00FF and nothing else. No floor, no ground shadow, no
 horizon, no vignette, no scenery, no props the character is not holding.
 
-FRAMING: full body, centred, even margin on all four sides, roughly {W}:{H}
-aspect ratio. Nothing cropped.
+FRAMING: the BODY fills the frame. Full body, centred, even margin on all four
+sides, and it is the body itself — not the body plus anything it holds — that
+sits in a {W}:{H} box. Nothing cropped, and nothing reaching outside that box.
 
 FORBIDDEN: glow, bloom, light rays, lens flare, particles, sparks, embers,
 smoke, dust, motion blur, depth of field, drop shadow, reflection, ambient
 occlusion, film grain, chromatic aberration, text, labels, watermark,
-signature, border, frame, multiple views, turnaround sheet, colour swatches.""")
+signature, border, frame, multiple views, turnaround sheet, colour swatches.{no_prop}""")
 
 
 if __name__ == "__main__":

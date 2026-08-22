@@ -106,7 +106,12 @@ def main():
                         line[base + dx * 3: base + dx * 3 + 3] = v
 
     png(a.out, W, H, px)
+    # The source path is printed on purpose: this script resolves js/sprites.js
+    # from its own location, so running the copy in the main clone while editing
+    # a worktree renders the OLD art and says nothing. That is a silent wrong
+    # answer, and it cost a round.
     print(f"{a.out}  {W}x{H}  {len(sprites)} sprites: {', '.join(n for n, _, _ in sprites)}")
+    print(f"        lido de {os.path.join(ROOT, 'js', 'sprites.js')}")
 
 
 if __name__ == "__main__":
