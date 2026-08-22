@@ -12,21 +12,21 @@ Object.assign(CAPSTONES, {
   /* --- puros (15 pontos) -------------------------------------------------- */
 
   colheita: {
-    id: "colheita", name: "Colheita", icon: "🌾", color: "#7fdc4a",
+    id: "colheita", name: "Colheita", icon: "🌾", color: "#a8f05c",
     axis: "corruption", req: { corruption: 15 },
     desc: "Inimigo com 3+ DoTs que morre espalha TODOS eles aos vizinhos, com duração cheia.",
     on: { enemy_killed: "colheita" },
   },
 
   tirania: {
-    id: "tirania", name: "Tirania", icon: "👑", color: "#ff8a3c",
+    id: "tirania", name: "Tirania", icon: "👑", color: "#c07aff",
     axis: "dominion", req: { dominion: 15 },
     desc: "Todos os demônios ficam permanentes. Em troca, você não recebe mais cura externa.",
     global: { minionPermanent: true, noExternalHeal: true },
   },
 
   nihilam: {
-    id: "nihilam", name: "Nihilam", icon: "💀", color: "#ff4040",
+    id: "nihilam", name: "Nihilam", icon: "💀", color: "#ffb54a",
     axis: "cataclysm", req: { cataclysm: 15 },
     desc: "Seu maior golpe sempre crita e ignora resistência. Em troca, todos os cooldowns ficam 30% mais lentos.",
     global: { bigHitCrit: true, cooldownMul: 1.3 },
@@ -35,14 +35,14 @@ Object.assign(CAPSTONES, {
   /* --- hibridos (10 + 5) -------------------------------------------------- */
 
   ceifador: {
-    id: "ceifador", name: "Ceifador", icon: "⚰", color: "#9adc4a",
+    id: "ceifador", name: "Ceifador", icon: "⚰", color: "#7fdc4a",
     axis: "corruption", req: { corruption: 10, dominion: 5 },
     desc: "Todo DoT que expira naturalmente invoca um imp.",
     on: { dot_expired: "ceifador" },
   },
 
   chamador: {
-    id: "chamador", name: "Chamador", icon: "🔔", color: "#ff7a2c",
+    id: "chamador", name: "Chamador", icon: "🔔", color: "#ff8a3c",
     axis: "cataclysm", req: { cataclysm: 10, corruption: 5 },
     desc: "Immolate empilha até 8 vezes e detona em área ao expirar.",
     match: { key: "immolate" },
@@ -51,21 +51,21 @@ Object.assign(CAPSTONES, {
   },
 
   diabolista: {
-    id: "diabolista", name: "Diabolista", icon: "📜", color: "#ffd24a",
+    id: "diabolista", name: "Diabolista", icon: "📜", color: "#9a4cff",
     axis: "dominion", req: { dominion: 10, cataclysm: 5 },
     desc: "Cada invocação grande copia o último golpe grande que você deu.",
     on: { minion_summoned: "diabolista" },
   },
 
   voraz: {
-    id: "voraz", name: "Voraz", icon: "🦈", color: "#c850ff",
+    id: "voraz", name: "Voraz", icon: "🦈", color: "#7fdc4a",
     axis: "corruption", req: { corruption: 10, cataclysm: 5 },
     desc: "Um golpe grande consome todos os DoTs do alvo e cobra o dano restante de uma vez.",
     on: { big_hit: "voraz" },
   },
 
   enxame: {
-    id: "enxame", name: "Enxame", icon: "🐝", color: "#ff8a3c",
+    id: "enxame", name: "Enxame", icon: "🐝", color: "#9a4cff",
     axis: "dominion", req: { dominion: 10, corruption: 5 },
     desc: "Seus demônios aplicam os seus DoTs sempre que acertam.",
     on: { minion_hit: "enxame" },

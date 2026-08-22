@@ -21,8 +21,8 @@ Object.assign(PIECES, {
     tags: ["shadow", "dot"], vfx: "rot",
     desc: "Apodrece o alvo mais próximo. Dano que não pede mira nem posição.",
     stats: {
-      cooldown: 1.5, range: 420, targets: 1,
-      dps: 8, duration: 6, tickInterval: 0.6, radius: 0,
+      cooldown: 1.2, range: 440, targets: 1,
+      dps: 14, duration: 6, tickInterval: 0.5, radius: 0,
     },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
@@ -66,17 +66,17 @@ Object.assign(PIECES, {
 
   agony: {
     id: "agony", key: "agony", name: "Agony",
-    icon: "◎", color: "#9a4cff", axis: "corruption", axisPoints: 2,
+    icon: "◎", color: "#4a9e2e", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "dot"], vfx: "sigil",
     desc: "Dor que cresce. Quanto mais tempo o alvo vive, mais caro fica.",
     stats: {
       cooldown: 2.4, range: 400, targets: 1,
-      dps: 5, duration: 12, tickInterval: 0.9, ramp: 0.14, stacks: 3, radius: 0,
+      dps: 9, duration: 12, tickInterval: 0.7, ramp: 0.34, stacks: 3, radius: 0,
     },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
       { type: "damage_over_time", key: "agony", dps: "@dps", duration: "@duration",
-        tickInterval: "@tickInterval", ramp: "@ramp", color: "#9a4cff", radius: "@radius",
+        tickInterval: "@tickInterval", ramp: "@ramp", color: "#4a9e2e", radius: "@radius",
         stacking: { mode: "stack", max: "@stacks" } },
     ],
     paths: {
@@ -109,7 +109,7 @@ Object.assign(PIECES, {
 
   unstableAffliction: {
     id: "unstableAffliction", key: "unstableAffliction", name: "Unstable Affliction",
-    icon: "💥", color: "#c850ff", axis: "corruption", axisPoints: 2,
+    icon: "💥", color: "#a8f05c", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "dot"],
     desc: "Magia instável: o dano de verdade vem quando ela termina.",
     stats: {
@@ -120,7 +120,7 @@ Object.assign(PIECES, {
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
       { type: "damage_over_time", key: "unstableAffliction", dps: "@dps", duration: "@duration",
-        tickInterval: "@tickInterval", color: "#c850ff", radius: "@radius",
+        tickInterval: "@tickInterval", color: "#a8f05c", radius: "@radius",
         stacking: { mode: "refresh", max: 1 },
         onExpire: [{ type: "damage_instant", amount: "@blast", radius: "@blastRadius", big: true }] },
     ],
@@ -202,7 +202,7 @@ Object.assign(PIECES, {
 
   haunt: {
     id: "haunt", key: "haunt", name: "Haunt",
-    icon: "👁", color: "#c850ff", axis: "corruption", axisPoints: 2,
+    icon: "👁", color: "#a8f05c", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "summon"],
     desc: "Um olho do Vazio persegue alvos e marca quem ele toca: tudo dói mais neles.",
     stats: { count: 1, respawn: 5, damage: 12, amp: 0.3, markTime: 5, duration: 12, range: 440 },
@@ -232,7 +232,7 @@ Object.assign(PIECES, {
       wither: { name: "Definhar", tiers: [
         T("Toque Podre", "O olho também aplica um DoT.", null,
           { "effects.0.onHit.1": { type: "damage_over_time", key: "haunt", dps: "@damage*0.4",
-                                   duration: 5, tickInterval: 0.6, color: "#c850ff" } }),
+                                   duration: 5, tickInterval: 0.6, color: "#a8f05c" } }),
         T("Corrosão", "+70% no DoT do olho.", { damage: { mul: 1.7 } }),
         T("Lentidão", "Alvos marcados ficam 35% mais lentos.", null,
           { "effects.0.onHit.2": { type: "slow", factor: 0.65, duration: "@markTime" } }),
@@ -244,11 +244,11 @@ Object.assign(PIECES, {
 
   maleficRapture: {
     id: "maleficRapture", key: "maleficRapture", name: "Malefic Rapture",
-    icon: "✷", color: "#a06bff", axis: "corruption", axisPoints: 2,
+    icon: "✷", color: "#a8f05c", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "rooted"],
     desc: "Fique parado e cobre a conta: pulsa em TODOS que carregam um DoT seu.",
     requires: { tag: "dot" },
-    stats: { chargeTime: 1.4, damage: 26, radius: 320 },
+    stats: { chargeTime: 1.1, damage: 58, radius: 340 },
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: 0 },
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius", onlyDotted: true, big: true },
@@ -288,16 +288,16 @@ Object.assign(PIECES, {
 
   vileTaint: {
     id: "vileTaint", key: "corruption", name: "Vile Taint",
-    icon: "🟢", color: "#6fdc4a", axis: "corruption", axisPoints: 0,
+    icon: "🟢", color: "#a8f05c", axis: "corruption", axisPoints: 0,
     tags: ["shadow", "dot", "trail"], evolutionOnly: true, vfx: "rot",
     desc: "A corrupção sai dos seus pés. Andar vira a arma.",
     stats: { distance: 60, radius: 88, dps: 26, duration: 5, tickInterval: 0.35, dotDps: 12, dotTime: 6 },
     trigger: { type: "trail", distance: "@distance" },
     effects: [
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
-        tickInterval: "@tickInterval", color: "#6fdc4a",
+        tickInterval: "@tickInterval", color: "#a8f05c",
         onTick: [{ type: "damage_over_time", key: "corruption", dps: "@dotDps",
-                   duration: "@dotTime", tickInterval: 0.6, color: "#7fdc4a" }] },
+                   duration: "@dotTime", tickInterval: 0.6, color: "#a8f05c" }] },
     ],
     paths: {
       virulence: { name: "Virulência", tiers: [
@@ -329,7 +329,7 @@ Object.assign(PIECES, {
 
   soulRot: {
     id: "soulRot", key: "drainLife", name: "Soul Rot",
-    icon: "🕳", color: "#c850ff", axis: "corruption", axisPoints: 0,
+    icon: "🕳", color: "#a8f05c", axis: "corruption", axisPoints: 0,
     tags: ["shadow", "dot", "aura", "heal"], evolutionOnly: true, vfx: "blood",
     desc: "Uma aura que apodrece tudo por perto e devolve a podridão como vida.",
     stats: { interval: 0.4, radius: 190, damage: 16, heal: 0.22, dotDps: 10, dotTime: 5 },
@@ -339,7 +339,7 @@ Object.assign(PIECES, {
         onHit: [
           { type: "heal", frac: "@heal" },
           { type: "damage_over_time", key: "soulRot", dps: "@dotDps", duration: "@dotTime",
-            tickInterval: 0.6, color: "#c850ff" },
+            tickInterval: 0.6, color: "#a8f05c" },
         ] },
     ],
     paths: {

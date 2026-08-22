@@ -24,7 +24,7 @@ browser.
 
 O driver padrão também valida o registry antes de simular: tiers faltando,
 efeito ou hook inexistente, `key` que muda na evolução, mod em stat que não
-existe, `requires` apontando para nada.
+existe, `requires` apontando para nada e cor fora da paleta do eixo.
 
 Onde a condição do teste é específica demais para sair de uma simulação
 aleatória — Colheita precisa de um inimigo com 3+ DoTs *morrendo*, Contágio

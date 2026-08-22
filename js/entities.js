@@ -128,24 +128,36 @@ class Player {
     p.x = sx; p.y = sy; p.r = r; p.t = t;
     p.spr = spr; p.drawH = drawH; p.anim = anim; p.flip = this.facing < 0;
 
+    // Luz no chao, nao neblina em cima dele: o halo antigo era um disco
+    // centrado no proprio corpo e lavava o sprite por dentro. Achatado aos pes
+    // ele faz a mesma coisa — dizer que o warlock esta aceso — sem cobrir a
+    // unica coisa que o jogador precisa achar na tela.
     const auraOn = !!form.aura;
     const boost = auraOn ? auraCount : 0;
-    const auraR = r * (2.2 + boost * 0.12);
-    const aura = ctx.createRadialGradient(sx, sy, r * 0.4, sx, sy, auraR);
-    aura.addColorStop(0, `rgba(122,60,255,${0.3 + boost * 0.04})`);
+    const auraR = r * (2.4 + boost * 0.12);
+    const aura = ctx.createRadialGradient(sx, sy + r * 0.7, r * 0.3, sx, sy + r * 0.7, auraR);
+    aura.addColorStop(0, `rgba(122,60,255,${(0.26 + boost * 0.03).toFixed(3)})`);
     aura.addColorStop(1, "rgba(122,60,255,0)");
+    ctx.save();
+    ctx.translate(sx, sy + r * 0.7);
+    ctx.scale(1, 0.46);
+    ctx.translate(-sx, -(sy + r * 0.7));
     ctx.fillStyle = aura;
-    ctx.beginPath(); ctx.arc(sx, sy, auraR, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy + r * 0.7, auraR, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
 
-    // halo aditivo na cor de cada vfx ativo, respirando fora de fase
+    // Halo aditivo na cor de cada vfx ativo, respirando fora de fase. O brilho
+    // e dividido pelo numero de pecas: seis halos com a alpha de um viram uma
+    // bola branca, e ai a build inteira custa a leitura do personagem.
     if (auraOn && fx.length) {
+      const share = 1 / Math.sqrt(fx.length);
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
       for (let i = 0; i < fx.length; i++) {
         const k = 0.5 + Math.sin(t * 2 + i * 1.7) * 0.5;
         const hr = r * (1.7 + i * 0.16 + k * 0.25);
         const g = ctx.createRadialGradient(sx, sy, r * 0.5, sx, sy, hr);
-        g.addColorStop(0, `rgba(${fx[i].rgb},${(0.05 + k * 0.07).toFixed(3)})`);
+        g.addColorStop(0, `rgba(${fx[i].rgb},${((0.04 + k * 0.05) * share).toFixed(3)})`);
         g.addColorStop(1, `rgba(${fx[i].rgb},0)`);
         ctx.fillStyle = g;
         ctx.beginPath(); ctx.arc(sx, sy, hr, 0, Math.PI * 2); ctx.fill();
@@ -165,22 +177,25 @@ class Player {
     }
 
     for (let i = 0; i < fx.length; i++) {
-      p.lvl = fx[i].lvl;
+      p.lvl = fx[i].lvl; p.color = fx[i].color; p.rgb = fx[i].rgb;
       fx[i].under?.(ctx, p);
     }
 
     drawShadow(ctx, sx, sy, r);
+    drawSpriteRim(ctx, spr, sx, sy, drawH, this.facing < 0, anim, "#05020a", 0.9);
     drawSprite(ctx, spr, sx, sy, drawH, this.facing < 0, 0, anim);
 
+    // O brilho da build passa por cima do sprite, entao ele e o primeiro a
+    // apagar a arte: fica so como respiro de cor, nao como fonte de luz.
     if (auraOn && fx.length) {
       const c = fx[Math.floor(t / 2.4) % fx.length];
       const k = (Math.sin(t * 3) + 1) * 0.5;
       drawSpriteGlow(ctx, spr, sx, sy, drawH, this.facing < 0, anim,
-        c.color, 0.16 + k * 0.2);
+        c.color, 0.06 + k * 0.08);
     }
 
     for (let i = 0; i < fx.length; i++) {
-      p.lvl = fx[i].lvl;
+      p.lvl = fx[i].lvl; p.color = fx[i].color; p.rgb = fx[i].rgb;
       fx[i].over?.(ctx, p);
     }
 
@@ -303,15 +318,21 @@ class Enemy {
     const w = r * (1.25 + pulse * 0.3);
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = fade * (0.24 + pulse * 0.22);
+    ctx.globalAlpha = fade * (0.14 + pulse * 0.14);
     ctx.drawImage(glowBlob(col), sx - w, sy + r * 0.5 - w * 0.45, w * 2, w * 0.9);
     ctx.restore();
+
+    // O anel girando so aparece em quem carrega 3+ DoTs. Em um inimigo ele e
+    // charme; em cinquenta ele e um tapete verde girando por baixo da horda, e
+    // o jogador perde de vista onde termina um bicho e comeca o outro. Com o
+    // corte ele deixa de ser enfeite e vira informacao: ali esta o alvo maduro.
+    if (this.dots.length < 3) return;
 
     ctx.save();
     ctx.translate(sx, sy + r * 0.95);
     ctx.scale(1, 0.4);
     ctx.rotate(-t * 1.1);
-    ctx.strokeStyle = `rgba(${hexRgb(col)},${(fade * (0.5 + pulse * 0.4)).toFixed(2)})`;
+    ctx.strokeStyle = `rgba(${hexRgb(col)},${(fade * (0.3 + pulse * 0.3)).toFixed(2)})`;
     ctx.lineWidth = 1.4 + pulse;
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI * 2;
@@ -323,13 +344,13 @@ class Enemy {
   }
   // podridao sobre o inimigo: um orbe por DoT empilhado
   drawDotOver(ctx, sx, sy, r, spr, anim) {
-    const n = Math.min(6, this.dots.length);
+    const n = Math.min(3, this.dots.length);
     const fade = Math.min(1, n * 0.6);
     const pulse = this.dotPulse, t = this.dotAnim, col = this.dotColor;
 
     if (spr) {
       drawSpriteGlow(ctx, spr, sx, sy, r * 2.7, this.facing < 0, anim,
-        col, fade * (0.05 + pulse * 0.09));
+        col, fade * (0.03 + pulse * 0.05));
     }
 
     ctx.save();
@@ -342,9 +363,9 @@ class Enemy {
       const px = sx + Math.cos(a) * r * 1.5;
       const py = sy - r * 0.1 + Math.sin(a) * r * 0.55;
       const w = r * 0.32 * depth * (1 + pulse * 0.3);
-      ctx.globalAlpha = fade * 0.5 * depth;
+      ctx.globalAlpha = fade * 0.3 * depth;
       ctx.drawImage(blob, px - w, py - w, w * 2, w * 2);
-      ctx.globalAlpha = fade * 0.8 * depth;
+      ctx.globalAlpha = fade * 0.55 * depth;
       ctx.fillStyle = "#fff";
       ctx.beginPath(); ctx.arc(px, py, 1.2 * depth, 0, Math.PI * 2); ctx.fill();
     }
@@ -352,7 +373,7 @@ class Enemy {
 
     if (pulse > 0) {
       const k = 1 - pulse;
-      ctx.strokeStyle = `rgba(${hexRgb(col)},${(fade * pulse * 0.78).toFixed(2)})`;
+      ctx.strokeStyle = `rgba(${hexRgb(col)},${(fade * pulse * 0.5).toFixed(2)})`;
       ctx.lineWidth = 1.6;
       ctx.beginPath();
       ctx.ellipse(sx, sy + r * 0.35, r * (1 + k * 1.7), r * (0.4 + k * 0.75),
@@ -507,15 +528,22 @@ class AreaEffect {
     this.onEnd = o.onEnd || null;
     this.dead = false;
   }
+  // Zona com borda, nao mancha. O preenchimento diz "aqui queima" e por isso e
+  // fraco; quem carrega a informacao e o aro no raio exato, que o jogador le
+  // de relance para saber onde termina o dano. Neblina larga com o mesmo peso
+  // cobre o chao, esconde inimigo e ainda deixa o limite no chute.
   draw(ctx, cam) {
     const sx = this.x - cam.left, sy = this.y - cam.top;
     const a = Math.min(1, this.life / 0.4) * 0.5; // fade out no fim
     const g = ctx.createRadialGradient(sx, sy, this.radius * 0.2, sx, sy, this.radius);
-    g.addColorStop(0, `rgba(${this.rgb},${a * 0.55})`);
-    g.addColorStop(0.6, `rgba(${this.rgb},${a * 0.32})`);
+    g.addColorStop(0, `rgba(${this.rgb},${a * 0.34})`);
+    g.addColorStop(0.6, `rgba(${this.rgb},${a * 0.18})`);
     g.addColorStop(1, `rgba(${this.rgb},0)`);
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(sx, sy, this.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgba(${this.rgb},${(a * 0.6).toFixed(2)})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(sx, sy, this.radius, 0, Math.PI * 2); ctx.stroke();
   }
 }
 

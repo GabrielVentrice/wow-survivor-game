@@ -177,6 +177,12 @@ const EFFECTS = {
     game.minions.summon(e, c);
   },
 
+  /* Pure visual. Lets a piece mark a moment — a gate tearing open on arrival —
+     without inventing an effect that also changes state. */
+  vfx(game, e, c) {
+    game.emitVfx(e.kind || "burst", c.x, c.y, e.radius || 40, e.color || c.color);
+  },
+
   /* --- suporte ----------------------------------------------------------- */
 
   heal(game, e, c) {
@@ -278,11 +284,21 @@ const EFFECTS = {
     game.player.speedBoostUntil = c.now + (e.duration || 0.5);
   },
 
-  // Dano na propria vida (Burning Rush). Passa por `_selfDamage` para nao
-  // acionar os reativos de "tomei dano" — queimar-se nao e levar porrada.
+  /* Dano na propria vida (Burning Rush). Nao aciona os reativos de "tomei
+     dano": queimar-se nao e levar porrada.
+
+     NUNCA mata. Sem input manual o jogador nao tem como desligar um dreno
+     permanente, entao dreno letal transforma a peca em carta-armadilha —
+     medido, ela sozinha respondia por 4 de cada 5 mortes antes dos 3 minutos.
+     Com o piso, o custo vira "voce vive com pouca vida e fragil", que e
+     tensao de verdade em vez de uma escolha que perde a run na hora. */
   self_damage(game, e, c) {
-    if (!e.amount) return;
-    game.player.hp -= e.amount;
+    const p = game.player;
+    const amt = e.frac ? p.maxHp * e.frac : (e.amount || 0);
+    if (amt <= 0) return;
+    const floor = e.floor != null ? e.floor : p.maxHp * 0.12;
+    if (p.hp <= floor) return;
+    p.hp = Math.max(floor, p.hp - amt);
   },
 
   // Desmancha projeteis hostis no raio (Nether Ward).

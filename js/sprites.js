@@ -118,6 +118,46 @@ function tintedSprite(spr, color) {
   return c;
 }
 
+/* --- Contorno -------------------------------------------------------------
+   The silhouette dilated by one art pixel, painted flat and cached per
+   sprite+color. Pixel art loses its edge the moment it stands on a lit floor
+   or inside an additive glow, and an outline is the cheapest way to give the
+   edge back without repainting a single sprite. The warlock is the one who
+   gets it: with a horde on screen, the player has to be the shape you find
+   first, and this is what makes him findable. */
+function spriteRim(spr, color) {
+  const cache = spr.rims || (spr.rims = {});
+  if (cache[color]) return cache[color];
+  const c = document.createElement("canvas");
+  c.width = spr.white.width + 2; c.height = spr.white.height + 2;
+  const x = c.getContext("2d");
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) x.drawImage(spr.white, 1 + dx, 1 + dy);
+  }
+  x.globalCompositeOperation = "source-in";
+  x.fillStyle = color;
+  x.fillRect(0, 0, c.width, c.height);
+  cache[color] = c;
+  return c;
+}
+
+// Draws that outline under the sprite, sharing drawSprite's transform so it
+// hops, squashes and flips with the character instead of sliding off it.
+function drawSpriteRim(ctx, spr, cx, cy, drawH, flip, anim, color, alpha) {
+  const rim = spriteRim(spr, color);
+  const s = drawH / spr.canvas.height;
+  const w = rim.width * s, h = rim.height * s;
+  const a = anim || NO_ANIM;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.globalAlpha = alpha;
+  ctx.translate(cx, cy + a.bob);
+  if (a.rot) ctx.rotate(a.rot);
+  ctx.scale((flip ? -1 : 1) * a.sclX, a.sclY);
+  ctx.drawImage(rim, -w / 2, -h / 2, w, h);
+  ctx.restore();
+}
+
 // Additive colored glow over the sprite, sharing drawSprite's transform.
 function drawSpriteGlow(ctx, spr, cx, cy, drawH, flip, anim, color, alpha) {
   const tint = tintedSprite(spr, color);
@@ -139,7 +179,7 @@ function drawSpriteGlow(ctx, spr, cx, cy, drawH, flip, anim, color, alpha) {
 // the half that passes in front of him (drawn after the sprite).
 function drawRotOrbit(ctx, p, front) {
   const n = 3 + Math.floor((p.lvl || 1) / 2);
-  const blob = glowBlob("#7fdc4a");
+  const blob = glowBlob(p.color);
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
   for (let i = 0; i < n; i++) {
@@ -154,7 +194,7 @@ function drawRotOrbit(ctx, p, front) {
     ctx.globalAlpha = 0.5 * depth;
     ctx.drawImage(blob, x - w, y - w, w * 2, w * 2);
     ctx.globalAlpha = 0.7 * depth;
-    ctx.fillStyle = "#b6ff7c";
+    ctx.fillStyle = paleHex(p.color, 0.45);
     ctx.beginPath(); ctx.arc(x, y, 1.5 * depth, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;

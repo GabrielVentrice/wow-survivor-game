@@ -122,12 +122,29 @@ const ENEMIES = {
 
 /* Eixos de build. Pool total de pontos e teto por eixo forcam comprometimento:
    com teto 15 e pool 20 e impossivel maximizar dois eixos. */
+/* One build is one axis, and one axis is one color family. Green, purple and
+   orange sit far apart in hue, so a screen full of effects still says which
+   build fired it. Red is out: next to orange, in motion, they read the same.
+
+   Every piece, capstone and effect color has to be one of its family's three
+   shades — `base` for the signature pieces, `light` for the loud ones (evos,
+   detonations, capstones puros), `deep` for curses and defense. The default
+   driver rejects any color outside the palette of its own axis. */
+const AXIS_PALETTE = {
+  corruption: { base: "#7fdc4a", light: "#a8f05c", deep: "#4a9e2e" },
+  dominion:   { base: "#9a4cff", light: "#c07aff", deep: "#6a28c8" },
+  cataclysm:  { base: "#ff8a3c", light: "#ffb54a", deep: "#e0521a" },
+};
+
 const AXES = {
-  corruption: { id: "corruption", name: "Corrupção", icon: "☠", color: "#7fdc4a",
+  corruption: { id: "corruption", name: "Corrupção", icon: "☠",
+                color: AXIS_PALETTE.corruption.base, palette: AXIS_PALETTE.corruption,
                 tag: "DoT, propagação, morte lenta" },
-  dominion:   { id: "dominion",   name: "Domínio",   icon: "👹", color: "#ff8a3c",
+  dominion:   { id: "dominion",   name: "Domínio",   icon: "👹",
+                color: AXIS_PALETTE.dominion.base, palette: AXIS_PALETTE.dominion,
                 tag: "Demônios, presença, exército" },
-  cataclysm:  { id: "cataclysm",  name: "Cataclismo", icon: "🔥", color: "#ff4040",
+  cataclysm:  { id: "cataclysm",  name: "Cataclismo", icon: "🔥",
+                color: AXIS_PALETTE.cataclysm.base, palette: AXIS_PALETTE.cataclysm,
                 tag: "Golpes grandes, fogo, detonação" },
 };
 

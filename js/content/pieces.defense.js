@@ -8,7 +8,7 @@ Object.assign(PIECES, {
 
   drainLife: {
     id: "drainLife", key: "drainLife", name: "Drain Life",
-    icon: "⚕", color: "#c850ff", axis: "corruption", axisPoints: 1,
+    icon: "⚕", color: "#4a9e2e", axis: "corruption", axisPoints: 1,
     tags: ["shadow", "heal", "aura"], vfx: "blood",
     desc: "Suga vida de quem está perto e devolve para você. Cura que não pede botão.",
     stats: { interval: 0.5, radius: 165, damage: 12, heal: 0.25 },
@@ -25,7 +25,7 @@ Object.assign(PIECES, {
         T("Voracidade", "Pulsa 40% mais rápido.", { interval: { mul: 0.6 } }),
         T("Hemorragia", "O dreno também aplica um DoT.", null,
           { "effects.0.onHit.1": { type: "damage_over_time", key: "drain",
-            dps: "@damage*0.5", duration: 5, tickInterval: 0.6, color: "#c850ff" } }),
+            dps: "@damage*0.5", duration: 5, tickInterval: 0.6, color: "#4a9e2e" } }),
       ]},
       reach: { name: "Alcance", tiers: [
         T("Expansão", "+30% de raio.", { radius: { mul: 1.3 } }),
@@ -49,7 +49,7 @@ Object.assign(PIECES, {
 
   soulLeech: {
     id: "soulLeech", key: "soulLeech", name: "Soul Leech",
-    icon: "🩸", color: "#ff6b6b", axis: "cataclysm", axisPoints: 1,
+    icon: "🩸", color: "#e0521a", axis: "cataclysm", axisPoints: 1,
     tags: ["shield", "reactive"],
     desc: "Todo dano que você causa vira casca. Quanto mais agressiva a build, mais grossa a armadura.",
     stats: { frac: 0.06, cap: 180, cooldown: 0.1 },
@@ -87,7 +87,7 @@ Object.assign(PIECES, {
 
   unendingResolve: {
     id: "unendingResolve", key: "unendingResolve", name: "Unending Resolve",
-    icon: "🛡", color: "#b0b0c0", axis: "dominion", axisPoints: 1,
+    icon: "🛡", color: "#6a28c8", axis: "dominion", axisPoints: 1,
     tags: ["shield", "reactive"],
     desc: "Quando a vida cai, a casca sobe. Um seguro que dispara sozinho.",
     stats: { threshold: 0.35, shield: 90, cap: 260, cooldown: 8, heal: 0 },
@@ -129,7 +129,7 @@ Object.assign(PIECES, {
 
   demonSkin: {
     id: "demonSkin", key: "demonSkin", name: "Demon Skin",
-    icon: "🦎", color: "#8a7f6a", axis: "dominion", axisPoints: 1,
+    icon: "🦎", color: "#6a28c8", axis: "dominion", axisPoints: 1,
     tags: ["shield", "aura", "summon"],
     desc: "Sua pele endurece a cada demônio vivo. Quanto maior o exército, mais grossa a casca.",
     stats: { interval: 1, shield: 12, cap: 200 },
@@ -167,7 +167,7 @@ Object.assign(PIECES, {
 
   healthstone: {
     id: "healthstone", key: "healthstone", name: "Healthstone",
-    icon: "💎", color: "#ff5a5f", axis: "cataclysm", axisPoints: 1,
+    icon: "💎", color: "#e0521a", axis: "cataclysm", axisPoints: 1,
     tags: ["heal", "reactive"],
     desc: "Uma pedra que se parte sozinha quando a coisa aperta. Você nem percebe.",
     stats: { threshold: 0.3, frac: 0.35, cooldown: 14 },
@@ -207,7 +207,7 @@ Object.assign(PIECES, {
 
   netherWard: {
     id: "netherWard", key: "netherWard", name: "Nether Ward",
-    icon: "🔰", color: "#5acfff", axis: "dominion", axisPoints: 1,
+    icon: "🔰", color: "#6a28c8", axis: "dominion", axisPoints: 1,
     tags: ["shield", "aura"],
     desc: "Um pulso que desmancha projéteis inimigos antes que eles cheguem em você.",
     stats: { interval: 1.4, radius: 150, shield: 10 },
@@ -248,7 +248,7 @@ Object.assign(PIECES, {
 
   soulstone: {
     id: "soulstone", key: "soulstone", name: "Soulstone",
-    icon: "🔮", color: "#c850ff", axis: "corruption", axisPoints: 1,
+    icon: "🔮", color: "#4a9e2e", axis: "corruption", axisPoints: 1,
     tags: ["heal", "revive"],
     desc: "Uma alma guardada. Quando você cair, ela levanta você de volta.",
     stats: { interval: 45, revives: 1 },

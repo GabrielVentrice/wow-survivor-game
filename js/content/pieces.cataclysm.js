@@ -9,7 +9,7 @@ Object.assign(PIECES, {
 
   incinerate: {
     id: "incinerate", key: "incinerate", name: "Incinerate",
-    icon: "✦", color: "#ff9a3c", axis: "cataclysm", axisPoints: 2,
+    icon: "✦", color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "bolt"], vfx: "ember",
     desc: "Tiro rápido e teimoso. O arroz com feijão do Cataclismo.",
     stats: { cooldown: 0.75, range: 520, targets: 1, damage: 22, count: 1,
@@ -18,7 +18,7 @@ Object.assign(PIECES, {
     effects: [
       { type: "projectile", damage: "@damage", speed: "@speed", count: "@count",
         radius: "@projRadius", pierce: "@pierce", life: 2.2, homing: true,
-        turnRate: 9, trail: 150, color: "#ff9a3c" },
+        turnRate: 9, trail: 150, color: "#ff8a3c" },
     ],
     paths: {
       flame: { name: "Chama", tiers: [
@@ -28,7 +28,7 @@ Object.assign(PIECES, {
         T("Fogo Contínuo", "Dispara 45% mais rápido.", { cooldown: { mul: 0.55 } }),
         T("Incineração", "Cada tiro incendeia o alvo.", null,
           { "effects.0.onHit.0": { type: "damage_over_time", key: "incinerate",
-            dps: "@damage*0.4", duration: 5, tickInterval: 0.5, color: "#ff9a3c" } }),
+            dps: "@damage*0.4", duration: 5, tickInterval: 0.5, color: "#ff8a3c" } }),
       ]},
       barrage: { name: "Barragem", tiers: [
         T("Duplo", "2 projéteis por tiro.", { count: { set: 2 } }),
@@ -52,7 +52,7 @@ Object.assign(PIECES, {
 
   immolate: {
     id: "immolate", key: "immolate", name: "Immolate",
-    icon: "🔥", color: "#ff7a2c", axis: "cataclysm", axisPoints: 2,
+    icon: "🔥", color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "dot"],
     desc: "Põe fogo no alvo. Queima devagar — até você decidir que não.",
     stats: { cooldown: 2, range: 440, targets: 1, damage: 14,
@@ -61,7 +61,7 @@ Object.assign(PIECES, {
     effects: [
       { type: "damage_instant", amount: "@damage", crit: "@crit" },
       { type: "damage_over_time", key: "immolate", dps: "@dotDps", duration: "@duration",
-        tickInterval: "@tickInterval", color: "#ff7a2c", radius: "@radius",
+        tickInterval: "@tickInterval", color: "#ff8a3c", radius: "@radius",
         stacking: { mode: "refresh", max: 1 } },
     ],
     paths: {
@@ -90,7 +90,7 @@ Object.assign(PIECES, {
         T("Quatro Alvos", "Incendeia 4 alvos.", { targets: { set: 4 } }),
         T("Rastro em Chamas", "Deixa fogo no chão a cada conjuração.", null,
           { "effects.2": { type: "area_persistent", radius: "@radius+40", dps: "@dotDps*1.2",
-                           duration: 3, tickInterval: 0.35, color: "#ff7a2c" } }),
+                           duration: 3, tickInterval: 0.35, color: "#ff8a3c" } }),
         T("Tela Inteira", "Incendeia todos os inimigos ao redor.",
           { radius: { set: 460 }, targets: { set: 1 } }),
       ]},
@@ -99,7 +99,7 @@ Object.assign(PIECES, {
 
   conflagrate: {
     id: "conflagrate", key: "conflagrate", name: "Conflagrate",
-    icon: "☄", color: "#ff4040", axis: "cataclysm", axisPoints: 2,
+    icon: "☄", color: "#ffb54a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "reactive"], vfx: "ember",
     desc: "Detona quem já está queimando. Não funciona sozinha — e é esse o ponto.",
     requires: { piece: "immolate" },
@@ -134,29 +134,31 @@ Object.assign(PIECES, {
       ashes: { name: "Cinzas", tiers: [
         T("Rescaldo", "Deixa fogo no chão onde detonou.", null,
           { "effects.3": { type: "area_persistent", radius: "@radius*0.8", dps: "@damage*0.3",
-                           duration: 3, tickInterval: 0.35, color: "#ff4040" } }),
+                           duration: 3, tickInterval: 0.35, color: "#ffb54a" } }),
         T("Fornalha", "+60% de dano da poça.", { damage: { mul: 1.6 } }),
         T("Braseiro", "A poça dura 6s.", null, { "effects.3.duration": 6 }),
         T("Sopro Quente", "A detonação empurra tudo por perto.", null,
           { "effects.4": { type: "knockback", force: 80, radius: "@radius" } }),
         T("Terra Queimada", "A poça também reaplica a queima.", null,
           { "effects.3.onTick.0": { type: "damage_over_time", key: "immolate",
-            dps: "@damage*0.15", duration: 4, tickInterval: 0.6, color: "#ff7a2c" } }),
+            dps: "@damage*0.15", duration: 4, tickInterval: 0.6, color: "#ffb54a" } }),
       ]},
     },
   },
 
   rainOfFire: {
     id: "rainOfFire", key: "rainOfFire", name: "Rain of Fire",
-    icon: "🌧", color: "#ff7a2c", axis: "cataclysm", axisPoints: 2,
+    icon: "🌧", color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "area", "rooted"], vfx: "meteor",
     desc: "Fique parado e o céu desaba onde você está. Zona de negação pura.",
-    stats: { chargeTime: 1.2, radius: 105, dps: 40, duration: 3.5,
-             tickInterval: 0.35, drops: 1, jitter: 70 },
+    // Peca `rooted` dispara muito menos que uma `auto_target`, entao cada
+    // ativacao precisa valer o tempo parado: dano por queda quase dobrado.
+    stats: { chargeTime: 1.0, radius: 125, dps: 74, duration: 4,
+             tickInterval: 0.3, drops: 2, jitter: 80 },
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: 0 },
     effects: [
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
-        tickInterval: "@tickInterval", count: "@drops", jitter: "@jitter", color: "#ff7a2c" },
+        tickInterval: "@tickInterval", count: "@drops", jitter: "@jitter", color: "#ff8a3c" },
     ],
     paths: {
       downpour: { name: "Aguaceiro", tiers: [
@@ -173,7 +175,7 @@ Object.assign(PIECES, {
         T("Terra Queimada", "+45% de raio.", { radius: { mul: 1.45 } }),
         T("Brasas", "O fogo incendeia quem pisa.", null,
           { "effects.0.onTick.0": { type: "damage_over_time", key: "rainFire",
-            dps: "@dps*0.3", duration: 4, tickInterval: 0.5, color: "#ff7a2c" } }),
+            dps: "@dps*0.3", duration: 4, tickInterval: 0.5, color: "#ff8a3c" } }),
         T("Inferno", "Tica 45% mais rápido e o raio dobra.",
           { tickInterval: { mul: 0.55 }, radius: { mul: 2 } }),
       ]},
@@ -189,7 +191,7 @@ Object.assign(PIECES, {
 
   infernal: {
     id: "infernal", key: "infernal", name: "Infernal",
-    icon: "🗿", color: "#ff4020", axis: "cataclysm", axisPoints: 3,
+    icon: "🗿", color: "#e0521a", axis: "cataclysm", axisPoints: 3,
     tags: ["fire", "summon"],
     desc: "Um colosso de pedra e fogo cai no campo e martela tudo em volta.",
     stats: { count: 1, respawn: 10, duration: 16, damage: 55, radius: 130, range: 300, attackInterval: 0.7 },
@@ -221,21 +223,21 @@ Object.assign(PIECES, {
       ash: { name: "Cinza", tiers: [
         T("Cratera", "Cada impacto deixa fogo no chão.", null,
           { "effects.0.onHit.2": { type: "area_persistent", radius: "@radius*0.7",
-            dps: "@damage*0.3", duration: 3, tickInterval: 0.35, color: "#ff4020" } }),
+            dps: "@damage*0.3", duration: 3, tickInterval: 0.35, color: "#e0521a" } }),
         T("Brasa Viva", "A cratera dura 6s.", null, { "effects.0.onHit.2.duration": 6 }),
         T("Andarilho", "O colosso passa a caminhar atrás dos alvos.", null,
           { "effects.0.ai": "chase", "effects.0.speed": 150 }),
         T("Alcance", "+50% de alcance.", { range: { mul: 1.5 } }),
         T("Terra Rachada", "A cratera incendeia quem pisa.", null,
           { "effects.0.onHit.2.onTick.0": { type: "damage_over_time", key: "infernalFire",
-            dps: "@damage*0.2", duration: 4, tickInterval: 0.5, color: "#ff4020" } }),
+            dps: "@damage*0.2", duration: 4, tickInterval: 0.5, color: "#e0521a" } }),
       ]},
     },
   },
 
   shadowburn: {
     id: "shadowburn", key: "shadowburn", name: "Shadowburn",
-    icon: "🕯", color: "#c850ff", axis: "cataclysm", axisPoints: 2,
+    icon: "🕯", color: "#ffb54a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "shadow", "reactive", "execute"],
     desc: "Encontra quem está quase morto e termina o serviço. Limpeza de campo.",
     stats: { damage: 40, threshold: 0.2, executeMul: 6, cooldown: 0.4, range: 420, radius: 0 },
@@ -278,14 +280,14 @@ Object.assign(PIECES, {
 
   burningTrail: {
     id: "burningTrail", key: "burningTrail", name: "Burning Trail",
-    icon: "👣", color: "#ff5a20", axis: "cataclysm", axisPoints: 2,
+    icon: "👣", color: "#e0521a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "trail", "area"],
     desc: "O chão pega fogo por onde você passa. Correr vira ataque.",
     stats: { distance: 70, radius: 66, dps: 34, duration: 3, tickInterval: 0.35 },
     trigger: { type: "trail", distance: "@distance" },
     effects: [
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
-        tickInterval: "@tickInterval", color: "#ff5a20" },
+        tickInterval: "@tickInterval", color: "#e0521a" },
     ],
     paths: {
       heat: { name: "Calor", tiers: [
@@ -294,7 +296,7 @@ Object.assign(PIECES, {
         T("Incandescente", "Dobra o dano.", { dps: { mul: 2 } }),
         T("Ferro em Brasa", "O fogo incendeia quem pisa.", null,
           { "effects.0.onTick.0": { type: "damage_over_time", key: "burningTrail",
-            dps: "@dps*0.35", duration: 4, tickInterval: 0.5, color: "#ff5a20" } }),
+            dps: "@dps*0.35", duration: 4, tickInterval: 0.5, color: "#e0521a" } }),
         T("Núcleo", "Triplica o dano.", { dps: { mul: 3 } }),
       ]},
       trail: { name: "Rastro", tiers: [
@@ -322,15 +324,15 @@ Object.assign(PIECES, {
 
   chaosBolt: {
     id: "chaosBolt", key: "incinerate", name: "Chaos Bolt",
-    icon: "🌠", color: "#ff4040", axis: "cataclysm", axisPoints: 0,
+    icon: "🌠", color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "bolt", "rooted"], evolutionOnly: true, vfx: "ember",
     desc: "Um só projétil. Carregado parado, atravessa a horda inteira.",
-    stats: { chargeTime: 1.1, range: 700, damage: 190, speed: 620, pierce: 20,
-             projRadius: 15, count: 1, blast: 90 },
+    stats: { chargeTime: 1.0, range: 700, damage: 330, speed: 620, pierce: 20,
+             projRadius: 15, count: 1, blast: 160 },
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: "@range", needsTarget: true },
     effects: [
       { type: "projectile", damage: "@damage", speed: "@speed", count: "@count",
-        radius: "@projRadius", pierce: "@pierce", life: 2.6, trail: 260, color: "#ff4040",
+        radius: "@projRadius", pierce: "@pierce", life: 2.6, trail: 260, color: "#ffb54a",
         onHit: [{ type: "damage_instant", amount: "@blast", radius: 80, big: true }] },
     ],
     paths: {
@@ -360,7 +362,7 @@ Object.assign(PIECES, {
 
   wither: {
     id: "wither", key: "immolate", name: "Wither",
-    icon: "🥀", color: "#9adc4a", axis: "cataclysm", axisPoints: 0,
+    icon: "🥀", color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "dot", "shadow"], evolutionOnly: true,
     desc: "A chama esfria e vira podridão: não queima, definha — e não sai mais.",
     stats: { cooldown: 1.6, range: 480, targets: 2, damage: 18,
@@ -369,7 +371,7 @@ Object.assign(PIECES, {
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius" },
       { type: "damage_over_time", key: "immolate", dps: "@dotDps", duration: "@duration",
-        tickInterval: "@tickInterval", color: "#9adc4a", radius: "@radius", removable: false,
+        tickInterval: "@tickInterval", color: "#ffb54a", radius: "@radius", removable: false,
         stacking: { mode: "stack", max: "@stacks" } },
     ],
     paths: {
@@ -403,7 +405,7 @@ Object.assign(PIECES, {
 
   cataclysm: {
     id: "cataclysm", key: "rainOfFire", name: "Cataclysm",
-    icon: "🌋", color: "#ff3010", axis: "cataclysm", axisPoints: 0,
+    icon: "🌋", color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "area", "directional"], evolutionOnly: true, vfx: "meteor",
     desc: "Um meteoro lançado na direção em que você corre. A chuva virou artilharia.",
     stats: { cooldown: 1.5, distance: 240, radius: 150, damage: 220,
@@ -412,7 +414,7 @@ Object.assign(PIECES, {
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius", big: true },
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
-        tickInterval: "@tickInterval", color: "#ff3010" },
+        tickInterval: "@tickInterval", color: "#ffb54a" },
     ],
     paths: {
       downpour: { name: "Aguaceiro", tiers: [
@@ -429,7 +431,7 @@ Object.assign(PIECES, {
         T("Fissura", "+50% de raio.", { radius: { mul: 1.5 } }),
         T("Mar de Lava", "A cratera incendeia quem pisa.", null,
           { "effects.1.onTick.0": { type: "damage_over_time", key: "cataclysm",
-            dps: "@dps*0.4", duration: 5, tickInterval: 0.5, color: "#ff3010" } }),
+            dps: "@dps*0.4", duration: 5, tickInterval: 0.5, color: "#ffb54a" } }),
       ]},
       strike: { name: "Direcional", tiers: [
         T("Alcance", "+40% de distância do lançamento.", { distance: { mul: 1.4 } }),

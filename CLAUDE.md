@@ -165,6 +165,30 @@ A ordem das chamadas em `Game.render()` **é** a ordem de profundidade.
 - O kit inicial da classe entra **de graça** (`acquirePiece(id, true)`), para o
   pool de 20 ficar inteiro para as escolhas do jogador.
 
+### Uma build, uma família de cor
+
+Cada eixo é uma família de cor, e as três ficam longe uma da outra em matiz:
+**corrupção verde, domínio roxo, cataclismo laranja**. Vermelho saiu do jogo —
+ao lado do laranja, em movimento, os dois liam igual e a tela deixava de dizer
+de qual build era o efeito.
+
+`AXIS_PALETTE` (`js/balance.js`) é a fonte única: três tons por família —
+`base` para as peças de assinatura, `light` para as barulhentas (evoluções,
+detonações, capstones puros), `deep` para maldição e defesa.
+
+- **Peça, capstone e todo `color:` dentro de efeitos** usam um tom da paleta do
+  próprio eixo. O driver padrão recusa qualquer cor fora dela, e recusa também
+  duas famílias com menos de 60° de matiz entre si.
+- **`PIECE_VFX` não escolhe cor.** Ele recebe `p.color`/`p.rgb`, que é a cor da
+  peça — é isso que faz o warlock brilhar na cor da build. Hardcodar hex num
+  vfx quebra a regra em silêncio.
+- **Hook e método do `Game` também não.** A cor sai de `c.color`, ou de
+  `CAPSTONES[id].color` / `PASSIVES[id].color` quando não há contexto.
+- Demônios (`MINIONS`) e passivas ficam fora da regra de propósito: demônio é
+  criatura, com sprite e cor próprios; passiva é global, não é build.
+
+Classe nova segue a mesma regra: as builds dela precisam ter contraste entre si.
+
 ### Áudio: agendado no relógio do AudioContext, não no do jogo
 
 Efeitos e trilha são gerados em runtime. Duas regras que não dá para violar:

@@ -34,7 +34,7 @@ const HOOKS = {
     const e = p.enemy;
     if (!e || e.hp <= 0) return;
     const c = pushCtx(game);
-    c.key = "ceifador"; c.color = "#7fdc4a"; c.now = game.clock;
+    c.key = "ceifador"; c.color = CAPSTONES.ceifador.color; c.now = game.clock;
     c.x = e.x; c.y = e.y; c.target = null;
     c.dirX = game.player.dirX; c.dirY = game.player.dirY;
     EFFECTS.summon(game, {
@@ -51,7 +51,7 @@ const HOOKS = {
     if (!d || d.key !== "immolate" || !d.enemy) return;
     const dmg = d.dps * d.stacks * 3;
     const c = pushCtx(game);
-    c.key = d.ownerKey; c.color = "#ff7a2c"; c.now = game.clock;
+    c.key = d.ownerKey; c.color = CAPSTONES.chamador.color; c.now = game.clock;
     c.x = d.enemy.x; c.y = d.enemy.y; c.target = d.enemy;
     EFFECTS.damage_instant(game, { amount: dmg, radius: 60 + d.stacks * 8, big: true }, c);
     popCtx(game);
@@ -78,7 +78,7 @@ const HOOKS = {
     const total = game.dots.consumeAll(e, game.clock);
     if (total <= 0) return;
     game.damageEnemy(e, total, p.key || "voraz", true);
-    game.emitVfx("burst", e.x, e.y, 70, "#c850ff");
+    game.emitVfx("burst", e.x, e.y, 70, CAPSTONES.voraz.color);
   },
 
   // Enxame (Dom 10 / Corr 5): demonios aplicam os DoTs do player ao acertar.
@@ -132,11 +132,11 @@ const HOOKS = {
     const x = p.enemy.x, y = p.enemy.y, amount = p.amount * 0.4, key = p.key;
     game.schedule(3, () => {
       const c = pushCtx(game);
-      c.key = key; c.color = "#a06bff"; c.now = game.clock;
+      c.key = key; c.color = PASSIVES.ecoDoVazio.color; c.now = game.clock;
       c.x = x; c.y = y; c.target = null;
       EFFECTS.damage_instant(game, { amount, radius: 70 }, c);
       popCtx(game);
-      game.emitVfx("echo", x, y, 70, "#a06bff");
+      game.emitVfx("echo", x, y, 70, PASSIVES.ecoDoVazio.color);
     });
   },
 
@@ -147,7 +147,7 @@ const HOOKS = {
     const m = game.minions.sacrificeOne();
     if (!m) return;
     game.player.addShield(e.amount || 40, e.cap);
-    game.emitVfx("burst", m.x, m.y, 50, "#c850ff");
+    game.emitVfx("burst", m.x, m.y, 50, c.color);
   },
 
   // Grimoire of Sacrifice: devora o pet permanentemente. Perde Dominio em
@@ -156,7 +156,7 @@ const HOOKS = {
     const m = game.minions.sacrificeOne();
     if (!m) return;
     game.player.addShield(e.amount || 60, e.cap);
-    game.emitVfx("burst", m.x, m.y, 80, "#ff4040");
+    game.emitVfx("burst", m.x, m.y, 80, c.color);
   },
 
   // Soulstone: cargas de revive, repostas pela aura e consumidas sozinhas.
@@ -164,7 +164,7 @@ const HOOKS = {
     const max = e.max || 1;
     if (game.player.reviveCharges >= max) return;
     game.player.reviveCharges++;
-    game.emitVfx("heal", game.player.x, game.player.y, 40, "#c850ff");
+    game.emitVfx("heal", game.player.x, game.player.y, 40, c.color);
   },
 
   // Demonic Circle: teleporta o player para fora do cerco. So dispara quando
@@ -185,9 +185,9 @@ const HOOKS = {
     let ax, ay;
     if (n) { const m = Math.hypot(sx, sy) || 1; ax = -sx / m; ay = -sy / m; }
     else { ax = p.dirX; ay = p.dirY; }
-    game.emitVfx("blink", p.x, p.y, 40, "#7a3cff");
+    game.emitVfx("blink", p.x, p.y, 40, c.color);
     p.x += ax * d; p.y += ay * d;
-    game.emitVfx("blink", p.x, p.y, 40, "#7a3cff");
+    game.emitVfx("blink", p.x, p.y, 40, c.color);
   },
 
   // Healthstone: cura de emergencia, so quando realmente precisa.
@@ -195,6 +195,6 @@ const HOOKS = {
     const p = game.player;
     if (p.hp / p.maxHp > (e.threshold || 0.3)) return;
     game.healPlayer(p.maxHp * (e.frac || 0.35), true);
-    game.emitVfx("heal", p.x, p.y, 50, "#6fdc4a");
+    game.emitVfx("heal", p.x, p.y, 50, c.color);
   },
 };

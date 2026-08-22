@@ -17,6 +17,42 @@ const walkEffects = (list, where) => {
   }
 };
 
+/* Paleta: uma build e uma familia de cor. Sem isso a regra vira convencao e
+   volta a apodrecer — a cor de uma peca nova sai do eixo dela ou nao entra. */
+const hueOf = (hex) => {
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (!d) return -1;
+  const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+};
+const hueGap = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
+const paletteOf = (axis) => Object.values((AXES[axis] || {}).palette || {});
+const checkColors = (obj, where, pal) => {
+  if (!obj || typeof obj !== "object") return;
+  for (const k in obj) {
+    const v = obj[k];
+    if (k === "color" && typeof v === "string" && v[0] === "#") {
+      if (pal.indexOf(v) < 0) bad(`${where}.color "${v}" fora da paleta do eixo`);
+    } else if (v && typeof v === "object") checkColors(v, where + "." + k, pal);
+  }
+};
+
+// os tres eixos precisam ficar longe um do outro em matiz, nao so serem "diferentes"
+const AXIS_IDS = Object.keys(AXES);
+for (let i = 0; i < AXIS_IDS.length; i++) {
+  const pal = paletteOf(AXIS_IDS[i]);
+  if (pal.length !== 3) bad(`eixo ${AXIS_IDS[i]}: paleta com ${pal.length} tons (esperado 3)`);
+  if (AXES[AXIS_IDS[i]].color !== (AXES[AXIS_IDS[i]].palette || {}).base) {
+    bad(`eixo ${AXIS_IDS[i]}: color nao e o tom base da paleta`);
+  }
+  for (let j = i + 1; j < AXIS_IDS.length; j++) {
+    const gap = hueGap(hueOf(AXES[AXIS_IDS[i]].color), hueOf(AXES[AXIS_IDS[j]].color));
+    if (gap < 60) bad(`${AXIS_IDS[i]} x ${AXIS_IDS[j]}: so ${gap.toFixed(0)} graus de matiz — as builds se confundem`);
+  }
+}
+
 for (const id in PIECES) {
   const p = PIECES[id];
   if (!p.key) bad(`${id}: sem key`);
@@ -44,6 +80,7 @@ for (const id in PIECES) {
     }
   }
   walkEffects(p.effects, id);
+  if (AXES[p.axis]) checkColors(p, id, paletteOf(p.axis));
   const rq = p.requires;
   if (rq) {
     if (rq.piece && !Object.values(PIECES).some((o) => o.key === rq.piece)) {
@@ -59,8 +96,13 @@ for (const id in PASSIVES) {
   for (const ev in on) if (!HOOKS[on[ev]]) bad(`passiva ${id}: hook "${on[ev]}" nao existe`);
 }
 for (const id in CAPSTONES) {
-  const on = CAPSTONES[id].on || {};
+  const c = CAPSTONES[id];
+  const on = c.on || {};
   for (const ev in on) if (!HOOKS[on[ev]]) bad(`capstone ${id}: hook "${on[ev]}" nao existe`);
+  if (!AXES[c.axis]) bad(`capstone ${id}: axis invalido "${c.axis}"`);
+  else if (paletteOf(c.axis).indexOf(c.color) < 0) {
+    bad(`capstone ${id}: cor "${c.color}" fora da paleta de ${c.axis}`);
+  }
 }
 console.log(problems ? `X   ${problems} problemas no registry` : "ok  registry validado");
 

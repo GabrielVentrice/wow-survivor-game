@@ -167,13 +167,13 @@ class Game {
       hit++;
       if (damage > 0) {
         const n = pushCtx(this);
-        n.key = c.key; n.color = "#5acfff"; n.now = c.now;
+        n.key = c.key; n.color = c.color; n.now = c.now;
         n.x = p.x; n.y = p.y; n.target = null;
         EFFECTS.damage_instant(this, { amount: damage, radius: blastRadius || 60 }, n);
         popCtx(this);
       }
     }
-    if (hit) this.emitVfx("shock", x, y, radius, "#5acfff");
+    if (hit) this.emitVfx("shock", x, y, radius, c.color);
   }
 
   /* Converte um inimigo em aliado: ele sai do pool de inimigos e volta como
@@ -186,7 +186,7 @@ class Game {
     e.noReward = true;
     const kind = e.radius > 20 ? "felguard" : e.radius > 13 ? "dreadstalker" : "imp";
     const n = pushCtx(this);
-    n.key = c.key; n.color = "#ff8a3c"; n.now = c.now;
+    n.key = c.key; n.color = c.color; n.now = c.now;
     n.x = e.x; n.y = e.y; n.target = null;
     EFFECTS.summon(this, {
       kind, ai: "chase", count: 1, cap: 24, duration,
@@ -194,7 +194,7 @@ class Game {
       big: e.radius > 20,
     }, n);
     popCtx(this);
-    this.emitVfx("summon", e.x, e.y, 40, "#ff8a3c");
+    this.emitVfx("summon", e.x, e.y, 40, c.color);
   }
 
   /* --- o funil de dano ----------------------------------------------------
@@ -283,9 +283,9 @@ class Game {
       this.player.hp = this.player.maxHp * 0.55;
       this.player.addShield(80);
       this.addShake(20);
-      this.emitVfx("heal", this.player.x, this.player.y, 90, "#c850ff");
+      this.emitVfx("heal", this.player.x, this.player.y, 90, PIECES.soulstone.color);
       this.sfx.levelUp();
-      this.ui.toast({ head: "Soulstone!", color: "#c850ff", icon: "🔮",
+      this.ui.toast({ head: "Soulstone!", color: PIECES.soulstone.color, icon: "🔮",
         name: "Você voltou", desc: "Uma alma guardada pagou o preço no seu lugar." });
       return;
     }

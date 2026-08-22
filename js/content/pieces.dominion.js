@@ -9,7 +9,7 @@ Object.assign(PIECES, {
 
   wildImps: {
     id: "wildImps", key: "wildImps", name: "Wild Imps",
-    icon: "👺", color: "#ffb04a", axis: "dominion", axisPoints: 2,
+    icon: "👺", color: "#9a4cff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "fire"], vfx: "chain",
     desc: "Um bando de imps orbita você cuspindo fogo. Barulhento e constante.",
     stats: { count: 3, respawn: 2.2, damage: 8, duration: 9, range: 280, attackInterval: 0.75, speed: 480 },
@@ -19,7 +19,7 @@ Object.assign(PIECES, {
         duration: "@duration", damage: "@damage", range: "@range",
         attackInterval: "@attackInterval",
         projectile: { type: "projectile", damage: "@damage", speed: "@speed",
-                      radius: 5, life: 1.4, color: "#ff8a3c" } },
+                      radius: 5, life: 1.4, color: "#9a4cff" } },
     ],
     paths: {
       swarm: { name: "Autônomo", evolvesInto: "demonicTyrant", tiers: [
@@ -37,7 +37,7 @@ Object.assign(PIECES, {
           { "effects.0.projectile.count": 2, "effects.0.projectile.spread": 0.18 }),
         T("Incineração", "Os tiros incendeiam o alvo.", null,
           { "effects.0.projectile.onHit.0": { type: "damage_over_time", key: "impFire",
-            dps: "@damage*0.5", duration: 4, tickInterval: 0.5, color: "#ff8a3c" } }),
+            dps: "@damage*0.5", duration: 4, tickInterval: 0.5, color: "#9a4cff" } }),
       ]},
       implosion: { name: "Implosão", tiers: [
         T("Estilhaço", "Os tiros explodem em área ao acertar.", null,
@@ -47,14 +47,14 @@ Object.assign(PIECES, {
         T("Salva", "Os tiros perfuram 2 inimigos.", null, { "effects.0.projectile.pierce": 2 }),
         T("Chuva de Fogo", "Cada tiro deixa uma poça de fogo.", null,
           { "effects.0.projectile.onHit.2": { type: "area_persistent", radius: 48,
-            dps: "@damage*0.8", duration: 2.5, tickInterval: 0.4, color: "#ff7a2c" } }),
+            dps: "@damage*0.8", duration: 2.5, tickInterval: 0.4, color: "#9a4cff" } }),
       ]},
     },
   },
 
   dreadstalkers: {
     id: "dreadstalkers", key: "dreadstalkers", name: "Dreadstalkers",
-    icon: "🐺", color: "#8a4cff", axis: "dominion", axisPoints: 2,
+    icon: "🐺", color: "#9a4cff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "shadow"],
     desc: "Caçadores que saem à procura. Você anda; eles limpam a vizinhança.",
     stats: { count: 2, respawn: 5, damage: 26, duration: 14, range: 460, attackInterval: 0.85 },
@@ -78,7 +78,7 @@ Object.assign(PIECES, {
         T("Dilaceração", "Atacam 30% mais rápido.", { attackInterval: { mul: 0.7 } }),
         T("Sangramento", "As mordidas causam sangramento.", null,
           { "effects.0.onHit": [{ type: "damage_over_time", key: "rip", dps: "@damage*0.4",
-            duration: 4, tickInterval: 0.5, color: "#8a4cff" }] }),
+            duration: 4, tickInterval: 0.5, color: "#9a4cff" }] }),
         T("Fúria", "Dobra o dano.", { damage: { mul: 2 } }),
         T("Destroçar", "A mordida atinge todos ao redor do alvo.", null,
           { "effects.0.onHit.1": { type: "damage_instant", amount: "@damage*0.6", radius: 70 } }),
@@ -98,7 +98,7 @@ Object.assign(PIECES, {
 
   felguard: {
     id: "felguard", key: "felguard", name: "Felguard",
-    icon: "🪓", color: "#ff5a3c", axis: "dominion", axisPoints: 2,
+    icon: "🪓", color: "#9a4cff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "fel", "guard"],
     desc: "Um guarda-costas que não sai do seu lado e corta quem chega perto.",
     stats: { count: 1, respawn: 6, damage: 44, duration: 20, range: 210, attackInterval: 0.8, cleave: 80 },
@@ -141,7 +141,7 @@ Object.assign(PIECES, {
 
   voidwalker: {
     id: "voidwalker", key: "voidwalker", name: "Voidwalker",
-    icon: "🌀", color: "#5a7cff", axis: "dominion", axisPoints: 2,
+    icon: "🌀", color: "#6a28c8", axis: "dominion", axisPoints: 2,
     tags: ["summon", "orbital", "guard"],
     desc: "Uma massa do Vazio gira ao seu redor, puxa a horda e a tritura por contato.",
     stats: { count: 2, damage: 14, orbitRadius: 88, orbitSpeed: 1.25, attackInterval: 0.35, pullForce: 26, pullRadius: 150 },
@@ -185,7 +185,7 @@ Object.assign(PIECES, {
 
   doom: {
     id: "doom", key: "doom", name: "Doom",
-    icon: "⌛", color: "#b23cff", axis: "dominion", axisPoints: 2,
+    icon: "⌛", color: "#c07aff", axis: "dominion", axisPoints: 2,
     tags: ["shadow", "dot", "summon"],
     desc: "Uma sentença. Quando ela vence, nasce um demônio de dentro do alvo.",
     stats: { cooldown: 4, range: 420, targets: 1, dps: 9, duration: 8, tickInterval: 1,
@@ -193,7 +193,7 @@ Object.assign(PIECES, {
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
       { type: "damage_over_time", key: "doom", dps: "@dps", duration: "@duration",
-        tickInterval: "@tickInterval", color: "#b23cff",
+        tickInterval: "@tickInterval", color: "#c07aff",
         stacking: { mode: "refresh", max: 1 },
         onExpire: [{ type: "summon", kind: "imp", ai: "chase", count: "@impCount",
                      duration: "@impDuration", damage: "@impDamage", cap: 20 }] },
@@ -222,7 +222,7 @@ Object.assign(PIECES, {
         T("Contágio", "Ao vencer, a sentença salta para um vizinho.", null,
           { "effects.0.onExpire.2": { type: "chain", range: 170, falloff: 1, effects: [
             { type: "damage_over_time", key: "doom", dps: "@dps", duration: "@duration",
-              tickInterval: "@tickInterval", color: "#b23cff" }] } }),
+              tickInterval: "@tickInterval", color: "#c07aff" }] } }),
         T("Praga do Fim", "Sentencia todos num raio de 160.", { radius: { set: 160 } },
           { "effects.0.radius": "@radius" }),
       ]},
@@ -231,7 +231,7 @@ Object.assign(PIECES, {
 
   implosion: {
     id: "implosion", key: "implosion", name: "Implosion",
-    icon: "💢", color: "#ff8a3c", axis: "dominion", axisPoints: 2,
+    icon: "💢", color: "#c07aff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "fel", "reactive"],
     desc: "Quando você apanha, seus demônios implodem em volta de você. Punição vira resposta.",
     requires: { tag: "summon" },
@@ -275,7 +275,7 @@ Object.assign(PIECES, {
 
   netherPortal: {
     id: "netherPortal", key: "netherPortal", name: "Nether Portal",
-    icon: "🌌", color: "#b23cff", axis: "dominion", axisPoints: 3,
+    icon: "🌌", color: "#c07aff", axis: "dominion", axisPoints: 3,
     tags: ["summon", "aura"],
     desc: "Abre uma fenda onde você está. Ela fica lá cuspindo demônios enquanto você sai andando.",
     stats: { interval: 9, duration: 14, damage: 22, spawnEvery: 2.4, portalRange: 360 },
@@ -306,7 +306,7 @@ Object.assign(PIECES, {
       anchor: { name: "Âncora", tiers: [
         T("Guarda", "O portal também dispara projéteis.", null,
           { "effects.0.projectile": { type: "projectile", damage: "@damage", speed: 420,
-                                      radius: 6, life: 1.6, color: "#b23cff" } }),
+                                      radius: 6, life: 1.6, color: "#c07aff" } }),
         T("Barragem", "Dispara 3 projéteis.", null, { "effects.0.projectile.count": 3,
                                                       "effects.0.projectile.spread": 0.3 }),
         T("Rede", "+50% de alcance.", { portalRange: { mul: 1.5 } }),
@@ -314,7 +314,7 @@ Object.assign(PIECES, {
         T("Cerco", "Os projéteis perfuram e incendeiam.", null,
           { "effects.0.projectile.pierce": 3,
             "effects.0.projectile.onHit": [{ type: "damage_over_time", key: "portalFire",
-              dps: "@damage*0.4", duration: 4, tickInterval: 0.5, color: "#b23cff" }] }),
+              dps: "@damage*0.4", duration: 4, tickInterval: 0.5, color: "#c07aff" }] }),
       ]},
     },
   },
@@ -323,7 +323,7 @@ Object.assign(PIECES, {
 
   demonicTyrant: {
     id: "demonicTyrant", key: "wildImps", name: "Demonic Tyrant",
-    icon: "😈", color: "#ffd24a", axis: "dominion", axisPoints: 0,
+    icon: "😈", color: "#c07aff", axis: "dominion", axisPoints: 0,
     tags: ["summon", "fel", "tyrant"], evolutionOnly: true, vfx: "chain",
     desc: "O bando some. No lugar dele vem um só — e ele basta.",
     stats: { count: 1, respawn: 8, damage: 70, duration: 22, range: 360, attackInterval: 0.55, cleave: 120 },
@@ -361,7 +361,7 @@ Object.assign(PIECES, {
         T("Ninhada Real", "Invoca 3 imps por golpe.", null, { "effects.0.onHit.1.count": 3 }),
         T("Corte de Fogo", "O golpe incendeia tudo que atinge.", null,
           { "effects.0.onHit.2": { type: "damage_over_time", key: "tyrantFire",
-            dps: "@damage*0.35", duration: 5, tickInterval: 0.5, color: "#ffd24a",
+            dps: "@damage*0.35", duration: 5, tickInterval: 0.5, color: "#c07aff",
             radius: "@cleave" } }),
       ]},
     },
@@ -369,7 +369,7 @@ Object.assign(PIECES, {
 
   grimoireOfSacrifice: {
     id: "grimoireOfSacrifice", key: "felguard", name: "Grimoire of Sacrifice",
-    icon: "📕", color: "#ff4040", axis: "dominion", axisPoints: 0,
+    icon: "📕", color: "#c07aff", axis: "dominion", axisPoints: 0,
     tags: ["fel", "guard", "sacrifice"], evolutionOnly: true, vfx: "blood",
     desc: "Você devora o próprio guarda. Perde o corpo dele, ganha o poder — e um escudo que nunca acaba.",
     stats: { interval: 3.5, damage: 85, radius: 200, shield: 55, cap: 420 },

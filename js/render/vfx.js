@@ -5,6 +5,10 @@
 
    PIECE_VFX: efeitos presos ao personagem. A peca referencia por nome
    (`vfx: "rot"`), entao o registry de conteudo continua sendo dado puro.
+
+   Nenhum PIECE_VFX escolhe a propria cor: ela vem de `p.color`/`p.rgb`, que
+   sao a cor da peca — ou seja, a familia do eixo. E o que faz o warlock
+   brilhar na cor da build em vez de na cor que o efeito foi escrito.
    ========================================================================= */
 
 const PIECE_VFX = {
@@ -15,9 +19,9 @@ const PIECE_VFX = {
         const k = 0.9 + Math.sin(p.t * 2.2) * 0.1 + flare * 0.12;
         const cy = p.y + p.r * 0.9, R = p.r * 1.9 * k;
         const g = ctx.createRadialGradient(p.x, cy, 0, p.x, cy, R);
-        g.addColorStop(0, `rgba(127,220,74,${(0.3 + flare * 0.22).toFixed(2)})`);
-        g.addColorStop(0.5, "rgba(96,180,52,0.14)");
-        g.addColorStop(1, "rgba(60,140,40,0)");
+        g.addColorStop(0, `rgba(${p.rgb},${(0.3 + flare * 0.22).toFixed(2)})`);
+        g.addColorStop(0.5, `rgba(${p.rgb},0.14)`);
+        g.addColorStop(1, `rgba(${p.rgb},0)`);
         ctx.fillStyle = g;
         ctx.beginPath();
         ctx.ellipse(p.x, cy, R, R * 0.42, 0, 0, Math.PI * 2);
@@ -28,7 +32,7 @@ const PIECE_VFX = {
         ctx.translate(p.x, cy);
         ctx.scale(1, 0.4);
         ctx.rotate(-p.t * 0.6);
-        ctx.strokeStyle = `rgba(127,220,74,${(0.48 + flare * 0.35).toFixed(2)})`;
+        ctx.strokeStyle = `rgba(${p.rgb},${(0.48 + flare * 0.35).toFixed(2)})`;
         ctx.lineWidth = 1.6 + flare;
         for (let i = 0; i < 9; i++) {
           const a = (i / 9) * Math.PI * 2;
@@ -46,12 +50,12 @@ const PIECE_VFX = {
         // o próprio personagem apodrece, respirando no ritmo do DoT
         const breathe = (Math.sin(p.t * 2.6) + 1) * 0.5;
         drawSpriteGlow(ctx, p.spr, p.x, p.y, p.drawH, p.flip, p.anim,
-          "#7fdc4a", 0.08 + breathe * 0.12 + lvl * 0.01);
+          p.color, 0.08 + breathe * 0.12 + lvl * 0.01);
 
         drawRotOrbit(ctx, p, true);
 
         // esporos se soltando do corpo
-        ctx.fillStyle = "#9ff05c";
+        ctx.fillStyle = paleHex(p.color, 0.35);
         for (let i = 0; i < 3 + lvl; i++) {
           const seed = vfxRand(i * 11 + 7);
           const ph = (p.t * (0.5 + seed * 0.4) + seed) % 1;
@@ -70,8 +74,8 @@ const PIECE_VFX = {
         const k = 0.85 + Math.sin(p.t * 5) * 0.15;
         const cy = p.y + p.r * 0.85;
         const g = ctx.createRadialGradient(p.x, cy, 0, p.x, cy, p.r * 2 * k);
-        g.addColorStop(0, "rgba(255,110,40,0.35)");
-        g.addColorStop(1, "rgba(255,60,20,0)");
+        g.addColorStop(0, `rgba(${p.rgb},0.35)`);
+        g.addColorStop(1, `rgba(${p.rgb},0)`);
         ctx.fillStyle = g;
         ctx.beginPath();
         ctx.ellipse(p.x, cy, p.r * 2 * k, p.r * 0.8 * k, 0, 0, Math.PI * 2);
@@ -83,7 +87,7 @@ const PIECE_VFX = {
           const ex = p.x + Math.sin(ph * 6.2 + i) * p.r * 0.6 + (vfxRand(i + 5) - 0.5) * p.r * 1.6;
           const ey = p.y + p.r * 0.9 - ph * p.r * 3.4;
           ctx.globalAlpha = (1 - ph) * 0.95;
-          ctx.fillStyle = i % 2 ? "#ffd24a" : "#ff4a20";
+          ctx.fillStyle = i % 2 ? paleHex(p.color, 0.5) : p.color;
           ctx.beginPath();
           ctx.arc(ex, ey, 1.2 + (1 - ph) * 2, 0, Math.PI * 2);
           ctx.fill();
@@ -98,10 +102,10 @@ const PIECE_VFX = {
         ctx.scale(1, 0.38);
         ctx.rotate(p.t * 0.7);
         const R = p.r * 1.7;
-        ctx.strokeStyle = "rgba(127,220,74,0.45)";
+        ctx.strokeStyle = `rgba(${p.rgb},0.45)`;
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
-        ctx.fillStyle = "rgba(127,220,74,0.55)";
+        ctx.fillStyle = `rgba(${p.rgb},0.55)`;
         for (let i = 0; i < 8; i++) {
           const a = (i / 8) * Math.PI * 2;
           const tx = Math.cos(a) * R, ty = Math.sin(a) * R;
@@ -117,7 +121,7 @@ const PIECE_VFX = {
           const px = p.x + Math.sin(p.t * 1.2 + i * 2.1) * p.r * 1.3;
           const py = p.y + p.r * 0.8 - ph * p.r * 3;
           ctx.globalAlpha = Math.sin(ph * Math.PI) * 0.8;
-          ctx.fillStyle = "#7fdc4a";
+          ctx.fillStyle = p.color;
           ctx.beginPath(); ctx.arc(px, py, 1.7, 0, Math.PI * 2); ctx.fill();
         }
         ctx.globalAlpha = 1;
@@ -139,15 +143,15 @@ const PIECE_VFX = {
           const gy = p.y + p.r * 0.85 + Math.sin(ang) * dist * 0.4;
           if (k < 0.7) {
             const fy = gy - (1 - k / 0.7) * p.r * 6;
-            ctx.strokeStyle = "rgba(255,122,44,0.5)";
+            ctx.strokeStyle = `rgba(${p.rgb},0.5)`;
             ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(gx, fy); ctx.lineTo(gx, fy + p.r * 0.9); ctx.stroke();
-            ctx.fillStyle = "#ffcf5a";
+            ctx.fillStyle = paleHex(p.color, 0.5);
             ctx.beginPath(); ctx.arc(gx, fy, 2.4, 0, Math.PI * 2); ctx.fill();
           } else {
             const k2 = (k - 0.7) / 0.3;
             const rr = p.r * (0.3 + k2 * 0.8);
-            ctx.strokeStyle = `rgba(255,122,44,${(1 - k2).toFixed(2)})`;
+            ctx.strokeStyle = `rgba(${p.rgb},${(1 - k2).toFixed(2)})`;
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.ellipse(gx, gy, rr, rr * 0.4, 0, 0, Math.PI * 2);
@@ -161,8 +165,8 @@ const PIECE_VFX = {
         const k = 0.8 + Math.sin(p.t * 3) * 0.2;
         const cy = p.y + p.r * 0.9;
         const g = ctx.createRadialGradient(p.x, cy, 0, p.x, cy, p.r * 1.8 * k);
-        g.addColorStop(0, "rgba(200,32,60,0.30)");
-        g.addColorStop(1, "rgba(200,32,60,0)");
+        g.addColorStop(0, `rgba(${p.rgb},0.30)`);
+        g.addColorStop(1, `rgba(${p.rgb},0)`);
         ctx.fillStyle = g;
         ctx.beginPath();
         ctx.ellipse(p.x, cy, p.r * 1.8 * k, p.r * 0.7 * k, 0, 0, Math.PI * 2);
@@ -176,7 +180,7 @@ const PIECE_VFX = {
           const dx = p.x + Math.cos(ang) * d;
           const dy = p.y + p.r * 0.7 + Math.sin(ang) * d * 0.45 - ph * p.r * 1.3;
           ctx.globalAlpha = Math.sin(ph * Math.PI) * 0.9;
-          ctx.fillStyle = "#c8203c";
+          ctx.fillStyle = p.color;
           ctx.beginPath(); ctx.ellipse(dx, dy, 1.8, 2.9, 0, 0, Math.PI * 2); ctx.fill();
         }
         ctx.globalAlpha = 1;
@@ -188,7 +192,7 @@ const PIECE_VFX = {
         ctx.translate(p.x, p.y + p.r * 0.9);
         ctx.scale(1, 0.4);
         ctx.rotate(-p.t * 1.1);
-        ctx.strokeStyle = "rgba(154,76,255,0.55)";
+        ctx.strokeStyle = `rgba(${p.rgb},0.55)`;
         ctx.lineWidth = 3;
         const R = p.r * 1.5 + Math.sin(p.t * 2) * p.r * 0.15;
         for (let i = 0; i < 3; i++) {
@@ -200,7 +204,7 @@ const PIECE_VFX = {
       over(ctx, p) {
         const pulse = (Math.sin(p.t * 2) + 1) * 0.5;
         ctx.globalAlpha = 0.1 + pulse * 0.1;
-        ctx.fillStyle = "#9a4cff";
+        ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r * (1.5 + pulse * 0.4), 0, Math.PI * 2);
         ctx.fill();
@@ -214,15 +218,23 @@ const PIECE_VFX = {
    Nada aqui pode alterar estado de jogo — se alterar, esta no lugar errado. */
 
 const VFX_LIFE = {
-  burst: 0.35, shock: 0.3, spread: 0.6, jump: 0.25, summon: 0.4,
+  burst: 0.46, shock: 0.3, spread: 0.6, jump: 0.25, summon: 0.4,
   unsummon: 0.3, execute: 0.4, echo: 0.5, blink: 0.35, heal: 0.6,
+  portal: 0.9,
 };
+
+// Which variant of a multi-variant vfx this instance gets. A counter, not
+// Math.random(): two explosions in the same frame must not land on the same
+// silhouette, and cycling guarantees that where randomness only makes it likely.
+let VFX_SEQ = 0;
 
 class VfxLayer {
   constructor() {
     this.pool = new Pool(() => ({}), (o, kind, x, y, r, color) => {
       o.kind = kind; o.x = x; o.y = y; o.r = r;
-      o.rgb = hexRgb(color || "#ffffff");
+      o.seed = (VFX_SEQ = (VFX_SEQ + 1) & 1023);
+      o.color = color || "#ffffff";
+      o.rgb = hexRgb(o.color);
       o.t = 0; o.life = VFX_LIFE[kind] || 0.35;
     });
   }
@@ -246,9 +258,12 @@ class VfxLayer {
       const v = l[i], k = v.t / v.life, a = 1 - k;
       const x = v.x - cam.left, y = v.y - cam.top;
       switch (v.kind) {
-        case "burst":
+        case "burst": {
+          drawExplosion(ctx, x, y, v.r, k, v.color, v.seed);
+          break;
+        }
         case "echo": {
-          ctx.strokeStyle = `rgba(${v.rgb},${(a * (v.kind === "echo" ? 0.4 : 0.75)).toFixed(2)})`;
+          ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.4).toFixed(2)})`;
           ctx.lineWidth = 1 + a * 3;
           ctx.beginPath(); ctx.arc(x, y, v.r * (0.25 + k * 0.85), 0, Math.PI * 2); ctx.stroke();
           break;
