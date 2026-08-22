@@ -52,6 +52,40 @@ python3 tools/image2grid.py ghoul.png --grid 14x16 --ramp rot0 --ink warm \
 consecutivos: a fatia é a identidade (ver CLAUDE.md). `--accent` só aceita cor
 de energia — passar `bone1` ali é erro, e o script diz para usar `--second`.
 
+`--pose` (repetível) troca a figura única por uma **folha de poses**: o mesmo
+personagem, mesma altura, mesma linha de base, uma pose por painel. É assim que
+um sprite ganha o que o grid não gera sozinho — `walkFrames` deriva um passo de
+uma grade só, porque passo é a perna se mexendo dentro dela; **pose de cast é
+outro desenho**, e nenhum deslocamento de linha produz um. A folha volta pelo
+`split_sheet.py` e cada painel vira uma grade.
+
+```bash
+python3 tools/warlock_forms.py                  # UM prompt, as dez formas
+python3 tools/warlock_forms.py --form colheita  # uma só, prompt avulso
+python3 tools/warlock_forms.py --silhouette     # a rodada de silhueta, que vem antes
+```
+
+`warlock_forms.py` guarda os **argumentos** das dez formas do warlock
+(aprendiz, experiente e uma por capstone), não o texto: um .md de prompts
+colados envelheceria calado, pedindo cores que a `PAL` não tem mais.
+
+**O modo padrão é UM prompt só, e essa é a decisão que importa aqui.** Dez
+colagens são dez conversas, e o modelo não tem como saber que a quarta pertence
+ao mesmo elenco da primeira: volta com outro peso de contorno, outra proporção
+de cabeça, outro jeito de fechar o manto. O defeito não aparece olhando um
+sprite por vez — aparece com os dez lado a lado, que é exatamente como o jogador
+vê a progressão do próprio personagem. O contrato de estilo é escrito uma vez e
+vale para as dez; só o corpo e a fatia da rampa mudam. Não cabe uma imagem só
+com todas: são 26 painéis, e cada figura sairia pequena demais para ter detalhe
+que sobreviva ao downscale — então é um prompt, uma imagem por forma, na mesma
+conversa.
+
+É lá também que está escrito que a **aura não entra na referência** — fogo em
+volta, alma verde e rastro de voo são `VfxLayer` na cor da forma, e brilho
+pedido ao modelo vaza para fora da silhueta e apaga a única informação que a
+imagem tinha para dar. Voo, esse sim, é pose: a forma que flutua não tem perna
+no chão, e `findLegs` cai sozinho no balanço em vez do passo.
+
 O chão tem o seu próprio par, porque o defeito dele é outro — laje boa sozinha
 e treliça óbvia quando ladrilhada:
 

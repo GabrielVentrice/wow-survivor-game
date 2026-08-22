@@ -15,7 +15,12 @@ def main():
     a.add_argument("image")
     a.add_argument("--names", required=True, help="comma-separated, one per figure, left to right")
     a.add_argument("--bg", default="#FF00FF")
-    a.add_argument("--tol", type=float, default=6.0)
+    # Default sized for JPEG, because that is what an image model hands back.
+    # At tol 6 the compression speckle on the magenta reads as subject and one
+    # sheet came apart into 83 "figures" — the two real ones plus 81 specks.
+    a.add_argument("--tol", type=float, default=20.0)
+    a.add_argument("--min-width", type=float, default=2.0, dest="min_width",
+                   help="descarta faixa mais estreita que X%% da imagem (ruido de compressao)")
     a.add_argument("--pad", type=int, default=8, help="magenta margin kept around each cut")
     a = a.parse_args()
 
@@ -36,6 +41,28 @@ def main():
             start = x
         elif not on and start is not None:
             spans.append((start, x - 1)); start = None
+
+    floor = iw * a.min_width / 100.0
+    spans = [(x0, x1) for x0, x1 in spans if x1 - x0 + 1 >= floor]
+
+    # The CAST pose spreads both hands, and on a tight sheet the hands of two
+    # neighbours overlap in X — there is no empty column left to cut on, and the
+    # row comes back as one figure. The prompt asks for even spacing, so when
+    # that happens the boundary is looked for where it is EXPECTED: the column
+    # carrying the least ink inside a window around each even division. A hand
+    # crossing the gap is a few pixels tall; a body is the whole figure.
+    if len(spans) != len(names) and len(spans) == 1 and len(names) > 1:
+        x0, x1 = spans[0]
+        ink = [sum(1 for y in range(ih) if subject(x, y)) for x in range(x0, x1 + 1)]
+        width = (x1 - x0 + 1) / len(names)
+        cuts = []
+        for k in range(1, len(names)):
+            mid = round(k * width)
+            lo, hi = max(1, mid - round(width * 0.22)), min(len(ink) - 1, mid + round(width * 0.22))
+            cuts.append(x0 + min(range(lo, hi), key=lambda i: ink[i]))
+        edges = [x0] + cuts + [x1 + 1]
+        spans = [(edges[k], edges[k + 1] - 1) for k in range(len(names))]
+        print(f"figuras encostadas: cortei nas colunas mais vazias {cuts}", file=sys.stderr)
 
     if len(spans) != len(names):
         sys.exit(f"achei {len(spans)} figuras, mas voce nomeou {len(names)}. "

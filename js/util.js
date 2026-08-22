@@ -8,6 +8,15 @@ const DEV_MODE = new URLSearchParams(location.search).get("mode") === "dev";
 
 const EMPTY_ARR = [];            // sentinela p/ render nao alocar por frame
 const PULSE_LIFE = 0.9;          // duracao da onda de choque de desbloqueio
+/* Quanto tempo o corpo fica na pose de cast por disparo. Curto de proposito:
+   com uma build grande as pecas disparam quase o tempo todo, e uma pose longa
+   viraria a pose PADRAO — a de bracos caidos e que passaria a ser o evento. */
+const CAST_POSE = 0.22;
+/* Cadencia minima entre duas poses, pela MESMA razao que `hitstop.cooldown`
+   existe: uma build madura dispara quase continuamente, e sem intervalo a pose
+   de cast deixaria de ser evento para virar o estado normal do personagem — a
+   caminhada e que passaria a ser a excecao. */
+const CAST_GAP = 0.85;
 // Quantas pecas desenham adorno em volta do warlock ao mesmo tempo. Cada uma
 // custa luz no chao e uma nuvem de particulas; passando disso o personagem
 // some dentro da propria build e o jogador perde a unica coisa que ele

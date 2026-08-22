@@ -43,6 +43,23 @@ def palette():
     return pal
 
 
+def ramp_slice(pal, tok, what):
+    """Three consecutive steps of one ramp. The slice IS the identity: two
+    creatures of the same material differ by which three they take."""
+    m = re.match(r"^([a-z]+)(\d)$", tok or "")
+    if not m or m.group(1) not in MATERIAL:
+        sys.exit(f"{what}: '{tok}' nao e um passo de rampa de materia ({', '.join(sorted(MATERIAL))})")
+    fam, i = m.group(1), int(m.group(2))
+    steps = [f"{fam}{i + k}" for k in range(3)]
+    if any(t not in pal for t in steps):
+        top = max(int(t[-1]) for t in pal if re.match(rf"^{fam}\d$", t))
+        sys.exit(f"{what}: a rampa {fam} vai ate {fam}{top}, entao a fatia so comeca ate {fam}{top - 2}")
+    return fam, steps
+
+
+LABEL = ["shadow", "base", "light"]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", required=True, help="what the creature IS, in a few words")
@@ -60,6 +77,10 @@ def main():
     ap.add_argument("--prop", default=None, metavar="TEXT",
                     help="objeto na mao (arma, ferramenta, cajado). SEM isto o prompt "
                          "proibe qualquer objeto — adereco comprido e decisao explicita")
+    ap.add_argument("--pose", action="append", default=[], metavar="LABEL: DESC",
+                    help="uma pose da folha; repita para varias. Sem isto, figura unica em idle. "
+                         "Duas ou mais viram uma FOLHA DE POSES do mesmo personagem — e e assim "
+                         "que um sprite ganha animacao que o grid nao consegue gerar sozinho")
     ap.add_argument("--vary", default=None,
                     help="o que deve variar entre as silhuetas (default: contorno generico)")
     ap.add_argument("--silhouette", action="store_true", help="emit the step-0 silhouette prompt")
@@ -79,19 +100,7 @@ def main():
     else:
         prop_txt = ("\nThe character holds NOTHING: no weapon, no tool, no staff, no banner, no\n"
                     "chain, no lantern. Empty hands, clearly drawn.")
-    def slice3(tok, what):
-        """Three consecutive steps of one ramp. The slice IS the identity: two
-        creatures of the same material differ by which three they take."""
-        m = re.match(r"^([a-z]+)(\d)$", tok or "")
-        if not m or m.group(1) not in MATERIAL:
-            sys.exit(f"{what}: '{tok}' nao e um passo de rampa de materia ({', '.join(sorted(MATERIAL))})")
-        fam, i = m.group(1), int(m.group(2))
-        steps = [f"{fam}{i + k}" for k in range(3)]
-        missing = [t for t in steps if t not in pal]
-        if missing:
-            top = max(int(re.search(r"(\d)$", t).group(1)) for t in pal if t.startswith(fam) and re.match(rf"^{fam}\d$", t))
-            sys.exit(f"{what}: a rampa {fam} vai ate {fam}{top}, entao a fatia so comeca ate {fam}{top - 2}")
-        return fam, steps
+    slice3 = lambda tok, what: ramp_slice(pal, tok, what)
 
     ENERGY = re.compile(r"^(fel|arc|pyr|blood|azure)\d$|^white$")
     bad = [t for t in a.accent if t not in pal]
@@ -105,6 +114,36 @@ def main():
 
     sym = ("bilaterally symmetric about the vertical axis"
            if a.view == "front" else "in pure profile, facing right, no three-quarter turn")
+
+    # Two or more poses turn the reference into a SHEET. `walkFrames` can derive a
+    # step from one grid because a step is the legs moving inside the grid it
+    # already has; a cast pose is a different drawing and no amount of shifting
+    # rows produces one. So the poses have to come back from the model in the
+    # same image, at the same size, off the same baseline — anything else and the
+    # two grids belong to two slightly different characters, and the sprite
+    # changes shape every time it casts.
+    poses = [q.strip() for q in a.pose if q.strip()]
+    sheet = len(poses) >= 2
+    if sheet:
+        listing = "\n".join(f"  {i + 1}. {q}" for i, q in enumerate(poses))
+        one_fig = f"{len(poses)} figures of the SAME character, in one row, left to right."
+        pose_txt = f"""POSES — {len(poses)} panels, left to right, and it is the SAME character in every
+one of them: identical height, identical build, identical costume, identical
+colours. ONLY the pose changes.
+
+{listing}
+
+Every panel shares one eye level and one foot baseline, with even horizontal
+spacing and a clear band of empty background between figures so no two ever
+touch or overlap. Arms readable and clear of the torso in every panel, or the
+silhouette merges into one mass.
+Anything that hangs loose — a robe hem, a chain, a wing, a tail — moves WITH the
+pose. Drawn identically in all panels it reads as a cut-out being posed, not as
+a body moving."""
+    else:
+        one_fig = "One single figure."
+        pose_txt = """POSE: neutral idle, standing, weight even, arms readable and clear of the torso
+so the silhouette does not merge. Feet flat on an implied ground line."""
 
     if a.silhouette:
         print(f"""Six SILHOUETTE studies of the same character, laid out in one row.
@@ -124,7 +163,6 @@ labels, numbers, borders, frames, watermark, cropped limbs.""")
         return
 
     fam, steps = slice3(a.ramp, "--ramp")
-    LABEL = ["shadow", "base", "light"]
     ink = INK[a.ink]
     name_of = lambda f: (LIVING.get(f, MATERIAL[f]) if a.living else MATERIAL[f])
     ramp_txt = "\n".join(f"  {t:<8} {pal[t]}   {LABEL[i]} of the {name_of(fam)}"
@@ -134,8 +172,22 @@ labels, numbers, borders, frames, watermark, cropped limbs.""")
         ramp_txt += "\n" + "\n".join(f"  {t:<8} {pal[t]}   {LABEL[i]} of the {name_of(fam2)}"
                                       for i, t in enumerate(steps2))
     no_prop = "" if a.prop else "\nALSO FORBIDDEN: any held object, weapon, tool or accessory."
+    if not sheet:
+        no_prop += "\nALSO FORBIDDEN: multiple views of the figure."
     acc_txt = "\n".join(f"  {t:<8} {pal[t]}   accent — eyes / runes / fire ONLY, never a body surface"
                         for t in a.accent) or "  (none — this creature has no glowing part)"
+
+    framing = ("the ROW of bodies fills the frame. Full bodies, even margin on all\n"
+               "four sides of the row, and EACH body — not the body plus anything it holds —\n"
+               f"sits in its own {W}:{H} box, all boxes the same size. Nothing cropped, nothing\n"
+               "reaching outside its box, nothing overlapping the next figure."
+               if sheet else
+               "the BODY fills the frame. Full body, centred, even margin on all four\n"
+               "sides, and it is the body itself — not the body plus anything it holds — that\n"
+               f"sits in a {W}:{H} box. Nothing cropped, and nothing reaching outside that box.")
+    sheet_no = ("\nALSO FORBIDDEN: panel borders, separator lines, numbering, captions under the\n"
+                "figures, a ground line, and any change of costume, size or colour between panels."
+                if sheet else "")
 
     print(f"""Character reference sheet for a 2D game, to be redrawn BY HAND afterwards as a
 {W}x{H} pixel sprite. This is NOT pixel art: do not simulate pixels, do not draw
@@ -144,10 +196,10 @@ a pixel grid, do not pixelate or posterize the image. Draw it cleanly and large.
 SUBJECT: {a.name}.
 
 VIEW: orthographic {a.view} view, {sym}.
-No perspective, no foreshortening, no tilt, no dynamic angle. One single figure.
+No perspective, no foreshortening, no tilt, no dynamic angle.
+{one_fig}
 
-POSE: neutral idle, standing, weight even, arms readable and clear of the torso
-so the silhouette does not merge. Feet flat on an implied ground line.
+{pose_txt}
 {prop_txt}
 
 PROPORTION: chunky and exaggerated — head roughly one third of total height,
@@ -183,14 +235,12 @@ figure glows, it is wrong.
 BACKGROUND: flat solid #FF00FF and nothing else. No floor, no ground shadow, no
 horizon, no vignette, no scenery, no props the character is not holding.
 
-FRAMING: the BODY fills the frame. Full body, centred, even margin on all four
-sides, and it is the body itself — not the body plus anything it holds — that
-sits in a {W}:{H} box. Nothing cropped, and nothing reaching outside that box.
+FRAMING: {framing}
 
 FORBIDDEN: glow, bloom, light rays, lens flare, particles, sparks, embers,
 smoke, dust, motion blur, depth of field, drop shadow, reflection, ambient
 occlusion, film grain, chromatic aberration, text, labels, watermark,
-signature, border, frame, multiple views, turnaround sheet, colour swatches.{no_prop}""")
+signature, border, frame, turnaround sheet, colour swatches.{no_prop}{sheet_no}""")
 
 
 if __name__ == "__main__":

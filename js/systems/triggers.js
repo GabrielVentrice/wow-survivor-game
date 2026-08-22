@@ -26,6 +26,11 @@ function firePiece(game, inst, x, y, target, dirX, dirY, now) {
   runEffects(game, inst.r.effects, c);
   popCtx(game);
   inst.casts++;
+  /* O corpo participa do que a build faz. Aqui e o unico funil por onde TODA
+     peca dispara, entao e o unico lugar que nao precisa ser repetido em cada
+     trigger — e `reactive` fica de fora porque ele e o tique de um DoT que ja
+     esta no ar, nao um novo conjuro. */
+  if (inst.r.trigger.type !== "reactive") game.player.castPulse();
 }
 
 // Nihilam deixa TODOS os cooldowns 30% mais lentos. Aplicado num unico ponto
