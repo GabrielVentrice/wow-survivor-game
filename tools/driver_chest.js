@@ -28,8 +28,20 @@ g.ui.openMilestone = function () {
   if (g.build.axisLeft <= 0) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
   const offers = g.build.getMilestoneOffers();
   if (!offers.length) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
-  const o = offers.find((x) => x.wet && x.wet.gain > 0) || offers[0];
-  g.build.applyMilestone(o, !!(o.wet && o.wet.gain > 0));
+  /* E MIRA UM EIXO. Desde o gate de eixo (`PATH_RULES.axisGate`) o bau so tem
+     tier para entregar se o eixo da peca acompanhar: espalhar ponto deixa toda
+     trilha travada no tier 2 e este driver passaria a medir a politica de
+     etapa em vez da cadencia do bau. Quem mede o gate e `driver_cards`; quem
+     mede o preco de espalhar e `driver_balance`. */
+  let alvo = null;
+  for (const a in g.build.axis) if (!alvo || g.build.axis[a] > g.build.axis[alvo]) alvo = a;
+  if (!g.build.axis[alvo]) alvo = g.build.pieces.values().next().value.def.axis;
+  const o =
+    offers.find((x) => x.axisId === alvo && x.dry && x.dry.gain > 0) ||
+    offers.find((x) => x.axisId === alvo && x.wet && x.wet.gain > 0) ||
+    offers.find((x) => x.wet && x.wet.gain > 0) || offers[0];
+  const wet = !(o.dry && o.dry.gain > 0 && o.axisId === alvo);
+  g.build.applyMilestone(o, wet && !!(o.wet && o.wet.gain > 0));
   g.pendingMilestones--;
   g.state = STATE.PLAYING;
 };

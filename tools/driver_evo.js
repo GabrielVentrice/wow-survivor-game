@@ -15,6 +15,14 @@ g.ui.openChest = () => { g.state = STATE.PLAYING; };
 // primeiro marco e chamaria de minutos. Quem mede etapa e `driver_milestone`.
 g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
 
+/* Gate de eixo: do tier 3 em diante o caminho pede pontos no eixo DA PECA
+   (`PATH_RULES.axisGate`). Este driver FORCA estados que uma run so alcanca
+   mirando — evoluir toda peca do catalogo exigiria varias runs puras —, entao
+   ele crava o eixo em vez de jogar por ele. Quem mede a regra e `driver_cards`. */
+function abreEixos() {
+  for (const a in g.build.axis) g.build.axis[a] = AXIS_RULES.pureAt;
+}
+
 // enche o campo para que os efeitos tenham em quem bater
 function populate(n) {
   for (let i = 0; i < n; i++) {
@@ -45,6 +53,7 @@ for (const id in PIECES) {
 console.log(`--- ${evos.length} evolucoes ---`);
 for (const [id, pid, into] of evos) {
   g.start();
+  abreEixos();
   try {
     const inst = g.build.acquirePiece(id) || g.build.get(PIECES[id].key);
     let evolved = null;
@@ -94,6 +103,7 @@ for (const cid in CAPSTONES) {
 /* --- 3. regra dos 2 caminhos profundos ----------------------------------- */
 console.log("--- regras estruturais ---");
 g.start();
+abreEixos();
 const inst = g.build.acquirePiece("corruption") || g.build.get("corruption");
 const ids = Object.keys(inst.def.paths);
 for (let t = 0; t < 5; t++) g.build.upgradePath(inst, ids[0]);

@@ -229,16 +229,56 @@ class BuildSystem {
   }
 
   /* Regra dos caminhos: no maximo `maxDeep` caminhos podem passar do tier
-     `freeTier`. E o que impede uma peca de virar tudo ao mesmo tempo. */
+     `freeTier`. E o que impede uma peca de virar tudo ao mesmo tempo.
+
+     E o gate de eixo (`PATH_RULES.axisGate`): o tier so abre se o eixo DA PECA
+     ja tiver os pontos. Vale para toda fonte de tier — level up, bau e
+     qualquer coisa que venha depois —, porque quem pergunta e este metodo. */
   canUpgradePath(inst, pathId) {
     const cur = inst.paths[pathId];
     if (cur >= PATH_RULES.tiers) return false;
+    if (this.axis[inst.def.axis] < PATH_RULES.axisGate[cur]) return false;
     if (cur < PATH_RULES.freeTier) return true;
     let deep = 0;
     for (const p in inst.paths) {
       if (p !== pathId && inst.paths[p] > PATH_RULES.freeTier) deep++;
     }
     return deep < PATH_RULES.maxDeep;
+  }
+
+  /* O que falta de eixo para esta peca voltar a subir. Devolve null quando ela
+     nao esta travada POR EIXO — ou porque algum caminho ja pode subir, ou
+     porque o que trava e `maxDeep`/tier 5, que sao outra conversa.
+
+     A UI precisa disto porque oferta travada simplesmente NAO entra no bolo do
+     level up: sem dizer o motivo, a tela some com a trilha em silencio e o
+     jogador nao tem como saber que a etapa e quem destrava. */
+  pieceGate(inst) {
+    let best = null;
+    for (const pathId in inst.paths) {
+      if (this.canUpgradePath(inst, pathId)) return null;
+      const cur = inst.paths[pathId];
+      if (cur >= PATH_RULES.tiers) continue;
+      const need = PATH_RULES.axisGate[cur];
+      if (this.axis[inst.def.axis] >= need) continue;   // travado por maxDeep
+      if (!best || need < best.need) {
+        best = { axisId: inst.def.axis, need, have: this.axis[inst.def.axis], tier: cur + 1 };
+      }
+    }
+    return best;
+  }
+
+  /* A trava mais PERTO de cair, entre todas as pecas — nao a de menor tier.
+     Quem le esta mensagem quer saber onde investir o proximo ponto, e o eixo
+     que esta a um ponto do tier 4 vale mais que o que esta a cinco do tier 3. */
+  nearestGate() {
+    let best = null;
+    for (const inst of this.pieces.values()) {
+      const g = this.pieceGate(inst);
+      if (!g) continue;
+      if (!best || g.need - g.have < best.need - best.have) best = g;
+    }
+    return best;
   }
 
   upgradePath(inst, pathId) {

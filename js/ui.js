@@ -246,13 +246,27 @@ class UI {
     g.state = STATE.LEVELUP;
     g.sfx.levelUp();
     const offers = g.build.getOffers(3);
-    /* Bolo vazio: toda trilha fechada e toda passiva tomada. O nivel vira cura
-       em vez de sumir em silencio — subir de nivel e nao receber nada e o jogo
-       cobrando atencao e devolvendo vazio. */
+    /* Bolo vazio: o nivel vira cura em vez de sumir em silencio — subir de
+       nivel e nao receber nada e o jogo cobrando atencao e devolvendo vazio.
+
+       Mas vazio tem DOIS motivos desde o gate de eixo, e eles pedem coisas
+       opostas do jogador: "todo caminho fechado" e fim de linha, "trilha
+       travada" e um ponto de eixo que ele ainda vai ganhar na etapa. Dizer
+       "arsenal completo" com tres spells no tier 2 seria mentira, e a pior
+       delas: a que faz o jogador parar de procurar o que destrava. */
     if (!offers.length) {
       g.player.pendingLevels = 0;
       g.player.hp = Math.min(g.player.maxHp, g.player.hp + g.player.maxHp * 0.35);
-      this.toast({ head: "Arsenal completo", name: "Todo caminho fechado — o nível virou fôlego." });
+      /* O toast tem 340px e uma linha so: a frase inteira ("ponto de eixo so
+         vem de etapa") sairia cortada por reticencias, e frase cortada nao
+         ensina nada. O numero vai no campo `value`, que e mono e alinhado a
+         direita — e ele e o que o jogador precisa levar para a etapa. */
+      const gate = g.build.nearestGate();
+      this.toast(gate
+        ? { head: "Trilha travada", axis: gate.axisId,
+            name: `Tier ${gate.tier} · ${AXES[gate.axisId].name}`,
+            value: `${gate.have}/${gate.need}` }
+        : { head: "Arsenal completo", name: "Todo caminho fechado — o nível virou fôlego." });
       g.state = STATE.PLAYING;
       return;
     }
@@ -461,10 +475,11 @@ class UI {
   /* Cinco pips. O degrau que ACABOU DE SUBIR sai na brasa (`-300`), e cinco
      cheios saem em OSSO: a peca deixa o sistema de eixo, porque nao ha mais
      decisao ali. */
-  pipsHtml(n) {
+  pipsHtml(n, lockAt) {
     let s = `<span class="lv-pips${n >= PATH_RULES.tiers ? " max" : ""}">`;
     for (let i = 0; i < PATH_RULES.tiers; i++) {
-      s += `<i class="${i < n ? (i === n - 1 ? "on brasa" : "on") : ""}"></i>`;
+      const cls = i < n ? (i === n - 1 ? "on brasa" : "on") : (i === lockAt ? "lock" : "");
+      s += `<i class="${cls}"></i>`;
     }
     return s + `</span>`;
   }
@@ -477,6 +492,23 @@ class UI {
   axesHtml(axisId, add) {
     const b = this.game.build;
     const pct = (n) => Math.min(100, n / AXIS_RULES.capPerAxis * 100);
+
+    /* Os tracos na barra sao os tiers que o ponto DESTRAVA. Sem eles a barra
+       diz quanto o eixo cresceu e nao o que o crescimento compra — e o gate de
+       profundidade e justamente a razao de a etapa importar. Sao marca e nao
+       texto porque a barra tem 8px de altura: quem quer o numero passa o mouse,
+       quem quer a distancia ve a previa cravar antes ou depois do traco. */
+    let marcos = "";
+    for (let t = 0; t < PATH_RULES.axisGate.length; t++) {
+      const need = PATH_RULES.axisGate[t];
+      if (!need) continue;
+      // O traco do tier 5 cai no teto do eixo, e `left:100%` num filho de um
+      // `overflow:hidden` desenha fora da barra. Encostar pela direita.
+      const p = pct(need);
+      marcos += `<b class="lv-ax-gate" style="${p >= 100 ? "right:0" : `left:${p}%`}"` +
+                ` title="tier ${t + 1} das spells deste eixo · ${need} pontos"></b>`;
+    }
+
     let out = "";
     for (const id in AXES) {
       const a = AXES[id], val = b.axis[id];
@@ -491,6 +523,7 @@ class UI {
         <div class="lv-ax-track">
           <i class="ghost" style="width:${pct(val + gain)}%"></i>
           <i style="width:${pct(val)}%"></i>
+          ${marcos}
         </div></div>`;
     }
     return out;
@@ -512,7 +545,8 @@ class UI {
       for (const pid in inst.paths) {
         if (inst.paths[pid] > top) { top = inst.paths[pid]; nome = inst.def.paths[pid].name; }
       }
-      rows.push({ def: inst.def, top, nome, hit: inst.key === alvo, done: b.isComplete(inst) });
+      rows.push({ def: inst.def, top, nome, hit: inst.key === alvo,
+                  done: b.isComplete(inst), gate: b.pieceGate(inst) });
     }
     // A spell afetada vai para a frente: numa tira ela nunca pode cair no "+N".
     rows.sort((a, z) => (z.hit ? 1 : 0) - (a.hit ? 1 : 0));
@@ -521,11 +555,18 @@ class UI {
     let list = "";
     for (let i = 0; i < rows.length && i < teto; i++) {
       const r = rows[i];
-      list += `<div class="lv-sp${r.hit ? " hit" : ""}${r.done ? " done" : ""}"
+      /* A trava vem NUMERADA e na cor do eixo. Pip apagado diz que a spell
+         parou; so o numero diz onde ela volta a andar, e e ele que liga esta
+         tela a etapa, que e a unica que entrega ponto de eixo. */
+      const trava = r.gate
+        ? `<span class="lv-sp-lock">${r.gate.have}/${r.gate.need}</span>` : "";
+      list += `<div class="lv-sp${r.hit ? " hit" : ""}${r.done ? " done" : ""}${
+        r.gate ? " lock" : ""}"
         style="${this.eixoVars(r.def.axis)}" title="${r.def.name}${
-        r.nome ? ` — ${r.nome} tier ${r.top}` : ""}">
+        r.nome ? ` — ${r.nome} tier ${r.top}` : ""}${
+        r.gate ? ` · tier ${r.gate.tier} pede ${r.gate.need} de ${AXES[r.gate.axisId].name}` : ""}">
         <span class="lv-sp-name">${r.def.name}</span>
-        ${this.pipsHtml(r.top)}</div>`;
+        ${this.pipsHtml(r.top, r.gate ? r.top : -1)}${trava}</div>`;
     }
     /* O contador fica FORA da lista: ela corta o que nao cabe (`overflow`
        hidden, porque a tira e uma linha so), e o contador cortado pela metade

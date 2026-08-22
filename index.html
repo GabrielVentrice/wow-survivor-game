@@ -426,6 +426,9 @@
   /* cinco cheios = OSSO: a peca sai do sistema de eixo, porque nao ha mais
      decisao ali. Vale nas duas telas e na tira. */
   .lv-pips.max i.on { background:var(--osso-600); }
+  /* O pip TRAVADO nao e o pip vazio: vazio e "ainda nao comprei", travado e
+     "nao posso comprar". Vazado na cor do eixo, porque quem destrava e o eixo. */
+  .lv-pips i.lock { background:transparent; box-shadow:inset 0 0 0 1px var(--eixo-900); }
   .lv-rec { align-self:flex-start; }
   /* A carta INTEIRA e clicavel, entao o botao e lembrete e nao alvo — vazado
      em repouso, enche no hover. Na tela de ETAPA e o contrario, e de
@@ -452,6 +455,11 @@
   .lv-sp.hit { box-shadow:inset 0 1px 0 rgba(237,231,218,.08), inset 0 0 0 1px var(--eixo); }
   .lv-sp.hit .lv-sp-name { color:var(--osso-600); }
   .lv-sp.done .lv-sp-name { color:var(--osso-500); }
+  /* Trava de eixo: o unico numero da tira, e ele so aparece quando a spell
+     parou. Cor de eixo porque e do eixo que ele fala (R2). */
+  .lv-sp.lock .lv-sp-name { color:var(--osso-300); }
+  .lv-sp-lock { font-family:var(--fonte-dado); font-size:var(--rotulo); color:var(--eixo);
+                white-space:nowrap; }
   .lv-sp.more, .lv-chip.more { flex:none; font-family:var(--fonte-dado);
                               font-size:var(--rotulo); color:var(--osso-200); white-space:nowrap; }
   .lv-chip { flex:none; width:32px; height:32px; display:grid; place-items:center; border-radius:50%;
@@ -558,6 +566,10 @@
   .lv-ax-track { position:relative; height:8px; background:var(--obs-600); overflow:hidden; }
   .lv-ax-track > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--eixo); }
   .lv-ax-track > i.ghost { background:var(--eixo-900); }
+  /* Os tiers que o ponto destrava, marcados na propria barra: 1px de osso por
+     cima do preenchimento, entao o traco continua legivel cheio ou vazio. */
+  .lv-ax-track > b.lv-ax-gate { position:absolute; top:0; width:1px; height:100%;
+                                background:var(--osso-200); }
 
   /* --- 9.6 PAUSA — silhueta: bloco largo a esquerda + pilha estreita ------- */
   .tela-pausa { background:rgba(4,3,8,.96); padding:56px 80px 48px; }

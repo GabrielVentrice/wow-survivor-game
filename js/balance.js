@@ -333,11 +333,31 @@ const AXIS_RULES = {
   hybridSide: 5,   // limiar secundario do capstone hibrido
 };
 
-// Regra dos caminhos (Bloons): no maximo 2 caminhos podem passar do tier 2.
+/* Regra dos caminhos (Bloons): no maximo 2 caminhos podem passar do tier 2.
+
+   `axisGate` e a segunda cobranca, e ela e de EIXO: profundidade era de graca
+   desde que o tier deixou de custar ponto, entao a unica pergunta do level up
+   era em qual trilha gastar um recurso que nao existia. Agora o tier 3 de uma
+   spell pede 5 pontos no eixo DELA, o tier 4 pede 10 e o tier 5 pede 15 — o
+   ponto continua vindo so da etapa, entao as duas telas voltam a conversar:
+   a etapa decide QUAIS spells podem ficar fundas, o level up decide qual delas
+   fica.
+
+   Indexado pelo tier ATUAL: `axisGate[cur]` e o que o eixo precisa ter para
+   comprar o tier `cur + 1`.
+
+   Os tres numeros nao sao novos — sao os limiares de capstone
+   (`hybridSide`, `hybridMain`, `pureAt`), e e por isso que o gate se le sem
+   tabela: o tier 5 de uma spell custa a mesma pureza que o capstone puro. Com
+   `capPerAxis` em 15, evoluir exige um eixo MAXIMO, e quem espalha eixo termina
+   a run com spells largas em vez de uma spell fechada. E `freeTier` deixa de
+   ser uma segunda regra: os dois tiers de graca sao exatamente os que o gate
+   nao cobra. */
 const PATH_RULES = {
   tiers: 5,
   freeTier: 2,     // ate este tier qualquer caminho pode subir
   maxDeep: 2,      // quantos caminhos podem passar de `freeTier`
+  axisGate: [0, 0, AXIS_RULES.hybridSide, AXIS_RULES.hybridMain, AXIS_RULES.pureAt],
 };
 
 // Classes como data. Só Warlock jogável; resto é placeholder de UI.

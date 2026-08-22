@@ -607,6 +607,11 @@ inércia.
 - **Ponto de eixo só vem de etapa.** Level-up não cobra nada e o baú entrega tier
   — as duas moedas nunca mais disputam a mesma escolha (ver "As duas batidas").
 - No máximo **2** caminhos por peça passam do tier 2 → impossível maximizar três.
+- **Tier 3, 4 e 5 pedem 5, 10 e 15 pontos no eixo DA PEÇA** (`PATH_RULES.axisGate`)
+  → impossível ter uma spell fechada sem ter escolhido um eixo. Os três números
+  são os limiares de capstone (`hybridSide`/`hybridMain`/`pureAt`), então o tier
+  5 custa a mesma pureza que o capstone puro, e `freeTier` deixa de ser uma
+  segunda regra: os dois tiers de graça são exatamente os que o gate não cobra.
 - Passivas podem declarar `exclusive` → `Fúria Contida` e `Pés de Cinza` nunca coexistem.
 - Peça com `requires` só é oferecida depois que a habilitadora está na build.
 - **O kit inicial é UMA peça só**, e ela entra **de graça**
@@ -658,6 +663,22 @@ Consequências que valem para qualquer coisa nova:
 - **Nada no level-up pode chamar `addAxis`.** `driver_cards` compara o pool
   antes e depois de toda escolha. Um tier que voltasse a cobrar eixo
   recolocaria o imposto sobre profundidade sem que a tela dissesse isso.
+- **Mas o level-up CONSULTA o eixo, e é isso que faz as duas telas
+  conversarem.** Depois que o tier deixou de custar ponto, profundidade virou
+  de graça e a etapa passou a decidir só a largura da run. O gate de eixo
+  (`PATH_RULES.axisGate`, cobrado em `canUpgradePath`) devolve a conversa sem
+  devolver o imposto: **a etapa decide QUAIS spells podem ficar fundas, o
+  level-up decide qual delas fica.** Espalhar eixo continua sendo uma escolha —
+  ela só passou a ter preço, e o preço é uma build inteira presa no tier 2.
+- **A trava vale para TODA fonte de tier**, porque quem pergunta é
+  `canUpgradePath`: level-up, baú e o que vier depois. Isentar o baú faria dele
+  a brecha que desmonta a regra — ele é a única fonte de tier grátis.
+- **Oferta travada some do bolo, então a tela tem que dizer por quê.** A tira da
+  build marca a spell parada (`lv-sp-lock`, `have/need` na cor do eixo, pip
+  vazado no degrau bloqueado) e o nível sem oferta troca "Arsenal completo" por
+  "Trilha travada" com o número que falta — `build.nearestGate()`. Sumir com a
+  trilha em silêncio é a tela cobrando atenção e devolvendo vazio, que é o
+  mesmo defeito que o fôlego já conserta do outro lado.
 - **Passiva fica no level-up, e não é exceção.** Ela não tem tier, não tem eixo
   e não pede investimento depois: só multiplica o que a build já tem
   (`pieceMods` sobre um `match`). Isso é aprofundar, não alargar — e é a mesma
@@ -780,6 +801,11 @@ da morte não entrega nada**.
   spells, três cartas mortas na mesma etapa paravam a pool com ponto por gastar,
   e como quem para as etapas é a POOL, o jogo devolvia uma tela por marco até o
   fim da run sem nunca entregar o ponto. Media: 3 em 60 runs de quem mira.
+- **A barra de eixo carrega os traços do gate.** Em 5, 10 e 15 — os tiers que o
+  ponto destrava — e não em texto: a barra tem 8px de altura, então quem quer o
+  número passa o mouse e quem quer a distância vê a prévia cravar antes ou
+  depois do traço. Sem eles a barra diz quanto o eixo cresceu e não o que o
+  crescimento compra, que é justamente por que esta tela importa.
 - **O rodapé é o que transforma "+2" num destino**: as três barras de eixo com
   prévia (`UI.axesHtml`, compartilhada com o painel do level-up) e o capstone
   mais próximo. Sem ele, alocar é uma decisão de rota longa com feedback só no

@@ -12,6 +12,11 @@ let s = 11;
 Math.random = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
 
 let fails = 0;
+/* Gate de eixo: tier 3+ pede pontos no eixo DA PECA. Este driver forca
+   conclusoes de spell que uma run so alcanca mirando um eixo, e a secao 4
+   acende a build INTEIRA — estado que nenhum pool de 20 pontos paga. Crava o
+   eixo em vez de jogar por ele; quem mede a regra e `driver_cards`. */
+const abreEixos = () => { for (const a in g.build.axis) g.build.axis[a] = AXIS_RULES.pureAt; };
 const fail = (m) => { console.error("  X " + m); fails++; };
 
 const g = new Game();
@@ -168,6 +173,7 @@ else if (maxSeguido > 60 * (CAST_POSE + 0.05)) {
 /* --- 3. aura so com spell concluida --------------------------------------- */
 console.log("--- auras ---");
 g.start();
+abreEixos();
 // toda peca com vfx entra na build, mas nenhuma fecha caminho
 let comVfx = 0;
 for (const id in PIECES) {
@@ -211,6 +217,7 @@ for (const id in PIECES) {
     const into = PIECES[id].paths[pathId].evolvesInto;
     if (!into || !PIECE_VFX[PIECES[into].vfx]) continue;
     g.start();
+    abreEixos();
     const inst = g.build.acquirePiece(id, true) || g.build.get(PIECES[id].key);
     for (let t = 0; t < PATH_RULES.tiers; t++) g.build.upgradePath(inst, pathId);
     if (g.build.vfx.length !== 1) fail(`${into}: evoluiu e ficou com ${g.build.vfx.length} auras`);
@@ -221,6 +228,7 @@ console.log(`  ok ${evoAura} evolucoes com vfx mantem exatamente 1 aura`);
 
 /* --- 4. o render aguenta a build inteira acesa ---------------------------- */
 g.start();
+abreEixos();
 for (const id in PIECES) {
   const def = PIECES[id];
   if (def.evolutionOnly) continue;
