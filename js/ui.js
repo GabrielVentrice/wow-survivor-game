@@ -128,8 +128,10 @@ class UI {
         const n = inst.paths[pid];
         pips += `<i class="${n > PATH_RULES.freeTier ? "deep" : ""}">${n}</i>`;
       }
-      html += `<div class="pb-icon" style="border-color:${inst.def.color}"
-        title="${inst.def.name}">
+      const aura = b.isComplete(inst);
+      html += `<div class="pb-icon ${aura ? "pb-aura" : ""}"
+        style="border-color:${inst.def.color};color:${inst.def.color}"
+        title="${inst.def.name}${aura ? " — concluída, aura acesa" : ""}">
         <span style="color:${inst.def.color}">${inst.def.icon}</span>
         <div class="pb-pips">${pips}</div></div>`;
     }
@@ -275,6 +277,7 @@ class UI {
       this.toast({ head: "Evolução!", color: res.evolved.to.color, icon: res.evolved.to.icon,
         name: `${res.evolved.from} → ${res.evolved.to.name}`, desc: res.evolved.to.desc });
     }
+    if (res.completed) this.auraToast(res.completed);
     for (const cap of res.caps) {
       g.sfx.combo();
       g.addShake(18);
@@ -283,7 +286,7 @@ class UI {
       this.toast({ head: "Capstone!", color: cap.color, icon: cap.icon,
         name: cap.name, desc: cap.desc });
     }
-    this.checkForm();
+    this.checkForm(res.caps[res.caps.length - 1]);
     this.updatePieceBar();
 
     g.player.pendingLevels--;
@@ -292,20 +295,36 @@ class UI {
     else g.state = STATE.PLAYING;
   }
 
-  // Metamorfose visual: agora ancorada nos pontos de eixo gastos.
-  checkForm() {
+  /* Aura: a spell fechou um caminho ate o fim e passou a arder em volta do
+     warlock. E o unico jeito de ganhar adorno no personagem. */
+  auraToast(def) {
+    const g = this.game;
+    g.sfx.combo();
+    g.addShake(14);
+    g.spawnParticles(g.player.x, g.player.y, def.color, 34);
+    g.player.comboPulse(def.color);
+    this.toast({ head: "Aura!", color: def.color, icon: def.icon,
+      name: def.name,
+      desc: "Spell concluída — a aura dela agora arde em volta de você." });
+  }
+
+  /* Metamorfose visual: ancorada nos CAPSTONES fechados. `cause` e o capstone
+     que acabou de abrir, quando houver — a transformacao sai na cor de quem a
+     causou, e nao numa cor generica de forma. */
+  checkForm(cause) {
     const g = this.game, p = g.player;
-    const idx = p.formIndex(g.build.axisTotal);
+    const idx = p.formIndex(g.build.capstones.size);
     if (idx === p.formIdx) return;
     const grew = idx > p.formIdx;
     p.formIdx = idx;
     const f = p.forms[idx];
     if (!grew || !f.name) return;
+    const color = (cause && cause.color) || f.color;
     g.sfx.combo();
     g.addShake(22);
-    g.spawnParticles(p.x, p.y, f.color, 44);
-    p.comboPulse(f.color);
-    this.toast({ head: "Metamorfose!", color: f.color, icon: f.icon,
+    g.spawnParticles(p.x, p.y, color, 44);
+    p.comboPulse(color);
+    this.toast({ head: "Metamorfose!", color, icon: f.icon,
       name: f.name, desc: f.desc });
   }
 
@@ -345,7 +364,7 @@ class UI {
       const r = g.build.upgradePath(c.inst, c.pathId);
       if (!r) continue;
       results.push({ def: c.inst.def, path: c.inst.def.paths[c.pathId],
-                     from, to: r.tier, evolved: r.evolved });
+                     from, to: r.tier, evolved: r.evolved, completed: r.completed });
     }
     if (!results.length) g.player.hp = g.player.maxHp;
 
@@ -354,12 +373,17 @@ class UI {
       this.toast({ head: "Evolução!", color: r.evolved.to.color, icon: r.evolved.to.icon,
         name: `${r.evolved.from} → ${r.evolved.to.name}`, desc: r.evolved.to.desc });
     }
+    for (const r of results) {
+      if (r.completed) this.auraToast(r.completed);
+    }
+    let lastCap = null;
     for (const cap of g.build.checkCapstones()) {
       g.build.afterChange();
+      lastCap = cap;
       this.toast({ head: "Capstone!", color: cap.color, icon: cap.icon,
         name: cap.name, desc: cap.desc });
     }
-    this.checkForm();
+    this.checkForm(lastCap);
     this.updatePieceBar();
 
     g.sfx.levelUp();
@@ -432,7 +456,22 @@ class UI {
         <div class="cb-bar"><div class="cb-fill" style="width:${b.axis[id] / AXIS_RULES.capPerAxis * 100}%;background:${a.color}"></div></div>
       </div>`;
     }
-    right += `</div><div class="pause-head">Capstones</div>`;
+    /* Metamorfose: o painel diz em que forma o warlock esta e o que falta para
+       a proxima — sem isso o jogador ve o corpo mudar e nao sabe por que. */
+    const forms = g.player.forms;
+    right += `</div><div class="pause-head">Metamorfose</div>`;
+    for (let i = 0; i < forms.length; i++) {
+      const f = forms[i];
+      if (!f.name) continue;
+      const on = b.capstones.size >= f.caps;
+      right += `<div class="cb-row ${on ? "done" : ""}">
+        <div class="cb-head"><span class="cb-ic">${f.icon}</span>
+          <span class="cb-name">${f.name}</span>
+          <span class="cb-status ${on ? "on" : ""}">${b.capstones.size}/${f.caps} capstones</span></div>
+        <div class="cb-desc">${f.desc}</div></div>`;
+    }
+
+    right += `<div class="pause-head">Capstones</div>`;
     for (const id in CAPSTONES) {
       const c = CAPSTONES[id];
       const on = b.capstones.has(id);

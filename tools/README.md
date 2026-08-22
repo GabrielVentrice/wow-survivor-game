@@ -19,6 +19,7 @@ DRIVER=driver_track.js node tools/harness.js .   # trilha em arquivo: loop, fall
 DRIVER=driver_cards.js node tools/harness.js .   # cartas de level up: faixa de tipo, pips, custo
 DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas, abertura
 DRIVER=driver_chest.js node tools/harness.js .   # baú: cadência de aparição e tamanho do prêmio
+DRIVER=driver_form.js  node tools/harness.js .   # metamorfose por capstone e aura por spell concluída
 DRIVER=driver_balance.js node tools/harness.js . 5 16   # balanceamento (5 runs x 4 políticas)
 DRIVER=driver_perf.js node tools/harness.js . 12        # custo de frame com a horda no teto
 ```
@@ -41,8 +42,10 @@ Estado medido (20 runs):
 | sobrevivência mediana | 8 – 14 min | 7:26 – 12:42 |
 | runs que terminam em morte | ~todas | 19/20 |
 | pool de eixos gasta | 20/20 | 20/20 |
-| runs com evolução | ≥ 25% | 30% |
+| runs com evolução | ≥ 25% | 25% |
 | runs com capstone | ≥ 25% | 40% |
+| runs com aura (spell concluída) | ≥ 25% | 50% |
+| runs com metamorfose | ≥ 25% | 40% |
 
 A política `agressivo` marca 1.2x: ela ignora defesa e controle por construção,
 morre cedo, e o terço inicial curto distorce a razão. É arquétipo glass cannon

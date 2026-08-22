@@ -20,6 +20,14 @@ open index.html                 # abre direto no browser (file:// funciona)
 python3 -m http.server 8000     # alternativa se precisar de http://
 ```
 
+`open sprites.html` abre a **galeria de arte**: toda a pixel-art do jogo
+(formas do warlock, inimigos, demônios, portão, quadros da explosão, lajes de
+chão e destroços) desenhada pelas mesmas funções de render do jogo, com zoom,
+troca de fundo, silhueta e flash de dano. Clicar num card copia o `id` do
+sprite e os botões copiam a referência pronta (`SPRITE_DATA.ghoul
+(js/sprites.js)`) para pedir um ajuste. Sprite sem dono aparece na seção
+"Sem uso" — é lá que arte órfã fica visível antes de virar peso morto.
+
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
 Antes de commitar, rode a bateria headless: veja `tools/README.md`.
 
@@ -33,6 +41,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | Arquivo | Conteúdo |
 |---|---|
 | `index.html` | CSS, markup e a lista ordenada de `<script src>` |
+| `sprites.html` | galeria de toda a arte gerada em runtime — revisão visual, fora do jogo |
 | `js/util.js` | helpers puros (`xpForLevel`, `fmtNum`, `hexRgb`, `deepClone`, `setPath`) |
 | `js/balance.js` | `BALANCE`, `ENEMIES`, `AXES`, `AXIS_RULES`, `PATH_RULES`, `CLASSES`, `ITEMS` |
 | `js/sprites.js` | `SPRITE_DATA` + geração de pixel-art e do tile de chão em runtime |
@@ -176,8 +185,9 @@ fixa e vale para qualquer adorno novo:
 2. **O que decide a jogada:** inimigo, zona de dano, projétil. Zona tem aro no
    raio exato; o preenchimento é fraco de propósito, quem informa é a borda.
 3. **Feedback de estado** (DoT, controle, invocação) — decoração proporcional à
-   informação: o anel de podridão só aparece em quem carrega 3+ DoTs, e no
-   máximo `MAX_PIECE_VFX` peças desenham adorno em volta do jogador.
+   informação: o anel de podridão só aparece em quem carrega 3+ DoTs, e adorno
+   em volta do jogador é privilégio de spell **concluída** (ver abaixo), com
+   teto de `MAX_PIECE_VFX` desenhando de fato.
 4. **Cenário.** Vive numa faixa de luz abaixo de tudo que o jogador conjura. Se
    o chão brilha tanto quanto uma explosão, a explosão não significa nada.
 
@@ -212,6 +222,44 @@ Evolução e capstone são o clímax da progressão. Se a medição mostrar meno
 ~25% das runs chegando lá, o problema é de OFERTA e não de números — as
 alavancas são o peso de caminho já iniciado em `getOffers` e a ordenação do
 baú em `UI.openChest`.
+
+### O corpo do warlock conta a progressão: capstone vira forma, spell vira aura
+
+São dois marcos, com dois donos, e não podem trocar de dono:
+
+| Marco | Gatilho | O que muda | Onde mora |
+|---|---|---|---|
+| **Metamorfose** | um capstone fechado | troca o sprite do personagem, a escala e a cor da luz no chão | `CLASSES.<id>.forms[].caps` |
+| **Aura** | uma spell concluída (qualquer caminho no tier 5) | acende o `PIECE_VFX` daquela peça em volta do warlock | `BuildSystem.isComplete` → `rebuildVfx` |
+
+A versão antiga amarrava as duas coisas no **acúmulo de pontos de eixo**: a
+forma vinha em 6 e 14 pontos, e a aura era uma propriedade da forma
+(`aura: true`), o que dava adorno a toda peça comprada de uma vez só. Isso
+falhava dos dois lados — a transformação chegava por inércia (todo upgrade
+empurra o eixo, então ela não marcava escolha nenhuma) e o adorno virava ruído
+justo quando a build ficava grande.
+
+Consequências que valem para conteúdo novo:
+
+- **Forma é indexada por capstone, não por ponto.** Com pool 20 e teto 15 cabem
+  no máximo **2** capstones numa run — então uma classe tem sentido com 3
+  formas (`caps: 0, 1, 2`). Uma quarta seria arte morta.
+- **A conclusão da peça é que acende a aura, não a compra.** `upgradePath`
+  devolve `completed` **só na primeira** vez que a peça fecha um caminho:
+  fechar o segundo caminho da mesma peça não acende uma segunda aura.
+- **A `key` atravessa a evolução, então a aura também.** A peça troca de `def`
+  no tier 5 e o halo continua aceso, agora com o `vfx` da forma evoluída.
+- **Peça nova sem `vfx` simplesmente não tem aura para dar.** Se a spell é de
+  assinatura, dê a ela uma entrada em `PIECE_VFX`.
+- **Quem avança `player.formIdx` é `UI.checkForm`, e mais ninguém.** Enquanto
+  `BuildSystem.afterChange` também adiantava o índice, o `idx === formIdx` de
+  lá nunca dava falso e a metamorfose chegava calada — sprite novo, sem toast,
+  sem partícula, sem pulso. Quem conceder capstone fora do level-up (o baú já
+  faz) precisa chamar `checkForm` depois de `checkCapstones`.
+
+`driver_form` guarda as duas regras: que ponto de eixo sozinho não move a forma,
+e que peça comprada sem caminho fechado não acende nada. Medido em 20 runs:
+50% acendem ao menos uma aura, 40% ganham ao menos uma forma.
 
 ### Regras estruturais que forçam comprometimento
 

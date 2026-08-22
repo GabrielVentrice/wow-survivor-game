@@ -571,6 +571,13 @@
     font-size: 19px; line-height: 1;
   }
   .pb-icon.pb-passive { width: 30px; height: 30px; font-size: 15px; border-radius: 50%; }
+  /* Spell concluida: a mesma aura que acendeu no warlock, em miniatura, para
+     a barra dizer QUAL peca esta ardendo em volta dele. */
+  .pb-icon.pb-aura { box-shadow: 0 0 10px 1px currentColor, inset 0 0 8px -2px currentColor; }
+  .pb-icon.pb-aura::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 12px;
+    border: 1px solid currentColor; opacity: 0.45;
+  }
   .pb-pips {
     position: absolute; bottom: -3px; left: 0; right: 0;
     display: flex; gap: 2px; justify-content: center;

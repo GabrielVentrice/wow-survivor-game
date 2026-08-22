@@ -182,6 +182,8 @@ function runOnce(policy, seed) {
     passives: [...g.build.passives.keys()],
     capstones: [...g.build.capstones],
     evolved: [...g.build.pieces.values()].filter((i) => i.evolvedInto).map((i) => i.defId),
+    // spells concluidas = auras acesas no personagem (ver BuildSystem.isComplete)
+    auras: [...g.build.pieces.values()].filter((i) => g.build.isComplete(i)).map((i) => i.defId),
     picks,
   };
 }
@@ -314,3 +316,11 @@ console.log(`  runs que evoluiram algo: ${all.filter((r) => r.evolved.length).le
   `  ${JSON.stringify(cnt(evoAll))}`);
 console.log(`  runs com capstone: ${all.filter((r) => r.capstones.length).length}/${all.length}` +
   `  ${JSON.stringify(cnt(capAll))}`);
+
+/* Os dois marcos visuais da run. Capstone acende uma METAMORFOSE, spell
+   concluida acende uma AURA. Se estes numeros secarem, o warlock termina a run
+   com a mesma cara com que comecou — e a progressao vira so numero na HUD. */
+console.log(`  runs com spell concluida (aura): ${all.filter((r) => r.auras.length).length}/${all.length}` +
+  `  mediana ${med(all.map((r) => r.auras.length))} auras`);
+console.log(`  runs com metamorfose: ${all.filter((r) => r.capstones.length).length}/${all.length}` +
+  `  mediana ${med(all.map((r) => Math.min(r.capstones.length, 2)))} formas ganhas`);

@@ -33,6 +33,9 @@ class Player {
     this.moving = false;
     this.forms = cls.forms || DEFAULT_FORMS;
     this.formIdx = 0;
+    // Cor de cada forma, pre-resolvida: a luz de chao e desenhada por frame e
+    // hexRgb aloca. Forma sem cor propria cai na cor da classe.
+    this.formRgb = this.forms.map((f) => hexRgb(f.color || cls.color || "#7a3cff"));
     this.vfxTime = 0;
     this.pulses.length = 0;
 
@@ -101,21 +104,25 @@ class Player {
     const lim = this.maxShield > 0 ? this.maxShield : this.maxHp;
     this.shield = Math.min(lim, this.shield + amount);
   }
-  // forma atual pelo total de pontos de eixo gastos
-  formIndex(axisTotal) {
+  // forma atual pelo numero de capstones fechados
+  formIndex(capstones) {
     let idx = 0;
     for (let i = 0; i < this.forms.length; i++) {
-      if (axisTotal >= this.forms[i].at) idx = i;
+      if (capstones >= this.forms[i].caps) idx = i;
     }
     return idx;
   }
   comboPulse(color) { this.pulses.push({ t: 0, rgb: hexRgb(color) }); }
 
-  draw(ctx, cam, vfxList, auraCount) {
+  /* `auras` = as spells CONCLUIDAS (build.vfx). Peca comprada nao acende nada:
+     o halo em volta do warlock e o que se ganha por fechar um caminho ate o
+     tier 5. A FORMA (capstones) manda na luz do corpo; as AURAS (spells
+     concluidas) mandam nos halos coloridos em volta. */
+  draw(ctx, cam, auras) {
     const sx = this.x - cam.left;
     const sy = this.y - cam.top;
     const r = this.radius;
-    const fx = vfxList || EMPTY_ARR;
+    const fx = auras || EMPTY_ARR;
     const t = this.vfxTime;
 
     const form = this.forms[this.formIdx];
@@ -132,12 +139,13 @@ class Player {
     // centrado no proprio corpo e lavava o sprite por dentro. Achatado aos pes
     // ele faz a mesma coisa — dizer que o warlock esta aceso — sem cobrir a
     // unica coisa que o jogador precisa achar na tela.
-    const auraOn = !!form.aura;
-    const boost = auraOn ? auraCount : 0;
-    const auraR = r * (2.4 + boost * 0.12);
+    // A cor e o tamanho saem da FORMA: e a metamorfose, e nao a build, que diz
+    // o quanto o warlock ja deixou de ser humano.
+    const rgb = this.formRgb[this.formIdx];
+    const auraR = r * (2.2 + this.formIdx * 0.55);
     const aura = ctx.createRadialGradient(sx, sy + r * 0.7, r * 0.3, sx, sy + r * 0.7, auraR);
-    aura.addColorStop(0, `rgba(122,60,255,${(0.26 + boost * 0.03).toFixed(3)})`);
-    aura.addColorStop(1, "rgba(122,60,255,0)");
+    aura.addColorStop(0, `rgba(${rgb},${(0.24 + this.formIdx * 0.07).toFixed(3)})`);
+    aura.addColorStop(1, `rgba(${rgb},0)`);
     ctx.save();
     ctx.translate(sx, sy + r * 0.7);
     ctx.scale(1, 0.46);
@@ -146,10 +154,10 @@ class Player {
     ctx.beginPath(); ctx.arc(sx, sy + r * 0.7, auraR, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 
-    // Halo aditivo na cor de cada vfx ativo, respirando fora de fase. O brilho
-    // e dividido pelo numero de pecas: seis halos com a alpha de um viram uma
+    // Halo aditivo na cor de cada aura, respirando fora de fase. O brilho e
+    // dividido pelo numero de auras: seis halos com a alpha de um viram uma
     // bola branca, e ai a build inteira custa a leitura do personagem.
-    if (auraOn && fx.length) {
+    if (fx.length) {
       const share = 1 / Math.sqrt(fx.length);
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
@@ -188,7 +196,7 @@ class Player {
 
     // O brilho da build passa por cima do sprite, entao ele e o primeiro a
     // apagar a arte: fica so como respiro de cor, nao como fonte de luz.
-    if (auraOn && fx.length) {
+    if (fx.length) {
       const c = fx[Math.floor(t / 2.4) % fx.length];
       const k = (Math.sin(t * 3) + 1) * 0.5;
       drawSpriteGlow(ctx, spr, sx, sy, drawH, this.facing < 0, anim,

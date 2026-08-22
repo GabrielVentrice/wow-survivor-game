@@ -172,11 +172,17 @@ class BuildSystem {
     this.rebuildVfx();
   }
 
+  /* AURAS do personagem. So spell CONCLUIDA entra aqui.
+
+     Antes toda peca comprada acendia adorno em volta do warlock, e com seis
+     pecas na build o personagem virava um borrao de cor — exatamente o que a
+     hierarquia de leitura proibe. Agora o halo e recompensa: aparece quando um
+     caminho chega ao tier 5, que e o momento em que a spell esta pronta. */
   rebuildVfx() {
     this.vfx.length = 0;
     for (const inst of this.pieces.values()) {
       const v = PIECE_VFX[inst.def.vfx];
-      if (!v) continue;
+      if (!v || !this.isComplete(inst)) continue;
       this.vfx.push({
         under: v.under, over: v.over, color: inst.def.color,
         rgb: hexRgb(inst.def.color), lvl: this.pieceTier(inst),
@@ -188,6 +194,15 @@ class BuildSystem {
 
   has(key) { return this.pieces.has(key); }
   get(key) { return this.pieces.get(key); }
+
+  /* Spell concluida = qualquer caminho dela chegou ao ultimo tier. Vale tanto
+     para o caminho que evolui quanto para o que so termina: os dois exigem as
+     mesmas cinco compras na MESMA trilha, que e o comprometimento que a aura
+     paga. */
+  isComplete(inst) {
+    for (const p in inst.paths) if (inst.paths[p] >= PATH_RULES.tiers) return true;
+    return false;
+  }
   pieceTier(inst) {
     let n = 0;
     for (const p in inst.paths) n += inst.paths[p];
@@ -228,6 +243,7 @@ class BuildSystem {
 
   upgradePath(inst, pathId) {
     if (!this.canUpgradePath(inst, pathId)) return null;
+    const wasComplete = this.isComplete(inst);
     const tierIdx = inst.paths[pathId];
     inst.paths[pathId] = tierIdx + 1;
     // investir fundo num caminho aprofunda o eixo da peca
@@ -239,7 +255,10 @@ class BuildSystem {
       evolved = this.evolve(inst, path.evolvesInto);
     }
     this.afterChange();
-    return { tier: inst.paths[pathId], evolved };
+    // `completed` = a peca ACABOU de fechar o primeiro caminho, entao ganhou
+    // aura agora. Fechar o segundo caminho da mesma peca nao acende de novo.
+    const completed = !wasComplete && this.isComplete(inst) ? inst.def : null;
+    return { tier: inst.paths[pathId], evolved, completed };
   }
 
   /* Evolucao: a peca troca id, nome, arte, trigger e efeitos — nao e upgrade
@@ -312,7 +331,11 @@ class BuildSystem {
     this.applyGlobals();
     this.rebuildEventHooks();
     this.resolveAll();
-    this.game.player.formIdx = this.game.player.formIndex(this.axisTotal);
+    /* A FORMA nao e mexida aqui de proposito. Quem avanca `player.formIdx` e
+       `UI.checkForm`, depois de checkCapstones — se a build adiantasse o
+       indice, o `idx === formIdx` de la nunca seria falso e a metamorfose
+       aconteceria em silencio: sprite novo, sem toast, sem particula, sem
+       pulso. O clímax da run nao pode chegar sem ninguem avisar. */
   }
 
   /* --- multiplicadores dinamicos ----------------------------------------
@@ -449,17 +472,18 @@ class BuildSystem {
     return out;
   }
 
-  // Aplica uma oferta escolhida. Retorna { caps, evolved } para os toasts.
+  // Aplica uma oferta escolhida. Retorna { caps, evolved, completed } para os
+  // toasts: `caps` vira metamorfose, `completed` vira aura.
   applyOffer(o) {
-    let evolved = null;
+    let evolved = null, completed = null;
     if (o.kind === "piece") this.acquirePiece(o.id);
     else if (o.kind === "passive") this.acquirePassive(o.id);
     else if (o.kind === "path") {
       const res = this.upgradePath(o.inst, o.pathId);
-      if (res) evolved = res.evolved;
+      if (res) { evolved = res.evolved; completed = res.completed; }
     }
     const caps = this.checkCapstones();
     if (caps.length) this.afterChange();
-    return { caps, evolved };
+    return { caps, evolved, completed };
   }
 }

@@ -180,16 +180,23 @@ const CLASSES = {
     // Kit inicial: uma peca de identidade (DoT) e uma de dano imediato. Entram
     // de graca — o pool de 20 pontos fica inteiro para as escolhas do jogador.
     starting: ["corruption", "incinerate"],
-    // Evolução visual: `at` = nº mínimo de pontos de eixo para assumir a forma.
-    // A última forma cujo `at` for atingido vence.
+    /* Metamorfose: `caps` = nº de capstones fechados para assumir a forma. A
+       última forma cujo `caps` for atingido vence.
+
+       O gatilho é o CAPSTONE, não o acúmulo de pontos: pontos de eixo entram
+       sozinhos a cada compra, e uma transformação que chega por inércia não
+       marca nada. Capstone é o único marco que exige comprometer o pool a
+       ponto de fechar as outras portas — é ele que separa o aprendiz do
+       mestre. Com pool 20 e teto 15, cabem no máximo dois numa run: são
+       exatamente as duas formas abaixo da base. */
     forms: [
-      { sprite: "warlock", at: 0, scale: 2.9 },
-      { sprite: "warlockFel", at: 6, scale: 3.55, dy: -0.33, color: "#aaff5a",
+      { sprite: "warlock", caps: 0, scale: 2.9 },
+      { sprite: "warlockFel", caps: 1, scale: 3.55, dy: -0.33, color: "#aaff5a",
         icon: "👹", name: "Corrompido",
-        desc: "O fel toma o warlock: chifres despontam e a mandíbula acende." },
-      { sprite: "warlockDemon", at: 14, scale: 3.85, dy: -0.48, aura: true, color: "#ff8a3c",
+        desc: "O primeiro capstone cobra o corpo: chifres despontam e a mandíbula acende." },
+      { sprite: "warlockDemon", caps: 2, scale: 3.85, dy: -0.48, color: "#ff8a3c",
         icon: "😈", name: "Metamorfose Demoníaca",
-        desc: "Asas se abrem e os olhos viram brasa — pouco resta do humano." },
+        desc: "Dois capstones fechados. Asas se abrem, os olhos viram brasa — pouco resta do humano." },
     ],
   },
   mage:   { id: "mage",   name: "Mage",   tag: "Em breve", color: "#3fa9f5", available: false },

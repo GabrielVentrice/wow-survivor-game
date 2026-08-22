@@ -729,7 +729,7 @@ class Game {
     const parts = this.particles.active;
     for (let i = 0; i < parts.length; i++) parts[i].draw(ctx, cam);
 
-    this.player.draw(ctx, cam, this.build.vfx, this.build.capstones.size);
+    this.player.draw(ctx, cam, this.build.vfx);
 
     const proj = this.projectiles.active;
     for (let i = 0; i < proj.length; i++) proj[i].draw(ctx, cam);

@@ -13,7 +13,7 @@ const PULSE_LIFE = 0.9;          // duracao da onda de choque de desbloqueio
 // some dentro da propria build e o jogador perde a unica coisa que ele
 // precisa achar na tela. As demais continuam existindo na cor do halo.
 const MAX_PIECE_VFX = 3;
-const DEFAULT_FORMS = [{ sprite: "warlock", at: 0, scale: 2.9 }];
+const DEFAULT_FORMS = [{ sprite: "warlock", caps: 0, scale: 2.9 }];
 
 /* XP para sair do nível `l`.
 
