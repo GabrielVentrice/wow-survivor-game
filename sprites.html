@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Galeria de sprites — WoW Survivor</title>
+<style>
+  :root {
+    --bg: #0a0610;
+    --panel: #140c20;
+    --line: #2a1b3d;
+    --ink: #e8dcf6;
+    --dim: #9d8bb8;
+    --accent: #b23cff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(10,6,16,0.94);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(6px);
+    padding: 10px 16px;
+  }
+  h1 { font-size: 14px; margin: 0 0 8px; letter-spacing: 0.08em; text-transform: uppercase; }
+  h1 small { color: var(--dim); font-weight: normal; letter-spacing: 0; text-transform: none; margin-left: 8px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+  .controls label { display: inline-flex; align-items: center; gap: 5px; color: var(--dim); cursor: pointer; }
+  .controls input[type="range"] { width: 110px; }
+  .controls input[type="search"] {
+    background: #0d0716; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 4px; padding: 4px 8px; font: inherit; width: 170px;
+  }
+  .controls select {
+    background: #0d0716; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 4px; padding: 3px 6px; font: inherit;
+  }
+
+  main { padding: 18px 16px 60px; }
+
+  section { margin-bottom: 34px; }
+  section > h2 {
+    font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--dim); margin: 0 0 4px; display: flex; align-items: baseline; gap: 10px;
+  }
+  section > p.note { margin: 0 0 12px; color: #6f6088; max-width: 70ch; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.12s, transform 0.12s;
+  }
+  .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .card canvas { display: block; width: 100%; height: 190px; image-rendering: pixelated; }
+  .card .info { padding: 7px 9px 9px; border-top: 1px solid var(--line); }
+  .card .id { color: var(--ink); font-weight: bold; word-break: break-all; }
+  .card .name { color: var(--dim); }
+  .card .meta { color: #6f6088; font-size: 11px; margin-top: 3px; }
+  .card .refs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+  .card .refs button {
+    background: #1d1230; color: var(--dim); border: 1px solid var(--line);
+    border-radius: 4px; padding: 2px 7px; font: 11px/1.4 inherit; cursor: pointer;
+  }
+  .card .refs button:hover { color: var(--ink); border-color: var(--accent); }
+  .card .swatches { display: flex; gap: 3px; margin-top: 6px; }
+  .card .swatches i { width: 11px; height: 11px; border-radius: 2px; border: 1px solid #00000055; }
+
+  .sec-copy {
+    background: none; border: 1px solid var(--line); color: var(--dim);
+    border-radius: 4px; padding: 1px 7px; font: 11px/1.5 inherit; cursor: pointer;
+  }
+  .sec-copy:hover { color: var(--ink); border-color: var(--accent); }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(14px);
+    background: #1d1230; border: 1px solid var(--accent); color: var(--ink);
+    padding: 8px 14px; border-radius: 6px; opacity: 0; pointer-events: none;
+    transition: opacity 0.15s, transform 0.15s; max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Galeria de sprites <small>clique num card para copiar o id · os botões copiam a referência pronta pra IA</small></h1>
+  <div class="controls">
+    <label>escala
+      <select id="fit">
+        <option value="fit">ajustar ao card</option>
+        <option value="real">real (comparável)</option>
+      </select>
+    </label>
+    <label>zoom <input type="range" id="zoom" min="0.4" max="4" step="0.1" value="1" /><span id="zoomVal">1x</span></label>
+    <label>fundo
+      <select id="bg">
+        <option value="dark">escuro</option>
+        <option value="floor">chão do jogo</option>
+        <option value="checker">xadrez</option>
+        <option value="light">claro</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="anim" checked /> animação</label>
+    <label><input type="checkbox" id="shadow" checked /> sombra</label>
+    <label><input type="checkbox" id="glow" checked /> brilho</label>
+    <label><input type="checkbox" id="rim" /> contorno</label>
+    <label><input type="checkbox" id="flash" /> flash de dano</label>
+    <label><input type="checkbox" id="silhouette" /> silhueta</label>
+    <label>corrupção <input type="range" id="corruption" min="0" max="1" step="0.05" value="0.4" /></label>
+    <input type="search" id="filter" placeholder="filtrar por id/nome…" />
+  </div>
+</header>
+
+<main id="gallery"></main>
+<div id="toast"></div>
+
+<script src="js/util.js"></script>
+<script src="js/balance.js"></script>
+<script>var MINIONS = {};</script>
+<script src="js/sprites.js"></script>
+<script src="js/content/minions.js"></script>
+<script src="js/render/scenery.js"></script>
+<script src="js/render/vfx.js"></script>
+
+<script>
+"use strict";
+/* =========================================================================
+   VIEWER — a galeria de arte do jogo. Carrega os mesmos arquivos que o
+   index.html carrega e desenha cada sprite com as MESMAS funções de render
+   (drawSprite, drawShadow, drawPortal, drawExplosion, PROPS), para o que
+   aparece aqui ser exatamente o que aparece em jogo — nada é redesenhado
+   "parecido" só para a galeria.
+
+   Cada card carrega o id do sprite e a referência de onde ele mora, prontos
+   para colar num pedido de ajuste.
+   ========================================================================= */
+
+buildSprites();
+
+const S = {
+  zoom: 1,
+  fit: "fit",
+  bg: "dark",
+  anim: true,
+  shadow: true,
+  glow: true,
+  rim: false,
+  flash: false,
+  silhouette: false,
+  corruption: 0.4,
+  filter: "",
+};
+
+const SPRITES_FILE = "js/sprites.js";
+const CARD_H = 190;
+
+/* ---- clipboard ----------------------------------------------------------
+   navigator.clipboard exige contexto seguro e a página roda em file://, então
+   o caminho que sempre funciona é o textarea escondido + execCommand. */
+function copy(text, label) {
+  const done = (ok) => toast(ok ? "copiado: " + (label || text)
+                                : "não deu para copiar — selecione o texto do card");
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => done(true), () => done(fallbackCopy(text)));
+    return;
+  }
+  done(fallbackCopy(text));
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.cssText = "position:fixed;top:-1000px;opacity:0";
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+let toastTimer = 0;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("on"), 1600);
+}
+
+/* ---- fundo do card ------------------------------------------------------ */
+let FLOOR_TILES = null;
+function floorTile(i) {
+  if (!FLOOR_TILES) {
+    FLOOR_TILES = [];
+    for (let v = 0; v < SCENERY.tileVariants; v++) FLOOR_TILES.push(makeFelTile(v));
+  }
+  return FLOOR_TILES[i % FLOOR_TILES.length];
+}
+let CHECKER = null;
+function checkerPattern(ctx) {
+  if (!CHECKER) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 16;
+    const x = c.getContext("2d");
+    x.fillStyle = "#181022"; x.fillRect(0, 0, 16, 16);
+    x.fillStyle = "#221630"; x.fillRect(0, 0, 8, 8); x.fillRect(8, 8, 8, 8);
+    CHECKER = c;
+  }
+  return ctx.createPattern(CHECKER, "repeat");
+}
+function paintBg(ctx, w, h, seed) {
+  if (S.bg === "floor") {
+    const T = BALANCE.world.tile;
+    for (let y = 0; y < h; y += T) {
+      for (let x = 0; x < w; x += T) {
+        ctx.drawImage(floorTile(hash2(x / T + seed, y / T + seed) % SCENERY.tileVariants), x, y);
+      }
+    }
+    return;
+  }
+  ctx.fillStyle = S.bg === "checker" ? checkerPattern(ctx)
+                : S.bg === "light" ? "#cfc4dd"
+                : "#0d0716";
+  ctx.fillRect(0, 0, w, h);
+}
+
+/* ---- helpers de desenho ------------------------------------------------- */
+// A silhueta branca substitui a arte quando o toggle está ligado: é o teste de
+// leitura de forma que a hierarquia visual do jogo cobra.
+function paintSprite(ctx, spr, x, y, drawH, flip, anim) {
+  const shown = S.silhouette ? { canvas: spr.white, white: spr.white } : spr;
+  drawSprite(ctx, shown, x, y, drawH, flip, S.flash ? 0.85 : 0, anim);
+}
+function spriteDims(id) {
+  const d = SPRITE_DATA[id];
+  return d ? Math.max.apply(null, d.rows.map((r) => r.length)) + "×" + d.rows.length : "—";
+}
+function paletteOf(id) {
+  const d = SPRITE_DATA[id];
+  return d ? Object.keys(d.pal).map((k) => d.pal[k]) : [];
+}
+
+/* ---- itens --------------------------------------------------------------
+   Cada item é { id, name, meta, size, swatches, refs, draw(ctx, t) }. `draw`
+   recebe o contexto já transladado para o centro do card e escalado, então as
+   coordenadas dentro dele são as do mundo.
+
+   `size` é a altura que a peça ocupa em pixels de mundo. Serve para duas
+   coisas: encaixar cada carta no card e, no modo "real", comparar tamanhos —
+   um dreadlord ao lado de um ghoul só diz alguma coisa se os dois estiverem
+   na mesma régua. */
+
+function spriteRef(id) {
+  return { label: "SPRITE_DATA", text: "SPRITE_DATA." + id + " (" + SPRITES_FILE + ")" };
+}
+
+function playerItems() {
+  const cls = CLASSES.warlock;
+  const r = BALANCE.player.radius;
+  return cls.forms.map((f, i) => ({
+    id: f.sprite,
+    name: f.name || cls.name + " (forma base)",
+    meta: "r " + r + " · scale " + f.scale + " · capstones " + f.caps + " · grid " + spriteDims(f.sprite),
+    size: r * f.scale * 1.5,
+    swatches: paletteOf(f.sprite),
+    refs: [spriteRef(f.sprite), { label: "forma", text: "CLASSES.warlock.forms[" + i + "] (js/balance.js)" }],
+    draw(ctx, t) {
+      const spr = SPRITES[f.sprite];
+      const drawH = r * f.scale;
+      const anim = walkAnim(S.anim ? t : 0, S.anim);
+      if (f.dy) anim.bob += f.dy * r;
+      const rgb = hexRgb(f.color || cls.color);
+      if (S.glow) {
+        // Luz no chão, como em jogo: elipse achatada aos pés, nunca disco no corpo.
+        const auraR = r * (2.2 + i * 0.55);
+        const g = ctx.createRadialGradient(0, r * 0.7, r * 0.3, 0, r * 0.7, auraR);
+        g.addColorStop(0, "rgba(" + rgb + "," + (0.24 + i * 0.07).toFixed(3) + ")");
+        g.addColorStop(1, "rgba(" + rgb + ",0)");
+        ctx.save();
+        ctx.translate(0, r * 0.7); ctx.scale(1, 0.46); ctx.translate(0, -r * 0.7);
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(0, r * 0.7, auraR, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      if (S.shadow) drawShadow(ctx, 0, 0, r);
+      // O warlock leva contorno sempre, como em jogo: e o que faz a arte nao
+      // se dissolver dentro do proprio brilho.
+      drawSpriteRim(ctx, spr, 0, 0, drawH, false, anim, "#05020a", 0.9);
+      paintSprite(ctx, spr, 0, 0, drawH, false, anim);
+    },
+  }));
+}
+
+function enemyItems() {
+  return Object.keys(ENEMIES).map((id) => {
+    const e = ENEMIES[id];
+    return {
+      id: id,
+      name: e.name,
+      meta: "r " + e.radius + " · hp " + e.hp + " · vel " + e.speed + " · xp " + e.xp +
+            (e.boss ? " · CHEFE" : "") + " · grid " + spriteDims(id),
+      size: e.radius * 2.7 * 1.35,
+      swatches: paletteOf(id),
+      refs: [spriteRef(id), { label: "tuning", text: "ENEMIES." + id + " (js/balance.js)" }],
+      draw(ctx, t) {
+        const spr = SPRITES[id];
+        const r = e.radius;
+        const anim = walkAnim(S.anim ? t : 0, true);
+        if (S.shadow) drawShadow(ctx, 0, 0, r);
+        if (S.rim) drawSpriteRim(ctx, spr, 0, 0, r * 2.7, false, anim, "#05020a", 0.9);
+        paintSprite(ctx, spr, 0, 0, r * 2.7, false, anim);
+        if (S.glow) drawSpriteGlow(ctx, spr, 0, 0, r * 2.7, false, anim, e.color, 0.08);
+      },
+    };
+  });
+}
+
+function minionItems() {
+  return Object.keys(MINIONS).map((kind) => {
+    const d = MINIONS[kind];
+    return {
+      id: d.sprite || kind,
+      name: kind,
+      meta: "r " + d.radius + " · scale " + (d.scale || 2.8) + " · " + (d.gait || "walk") +
+            " · ai " + d.ai + " · " + d.duration + "s" +
+            (d.sprite ? " · grid " + spriteDims(d.sprite) : " · SEM SPRITE (orbe genérico)"),
+      size: d.radius * (d.scale || 2.8) * 1.35,
+      swatches: d.sprite ? paletteOf(d.sprite) : [d.color],
+      refs: [d.sprite ? spriteRef(d.sprite) : null,
+             { label: "tuning", text: "MINIONS." + kind + " (js/content/minions.js)" }].filter(Boolean),
+      draw(ctx, t) {
+        const r = d.radius;
+        const gait = d.gait || "walk";
+        const floats = gait === "float";
+        const anim = minionAnim(gait, S.anim ? t * 4 : 0, r);   // animTime anda 4/s
+        if (S.shadow) drawShadow(ctx, 0, r * (floats ? 0.85 : 0.55), r * (floats ? 0.6 : 0.8));
+        const spr = d.sprite ? SPRITES[d.sprite] : null;
+        if (!spr) {
+          const g = ctx.createRadialGradient(-r * 0.3, -r * 0.4 + anim.bob, r * 0.15, 0, anim.bob, r);
+          g.addColorStop(0, "#ffe6b0"); g.addColorStop(0.55, d.color); g.addColorStop(1, "rgba(20,6,10,0.9)");
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(0, anim.bob, r, 0, Math.PI * 2); ctx.fill();
+          return;
+        }
+        const drawH = r * (d.scale || 2.8);
+        if (S.rim) drawSpriteRim(ctx, spr, 0, 0, drawH, false, anim, "#05020a", 0.9);
+        paintSprite(ctx, spr, 0, 0, drawH, false, anim);
+        if (S.glow) {
+          const k = (Math.sin((S.anim ? t : 0) * 0.6) + 1) * 0.5;
+          drawSpriteGlow(ctx, spr, 0, 0, drawH, false, anim, d.color, 0.05 * (0.6 + k * 0.4));
+        }
+      },
+    };
+  });
+}
+
+// Sprites que existem no SPRITE_DATA mas que ninguém usa — a galeria é o único
+// lugar onde arte órfã aparece antes de virar peso morto no arquivo.
+function orphanItems() {
+  const used = {};
+  CLASSES.warlock.forms.forEach((f) => (used[f.sprite] = 1));
+  Object.keys(ENEMIES).forEach((id) => (used[id] = 1));
+  Object.keys(MINIONS).forEach((k) => { if (MINIONS[k].sprite) used[MINIONS[k].sprite] = 1; });
+  return Object.keys(SPRITE_DATA).filter((id) => !used[id]).map((id) => ({
+    id: id,
+    name: "sem dono",
+    meta: "grid " + spriteDims(id),
+    size: SPRITES[id].canvas.height * 2.2 * 1.3,
+    swatches: paletteOf(id),
+    refs: [spriteRef(id)],
+    draw(ctx, t) {
+      const spr = SPRITES[id];
+      const anim = walkAnim(S.anim ? t : 0, true);
+      paintSprite(ctx, spr, 0, 0, spr.canvas.height * 2.2, false, anim);
+    },
+  }));
+}
+
+// O portão é recolorido por feitiço: uma carta por cor de eixo mostra o que a
+// mesma grade vira em cada família.
+function portalItems() {
+  const colors = [];
+  for (const axis in AXIS_PALETTE) {
+    colors.push({ axis: axis, tone: "base", hex: AXIS_PALETTE[axis].base });
+    colors.push({ axis: axis, tone: "light", hex: AXIS_PALETTE[axis].light });
+  }
+  return colors.map((c) => ({
+    id: "PORTAL_GATE",
+    name: c.axis + " / " + c.tone,
+    meta: c.hex + " · runas recoloridas por portalSprite()",
+    size: 22 * 3.6,
+    swatches: [c.hex, PORTAL_GATE.pal.S, PORTAL_GATE.pal.B],
+    refs: [{ label: "grade", text: "PORTAL_GATE (" + SPRITES_FILE + ")" },
+           { label: "âncoras", text: "PORTAL_ART (" + SPRITES_FILE + ")" },
+           { label: "render", text: "drawPortal() (js/render/vfx.js)" }],
+    draw(ctx, t) {
+      const open = S.anim ? Math.min(1, ((t % 6) / 6) * 4) : 1;
+      drawPortal(ctx, 0, 0, 22, t, c.hex, open);
+    },
+  }));
+}
+
+// A explosão é o único sprite com quadros: a carta roda a animação inteira e
+// mostra em que quadro está, porque é isso que se ajusta quando ela "não lê".
+function explosionItems() {
+  const out = [];
+  for (const axis in AXIS_PALETTE) {
+    for (let v = 0; v < EXPLO.VARIANTS; v++) {
+      out.push({
+        id: "explosion",
+        name: axis + " · variante " + v,
+        meta: EXPLO.FRAMES + " quadros · grade " + EXPLO.GRID + " · " + AXIS_PALETTE[axis].light,
+        size: 26 * 3.2,
+        swatches: [AXIS_PALETTE[axis].light, "#ffffff"],
+        refs: [{ label: "gerador", text: "buildExplosionFrame() (" + SPRITES_FILE + ")" },
+               { label: "tuning", text: "EXPLO (" + SPRITES_FILE + ")" },
+               { label: "render", text: "drawExplosion() (js/render/vfx.js)" }],
+        draw(ctx, t) {
+          const k = S.anim ? (t % 1.1) / 1.1 : 0.35;
+          drawExplosion(ctx, 0, 0, 26, k, AXIS_PALETTE[axis].light, v * 2);
+        },
+        // A fita de quadros: a explosão é o único sprite animado do jogo, e é
+        // quadro a quadro que ela se ajusta. Desenhada em espaço de card, fora
+        // do zoom, para caber sempre.
+        overlay(ctx, w, h, t) {
+          const frames = explosionFrames(AXIS_PALETTE[axis].light)[v];
+          const cell = Math.min(20, (w - 16) / frames.length);
+          const x0 = (w - cell * frames.length) / 2, y0 = h - cell - 6;
+          const cur = Math.min(frames.length - 1,
+            Math.floor((S.anim ? (t % 1.1) / 1.1 : 0.35) * frames.length));
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          for (let i = 0; i < frames.length; i++) {
+            const x = x0 + i * cell;
+            ctx.fillStyle = "rgba(0,0,0,0.45)";
+            ctx.fillRect(x, y0, cell, cell);
+            ctx.drawImage(frames[i], x, y0, cell, cell);
+            ctx.strokeStyle = i === cur ? AXIS_PALETTE[axis].light : "rgba(255,255,255,0.08)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x + 0.5, y0 + 0.5, cell - 1, cell - 1);
+          }
+          ctx.restore();
+        },
+      });
+    }
+  }
+  return out;
+}
+
+function tileItems() {
+  const out = [];
+  for (let v = 0; v < SCENERY.tileVariants; v++) {
+    out.push({
+      id: "tile " + v,
+      name: "laje de obsidiana",
+      meta: BALANCE.world.tile + "px · escolhida por hash2(célula) % " + SCENERY.tileVariants,
+      size: BALANCE.world.tile * 2,
+      swatches: [],
+      refs: [{ label: "gerador", text: "makeFelTile(" + v + ") (js/render/scenery.js)" }],
+      draw(ctx) {
+        const T = BALANCE.world.tile, tile = floorTile(v);
+        ctx.imageSmoothingEnabled = false;
+        for (let y = -1; y <= 0; y++) for (let x = -1; x <= 0; x++) ctx.drawImage(tile, x * T, y * T);
+      },
+    });
+  }
+  return out;
+}
+
+function propItems() {
+  return PROP_KINDS.map((kind) => {
+    const weight = (PROP_WEIGHTS.find((p) => p[0] === kind) || [kind, 0])[1];
+    return {
+      id: kind,
+      name: STATIC_PROPS[kind] ? "prop estático (cacheado)" : "prop animado",
+      meta: "peso " + weight + "/" + PROP_WEIGHT_TOTAL + " no sorteio do chunk",
+      size: 76,   // o prop e desenhado a partir da base, entao a arte ocupa menos que o canvas
+      swatches: [],
+      refs: [{ label: "desenho", text: "PROPS." + kind + " (js/render/scenery.js)" },
+             { label: "peso", text: "PROP_WEIGHTS (js/render/scenery.js)" }],
+      draw(ctx, t) {
+        const p = { s: 1, a: 1.7, seed: 0.25 };
+        if (STATIC_PROPS[kind]) {
+          const sp = propSprite(kind, 1);
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(sp.canvas, -PROP_AX, -PROP_AY + 30, PROP_W, PROP_W);
+        } else {
+          PROPS[kind](ctx, 0, 30, p, S.anim ? t : 0, S.corruption);
+        }
+      },
+    };
+  });
+}
+
+/* ---- montagem ----------------------------------------------------------- */
+const SECTIONS = [
+  { title: "Warlock", note: "As três formas do personagem. A forma muda com o número de capstones fechados — é a metamorfose, não a build, que diz o quanto ele deixou de ser humano.", items: playerItems() },
+  { title: "Inimigos", note: "Desenhados sempre com drawH = raio × 2.7. A horda é densa e frágil: a silhueta é o que diz o que está vindo.", items: enemyItems() },
+  { title: "Demônios invocados", note: "Cada kind tem sprite próprio. Kind sem sprite cai no orbe genérico — e o driver_render reprova isso.", items: minionItems() },
+  { title: "Portal", note: "Uma grade só, recolorida por feitiço. A boca é transparente de propósito: o vórtice gira atrás da moldura.", items: portalItems() },
+  { title: "Explosão", note: "Quadros gerados em runtime a partir de um campo de calor. A bola entrega o lugar para uma casca que sai voando — é isso que evita parecer bolha estourando.", items: explosionItems() },
+  { title: "Chão", note: "Oito variantes de laje. Um tile só repetido é o que mais denuncia cenário procedural barato.", items: tileItems() },
+  { title: "Destroços", note: "Props por chunk, determinísticos pelo hash da posição. O que brilha é raro de propósito: cenário vive numa faixa de luz abaixo do que o jogador conjura.", items: propItems() },
+  { title: "Sem uso", note: "Arte no SPRITE_DATA que nenhuma entidade referencia.", items: orphanItems() },
+];
+
+const CARDS = [];
+
+function buildCard(item) {
+  const el = document.createElement("div");
+  el.className = "card";
+  el.title = "clique para copiar: " + item.id;
+
+  const cv = document.createElement("canvas");
+  el.appendChild(cv);
+
+  const info = document.createElement("div");
+  info.className = "info";
+  info.innerHTML = '<div class="id"></div><div class="name"></div><div class="meta"></div>';
+  info.querySelector(".id").textContent = item.id;
+  info.querySelector(".name").textContent = item.name;
+  info.querySelector(".meta").textContent = item.meta;
+
+  if (item.swatches && item.swatches.length) {
+    const sw = document.createElement("div");
+    sw.className = "swatches";
+    item.swatches.forEach((hex) => {
+      const i = document.createElement("i");
+      i.style.background = hex;
+      i.title = hex;
+      sw.appendChild(i);
+    });
+    info.appendChild(sw);
+  }
+
+  const refs = document.createElement("div");
+  refs.className = "refs";
+  item.refs.forEach((r) => {
+    const b = document.createElement("button");
+    b.textContent = r.label;
+    b.title = r.text;
+    b.addEventListener("click", (ev) => { ev.stopPropagation(); copy(r.text, r.text); });
+    refs.appendChild(b);
+  });
+  info.appendChild(refs);
+  el.appendChild(info);
+
+  el.addEventListener("click", () => copy(item.id, item.id));
+
+  const card = { item: item, el: el, cv: cv, ctx: cv.getContext("2d"), visible: true, w: 0, h: 0 };
+  CARDS.push(card);
+  return el;
+}
+
+const gallery = document.getElementById("gallery");
+SECTIONS.forEach((sec) => {
+  if (!sec.items.length) return;
+  const s = document.createElement("section");
+  const h = document.createElement("h2");
+  h.textContent = sec.title + " (" + sec.items.length + ")";
+  const btn = document.createElement("button");
+  btn.className = "sec-copy";
+  btn.textContent = "copiar ids";
+  btn.addEventListener("click", () => copy(sec.items.map((i) => i.id).join(", "), sec.title));
+  h.appendChild(btn);
+  s.appendChild(h);
+  const p = document.createElement("p");
+  p.className = "note";
+  p.textContent = sec.note;
+  s.appendChild(p);
+  const g = document.createElement("div");
+  g.className = "grid";
+  sec.items.forEach((it) => g.appendChild(buildCard(it)));
+  s.appendChild(g);
+  gallery.appendChild(s);
+});
+
+// Só o que está na tela desenha: com quarenta canvas animados, o resto é
+// trabalho jogado fora.
+const io = new IntersectionObserver((entries) => {
+  entries.forEach((e) => {
+    const card = CARDS.find((c) => c.el === e.target);
+    if (card) card.visible = e.isIntersecting;
+  });
+}, { rootMargin: "150px" });
+CARDS.forEach((c) => io.observe(c.el));
+
+function resize() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  CARDS.forEach((c) => {
+    const w = c.el.clientWidth || 200;
+    c.w = w; c.h = CARD_H;
+    c.cv.width = Math.round(w * dpr);
+    c.cv.height = Math.round(CARD_H * dpr);
+    c.dpr = dpr;
+  });
+}
+window.addEventListener("resize", resize);
+
+/* No modo "ajustar", cada carta é escalada para caber no card e o slider vira
+   multiplicador; no modo "real", todas dividem a mesma régua e o dreadlord
+   estoura o card de propósito — é assim que dá para comparar tamanho. */
+function cardScale(item) {
+  if (S.fit === "real") return S.zoom * 2.2;
+  const size = item.size || 60;
+  return (CARD_H * 0.82 / size) * S.zoom;
+}
+
+let t0 = performance.now();
+function frame(now) {
+  const t = (now - t0) / 1000;
+  for (let i = 0; i < CARDS.length; i++) {
+    const c = CARDS[i];
+    if (!c.visible || c.el.style.display === "none") continue;
+    const ctx = c.ctx;
+    ctx.setTransform(c.dpr, 0, 0, c.dpr, 0, 0);
+    paintBg(ctx, c.w, c.h, i);
+    ctx.save();
+    ctx.translate(c.w / 2, c.h * (S.fit === "fit" ? 0.56 : 0.58));
+    const k = cardScale(c.item);
+    ctx.scale(k, k);
+    ctx.imageSmoothingEnabled = false;
+    try { c.item.draw(ctx, t); } catch (err) { /* uma carta quebrada não derruba a galeria */ }
+    ctx.restore();
+    if (c.item.overlay) {
+      try { c.item.overlay(ctx, c.w, c.h, t); } catch (err) { /* idem */ }
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---- controles ---------------------------------------------------------- */
+function bind(id, key, kind) {
+  const el = document.getElementById(id);
+  const read = () => (kind === "check" ? el.checked : kind === "num" ? parseFloat(el.value) : el.value);
+  el.addEventListener("input", () => {
+    S[key] = read();
+    if (id === "zoom") document.getElementById("zoomVal").textContent = S.zoom + "x";
+    if (id === "filter") applyFilter();
+  });
+  S[key] = read();
+}
+bind("zoom", "zoom", "num");
+bind("fit", "fit", "value");
+bind("bg", "bg", "value");
+bind("anim", "anim", "check");
+bind("shadow", "shadow", "check");
+bind("glow", "glow", "check");
+bind("rim", "rim", "check");
+bind("flash", "flash", "check");
+bind("silhouette", "silhouette", "check");
+bind("corruption", "corruption", "num");
+bind("filter", "filter", "value");
+
+function applyFilter() {
+  const q = S.filter.trim().toLowerCase();
+  CARDS.forEach((c) => {
+    const hit = !q || (c.item.id + " " + c.item.name + " " + c.item.meta).toLowerCase().includes(q);
+    c.el.style.display = hit ? "" : "none";
+  });
+  document.querySelectorAll("section").forEach((s) => {
+    const any = Array.prototype.some.call(s.querySelectorAll(".card"), (el) => el.style.display !== "none");
+    s.style.display = any ? "" : "none";
+  });
+  resize();
+}
+
+// ?filter=… abre a galeria já filtrada — link direto para o que se quer ver.
+const q0 = new URLSearchParams(location.search).get("filter");
+if (q0) {
+  const el = document.getElementById("filter");
+  el.value = q0;
+  S.filter = q0;
+  applyFilter();
+}
+
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
