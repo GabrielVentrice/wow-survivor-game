@@ -641,3 +641,206 @@ function buildSprites() {
   }
 }
 
+
+/* --- Portal ---------------------------------------------------------------
+   The gate a portal spell opens. It lives OUTSIDE SPRITE_DATA on purpose: it
+   is not a creature, nothing draws it by kind, and the geometry below has to
+   travel with the grid it describes.
+
+   The mouth is transparent by design — drawPortal spins the vortex behind the
+   frame, so the gate shows the other side instead of a painted lid. `R`/`r`
+   are the runes, repainted with the spell's color by portalSprite(). */
+const PORTAL_GATE = {
+  pal: { o: "#0a0410", S: "#5a3a86", s: "#311c4e", B: "#d8c8a4", b: "#7d6b46",
+         R: "#f0d0ff", r: "#b23cff" },
+  rows: [
+    "..........................",
+    "..B....................B..",
+    "...Bb................bB...",
+    "...Bb....oooooooo....bB...",
+    "...BBb..ooSSRRssoo..bBB...",
+    "...bBBboSSSSrrssssobBBb...",
+    "....bBBBSSoooooossBBBb....",
+    ".....ooSSo......ossoo.....",
+    ".....ooSo........osoo.....",
+    "....ooSSo........ossoo....",
+    "....oSSS..........ssso....",
+    "....oSSo..........osso....",
+    "....ooSo..........osoo....",
+    "....oRro..........orRo....",
+    "....oRro..........orRo....",
+    "....ooSo..........osoo....",
+    "....oSSo..........osso....",
+    "....oSSS..........ssso....",
+    "....ooSSo........ossoo....",
+    ".....oSSo........osso.....",
+    ".....ooSSo......ossoo.....",
+    "......oSSSoooooossso......",
+    ".......oSoSSSsssoso.......",
+    "........ooSSSsssoo........",
+    "........oSSoooosso........",
+    "........oooo..oooo........",
+  ],
+};
+
+/* Where the mouth and the runes sit, in PORTAL_GATE grid pixels, so the render
+   layer never guesses. Change the grid, change these. */
+const PORTAL_ART = {
+  cx: 12.5, cy: 13.5,          // mouth center, in sprite pixels
+  rx: 5.5,  ry: 7.5,           // mouth radii — the hole inside the arch
+  feet: 12.0,                  // rows below the center where the gate lands
+  runes: [[0, -9], [-7.5, 0], [7.5, 0]],  // keystone + the two side nodes
+};
+
+// Blend two hex colors, k = 0 keeps `hex`, k = 1 lands on `other`.
+function mixHex(hex, other, k) {
+  const a = parseInt(hex.slice(1), 16), b = parseInt(other.slice(1), 16);
+  const to = (c) => c.toString(16).padStart(2, "0");
+  const ch = (sh) => to(Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * k));
+  return "#" + ch(16) + ch(8) + ch(0);
+}
+
+// Blend towards white, for the lit face of a rune. Cached: the piece vfx asks
+// for the same lit tone on every frame, and mixHex allocates.
+const PALE_HEX = new Map();
+function paleHex(hex, k) {
+  const key = hex + k;
+  let out = PALE_HEX.get(key);
+  if (!out) PALE_HEX.set(key, out = mixHex(hex, "#ffffff", k));
+  return out;
+}
+
+// The gate recolored per spell — obsidian and bone stay, the runes take the
+// spell's color. Cached like glowBlob: one sprite per color, built on demand.
+const PORTAL_SPRITES = new Map();
+function portalSprite(color) {
+  let spr = PORTAL_SPRITES.get(color);
+  if (spr) return spr;
+  const def = PORTAL_GATE;
+  const pal = Object.assign({}, def.pal, { R: paleHex(color, 0.6), r: color });
+  spr = makeSprite(def.rows, pal);
+  PORTAL_SPRITES.set(color, spr);
+  return spr;
+}
+
+
+/* --- Explosao -------------------------------------------------------------
+   A frame-by-frame pixel explosion, generated at runtime like everything else
+   in this file: a heat field sampled on a GRID x GRID grid, quantized into
+   four bands (white core, hot rim, spell color, dying ember) and painted with
+   fillRect. Two things keep it from reading as "a circle that grows":
+
+   - the edge is a sum of harmonics on the angle, so the silhouette is ragged,
+     it churns between frames, and each variant is a different explosion;
+   - it hollows out. The ball hands over to a shell that rides outward and
+     thins, leaving a ring of fire and debris thrown past it. Something that
+     only fades looks like a bubble popping, not like a detonation.
+
+   Built once per color, on first use, and cached like glowBlob/portalSprite.
+   Nothing here runs per frame: the render layer picks a canvas and blits it. */
+const EXPLO = { GRID: 40, FRAMES: 8, VARIANTS: 3, SHARDS: 12 };
+
+const EXPLOSION_SPRITES = new Map();
+function explosionFrames(color) {
+  let set = EXPLOSION_SPRITES.get(color);
+  if (set) return set;
+  set = [];
+  for (let v = 0; v < EXPLO.VARIANTS; v++) {
+    const frames = [];
+    for (let f = 0; f < EXPLO.FRAMES; f++) frames.push(buildExplosionFrame(v, f, color));
+    set.push(frames);
+  }
+  EXPLOSION_SPRITES.set(color, set);
+  return set;
+}
+
+// Band colors for one frame. Alpha is baked in: the tail of the animation is
+// dimmer, so the render layer can blit every frame at full opacity.
+function explosionRamp(color, u) {
+  const tail = 1 - Math.pow(u, 2.2) * 0.62;
+  const band = (hex, a) => `rgba(${hexRgb(hex)},${(a * tail).toFixed(3)})`;
+  return [
+    band("#ffffff", 1),                        // core: only while it is hot
+    band(paleHex(color, 0.6), 0.96),           // rim just off the core
+    band(color, 0.88),                         // the body of the fireball
+    band(mixHex(color, "#1a0e16", 0.55), 0.6), // edge already going out
+  ];
+}
+
+function buildExplosionFrame(variant, frame, color) {
+  const G = EXPLO.GRID, half = G / 2;
+  const c = document.createElement("canvas");
+  c.width = G; c.height = G;
+  const x = c.getContext("2d");
+
+  const u = frame / (EXPLO.FRAMES - 1);          // 0 = ignition, 1 = gone
+  const grow = 1 - Math.pow(1 - u, 2.4);         // blows out fast, then coasts
+  const R = half * (0.22 + 0.47 * grow);         // fireball radius, in cells
+  const cool = 1.35 - u * 0.85;                  // the whole thing losing heat
+  const ramp = explosionRamp(color, u);
+
+  // The silhouette: harmonics on the angle, so the edge is ragged and each
+  // variant is a different explosion. The phases drift with `u`, which makes
+  // the fire churn between frames instead of just scaling up.
+  const p1 = vfxRand(variant * 71 + 1) * 6.28, p2 = vfxRand(variant * 71 + 2) * 6.28;
+  const p3 = vfxRand(variant * 71 + 3) * 6.28, p4 = vfxRand(variant * 71 + 4) * 6.28;
+  // The amplitude grows with `u`: what starts as a slightly lumpy ball ends
+  // as arcs torn apart, which is the last frame doing something other than
+  // fading. Ragged, not noisy — same harmonics all the way through.
+  const churn = u * 0.7, amp = 1 + u * 1.1;
+  const lobe = (a) => 0.84 + amp * (
+      0.10 * Math.sin(a * 3 + p1 + churn)
+    + 0.07 * Math.sin(a * 5 - p2 - churn * 1.6)
+    + 0.05 * Math.sin(a * 7 + p3)
+    + 0.06 * Math.sin(a * 2 + p4 + churn * 0.5));
+
+  // The handover: the ball burns at full heat while it is expanding and only
+  // then gives way. Fading it from the first frame is what made earlier takes
+  // look like a puff of smoke instead of a detonation.
+  const ballW = clamp((0.62 - u) / 0.32, 0, 1);
+  const ringW = clamp((u - 0.18) / 0.25, 0, 1);
+  const ringAt = 0.6 + u * 0.32, ringHalf = 0.5 - u * 0.28;  // rides outward, thins
+
+  let cur = null;
+  for (let py = 0; py < G; py++) {
+    for (let px = 0; px < G; px++) {
+      const dx = px + 0.5 - half, dy = py + 0.5 - half;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > R * (0.84 + amp * 0.28)) continue;   // outside any lobe
+      const edge = R * lobe(Math.atan2(dy, dx));
+      if (dist > edge) continue;
+      // Heat is the louder of two profiles: the ball, hottest at the middle
+      // and gone by the time the blast has thrown itself outward; and the
+      // shell, a bump riding near the edge that takes over from it. The
+      // handover is what hollows the explosion out — nothing subtracts a
+      // hole, the middle simply stops being on fire.
+      const rel = dist / edge;
+      const depth = Math.max((1 - rel) * ballW,
+                             (1 - Math.abs(rel - ringAt) / ringHalf) * ringW);
+      if (depth <= 0) continue;
+      const t = depth * cool;
+      const band = t > 1.0 ? 0 : t > 0.72 ? 1 : t > 0.34 ? 2 : 3;
+      if (cur !== band) { cur = band; x.fillStyle = ramp[band]; }
+      x.fillRect(px, py, 1, 1);
+    }
+  }
+
+  // Debris thrown past the fireball: each shard is a pixel plus the pixel it
+  // just left behind, which is what makes it read as moving outward.
+  if (frame > 0) {
+    for (let i = 0; i < EXPLO.SHARDS; i++) {
+      const s = variant * 211 + i * 17;
+      const a = (i / EXPLO.SHARDS) * Math.PI * 2 + (vfxRand(s + 5) - 0.5) * 0.9;
+      const sp = 0.7 + vfxRand(s + 6) * 0.9;
+      const d = R * (0.9 + sp * grow * 0.75);
+      if (d > half - 2 || d < R * lobe(a)) continue;   // still inside the fire
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const sz = vfxRand(s + 7) > 0.75 && u < 0.5 ? 2 : 1;
+      x.fillStyle = ramp[u < 0.35 ? 1 : u < 0.7 ? 2 : 3];
+      x.fillRect(Math.round(half + ca * d), Math.round(half + sa * d), sz, sz);
+      x.fillStyle = ramp[3];
+      x.fillRect(Math.round(half + ca * (d - 2)), Math.round(half + sa * (d - 2)), 1, 1);
+    }
+  }
+  return c;
+}
