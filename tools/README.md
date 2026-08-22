@@ -51,6 +51,28 @@ python3 tools/image2grid.py ghoul.png --grid 14x16 --ramp rot0 --ink warm \
 consecutivos: a fatia é a identidade (ver CLAUDE.md). `--accent` só aceita cor
 de energia — passar `bone1` ali é erro, e o script diz para usar `--second`.
 
+`--pose` (repetível) troca a figura única por uma **folha de poses**: o mesmo
+personagem, mesma altura, mesma linha de base, uma pose por painel. É assim que
+um sprite ganha o que o grid não gera sozinho — `walkFrames` deriva um passo de
+uma grade só, porque passo é a perna se mexendo dentro dela; **pose de cast é
+outro desenho**, e nenhum deslocamento de linha produz um. A folha volta pelo
+`split_sheet.py` e cada painel vira uma grade.
+
+```bash
+bash tools/warlock-forms.sh              # as dez formas do warlock, prompt pronto
+bash tools/warlock-forms.sh colheita     # só uma
+bash tools/warlock-forms.sh --silhouette # a rodada de silhueta, que vem antes
+```
+
+`warlock-forms.sh` guarda os **argumentos** das dez formas (aprendiz,
+experiente e uma por capstone), não o texto: um .md de prompts colados
+envelheceria calado, pedindo cores que a `PAL` não tem mais. Ele também é onde
+está escrito que a **aura não entra na referência** — fogo em volta, alma verde
+e rastro de voo são `VfxLayer` na cor da forma, e brilho pedido ao modelo vaza
+para fora da silhueta e apaga a única informação que a imagem tinha para dar.
+Voo, esse sim, é pose: a forma que flutua não tem perna no chão, e `findLegs`
+cai sozinho no balanço em vez do passo.
+
 ```bash
 # 3. conferir com os olhos: o novo sozinho, e o novo no meio do elenco
 python3 tools/spritesheet.py --zoom 14 --cols 2 --only <novo> ghoul --out /tmp/zoom.png
