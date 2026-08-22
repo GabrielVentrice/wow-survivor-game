@@ -12,17 +12,30 @@
       motivo o volume é controlado por `.volume` e não por um GainNode:
       `createMediaElementSource` sobre mídia de origem opaca sai em silêncio.
 
-   2. Dois elementos alternando, não `loop = true`. Um clipe de 57s reiniciando
-      no talo deixa uma emenda audível a cada minuto. Os dois elementos se
-      cruzam nos últimos segundos, então a volta do loop passa despercebida.
+   2. Dois modos de repetição, e escolher o errado estraga a faixa:
+
+      - `seamless` (padrão): um elemento com `loop = true`. Para faixa feita
+        para emendar — a que está no jogo começa e termina no talo, e é assim
+        que ela foi montada para voltar.
+      - `crossfade`: dois elementos que se cruzam no fim. Para faixa que NÃO
+        emenda (tem fade nas pontas ou termina numa cauda), onde `loop = true`
+        deixaria um buraco audível a cada volta.
+
+      Cruzamento numa faixa que já emenda é pior que não fazer nada: num loop
+      de 11s, um cruzamento de 3,5s sobrepõe um terço da faixa com ela mesma e
+      dobra a batida.
 
    Se o arquivo não carregar — bloqueado, ausente, formato recusado — o jogo
    não fica mudo: `Soundtrack` cai para a trilha procedural.
    ========================================================================= */
 
 class Track {
-  constructor(src) {
+  // opts.crossfade em segundos ativa o modo de dois elementos; sem ele, a
+  // faixa emenda sozinha com loop nativo
+  constructor(src, opts) {
     this.src = src;
+    this.fade = (opts && opts.crossfade) || 0;
+    this.seamless = this.fade <= 0;
     this.els = null;
     this.cur = 0;
     this.ready = false;
@@ -31,17 +44,17 @@ class Track {
     this.swapping = false;
     this.vol = 0;
     this.target = 0;
-    this.fade = 3.5;        // segundos de cruzamento na volta do loop
   }
 
   load() {
     if (this.els || this.failed) return;
     this.els = [];
-    let pending = 2;
-    for (let i = 0; i < 2; i++) {
+    const count = this.seamless ? 1 : 2;
+    let pending = count;
+    for (let i = 0; i < count; i++) {
       const a = new Audio();
       a.preload = "auto";
-      a.loop = false;       // o cruzamento é nosso, não do elemento
+      a.loop = this.seamless;   // no modo cruzado a volta é nossa
       a.volume = 0;
       a.addEventListener("canplaythrough", () => {
         if (--pending <= 0) this.ready = true;
@@ -89,8 +102,13 @@ class Track {
     const d = this.target - this.vol;
     this.vol += d > 0 ? Math.min(d, dt * 0.7) : Math.max(d, -dt * 0.7);
 
+    if (this.seamless) {
+      this.els[0].volume = clamp(this.vol, 0, 1);
+      return;
+    }
+
     const a = this.els[this.cur];
-    const b = this.els[1 - this.cur];
+    const b = this.els[1 - this.cur] || a;
     const dur = a.duration;
     const left = isFinite(dur) ? dur - a.currentTime : Infinity;
 
@@ -126,14 +144,14 @@ class Track {
    se o arquivo não carregar. As duas nunca tocam juntas.
    ========================================================================= */
 
-/* Volume por estado. Trilha de fundo tem que ficar ATRAS dos efeitos: se
-   competir com o som de morte e de acerto, o jogador perde a informacao de
+/* Volume por estado. Trilha de fundo tem que ficar bem ATRAS dos efeitos: se
+   competir com o som de morte e de acerto, o jogador perde informacao de
    combate. Todo o ajuste de "esta alta demais" mora nestes quatro numeros. */
-const TRACK_LEVEL = { menu: 0.3, playing: 0.26, paused: 0.1, gameover: 0, off: 0 };
+const TRACK_LEVEL = { menu: 0.14, playing: 0.11, paused: 0.05, gameover: 0, off: 0 };
 
 class Soundtrack {
-  constructor(src) {
-    this.file = new Track(src);
+  constructor(src, opts) {
+    this.file = new Track(src, opts);
     this.proc = new Music();
     this.state = "menu";
     this.muted = false;

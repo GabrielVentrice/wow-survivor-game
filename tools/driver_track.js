@@ -19,7 +19,8 @@ function novoJogo() {
 /* --- 1. arquivo carrega -------------------------------------------------- */
 let g = novoJogo();
 g.enableAudio();
-if (__track.els.length !== 2) fail(`esperava 2 elementos de audio, veio ${__track.els.length}`);
+// a faixa do jogo emenda sozinha, entao um elemento basta
+if (__track.els.length !== 1) fail(`esperava 1 elemento de audio (seamless), veio ${__track.els.length}`);
 __track.succeed();
 g.music.update(1 / 60);
 if (!g.music.usingFile) fail("arquivo pronto mas a trilha nao assumiu");
@@ -34,7 +35,9 @@ const vJogo = __track.els[g.music.file.cur].volume;
 // trilha nao pode quebrar o teste
 if (Math.abs(vJogo - TRACK_LEVEL.playing) > 0.02) {
   fail(`volume em jogo ${vJogo.toFixed(2)}, esperado ${TRACK_LEVEL.playing}`);
-} else console.log(`  ok volume converge para ${vJogo.toFixed(2)} em jogo (nivel de fundo)`);
+} else if (TRACK_LEVEL.playing > 0.2) {
+  fail(`nivel ${TRACK_LEVEL.playing} nao e volume de fundo`);
+} else console.log(`  ok volume converge para ${vJogo.toFixed(2)} em jogo (bem atras dos efeitos)`);
 
 g.togglePause();
 for (let i = 0; i < 200; i++) g.music.update(1 / 60);
@@ -44,23 +47,17 @@ else console.log(`  ok pausa abaixa para ${vPausa.toFixed(2)}`);
 g.resume();
 for (let i = 0; i < 200; i++) g.music.update(1 / 60);
 
-/* --- cruzamento na volta do loop ---------------------------------------- */
+/* --- a faixa do jogo emenda sozinha: loop nativo, um elemento só -------- */
 const f = g.music.file;
-const antes = f.cur;
-const a = __track.els[antes], b = __track.els[1 - antes];
-a.currentTime = a.duration - 3.0;          // entra na janela de cruzamento
-g.music.update(1 / 60);
-if (!f.swapping) fail("nao iniciou o cruzamento perto do fim do clipe");
-else if (!b.playing) fail("o segundo elemento nao comecou a tocar no cruzamento");
-else console.log("  ok cruzamento comeca antes do fim do clipe");
-let passos = 0;
-while (f.swapping && passos++ < 400) {
-  a.currentTime = Math.min(a.duration, a.currentTime + 1 / 60);
-  g.music.update(1 / 60);
-}
-if (f.cur === antes) fail("o cruzamento nao trocou o elemento ativo");
-else if (a.playing) fail("o elemento antigo continuou tocando depois da troca");
-else console.log(`  ok troca concluida em ${passos} frames, sem emenda audivel`);
+if (!f.seamless) fail("a faixa do jogo deveria estar em modo seamless");
+else if (__track.els.length !== 1) fail(`seamless deveria usar 1 elemento, usa ${__track.els.length}`);
+else if (!__track.els[0].loop) fail("seamless nao ligou loop nativo no elemento");
+else console.log("  ok faixa que emenda -> 1 elemento com loop nativo");
+// e nao pode tentar cruzar: cruzar uma faixa que ja emenda dobra a batida
+__track.els[0].currentTime = __track.els[0].duration - 0.5;
+for (let i = 0; i < 60; i++) g.music.update(1 / 60);
+if (f.swapping) fail("tentou cruzar uma faixa que emenda sozinha");
+else console.log("  ok nao cruza: deixa a emenda nativa fazer a volta");
 
 /* --- mudo ---------------------------------------------------------------- */
 g.music.setMuted(true);
@@ -79,6 +76,32 @@ g.start();
 g.music.update(1 / 60);
 if (!f.playing) fail("restart nao voltou a tocar");
 else console.log("  ok restart volta a tocar do inicio");
+
+/* --- o modo cruzado continua funcionando, para faixa que NAO emenda ----- */
+__track.reset();
+const xf = new Track("audio/qualquer.mp3", { crossfade: 3.5 });
+xf.load();
+if (xf.seamless) fail("crossfade:3.5 nao deveria virar seamless");
+else if (__track.els.length !== 2) fail(`modo cruzado precisa de 2 elementos, criou ${__track.els.length}`);
+else if (__track.els[0].loop) fail("modo cruzado nao pode usar loop nativo");
+else console.log("  ok modo cruzado disponivel para faixa que nao emenda");
+__track.succeed();
+xf.setTarget(1); xf.play();
+for (let i = 0; i < 90; i++) xf.update(1 / 60);
+const xa = __track.els[xf.cur];
+xa.currentTime = xa.duration - 3.0;
+xf.update(1 / 60);
+if (!xf.swapping) fail("modo cruzado nao iniciou o cruzamento");
+else {
+  let passos = 0;
+  const antes = xf.cur;
+  while (xf.swapping && passos++ < 400) {
+    xa.currentTime = Math.min(xa.duration, xa.currentTime + 1 / 60);
+    xf.update(1 / 60);
+  }
+  if (xf.cur === antes) fail("o cruzamento nao trocou o elemento ativo");
+  else console.log(`  ok cruzamento troca de elemento em ${passos} frames`);
+}
 
 /* --- 2. arquivo falha: nao pode ficar mudo ------------------------------- */
 g = novoJogo();

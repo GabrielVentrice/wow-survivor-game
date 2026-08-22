@@ -209,13 +209,20 @@ regras diferentes, e a diferença é `file://`:
 
 | Asset | Como carrega | Por quê |
 |---|---|---|
-| `audio/legion.mp3` (trilha) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
+| `audio/battle-march.mp3` (trilha) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
 | osso quebrando (efeito) | base64 → `atob` → `decodeAudioData` | Precisa sobrepor e variar de tom dezenas de vezes por segundo; `<audio>` não dá isso. Base64 não passa por rede, então funciona em `file://`. 21 KB. |
 
 **Os dois têm fallback e o jogo nunca fica mudo:** `Soundtrack` cai para a
 trilha procedural se o mp3 não carregar (e a procedural cobre o menu enquanto
 o arquivo baixa), e `Sfx.death` volta aos estalos sintéticos se a amostra não
 decodificar. Os drivers `driver_track` e `driver_audio` testam esses caminhos.
+
+**Modo de repetição da trilha.** `Track` tem dois, e escolher errado estraga a
+faixa. `seamless` (padrão) usa `loop = true` nativo, para faixa montada para
+emendar — é o caso da atual, que começa e termina no talo. `{ crossfade: 3.5 }`
+usa dois elementos que se cruzam no fim, para faixa que *não* emenda. Cruzar uma
+faixa que já emenda é pior que não fazer nada: num loop de 11s, 3,5s de
+cruzamento sobrepõem um terço da faixa com ela mesma e dobram a batida.
 
 Volume de fundo mora em `TRACK_LEVEL` (`js/track.js`) e em `Music._applyLevel`.
 Trilha tem que ficar **atrás** dos efeitos: se competir com o som de morte, o

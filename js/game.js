@@ -35,7 +35,9 @@ class Game {
     this.spawner = new SpawnManager();
     this.lastBossChestAt = -BALANCE.spawn.bossChestCooldown;
     this.sfx = new Sfx();
-    this.music = new Soundtrack("audio/legion.mp3");
+    // battle-march emenda sozinha (comeca e termina no talo): loop nativo,
+    // sem cruzamento — cruzar uma faixa que ja emenda dobra a batida
+    this.music = new Soundtrack("audio/battle-march.mp3");
     this.grid = new SpatialGrid(48);
     this.events = new EventBus();
     this.vfxLayer = new VfxLayer();
