@@ -776,7 +776,7 @@ class SpawnManager {
   }
   spawnWave(game) {
     const reach = this._reach(game) * 0.92;
-    const n = BALANCE.spawn.waveBase + this.ramps * 4;
+    const n = BALANCE.spawn.waveBase + this.ramps * 8;
     for (let i = 0; i < n; i++) {
       const a = (Math.PI * 2 / n) * i;
       const x = game.player.x + Math.cos(a) * reach;
