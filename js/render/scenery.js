@@ -73,8 +73,14 @@ function seeded(seed) {
 function makeFelTile(variant) {
   const T = BALANCE.world.tile;
   const c = document.createElement("canvas");
-  c.width = T; c.height = T;
+  // The slab is generated in BUFFER pixels, not world units: generated large
+  // and shrunk at blit time it would drop two of every three pixels and the
+  // grain would turn to hiss. Generated at the right size, the grain IS the
+  // size of the game's pixel. The transform lets the drawing below keep
+  // speaking in world units.
+  c.width = c.height = Math.round(T / PIXEL_GRID);
   const x = c.getContext("2d");
+  x.setTransform(1 / PIXEL_GRID, 0, 0, 1 / PIXEL_GRID, 0, 0);
   const rnd = seeded(hash2(variant + 1, 7919));
 
   const g = x.createLinearGradient(0, 0, T, T);
@@ -176,15 +182,30 @@ const STATIC_PROPS = { bones: 1, pillar: 1, spike: 1 };
 const PROP_CACHE = new Map();
 const PROP_W = 112, PROP_AX = 56, PROP_AY = 84;
 
-function propSprite(kind, variant) {
-  const key = kind + variant;
+/* Size steps for a prop. The chunk rolls a continuous `s`, but a pre-rendered
+   prop can only exist at sizes that land on the grid — stretching the canvas
+   by 1.07 is the same sin as the sprite's fractional scales. Instead of
+   stretching, the size goes into the GENERATION: each step is its own canvas,
+   drawn at its final size. Three static kinds x 4 variants x 4 steps, built on
+   demand. */
+const PROP_BUCKETS = 4;
+const propBucket = (s) => Math.max(1, Math.min(PROP_BUCKETS * 2, Math.round(s * PROP_BUCKETS)));
+
+function propSprite(kind, variant, bucket) {
+  const b = bucket || PROP_BUCKETS;
+  const key = kind + variant + "_" + b;
   let sp = PROP_CACHE.get(key);
   if (sp) return sp;
+  const s = b / PROP_BUCKETS;
   const cv = document.createElement("canvas");
-  cv.width = PROP_W; cv.height = PROP_W;
+  const px = Math.max(1, Math.ceil((PROP_W * s) / PIXEL_GRID));
+  cv.width = cv.height = px;
   const x = cv.getContext("2d");
-  PROPS[kind](x, PROP_AX, PROP_AY, { s: 1, a: variant * 1.7, seed: variant / 4 }, 0, 0);
-  sp = { canvas: cv };
+  x.setTransform(1 / PIXEL_GRID, 0, 0, 1 / PIXEL_GRID, 0, 0);
+  PROPS[kind](x, PROP_AX * s, PROP_AY * s, { s, a: variant * 1.7, seed: variant / 4 }, 0, 0);
+  // `w` is the whole canvas in world units (rounding leftover included);
+  // `ax/ay` are where the prop's foot sits inside it.
+  sp = { canvas: cv, w: px * PIXEL_GRID, ax: PROP_AX * s, ay: PROP_AY * s };
   PROP_CACHE.set(key, sp);
   return sp;
 }
@@ -249,7 +270,8 @@ class Scenery {
     for (let gy = y0; gy <= y1; gy++) {
       for (let gx = x0; gx <= x1; gx++) {
         const v = hash2(gx, gy) % SCENERY.tileVariants;
-        ctx.drawImage(this.tiles[v], gx * T - left, gy * T - top);
+        // Dest in world units: the slab canvas is now smaller than T.
+        ctx.drawImage(this.tiles[v], gx * T - left, gy * T - top, T, T);
       }
     }
 
@@ -264,8 +286,8 @@ class Scenery {
           const sx = p.x - left, sy = p.y - top;
           if (sx < -90 || sy < -110 || sx > cam.w + 90 || sy > cam.h + 90) continue;
           if (STATIC_PROPS[p.kind]) {
-            const sp = propSprite(p.kind, p.variant), d = PROP_W * p.s;
-            ctx.drawImage(sp.canvas, sx - PROP_AX * p.s, sy - PROP_AY * p.s, d, d);
+            const sp = propSprite(p.kind, p.variant, propBucket(p.s));
+            ctx.drawImage(sp.canvas, snapUnit(sx - sp.ax), snapUnit(sy - sp.ay), sp.w, sp.w);
           } else {
             PROPS[p.kind](ctx, sx, sy, p, t, this.corruption);
           }

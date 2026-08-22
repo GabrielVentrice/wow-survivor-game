@@ -10,7 +10,8 @@ const BALANCE = {
     maxHp: 100,
   },
   world: {
-    tile: 128,           // lado da laje de basalto (ver js/render/scenery.js)
+    tile: 126,           // lado da laje de basalto — MULTIPLO de PIXEL_UNIT
+                         // (ver js/render/scenery.js e o grid em js/game.js)
   },
   camera: {
     lerp: 0.12,          // suavização do follow (0 = travado, 1 = instantâneo)
@@ -96,27 +97,36 @@ BALANCE.chest = {
 // Inimigos como data. radius, hp, speed, touchDps, color, weight (peso de spawn).
 // `lateWeight` replaces `weight` past BALANCE.spawn.hardAt: the late horde
 // trades ghouls for heavier bodies.
+/* `art` is the sprite height in RADII. It exists because the grid step is a
+   whole number: a 14-row grid can only show up 42, 84 or 126 pixels tall, and
+   nothing in between. Leaving the value implicit in a fixed 2.7 let rounding
+   pick on its own — and its pick moved a body's size by up to 20% with nobody
+   asking. Here each enemy says which step it stops at.
+
+   When no step fits (the Dreadlord wanted to sit between two), the fix is not
+   going back to free scaling: it is drawing the grid at the size it will be
+   seen at. A 14-row boss blown up 3x is a small boss blown up, not a boss. */
 const ENEMIES = {
   ghoul: {
-    id: "ghoul", name: "Ghoul",
+    id: "ghoul", art: 3.0, name: "Ghoul",
     radius: 13, hp: 10, speed: 130, touchDps: 8, xp: 1,
     color: "#7fae5a", weight: 6, lateWeight: 4, minTime: 0,
     deathSfx: "flesh",
   },
   skeleton: {
-    id: "skeleton", name: "Skeleton Warrior",
+    id: "skeleton", art: 2.8, name: "Skeleton Warrior",
     radius: 15, hp: 26, speed: 92, touchDps: 12, xp: 3,
     color: "#cfc8b0", weight: 3, lateWeight: 4, minTime: 45,
     deathSfx: "bone",       // esqueleto estala mais e esmaga menos
   },
   abomination: {
-    id: "abomination", name: "Abomination",
+    id: "abomination", art: 3.23, name: "Abomination",
     radius: 26, hp: 120, speed: 56, touchDps: 22, xp: 12,
     color: "#9a6b4f", weight: 1, lateWeight: 2, minTime: 180,
     deathSfx: "rot",        // massa de carne: grave e molhado
   },
   dreadlord: {
-    id: "dreadlord", name: "Dreadlord",
+    id: "dreadlord", art: 2.21, name: "Dreadlord",
     radius: 38, hp: 1400, speed: 48, touchDps: 30, xp: 120,
     color: "#b23cff", weight: 0, minTime: 300,
     deathSfx: "flesh",
@@ -190,11 +200,11 @@ const CLASSES = {
        mestre. Com pool 20 e teto 15, cabem no máximo dois numa run: são
        exatamente as duas formas abaixo da base. */
     forms: [
-      { sprite: "warlock", caps: 0, scale: 2.9 },
-      { sprite: "warlockFel", caps: 1, scale: 3.55, dy: -0.33, color: "#aaff5a",
+      { sprite: "warlock", caps: 0, scale: 3.0 },
+      { sprite: "warlockFel", caps: 1, scale: 3.56, dy: -0.33, color: "#aaff5a",
         icon: "👹", name: "Corrompido",
         desc: "O primeiro capstone cobra o corpo: chifres despontam e a mandíbula acende." },
-      { sprite: "warlockDemon", caps: 2, scale: 3.85, dy: -0.48, color: "#ff8a3c",
+      { sprite: "warlockDemon", caps: 2, scale: 3.75, dy: -0.48, color: "#ff8a3c",
         icon: "😈", name: "Metamorfose Demoníaca",
         desc: "Dois capstones fechados. Asas se abrem, os olhos viram brasa — pouco resta do humano." },
     ],

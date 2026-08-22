@@ -238,8 +238,19 @@ function paintBg(ctx, w, h, seed) {
 /* ---- helpers de desenho ------------------------------------------------- */
 // A silhueta branca substitui a arte quando o toggle está ligado: é o teste de
 // leitura de forma que a hierarquia visual do jogo cobra.
+// A silhueta também precisa dos quadros: é justamente nela que dá para ver se
+// o passo lê, sem a cor disfarçando. Cacheada no próprio sprite — o mesmo
+// espelho é pedido 60 vezes por segundo por card.
+function silhouetteOf(spr) {
+  if (spr._sil) return spr._sil;
+  const flat = (s) => ({ canvas: s.white, white: s.white });
+  const sil = flat(spr);
+  if (spr.frames) sil.frames = spr.frames.map((f) => (f === spr ? sil : flat(f)));
+  spr._sil = sil;
+  return sil;
+}
 function paintSprite(ctx, spr, x, y, drawH, flip, anim) {
-  const shown = S.silhouette ? { canvas: spr.white, white: spr.white } : spr;
+  const shown = S.silhouette ? silhouetteOf(spr) : spr;
   drawSprite(ctx, shown, x, y, drawH, flip, S.flash ? 0.85 : 0, anim);
 }
 function spriteDims(id) {
@@ -310,17 +321,17 @@ function enemyItems() {
       name: e.name,
       meta: "r " + e.radius + " · hp " + e.hp + " · vel " + e.speed + " · xp " + e.xp +
             (e.boss ? " · CHEFE" : "") + " · grid " + spriteDims(id),
-      size: e.radius * 2.7 * 1.35,
+      size: e.radius * (e.art || 2.7) * 1.35,
       swatches: paletteOf(id),
       refs: [spriteRef(id), { label: "tuning", text: "ENEMIES." + id + " (js/balance.js)" }],
       draw(ctx, t) {
         const spr = SPRITES[id];
-        const r = e.radius;
+        const r = e.radius, h = r * (e.art || 2.7);
         const anim = walkAnim(S.anim ? t : 0, true);
         if (S.shadow) drawShadow(ctx, 0, 0, r);
-        if (S.rim) drawSpriteRim(ctx, spr, 0, 0, r * 2.7, false, anim, "#05020a", 0.9);
-        paintSprite(ctx, spr, 0, 0, r * 2.7, false, anim);
-        if (S.glow) drawSpriteGlow(ctx, spr, 0, 0, r * 2.7, false, anim, e.color, 0.08);
+        if (S.rim) drawSpriteRim(ctx, spr, 0, 0, h, false, anim, "#05020a", 0.9);
+        paintSprite(ctx, spr, 0, 0, h, false, anim);
+        if (S.glow) drawSpriteGlow(ctx, spr, 0, 0, h, false, anim, e.color, 0.08);
       },
     };
   });
@@ -494,7 +505,7 @@ function propItems() {
         if (STATIC_PROPS[kind]) {
           const sp = propSprite(kind, 1);
           ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(sp.canvas, -PROP_AX, -PROP_AY + 30, PROP_W, PROP_W);
+          ctx.drawImage(sp.canvas, -sp.ax, -sp.ay + 30, sp.w, sp.w);
         } else {
           PROPS[kind](ctx, 0, 30, p, S.anim ? t : 0, S.corruption);
         }
@@ -506,7 +517,7 @@ function propItems() {
 /* ---- montagem ----------------------------------------------------------- */
 const SECTIONS = [
   { title: "Warlock", note: "As três formas do personagem. A forma muda com o número de capstones fechados — é a metamorfose, não a build, que diz o quanto ele deixou de ser humano.", items: playerItems() },
-  { title: "Inimigos", note: "Desenhados sempre com drawH = raio × 2.7. A horda é densa e frágil: a silhueta é o que diz o que está vindo.", items: enemyItems() },
+  { title: "Inimigos", note: "Altura = raio × ENEMIES.art, e o grid de pixel arredonda para um número inteiro de células. A horda é densa e frágil: a silhueta é o que diz o que está vindo.", items: enemyItems() },
   { title: "Demônios invocados", note: "Cada kind tem sprite próprio. Kind sem sprite cai no orbe genérico — e o driver_render reprova isso.", items: minionItems() },
   { title: "Portal", note: "Uma grade só, recolorida por feitiço. A boca é transparente de propósito: o vórtice gira atrás da moldura.", items: portalItems() },
   { title: "Explosão", note: "Quadros gerados em runtime a partir de um campo de calor. A bola entrega o lugar para uma casca que sai voando — é isso que evita parecer bolha estourando.", items: explosionItems() },

@@ -292,7 +292,7 @@ class Enemy {
     if (dotted) this.drawDotUnder(ctx, sx, sy, r);
     if (spr) {
       drawShadow(ctx, sx, sy, r);
-      drawSprite(ctx, spr, sx, sy, r * 2.7, this.facing < 0, flash, anim);
+      drawSprite(ctx, spr, sx, sy, r * (this.type.art || 2.7), this.facing < 0, flash, anim);
     } else {
       ctx.fillStyle = this.type.color;
       ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
@@ -358,7 +358,7 @@ class Enemy {
     const pulse = this.dotPulse, t = this.dotAnim, col = this.dotColor;
 
     if (spr) {
-      drawSpriteGlow(ctx, spr, sx, sy, r * 2.7, this.facing < 0, anim,
+      drawSpriteGlow(ctx, spr, sx, sy, r * (this.type.art || 2.7), this.facing < 0, anim,
         col, fade * (0.03 + pulse * 0.05));
     }
 

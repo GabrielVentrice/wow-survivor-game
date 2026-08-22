@@ -12,11 +12,39 @@ const STATE = {
 
 const MAX_FX_DEPTH = 8;   // teto de aninhamento de efeitos (backstop anti-loop)
 
+/* --- The zoom of the art ---------------------------------------------------
+   How many world units fit in one buffer pixel. The whole world is drawn into
+   a low-res canvas and only then blown up by a WHOLE number — that is what
+   makes every pixel on screen the same size as every other one.
+
+   3 is not an arbitrary pick: a ghoul has radius 13 and used to be drawn at
+   `r * 2.7` over a 13-row grid, which is 11.7 buffer pixels for 13 rows of
+   art. The art had already been drawn for roughly 3x without anyone having
+   written that down anywhere; PIXEL_UNIT 3 is just the game starting to
+   respect the scale it was made at.
+
+   Changing this changes the zoom of everything. `BALANCE.world.tile` has to
+   stay a multiple of it, or the floor slab falls off the grid. */
+const PIXEL_UNIT = 3;
+
 class Game {
   constructor() {
     this.canvas = document.getElementById("canvas");
     this.ctx = this.canvas.getContext("2d");
-    this.dpr = Math.min(devicePixelRatio || 1, 2);
+    // What has to be whole is not the dpr — it is how many DEVICE pixels one
+    // art pixel covers (`this.cell`, set in resize). Rounding the dpr itself
+    // was the wrong lever: on a scaled Retina display devicePixelRatio is 1.5
+    // or 1.7, and forcing it to 1 left the browser stretching the whole canvas
+    // by 1.7 WITH filtering — which blurs everything, worst of all in motion.
+    this.dpr = 1;
+    this.cell = PIXEL_UNIT;
+
+    // The world is drawn here, at low resolution. The 1/PIXEL_UNIT transform
+    // lets EVERY drawing call keep speaking in world units: nobody besides
+    // resize/present has to know the buffer exists.
+    this.world = document.createElement("canvas");
+    this.wctx = this.world.getContext("2d");
+    setPixelGrid(PIXEL_UNIT);
 
     buildSprites();
     this.input = new InputManager();
@@ -103,10 +131,53 @@ class Game {
 
   resize() {
     const w = innerWidth, h = innerHeight;
-    this.canvas.width = w * this.dpr;
-    this.canvas.height = h * this.dpr;
-    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    this.camera.resize(w, h);
+    this.dpr = Math.min(devicePixelRatio || 1, 3);
+    // The one number that must be whole: device pixels per art pixel. Whatever
+    // the display scaling is, an art pixel is a square block of `cell` real
+    // pixels — never 5.1 of them.
+    this.cell = Math.max(1, Math.round(PIXEL_UNIT * this.dpr));
+
+    // +2 pixels of margin: `present` slides the blit by up to one buffer pixel
+    // to scroll smoothly, and the margin is what it slides into.
+    const bw = Math.ceil((w * this.dpr) / this.cell) + 2;
+    const bh = Math.ceil((h * this.dpr) / this.cell) + 2;
+    this.world.width = bw; this.world.height = bh;
+    this.wctx.setTransform(1 / PIXEL_UNIT, 0, 0, 1 / PIXEL_UNIT, 0, 0);
+    this.wctx.imageSmoothingEnabled = false;
+
+    // Backing store in device pixels, and a CSS size that maps it 1:1 onto
+    // them. Leaving the canvas at `width: 100%` would let the browser resample
+    // the finished frame by whatever ratio was left over, which is filtering
+    // applied on top of pixel art — the blur. The few pixels of overflow are
+    // clipped by `#game`.
+    this.canvas.width = bw * this.cell;
+    this.canvas.height = bh * this.cell;
+    this.canvas.style.width = (this.canvas.width / this.dpr) + "px";
+    this.canvas.style.height = (this.canvas.height / this.dpr) + "px";
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);   // setting width resets the state
+    this.ctx.imageSmoothingEnabled = false;
+
+    // The camera sees the whole buffer, margin included: otherwise the scenery
+    // stops drawing exactly on the strip the blit slides into.
+    this.camera.resize(bw * PIXEL_UNIT, bh * PIXEL_UNIT);
+  }
+
+  /* The only place that scales up: one copy of the buffer to the screen, every
+     art pixel a square block of `cell` device pixels, no filtering.
+
+     The blit is offset by whatever the camera had left over after snapping to
+     the grid, converted to device pixels. That is what makes the world scroll
+     smoothly: without it the whole screen jumps a full art pixel at a time,
+     and a lerped camera makes those jumps irregular — walking looked like it
+     stuttered. With it the motion has the granularity of the display while the
+     art keeps the granularity of the grid. */
+  present() {
+    const ctx = this.ctx, cam = this.camera, C = this.cell;
+    const dx = Math.round(((cam.left - cam.rawLeft) / PIXEL_UNIT) * C);
+    const dy = Math.round(((cam.top - cam.rawTop) / PIXEL_UNIT) * C);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.world, 0, 0, this.world.width, this.world.height,
+                  dx, dy, this.world.width * C, this.world.height * C);
   }
 
   /* --- consultas espaciais ------------------------------------------------
@@ -695,7 +766,7 @@ class Game {
 
   /* --- render: a ordem das chamadas E a ordem de profundidade -------------- */
   render() {
-    const ctx = this.ctx;
+    const ctx = this.wctx;
     const cam = this.camera, now = this.clock;
     const fdt = this._frameDt || 1 / 60;
     const t = (this._vfxClock = (this._vfxClock || 0) + fdt);
@@ -706,6 +777,7 @@ class Game {
       this.scenery.draw(ctx, cam, t);
       this.scenery.drawEmbers(ctx, cam, t, fdt);
       this.scenery.drawAtmosphere(ctx, cam);
+      this.present();
       return;
     }
     this.scenery.draw(ctx, cam, t);
@@ -739,6 +811,8 @@ class Game {
     // no ar, acima do mundo e abaixo da HUD
     this.scenery.drawEmbers(ctx, cam, t, fdt);
     this.scenery.drawAtmosphere(ctx, cam);
+
+    this.present();
   }
 }
 

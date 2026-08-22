@@ -429,9 +429,24 @@ class Camera {
       this.shake = Math.max(0, this.shake - dt * 30);
     } else { this.ox = 0; this.oy = 0; }
   }
-  // canto superior-esquerdo do viewport em coords de mundo (com shake)
-  get left() { return this.x - this.w / 2 + this.ox; }
-  get top() { return this.y - this.h / 2 + this.oy; }
+  /* Two viewports, and the difference between them is what makes the world
+     scroll smoothly on a pixel grid.
+
+     `rawLeft` is where the camera really is — a float, because following the
+     player with a lerp is what makes the camera feel alive. `left` is where
+     the world gets DRAWN: pinned to the grid, and one whole buffer pixel to
+     the left of that, which is the margin `Game.present` slides inside.
+
+     Drawing on the grid is what stops the boiling — everything standing still
+     keeps its pixel phase while the player walks. What is left over (never
+     more than half a buffer pixel) does not get thrown away: `present` hands
+     it to the blit as an offset in DEVICE pixels, so the world scrolls with
+     the granularity of the screen instead of the granularity of the art. The
+     pixel stays square; it just starts a little further along. */
+  get rawLeft() { return this.x - this.w / 2 + this.ox; }
+  get rawTop() { return this.y - this.h / 2 + this.oy; }
+  get left() { return snapUnit(this.rawLeft) - PIXEL_GRID; }
+  get top() { return snapUnit(this.rawTop) - PIXEL_GRID; }
 
 }
 

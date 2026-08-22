@@ -173,6 +173,78 @@ dano são HTML, atualizados por `js/ui.js`. Elemento novo de UI = markup no
 
 A ordem das chamadas em `Game.render()` **é** a ordem de profundidade.
 
+### Um grid de pixel, e todo mundo dentro dele
+
+O mundo **não** é desenhado na tela: é desenhado num buffer de baixa resolução
+(`Game.world`, um terço da janela) e só então copiado em `Game.present()`.
+`PIXEL_UNIT` (`js/game.js`) é quantas unidades de mundo cabem num pixel desse
+buffer, e a transform de `1/PIXEL_UNIT` no `wctx` deixa todo o código de desenho
+continuar falando em unidades de mundo — ninguém além de `resize`/`present`
+precisa saber que o buffer existe.
+
+O que precisa ser inteiro **não é o `dpr`**: é `Game.cell`, quantos pixels do
+dispositivo um pixel de arte ocupa. Arredondar o `dpr` foi a alavanca errada e
+custou uma rodada — em tela Retina com resolução escalada o `devicePixelRatio` é
+1.5 ou 1.7, e forçar 1 deixava o browser esticar o frame pronto por 1.7 **com
+filtro**, que é borrão em cima de pixel art. Por isso o canvas tem `width`/
+`height` em pixel de dispositivo e um `style.width` em px que mapeia 1:1 neles;
+deixar no `width: 100%` do CSS devolve o borrão.
+
+Isso não é firula: sem ele, `drawH / srcH` caía em escala fracionária e uma
+linha do sprite ocupava 3 pixels enquanto a de baixo ocupava 2 — e como a
+câmera anda em float, **quais** linhas ganhavam o pixel extra mudava a cada
+frame, então o sprite fervia enquanto o jogador andava. Junto disso, arte de 1px
+convivia com gradiente de resolução livre na mesma tela: o "mixel", que lê como
+dois jogos misturados.
+
+As regras que caem daí:
+
+- **`PIXEL_GRID` (`js/sprites.js`) é a régua, e `placeSprite` é quem aplica.**
+  Toda arte feita de células passa por `drawSprite`/`drawSpriteRim`/
+  `drawSpriteGlow`/`drawPixelCanvas`. Blit novo de pixel art escrito à mão com
+  `ctx.drawImage` direto está fora do grid e vai fervilhar.
+- **Nada de rotacionar nem espremer sprite: movimento é pose.** Rotação de
+  0.05rad e squash de 1.05 são frações de pixel — em vez de animar a arte,
+  reamostravam ela. O que anima agora são **quadros**, gerados da mesma grade em
+  `walkFrames` (`js/sprites.js`) e escolhidos por `anim.frame`: quem tem duas
+  pernas na linha de baixo levanta um pé por vez, quem tem uma massa só (manto,
+  portão, nuvem) ginga um pixel para cada lado. `walkAnim`/`minionAnim` devolvem
+  `bob` **e** `frame`, da mesma fase — o corpo está no alto exatamente quando o
+  pé está no ar. Os campos `sclX/sclY/rot` continuam no contrato porque
+  funcionam quando a célula é grande, mas em 1:1 são no-op.
+  Pose desenhada à mão continua sendo melhor que pose gerada: o gerador é o
+  piso, não o teto.
+- **Tamanho de sprite é degrau, não contínuo.** Uma grade de 14 linhas só existe
+  com 42, 84 ou 126 pixels de altura. Por isso a altura é dado explícito
+  (`ENEMIES.art`, `MINIONS.scale`, `CLASSES.<id>.forms[].scale`) e os valores
+  são exatos: quem escolhe o degrau é o autor, não o `Math.round`. Se um bicho
+  não cabe em degrau nenhum, o conserto é **redesenhar a grade** no tamanho em
+  que ele aparece — fração não encolhe desenho, ela apaga pedaço dele.
+- **Canvas procedural nasce em pixel de buffer.** A laje (`makeFelTile`) e os
+  props estáticos (`propSprite`) são gerados já na resolução final; gerados
+  grandes e reduzidos no blit, perderiam dois de cada três pixels e o granulado
+  viraria chiado. É também por isso que `propSprite` cacheia por **degrau de
+  tamanho**: o `s` contínuo do chunk vira um dos `PROP_BUCKETS`.
+- **`BALANCE.world.tile` tem que ser múltiplo de `PIXEL_UNIT`**, senão o chão
+  desalinha do resto.
+- **A câmera tem duas posições, e a diferença é a rolagem suave.** `rawLeft` é
+  onde ela está de verdade (float, porque o lerp é o que dá vida a ela);
+  `left` é onde o mundo é **desenhado**, preso ao grid e com um pixel de margem.
+  O resto não é jogado fora: `present` entrega ele ao blit como deslocamento em
+  pixel de **dispositivo**. Desenhar no grid é o que tira o fervilhar; deslizar
+  o blit é o que tira o trancos. Sem a segunda metade a tela inteira pula um
+  pixel de arte por vez, e com câmera em lerp esses pulos saem irregulares —
+  andar parecia engasgar.
+
+Exceções de propósito: gradiente, elipse, partícula e o vórtice do portal são
+arte de resolução livre e não passam pelo grid — o portal ainda escala
+continuamente porque a abertura dele *é* a animação. A explosão fica no meio:
+o tamanho vira uma das grades de `EXPLO.GRIDS` e a bola nasce já no tamanho
+final, então o raio aparente é degrau. Isso é honesto porque quem diz a verdade
+sobre o alcance é a onda de choque, desenhada no raio real.
+
+`driver_pixel` guarda tudo isso.
+
 ### Hierarquia de leitura: o personagem primeiro
 
 Com mil inimigos, trinta zonas e a build inteira acesa, brilho vira ruído e o

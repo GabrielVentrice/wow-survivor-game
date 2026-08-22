@@ -28,6 +28,98 @@ function makeSprite(rows, pal) {
   return { canvas: build(false), white: build(true) };
 }
 
+/* --- Walk frames, generated from the same grid ------------------------------
+   The grid cannot represent a squash of 1.05 of a pixel, so faking motion with
+   a transform is out (see walkAnim). What replaces it is what pixel art has
+   always used: more than one pose. Drawing a second pose by hand for every
+   sprite is the real answer and it is art work — this generates a decent one
+   from the grid that already exists, in whole pixels, once at load.
+
+   Two poses per cycle, read off the bottom row:
+
+   - stands on two legs (two separate runs down there) → each pose lifts one
+     leg by a pixel, the foot leaving the ground. That is a step;
+   - stands on one mass — a robe, a cloud, a gate → that mass sways a pixel to
+     each side. That is what a walk looks like on something with no legs.
+
+   Above the band where the legs are still two separate things, nothing moves:
+   shifting there would tear the body off the head. */
+const WALK_FRAMES = 4;
+const WALK_BAND = 0.4;      // teto da faixa de perna, em altura do sprite
+
+const isSolid = (ch) => ch !== undefined && ch !== "." && ch !== " ";
+
+// Runs of solid pixels in one row, within [from, to].
+function rowRuns(row, from, to) {
+  const runs = [];
+  let start = -1;
+  for (let c = from; c <= to + 1; c++) {
+    const solid = c <= to && isSolid(row[c]);
+    if (solid && start < 0) start = c;
+    else if (!solid && start >= 0) { runs.push([start, c - 1]); start = -1; }
+  }
+  return runs;
+}
+
+// The two legs, if the sprite has legs at all: the two widest runs in the
+// bottom row. One dominant mass down there means a robe or a gate, and that is
+// the signal to sway instead of to step.
+function findLegs(rows, w) {
+  const runs = rowRuns(rows[rows.length - 1], 0, w - 1);
+  if (runs.length < 2) return null;
+  const byWidth = runs.slice().sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));
+  if (byWidth[0][1] - byWidth[0][0] + 1 > w * 0.45) return null;
+  return byWidth.slice(0, 2).sort((a, b) => a[0] - b[0]);
+}
+
+// How far up the legs are still two separate things.
+function legBand(rows, legs) {
+  const h = rows.length, cap = Math.max(2, Math.floor(h * WALK_BAND));
+  let n = 0;
+  for (let r = h - 1; r >= 0 && n < cap; r--) {
+    if (rowRuns(rows[r], legs[0][0], legs[1][1]).length < 2) break;
+    n++;
+  }
+  return n;
+}
+
+function walkFrames(rows, pal, base) {
+  const w = Math.max(...rows.map((r) => r.length)), h = rows.length;
+  let legs = findLegs(rows, w);
+  // Legs that only exist for one row have no room to step — the Dreadlord's do
+  // exactly that. Swaying is the fallback, because the alternative is a boss
+  // that slides across the floor without moving at all.
+  if (legs && legBand(rows, legs) < 2) legs = null;
+  const band = legs ? legBand(rows, legs) : Math.max(2, Math.floor(h * 0.25));
+  const frames = [base, null, base, null];
+  for (const f of [1, 3]) {
+    const grid = rows.map((r) => (r + " ".repeat(w)).slice(0, w).split(""));
+    if (legs) {
+      const leg = legs[f === 1 ? 0 : 1];
+      // top-down inside the band, each row taking the row below it: the leg
+      // rides up one pixel and the foot leaves the floor
+      for (let r = h - band; r < h; r++) {
+        for (let c = leg[0]; c <= leg[1]; c++) grid[r][c] = r + 1 < h ? grid[r + 1][c] : ".";
+      }
+    } else {
+      const dir = f === 1 ? 1 : -1;
+      for (let r = h - band; r < h; r++) {
+        const row = grid[r].slice();
+        for (let c = 0; c < w; c++) grid[r][c] = row[c - dir] || ".";
+      }
+    }
+    frames[f] = makeSprite(grid.map((r) => r.join("")), pal);
+  }
+  return frames;
+}
+
+// The pose this animation is on. Everything that draws a sprite goes through
+// here, so the outline and the tint never end up on a different frame than the
+// body they belong to.
+function animFrame(spr, anim) {
+  return anim && anim.frame && spr.frames ? spr.frames[anim.frame] : spr;
+}
+
 // Blob radial suave (cacheado por cor) usado nos rastros — evita recriar gradient por frame.
 const GLOW_BLOBS = new Map();
 function glowBlob(color) {
@@ -49,19 +141,83 @@ function glowBlob(color) {
   return c;
 }
 
-// transform de caminhada (hop + squash/stretch + gingado). `anim` é aplicado no draw.
-function walkAnim(t, moving) {
-  if (!moving) {
-    const b = Math.sin(t * 2);          // respiração idle
-    return { bob: 0, sclX: 1 - b * 0.015, sclY: 1 + b * 0.025, rot: 0 };
+/* --- O grid de pixel -------------------------------------------------------
+   The world is rasterized into a low-res buffer and only then blown up by a
+   whole number (see Game.present). PIXEL_GRID is how many world units fit in
+   one buffer pixel: the ruler that says where an art pixel may start and what
+   sizes it may have.
+
+   Without that ruler `drawH / srcH` lands on a fractional scale — one row of
+   the sprite gets 3 screen pixels and the row below it gets 2 — and since the
+   camera moves in floats, which rows get the extra pixel changes every frame
+   and the sprite boils. Snapping here fixes both: whole-pixel cells, corner on
+   the grid.
+
+   Default is 1, so anything drawing straight to a 1:1 canvas (sprites.html)
+   keeps working untouched. */
+let PIXEL_GRID = 1;
+function setPixelGrid(u) { PIXEL_GRID = u > 0 ? u : 1; }
+const snapUnit = (v) => Math.round(v / PIXEL_GRID) * PIXEL_GRID;
+
+/* Where a cell-art canvas lands on the grid, in WORLD units (the caller's
+   coordinate system), given the height it asked for.
+
+   Two things are quantized on purpose:
+
+   - the cell size, to a whole number of buffer pixels, so every art pixel is
+     the same size as every other one;
+   - `sclX/sclY` from the animation, folded into that whole number. At the 1:1
+     scale the sprites are authored for there is no such thing as 1.05 of a
+     pixel, so a squash that small is simply not representable and vanishes.
+     The bob survives (it is a translation, snapped like any other) — that is
+     the part the player actually reads. Real squash needs a real frame, which
+     is a different job: `rows` becoming a list of poses.
+
+   `anim.rot` is ignored for the same reason and is the more important one:
+   rotating pixel art off the grid resamples it and eats the hand-drawn edge. */
+function placeSprite(cx, cy, srcW, srcH, drawH, anim) {
+  const a = anim || NO_ANIM;
+  const step = Math.max(1, Math.round(drawH / (PIXEL_GRID * srcH)));
+  const px = Math.max(1, Math.round(step * Math.abs(a.sclX))) * PIXEL_GRID;
+  const py = Math.max(1, Math.round(step * a.sclY)) * PIXEL_GRID;
+  const w = srcW * px, h = srcH * py;
+  return { x: snapUnit(cx - w / 2), y: snapUnit(cy + a.bob - h / 2), w, h, px, py };
+}
+
+// Blits a cell-art canvas on the grid. Anything made of pixels goes through
+// here — sprites, the outline, the tint, explosion frames, scenery props.
+function drawPixelCanvas(ctx, img, x, y, w, h, flip) {
+  if (flip) {
+    ctx.save();
+    ctx.translate(x + w, y);
+    ctx.scale(-1, 1);
+    ctx.drawImage(img, 0, 0, w, h);
+    ctx.restore();
+  } else {
+    ctx.drawImage(img, x, y, w, h);
   }
+}
+
+/* Walk transform. Everything it returns is WHOLE-pixel motion.
+
+   The squash and the sway that used to live here were fractions of a pixel —
+   1.05 of a cell, 0.05 of a radian — and the grid cannot represent that: they
+   were resampling the art instead of animating it, which is how a hand-drawn
+   outline turns to mush the moment the character moves. What survives is the
+   hop, and a two-pixel hop is one the player actually sees. Real squash needs
+   a real frame: `rows` becoming a list of poses. Until then the body goes up
+   and down, and it goes up and down clean. */
+function walkAnim(t, moving) {
+  // idle breath: one pixel, downward only — standing still must not jolt
+  if (!moving) return { bob: (Math.sin(t * 2) - 1) * 0.9, frame: 0, sclX: 1, sclY: 1, rot: 0 };
   const ph = t * 9;
-  const hop = Math.abs(Math.sin(ph));   // 0..1 — pico = pé no chão
+  // The body is highest exactly when a foot is off the ground, so the bob and
+  // the pose have to come off the same phase — one pixel of lift, because the
+  // legs are doing the talking now.
   return {
-    bob: -hop * 2.5,                    // sobe ao pisar
-    sclX: 1 - hop * 0.05,
-    sclY: 1 + hop * 0.07,
-    rot: Math.sin(ph) * 0.05,           // gingado leve
+    bob: -Math.abs(Math.sin(ph)) * 3.5,
+    frame: Math.floor(ph / (Math.PI / 2)) & 3,   // contact, step, contact, step
+    sclX: 1, sclY: 1, rot: 0,
   };
 }
 
@@ -77,23 +233,19 @@ function drawShadow(ctx, cx, cy, r) {
 
 // desenha um sprite centrado em (cx,cy), altura drawH, com flip/flash/animação
 function drawSprite(ctx, spr, cx, cy, drawH, flip, flashAlpha, anim) {
-  const s = drawH / spr.canvas.height;
-  const w = spr.canvas.width * s, h = drawH;
-  const a = anim || NO_ANIM;
+  const p = placeSprite(cx, cy, spr.canvas.width, spr.canvas.height, drawH, anim);
+  const fr = animFrame(spr, anim);
   ctx.save();
   ctx.imageSmoothingEnabled = false;
-  ctx.translate(cx, cy + a.bob);
-  if (a.rot) ctx.rotate(a.rot);
-  ctx.scale((flip ? -1 : 1) * a.sclX, a.sclY);
-  ctx.drawImage(spr.canvas, -w / 2, -h / 2, w, h);
+  drawPixelCanvas(ctx, fr.canvas, p.x, p.y, p.w, p.h, flip);
   if (flashAlpha > 0) {
     ctx.globalAlpha = flashAlpha;
-    ctx.drawImage(spr.white, -w / 2, -h / 2, w, h);
+    drawPixelCanvas(ctx, fr.white, p.x, p.y, p.w, p.h, flip);
     ctx.globalAlpha = 1;
   }
   ctx.restore();
 }
-const NO_ANIM = { bob: 0, sclX: 1, sclY: 1, rot: 0 };
+const NO_ANIM = { bob: 0, frame: 0, sclX: 1, sclY: 1, rot: 0 };
 
 /* ---- VFX de combo: adornos desenhados sob/sobre o personagem ---- */
 
@@ -144,34 +296,27 @@ function spriteRim(spr, color) {
 // Draws that outline under the sprite, sharing drawSprite's transform so it
 // hops, squashes and flips with the character instead of sliding off it.
 function drawSpriteRim(ctx, spr, cx, cy, drawH, flip, anim, color, alpha) {
-  const rim = spriteRim(spr, color);
-  const s = drawH / spr.canvas.height;
-  const w = rim.width * s, h = rim.height * s;
-  const a = anim || NO_ANIM;
+  const rim = spriteRim(animFrame(spr, anim), color);
+  // The rim canvas is the silhouette grown by exactly one art pixel on each
+  // side, so it rides the sprite's own placement grown by one CELL — deriving
+  // its size on its own would put the outline half a pixel off the body.
+  const p = placeSprite(cx, cy, spr.canvas.width, spr.canvas.height, drawH, anim);
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.globalAlpha = alpha;
-  ctx.translate(cx, cy + a.bob);
-  if (a.rot) ctx.rotate(a.rot);
-  ctx.scale((flip ? -1 : 1) * a.sclX, a.sclY);
-  ctx.drawImage(rim, -w / 2, -h / 2, w, h);
+  drawPixelCanvas(ctx, rim, p.x - p.px, p.y - p.py, p.w + p.px * 2, p.h + p.py * 2, flip);
   ctx.restore();
 }
 
 // Additive colored glow over the sprite, sharing drawSprite's transform.
 function drawSpriteGlow(ctx, spr, cx, cy, drawH, flip, anim, color, alpha) {
-  const tint = tintedSprite(spr, color);
-  const s = drawH / spr.canvas.height;
-  const w = spr.canvas.width * s, h = drawH;
-  const a = anim || NO_ANIM;
+  const tint = tintedSprite(animFrame(spr, anim), color);
+  const p = placeSprite(cx, cy, spr.canvas.width, spr.canvas.height, drawH, anim);
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.globalCompositeOperation = "lighter";
   ctx.globalAlpha = alpha;
-  ctx.translate(cx, cy + a.bob);
-  if (a.rot) ctx.rotate(a.rot);
-  ctx.scale((flip ? -1 : 1) * a.sclX, a.sclY);
-  ctx.drawImage(tint, -w / 2, -h / 2, w, h);
+  drawPixelCanvas(ctx, tint, p.x, p.y, p.w, p.h, flip);
   ctx.restore();
 }
 
@@ -637,7 +782,10 @@ const SPRITE_DATA = {
 
 function buildSprites() {
   for (const id in SPRITE_DATA) {
-    SPRITES[id] = makeSprite(SPRITE_DATA[id].rows, SPRITE_DATA[id].pal);
+    const d = SPRITE_DATA[id];
+    const base = makeSprite(d.rows, d.pal);
+    base.frames = walkFrames(d.rows, d.pal, base);
+    SPRITES[id] = base;
   }
 }
 
@@ -738,19 +886,36 @@ function portalSprite(color) {
 
    Built once per color, on first use, and cached like glowBlob/portalSprite.
    Nothing here runs per frame: the render layer picks a canvas and blits it. */
-const EXPLO = { GRID: 40, FRAMES: 8, VARIANTS: 3, SHARDS: 12 };
+/* GRID is the reference grid (the one the gallery shows). GRIDS are the sizes
+   an explosion can actually exist at: the fireball is generated ALREADY at the
+   size it will have on screen, so it blits 1:1 into the buffer instead of
+   being stretched by 1.37. The price is that the apparent radius comes in
+   steps — which it was always allowed to: "the fireball is art and lies about
+   its size; the ring does not". What tells the truth about the reach is the
+   shockwave, drawn at the real radius. */
+const EXPLO = { GRID: 40, GRIDS: [16, 24, 32, 40, 56], FRAMES: 8, VARIANTS: 3, SHARDS: 12 };
+
+// Largest grid that still fits the requested size (in buffer pixels).
+function explosionGrid(px) {
+  const g = EXPLO.GRIDS;
+  let best = g[0];
+  for (let i = 0; i < g.length; i++) if (g[i] <= px) best = g[i];
+  return best;
+}
 
 const EXPLOSION_SPRITES = new Map();
-function explosionFrames(color) {
-  let set = EXPLOSION_SPRITES.get(color);
+function explosionFrames(color, grid) {
+  const G = grid || EXPLO.GRID;
+  const key = G === EXPLO.GRID ? color : color + "@" + G;
+  let set = EXPLOSION_SPRITES.get(key);
   if (set) return set;
   set = [];
   for (let v = 0; v < EXPLO.VARIANTS; v++) {
     const frames = [];
-    for (let f = 0; f < EXPLO.FRAMES; f++) frames.push(buildExplosionFrame(v, f, color));
+    for (let f = 0; f < EXPLO.FRAMES; f++) frames.push(buildExplosionFrame(v, f, color, G));
     set.push(frames);
   }
-  EXPLOSION_SPRITES.set(color, set);
+  EXPLOSION_SPRITES.set(key, set);
   return set;
 }
 
@@ -767,8 +932,8 @@ function explosionRamp(color, u) {
   ];
 }
 
-function buildExplosionFrame(variant, frame, color) {
-  const G = EXPLO.GRID, half = G / 2;
+function buildExplosionFrame(variant, frame, color, grid) {
+  const G = grid || EXPLO.GRID, half = G / 2;
   const c = document.createElement("canvas");
   c.width = G; c.height = G;
   const x = c.getContext("2d");

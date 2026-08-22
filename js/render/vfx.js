@@ -361,10 +361,14 @@ class VfxLayer {
    The whole thing is one blob + one blit + one stroke. No allocation, no
    gradient, nothing that scales with how many explosions are on screen. */
 function drawExplosion(ctx, x, y, r, k, color, seed) {
-  const set = explosionFrames(color);
+  // The requested size picks the grid: the ball is born with the number of
+  // cells it will occupy in the buffer, so the blit is 1:1 and cells stay
+  // square.
+  const G = explosionGrid((r * 2.6) / PIXEL_GRID);
+  const set = explosionFrames(color, G);
   const frames = set[(seed >> 1) % set.length];
   const fi = Math.min(frames.length - 1, Math.floor(k * frames.length));
-  const size = r * 2.6;                     // grid half = 1.3r, fireball tops near 0.9r
+  const size = G * PIXEL_GRID;              // grid half = 1.3r, fireball tops near 0.9r
 
   ctx.save();
   const flash = Math.max(0, 1 - k * 3);
@@ -376,9 +380,9 @@ function drawExplosion(ctx, x, y, r, k, color, seed) {
 
   ctx.globalAlpha = 1;
   ctx.imageSmoothingEnabled = false;
-  ctx.translate(x, y);
-  if (seed & 1) ctx.scale(-1, 1);           // mirroring doubles the variants for free
-  ctx.drawImage(frames[fi], -size / 2, -size / 2, size, size);
+  const px = snapUnit(x - size / 2), py = snapUnit(y - size / 2);
+  // mirroring doubles the variants for free
+  drawPixelCanvas(ctx, frames[fi], px, py, size, size, (seed & 1) === 1);
   ctx.restore();
 
   const rk = Math.min(1, k * 2.4);
@@ -479,27 +483,28 @@ function drawPortal(ctx, x, y, r, t, color, open) {
 const MINION_FADE = 0.9;   // segundos de fade antes do demonio expirar
 
 /* Um objeto so, reaproveitado — animar 20 demonios nao pode alocar por frame. */
-const MINION_ANIM = { bob: 0, sclX: 1, sclY: 1, rot: 0 };
+const MINION_ANIM = { bob: 0, frame: 0, sclX: 1, sclY: 1, rot: 0 };
 
 /* `gait` separa quem pisa no chao de quem paira e de quem esta plantado.
    `animTime` anda 4/s para todos, entao a frequencia sai daqui. */
 function minionAnim(gait, t, r) {
   const a = MINION_ANIM;
   if (gait === "float") {
-    const b = Math.sin(t * 0.35);
-    a.bob = b * r * 0.24; a.sclX = 1 - b * 0.02; a.sclY = 1 + b * 0.03; a.rot = 0;
+    a.bob = Math.sin(t * 0.35) * r * 0.24; a.frame = 0;
+    a.sclX = 1; a.sclY = 1; a.rot = 0;
     return a;
   }
   if (gait === "static") {
-    const b = Math.sin(t * 0.5);
-    a.bob = 0; a.sclX = 1 - b * 0.02; a.sclY = 1 + b * 0.035; a.rot = 0;
+    // planted, not dead: one pixel of breathing. The squash that used to be
+    // here was a fraction of a cell and the grid dropped it whole.
+    a.bob = (Math.sin(t * 0.5) - 1) * 0.9; a.frame = 0;
+    a.sclX = 1; a.sclY = 1; a.rot = 0;
     return a;
   }
   const ph = t * 1.6;
-  const hop = Math.abs(Math.sin(ph));
-  a.bob = -hop * r * 0.22;
-  a.sclX = 1 - hop * 0.06; a.sclY = 1 + hop * 0.08;
-  a.rot = Math.sin(ph) * 0.06;
+  a.bob = -Math.abs(Math.sin(ph)) * r * 0.22;
+  a.frame = Math.floor(ph / (Math.PI / 2)) & 3;
+  a.sclX = 1; a.sclY = 1; a.rot = 0;
   return a;
 }
 

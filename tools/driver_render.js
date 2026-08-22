@@ -122,9 +122,14 @@ for (let cx = 0; cx < 60; cx++) for (let cy = 0; cy < 30; cy++) g.scenery._chunk
 if (g.scenery.chunks.size > SCENERY.maxChunkCache + 1) {
   fail(`cache de chunk estourou: ${g.scenery.chunks.size}`);
 } else console.log(`  ok cache de chunk limitado (${g.scenery.chunks.size} <= ${SCENERY.maxChunkCache + 1})`);
-if (PROP_CACHE.size > Object.keys(STATIC_PROPS).length * 4) {
-  fail(`cache de sprite de prop estourou: ${PROP_CACHE.size}`);
-} else console.log(`  ok cache de sprite de prop em ${PROP_CACHE.size} entradas`);
+// kind x variant x SIZE STEP: the prop is pre-rendered at its final size (the
+// pixel grid will not take a canvas stretched by 1.07), so the cache gained a
+// third dimension. The ceiling still catches the accident that matters:
+// caching by a continuous `s` would blow this up inside the first minute.
+const PROP_CACHE_MAX = Object.keys(STATIC_PROPS).length * 4 * PROP_BUCKETS;
+if (PROP_CACHE.size > PROP_CACHE_MAX) {
+  fail(`cache de sprite de prop estourou: ${PROP_CACHE.size} (teto ${PROP_CACHE_MAX})`);
+} else console.log(`  ok cache de sprite de prop em ${PROP_CACHE.size} entradas (teto ${PROP_CACHE_MAX})`);
 
 // game over e volta ao menu tambem renderizam
 try {
