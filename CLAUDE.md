@@ -76,6 +76,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
 | `js/content/*.js` | o catálogo: 31 peças, passivas, capstones, demônios |
+| `js/render/tiles.js` | `TILE_ROWS` — as 8 lajes do chão, desenhadas em grade de 42x42 |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
 | `js/ui.js` | `UI` — HUD, tela de level-up, tela de etapa, pausa, baú, game over |
@@ -266,8 +267,9 @@ As regras que caem daí:
   são exatos: quem escolhe o degrau é o autor, não o `Math.round`. Se um bicho
   não cabe em degrau nenhum, o conserto é **redesenhar a grade** no tamanho em
   que ele aparece — fração não encolhe desenho, ela apaga pedaço dele.
-- **Canvas procedural nasce em pixel de buffer.** A laje (`makeFelTile`) e os
-  props estáticos (`propSprite`) são gerados já na resolução final; gerados
+- **Canvas nasce em pixel de buffer.** A laje (`makeFelTile`, hoje pintada de
+  `TILE_ROWS`) e os props estáticos (`propSprite`) são feitos já na resolução
+  final — 42x42 no caso da laje, que é `tile` sobre `PIXEL_UNIT`; gerados
   grandes e reduzidos no blit, perderiam dois de cada três pixels e o granulado
   viraria chiado. É também por isso que `propSprite` cacheia por **degrau de
   tamanho**: o `s` contínuo do chunk vira um dos `PROP_BUCKETS`.
@@ -941,7 +943,25 @@ O mundo é infinito e gerado em runtime. Duas regras:
   `createLinearGradient` dentro do laço de desenho é alocação a 60fps.
 
 O chão usa 8 variantes de laje escolhidas por hash da célula: um tile único
-repetido é o que mais denuncia cenário procedural barato.
+repetido é o que mais denuncia cenário procedural barato. As oito são **dado**
+(`TILE_ROWS`, grade de 42x42 em tokens da PAL) e não mais ruído gerado, e três
+regras vieram junto — todas visíveis no instante em que são quebradas:
+
+- **Estrutura sim, mancha não.** Uma laje é vista quarenta vezes na mesma tela.
+  Junta, fenda e grão repetem sem incomodar; uma face mais clara que as outras
+  vira pastilha acesa carimbada pelo chão inteiro. Foi o que a referência
+  entregou, e o conserto foi passar um high-pass em cada laje antes de
+  quantizar: o que sobrevive é o que tem borda, o que morre é o nível.
+- **Laje com marca é rara.** Veio de fel e runa são a coisa mais reconhecível do
+  chão; sorteadas uniformemente, saem numa célula a cada oito e o olho acha a
+  treliça na hora. `TILE_BAG` pesa cinco de pedra lisa para uma marcada, e a
+  lista de marcadas sai do próprio dado (`TILE_MARKED`), não de uma lista à mão.
+- **Oito ainda são oito carimbos.** O espelho (bit 0 horizontal, bit 1 vertical)
+  é inteiro — não reamostra, então não sai do grid — e devolve 32 leituras a
+  partir de 8. É o que quebra a repetição do grão caindo sempre no mesmo ponto.
+
+`driver_render` cobra as três, mais o teto de 3% de energia no chão: se a laje
+brilhar tanto quanto uma spell, a spell para de significar alguma coisa.
 
 `Scenery.corruption` (0..1) vem de `elapsed / hardAt` e faz o mundo apodrecer
 junto com a run — veios mais vivos, mais brasa no ar, vinheta mais fechada.

@@ -23,7 +23,7 @@
 
 const SCENERY = {
   chunk: 620,          // lado do bloco de mundo que recebe props
-  tileVariants: 8,
+  tileVariants: TILE_ROWS.length,
   maxChunkCache: 512,
   embers: 24,
 };
@@ -68,104 +68,31 @@ function seeded(seed) {
 }
 
 /* --- chão -----------------------------------------------------------------
-   Placa de obsidiana: base escura, granulado, veios de fel nas fendas e um
-   rebordo que dá a impressão de laje encaixada. */
-function makeFelTile(variant) {
-  const T = BALANCE.world.tile;
+   A laje não é mais gerada: ela é uma das grades de `TILE_ROWS`, desenhada
+   célula a célula em PIXEL DE BUFFER — 42x42, que é `BALANCE.world.tile` sobre
+   `PIXEL_UNIT`. Gerada grande e reduzida no blit, perderia dois de cada três
+   pixels e o granulado viraria chiado.
+
+   `flip` é o espelho (bit 0 horizontal, bit 1 vertical). Ele existe porque oito
+   lajes são oito carimbos: o mesmo grão cai no mesmo ponto de toda repetição e
+   o olho acha a treliça. Espelhar é inteiro, então não sai do grid, e devolve
+   trinta e duas leituras a partir de oito. */
+function makeFelTile(variant, flip) {
+  const rows = TILE_ROWS[((variant % TILE_ROWS.length) + TILE_ROWS.length) % TILE_ROWS.length];
+  const f = flip | 0;
+  const n = TILE_SIZE;
   const c = document.createElement("canvas");
-  // The slab is generated in BUFFER pixels, not world units: generated large
-  // and shrunk at blit time it would drop two of every three pixels and the
-  // grain would turn to hiss. Generated at the right size, the grain IS the
-  // size of the game's pixel. The transform lets the drawing below keep
-  // speaking in world units.
-  c.width = c.height = Math.round(T / PIXEL_GRID);
+  c.width = c.height = n;
   const x = c.getContext("2d");
-  x.setTransform(1 / PIXEL_GRID, 0, 0, 1 / PIXEL_GRID, 0, 0);
-  const rnd = seeded(hash2(variant + 1, 7919));
-
-  const g = x.createLinearGradient(0, 0, T, T);
-  g.addColorStop(0, "#120d1c");
-  g.addColorStop(0.5, "#0d0916");
-  g.addColorStop(1, "#160f22");
-  x.fillStyle = g;
-  x.fillRect(0, 0, T, T);
-
-  // granulado da rocha
-  for (let i = 0; i < 110; i++) {
-    const px = rnd() * T, py = rnd() * T, sz = 1 + rnd() * 2.2;
-    x.fillStyle = rnd() < 0.45 ? "rgba(190,180,220,0.028)" : "rgba(0,0,0,0.32)";
-    x.fillRect(px, py, sz, sz);
-  }
-
-  // placas: linhas escuras cortando o tile, como junta de pedra
-  x.strokeStyle = "rgba(0,0,0,0.45)";
-  x.lineWidth = 1.5;
-  for (let i = 0; i < 2; i++) {
-    const vert = rnd() < 0.5;
-    const p = 0.25 * T + rnd() * 0.5 * T;
-    x.beginPath();
-    if (vert) { x.moveTo(p, 0); x.lineTo(p + (rnd() - 0.5) * 10, T); }
-    else { x.moveTo(0, p); x.lineTo(T, p + (rnd() - 0.5) * 10); }
-    x.stroke();
-  }
-
-  // veios de fel: o brilho vem de duas passadas, uma larga e turva por baixo
-  // e uma fina e clara por cima — é o que faz parecer luz e não risco verde
-  const veins = rnd() < 0.58 ? 0 : 1;
-  for (let v = 0; v < veins; v++) {
-    const pts = [];
-    let cx = rnd() * T, cy = rnd() * T;
-    const dir = rnd() * Math.PI * 2;
-    for (let j = 0; j < 6; j++) {
-      pts.push(cx, cy);
-      const a = dir + (rnd() - 0.5) * 1.6;
-      cx += Math.cos(a) * (T * 0.18);
-      cy += Math.sin(a) * (T * 0.18);
-    }
-    for (const pass of [
-      { w: 5, s: "rgba(90,200,60,0.035)" },
-      { w: 1.5, s: "rgba(170,240,115,0.10)" },
-    ]) {
-      x.strokeStyle = pass.s;
-      x.lineWidth = pass.w;
-      x.lineCap = "round";
-      x.beginPath();
-      x.moveTo(pts[0], pts[1]);
-      for (let j = 2; j < pts.length; j += 2) x.lineTo(pts[j], pts[j + 1]);
-      x.stroke();
+  for (let cy = 0; cy < n; cy++) {
+    const row = rows[f & 2 ? n - 1 - cy : cy];
+    for (let cx = 0; cx < n; cx++) {
+      const col = TILE_PAL[row[f & 1 ? n - 1 - cx : cx]];
+      if (!col) continue;
+      x.fillStyle = col;
+      x.fillRect(cx, cy, 1, 1);
     }
   }
-
-  // marca demoníaca ocasional gravada na laje
-  if (rnd() < 0.18) {
-    x.save();
-    x.translate(T * (0.3 + rnd() * 0.4), T * (0.3 + rnd() * 0.4));
-    x.rotate(rnd() * Math.PI * 2);
-    x.strokeStyle = "rgba(122,60,255,0.1)";
-    x.lineWidth = 1.4;
-    const r = T * 0.12;
-    x.beginPath(); x.arc(0, 0, r, 0, Math.PI * 2); x.stroke();
-    x.beginPath();
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2;
-      x.moveTo(0, 0);
-      x.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-    }
-    x.stroke();
-    x.restore();
-  }
-
-  // rebordo: escurece as bordas para a laje ter volume
-  const e = x.createLinearGradient(0, 0, 0, T);
-  e.addColorStop(0, "rgba(255,255,255,0.03)");
-  e.addColorStop(0.12, "rgba(0,0,0,0)");
-  e.addColorStop(0.88, "rgba(0,0,0,0)");
-  e.addColorStop(1, "rgba(0,0,0,0.35)");
-  x.fillStyle = e;
-  x.fillRect(0, 0, T, T);
-  x.strokeStyle = "rgba(0,0,0,0.4)";
-  x.lineWidth = 2;
-  x.strokeRect(0.5, 0.5, T - 1, T - 1);
   return c;
 }
 
@@ -219,8 +146,14 @@ class Scenery {
   }
 
   build() {
+    // uma entrada por variante, e dentro dela os quatro espelhos: sortear o
+    // espelho no draw obrigaria a mexer na transform do ctx por laje desenhada
     this.tiles = [];
-    for (let i = 0; i < SCENERY.tileVariants; i++) this.tiles.push(makeFelTile(i));
+    for (let i = 0; i < SCENERY.tileVariants; i++) {
+      const forms = [];
+      for (let f = 0; f < 4; f++) forms.push(makeFelTile(i, f));
+      this.tiles.push(forms);
+    }
     // anel fixo de brasas: nunca aloca, só reposiciona quem sai de vista
     this.embers = [];
     for (let i = 0; i < SCENERY.embers; i++) {
@@ -269,9 +202,12 @@ class Scenery {
 
     for (let gy = y0; gy <= y1; gy++) {
       for (let gx = x0; gx <= x1; gx++) {
-        const v = hash2(gx, gy) % SCENERY.tileVariants;
+        // o bolo é pesado: laje com veio ou runa é marca singular e sai uma
+        // vez para cada cinco de pedra lisa
+        const h = hash2(gx, gy);
+        const v = TILE_BAG[h % TILE_BAG.length];
         // Dest in world units: the slab canvas is now smaller than T.
-        ctx.drawImage(this.tiles[v], gx * T - left, gy * T - top, T, T);
+        ctx.drawImage(this.tiles[v][(h >>> 8) & 3], gx * T - left, gy * T - top, T, T);
       }
     }
 

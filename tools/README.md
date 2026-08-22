@@ -51,6 +51,17 @@ python3 tools/image2grid.py ghoul.png --grid 14x16 --ramp rot0 --ink warm \
 consecutivos: a fatia é a identidade (ver CLAUDE.md). `--accent` só aceita cor
 de energia — passar `bone1` ali é erro, e o script diz para usar `--second`.
 
+O chão tem o seu próprio par, porque o defeito dele é outro — laje boa sozinha
+e treliça óbvia quando ladrilhada:
+
+```bash
+python3 tools/sheet2tiles.py folha.png /tmp/rows.js /tmp/zoom.png /tmp/campo.png
+```
+
+`/tmp/campo.png` é o que decide: ele ladrilha as oito com peso e espelho, do
+mesmo jeito que `Scenery.draw`. As grades saem prontas para `TILE_ROWS`
+(`js/render/tiles.js`).
+
 ```bash
 # 3. conferir com os olhos: o novo sozinho, e o novo no meio do elenco
 python3 tools/spritesheet.py --zoom 14 --cols 2 --only <novo> ghoul --out /tmp/zoom.png
