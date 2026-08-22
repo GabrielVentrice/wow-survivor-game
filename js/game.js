@@ -35,9 +35,10 @@ class Game {
     this.spawner = new SpawnManager();
     this.lastBossChestAt = -BALANCE.spawn.bossChestCooldown;
     this.sfx = new Sfx();
-    // battle-march emenda sozinha (comeca e termina no talo): loop nativo,
-    // sem cruzamento — cruzar uma faixa que ja emenda dobra a batida
-    this.music = new Soundtrack("audio/battle-march.mp3");
+    // gothic-lofi e gerada por tools/make_track.py e fecha em si mesma (32
+    // compassos exatos, caudas dobradas de volta no inicio): loop nativo, sem
+    // cruzamento — cruzar uma faixa que ja emenda dobra a batida
+    this.music = new Soundtrack("audio/gothic-lofi.mp3");
     this.grid = new SpatialGrid(48);
     this.events = new EventBus();
     this.vfxLayer = new VfxLayer();

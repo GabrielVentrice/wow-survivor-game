@@ -38,7 +38,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/sprites.js` | `SPRITE_DATA` + geração de pixel-art e do tile de chão em runtime |
 | `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
 | `js/music.js` | `MUSIC` + `Music` — trilha procedural (a **reserva**) |
-| `js/track.js` | `Track` + `Soundtrack` — toca `audio/legion.mp3`, com fallback |
+| `js/track.js` | `Track` + `Soundtrack` — toca `audio/gothic-lofi.mp3`, com fallback |
 | `js/assets/sfx-bone.js` | amostra de osso quebrando embutida em base64 |
 | `js/entities.js` | `Player`, `Enemy`, `Projectile`, `Minion`, `AreaEffect`, `DotInstance`, `XPOrb`, `Pickup`, `Particle`, `SpawnManager` |
 | `js/systems/resolve.js` | registries (`PIECES`, `PASSIVES`, `CAPSTONES`, `MINIONS`) + pipeline de stats |
@@ -237,11 +237,13 @@ junto com a run — veios mais vivos, mais brasa no ar, vinheta mais fechada.
 
 Sprites, chão, efeitos sonoros e a trilha de reserva são gerados em runtime.
 **Não adicione arquivos de imagem.** Os dois assets de áudio que existem seguem
-regras diferentes, e a diferença é `file://`:
+regras diferentes, e a diferença é `file://`. Nenhum dos dois vem de banco de
+sons: a trilha é sintetizada por `tools/make_track.py` e o estalo de osso está
+embutido — não há licença de terceiro a conferir em nada que o jogo toca.
 
 | Asset | Como carrega | Por quê |
 |---|---|---|
-| `audio/battle-march.mp3` (trilha) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
+| `audio/gothic-lofi.mp3` (trilha) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
 | osso quebrando (efeito) | base64 → `atob` → `decodeAudioData` | Precisa sobrepor e variar de tom dezenas de vezes por segundo; `<audio>` não dá isso. Base64 não passa por rede, então funciona em `file://`. 21 KB. |
 
 **Os dois têm fallback e o jogo nunca fica mudo:** `Soundtrack` cai para a
@@ -251,10 +253,12 @@ decodificar. Os drivers `driver_track` e `driver_audio` testam esses caminhos.
 
 **Modo de repetição da trilha.** `Track` tem dois, e escolher errado estraga a
 faixa. `seamless` (padrão) usa `loop = true` nativo, para faixa montada para
-emendar — é o caso da atual, que começa e termina no talo. `{ crossfade: 3.5 }`
+emendar — é o caso da atual, que fecha em si mesma por construção (32 compassos
+exatos, caudas dobradas de volta no começo, LFOs com período que divide o loop,
+filtros de master circulares). `{ crossfade: 3.5 }`
 usa dois elementos que se cruzam no fim, para faixa que *não* emenda. Cruzar uma
-faixa que já emenda é pior que não fazer nada: num loop de 11s, 3,5s de
-cruzamento sobrepõem um terço da faixa com ela mesma e dobram a batida.
+faixa que já emenda é pior que não fazer nada: o cruzamento sobrepõe a faixa
+com ela mesma e dobra a batida na volta.
 
 Volume de fundo mora em `TRACK_LEVEL` (`js/track.js`) e em `Music._applyLevel`.
 Trilha tem que ficar **atrás** dos efeitos: se competir com o som de morte, o
