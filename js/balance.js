@@ -10,7 +10,7 @@ const BALANCE = {
     maxHp: 100,
   },
   world: {
-    tile: 96,            // tamanho do tile do chão procedural
+    tile: 128,           // lado da laje de basalto (ver js/render/scenery.js)
   },
   camera: {
     lerp: 0.12,          // suavização do follow (0 = travado, 1 = instantâneo)

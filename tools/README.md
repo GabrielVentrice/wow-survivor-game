@@ -14,6 +14,7 @@ DRIVER=driver_hooks.js node tools/harness.js .   # todo hook de capstone/passiva
 DRIVER=driver_dot.js   node tools/harness.js .   # cadência, stacking e expiração de DoT
 DRIVER=driver_audio.js node tools/harness.js .   # som de morte: grafo, throttle, mudo
 DRIVER=driver_music.js node tools/harness.js .   # trilha: andamento, camadas, estados
+DRIVER=driver_render.js node tools/harness.js .  # cenário: render, determinismo, caches
 ```
 
 O stub de `AudioContext` monta o grafo de verdade e explode em rampa
@@ -23,3 +24,8 @@ browser.
 O driver padrão também valida o registry antes de simular: tiers faltando,
 efeito ou hook inexistente, `key` que muda na evolução, mod em stat que não
 existe, `requires` apontando para nada.
+
+Onde a condição do teste é específica demais para sair de uma simulação
+aleatória — Colheita precisa de um inimigo com 3+ DoTs *morrendo*, Contágio
+precisa de um DoT expirando num alvo *vivo* — o driver provoca a condição à
+mão. Testar mecanismo, não sorte de seed.

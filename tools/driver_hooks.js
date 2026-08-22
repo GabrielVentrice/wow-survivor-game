@@ -43,10 +43,41 @@ let fails = 0;
 const PIECES_ALL = ["corruption", "immolate", "wildImps", "felguard", "incinerate",
                     "agony", "rainOfFire", "unstableAffliction", "shadowburn"];
 
+/* Colheita exige uma condicao especifica (inimigo com 3+ DoTs MORRENDO) que
+   uma simulacao aleatoria pode nao produzir. Provocamos a condicao a mao: o
+   que interessa e o mecanismo, nao a sorte do seed. */
+function testColheita(cap) {
+  g.start();
+  for (const id of PIECES_ALL) g.build.acquirePiece(id);
+  for (const a in cap.req) g.build.axis[a] = cap.req[a];
+  g.build.checkCapstones();
+  g.build.afterChange();
+  const e = g.enemies.spawn(ENEMIES.abomination, g.player.x + 90, g.player.y, g.spawner.scale);
+  g.grid.clear(); g.grid.insert(e);
+  const c = { key: "teste", color: "#7fdc4a", now: g.clock, x: e.x, y: e.y, target: e };
+  for (const k of ["a", "b", "c"]) {
+    g.dots.apply(e, { key: k, dps: 5, duration: 9, tickInterval: 1,
+                      stacking: { mode: "refresh", max: 1 } }, c);
+  }
+  if (e.dots.length < 3) { console.error("  X Colheita: setup nao aplicou 3 DoTs"); fails++; return; }
+  // vizinhos para receber o que se espalha
+  for (let i = 0; i < 5; i++) {
+    const o = g.enemies.spawn(ENEMIES.abomination, e.x + 30 + i * 12, e.y + 10, g.spawner.scale);
+    o.hp = o.maxHp = 5000;
+    g.grid.insert(o);
+  }
+  delete calls.colheita;
+  e.hp = 0;
+  g.killDeadEnemies();
+  if (!calls.colheita) { console.error("  X Colheita: nao disparou com 3 DoTs num inimigo que morreu"); fails++; }
+  else console.log(`  ok ${cap.name.padEnd(12)} colheita×${calls.colheita} (condicao provocada: 3 DoTs + morte)`);
+}
+
 for (const cid in CAPSTONES) {
   const cap = CAPSTONES[cid];
   const hookNames = Object.values(cap.on || {});
   if (!hookNames.length) { console.log(`  -- ${cap.name}: sem hook (só global)`); continue; }
+  if (cid === "colheita") { testColheita(cap); continue; }
   g.start();
   for (const id of PIECES_ALL) g.build.acquirePiece(id);
   for (const a in cap.req) g.build.axis[a] = cap.req[a];
@@ -64,6 +95,21 @@ for (const cid in CAPSTONES) {
   }
 }
 
+/* Provoca a expiracao natural de um DoT: inimigo duro o bastante para nao
+   morrer, DoT curto, relogio adiantado. Alguns hooks dependem dessa condicao
+   exata e uma simulacao aleatoria pode passar minutos sem produzi-la. */
+function provokeDotExpiry() {
+  const e = g.enemies.spawn(ENEMIES.abomination, g.player.x + 200, g.player.y, g.spawner.scale);
+  e.hp = e.maxHp = 1e7;
+  const o = g.enemies.spawn(ENEMIES.abomination, e.x + 40, e.y, g.spawner.scale);
+  o.hp = o.maxHp = 1e7;
+  g.grid.clear(); g.grid.insert(e); g.grid.insert(o);
+  const c = { key: "teste", color: "#7fdc4a", now: g.clock, x: e.x, y: e.y, target: e };
+  g.dots.apply(e, { key: "prova", dps: 4, duration: 1, tickInterval: 0.5,
+                    stacking: { mode: "refresh", max: 1 } }, c);
+  for (let i = 0; i < 40; i++) { g.clock += 0.05; g.dots.update(g.clock); }
+}
+
 for (const pid in PASSIVES) {
   const p = PASSIVES[pid];
   const hookNames = Object.values(p.on || {});
@@ -74,6 +120,7 @@ for (const pid in PASSIVES) {
   for (const n of hookNames) delete calls[n];
   populate(40);
   simulate(28);
+  if (p.on && p.on.dot_expired && !calls[p.on.dot_expired]) provokeDotExpiry();
   const missing = hookNames.filter((n) => !calls[n]);
   if (missing.length) { console.error(`  X ${p.name}: hook nunca disparou: ${missing.join(", ")}`); fails++; }
   else console.log(`  ok ${p.name.padEnd(14)} ${hookNames.map((n) => n + "×" + calls[n]).join(" ")}`);

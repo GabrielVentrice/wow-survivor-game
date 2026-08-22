@@ -6,8 +6,10 @@ const vm = require("vm");
 
 const ROOT = process.argv[2] || ".";
 
+const __draw = { calls: {}, reset() { this.calls = {}; } };
 function stubCtx() {
   const noop = () => {};
+  const count = (k) => () => { __draw.calls[k] = (__draw.calls[k] || 0) + 1; };
   const grad = { addColorStop: noop };
   return new Proxy({
     canvas: null,
@@ -16,6 +18,11 @@ function stubCtx() {
     createPattern: () => ({}),
     getImageData: () => ({ data: new Uint8ClampedArray(4) }),
     measureText: () => ({ width: 10 }),
+    drawImage: count("drawImage"),
+    fill: count("fill"),
+    stroke: count("stroke"),
+    fillRect: count("fillRect"),
+    createRadialGradient: () => { __draw.calls.gradient = (__draw.calls.gradient || 0) + 1; return grad; },
   }, {
     get(t, k) {
       if (k in t) return t[k];
@@ -98,6 +105,7 @@ const sandbox = {
 };
 const __audio = { nodes: 0 };
 sandbox.__audio = __audio;
+sandbox.__draw = __draw;
 sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);

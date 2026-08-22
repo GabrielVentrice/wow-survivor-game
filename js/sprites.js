@@ -182,36 +182,6 @@ function drawPactChain(ctx, p, front) {
   }
 }
 
-function makeGroundTile() {
-  const T = BALANCE.world.tile;
-  const c = document.createElement("canvas");
-  c.width = T; c.height = T;
-  const x = c.getContext("2d");
-  x.fillStyle = "#0d0a16";
-  x.fillRect(0, 0, T, T);
-  for (let i = 0; i < 70; i++) {
-    const px = 4 + Math.random() * (T - 8), py = 4 + Math.random() * (T - 8);
-    const sz = 1 + Math.random() * 2;
-    x.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.28)";
-    x.fillRect(px, py, sz, sz);
-  }
-  x.strokeStyle = "rgba(111,220,74,0.05)";
-  x.lineWidth = 1;
-  for (let i = 0; i < 3; i++) {
-    let cx = 12 + Math.random() * (T - 24), cy = 12 + Math.random() * (T - 24);
-    x.beginPath(); x.moveTo(cx, cy);
-    for (let j = 0; j < 4; j++) { cx += -7 + Math.random() * 14; cy += -7 + Math.random() * 14; x.lineTo(cx, cy); }
-    x.stroke();
-  }
-  x.strokeStyle = "rgba(0,0,0,0.35)";
-  x.lineWidth = 2;
-  x.strokeRect(0.5, 0.5, T - 1, T - 1);
-  x.fillStyle = "rgba(122,60,255,0.14)";
-  for (const [dx, dy] of [[0, 0], [T, 0], [0, T], [T, T]]) {
-    x.beginPath(); x.arc(dx, dy, 3.5, 0, Math.PI * 2); x.fill();
-  }
-  return c;
-}
 
 // definições dos sprites (grids de pixels + paleta por char)
 const SPRITE_DATA = {

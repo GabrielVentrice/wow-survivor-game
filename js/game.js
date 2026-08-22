@@ -21,7 +21,8 @@ class Game {
     buildSprites();
     this.input = new InputManager();
     this.camera = new Camera();
-    this.camera.pattern = this.ctx.createPattern(makeGroundTile(), "repeat");
+    this.scenery = new Scenery();
+    this.scenery.build();
     this.player = new Player();
 
     this.enemies = new Pool(() => new Enemy(), (o, ...a) => o.reset(o, ...a));
@@ -246,6 +247,7 @@ class Game {
     this.enemies.clear(); this.projectiles.clear(); this.orbs.clear();
     this.areas.clear(); this.particles.clear(); this.pickups.clear();
     this.dots.reset(); this.minions.reset(); this.vfxLayer.reset();
+    this.scenery.reset();
     this.events.clear();
     this.spawner.reset();
     this.timers.length = 0;
@@ -350,6 +352,7 @@ class Game {
     }
     this.vfxLayer.update(dt * this.timeScale);
     this.music.update();     // relogio do audio, nao do jogo: ignora timeScale
+    this._frameDt = dt;      // brasas e vinheta vivem em tempo real
     this.render();
   }
 
@@ -377,6 +380,8 @@ class Game {
 
     this.camera.follow(this.player, dt);
     this.camera.updateShake(dt);
+    // o mundo apodrece junto com a run: veios mais vivos, mais brasa no ar
+    this.scenery.corruption = clamp(this.elapsed / BALANCE.spawn.hardAt, 0, 1);
     this.music.setIntensity(this.musicIntensity());
     this.ui.updateHUD();
     this._dmgTimer -= dt;
@@ -677,13 +682,19 @@ class Game {
   /* --- render: a ordem das chamadas E a ordem de profundidade -------------- */
   render() {
     const ctx = this.ctx;
+    const cam = this.camera, now = this.clock;
+    const fdt = this._frameDt || 1 / 60;
+    const t = (this._vfxClock = (this._vfxClock || 0) + fdt);
+
     if (this.state === STATE.MENU) {
-      this.camera.x += 12 * (1 / 60);
-      this.camera.drawGround(ctx);
+      // o menu roda o mesmo cenário, andando devagar de lado
+      this.camera.x += 14 * fdt;
+      this.scenery.draw(ctx, cam, t);
+      this.scenery.drawEmbers(ctx, cam, t, fdt);
+      this.scenery.drawAtmosphere(ctx, cam);
       return;
     }
-    this.camera.drawGround(ctx);
-    const cam = this.camera, now = this.clock;
+    this.scenery.draw(ctx, cam, t);
 
     const areas = this.areas.active;
     for (let i = 0; i < areas.length; i++) areas[i].draw(ctx, cam);
@@ -710,6 +721,10 @@ class Game {
     for (let i = 0; i < proj.length; i++) proj[i].draw(ctx, cam);
 
     this.vfxLayer.draw(ctx, cam);
+
+    // no ar, acima do mundo e abaixo da HUD
+    this.scenery.drawEmbers(ctx, cam, t, fdt);
+    this.scenery.drawAtmosphere(ctx, cam);
   }
 }
 

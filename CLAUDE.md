@@ -47,6 +47,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
 | `js/content/*.js` | o catálogo: 31 peças, passivas, capstones, demônios |
+| `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
 | `js/ui.js` | `UI` — HUD, cartas de level-up, pausa, baú, game over |
 | `js/game.js` | `Game` — estado, loop, funil de dano, colisões |
@@ -176,6 +177,24 @@ Efeitos e trilha são gerados em runtime. Duas regras que não dá para violar:
 
 A intensidade da trilha (`Game.musicIntensity`) vem do estado real da run —
 tempo, fase dura, chefe em campo — nunca de um contador próprio da música.
+
+### Cenário: determinístico por posição, nunca por ordem de visita
+
+O mundo é infinito e gerado em runtime. Duas regras:
+
+- **Props saem de `hash2(chunkX, chunkY)`**, não de `Math.random()` na hora de
+  desenhar. Voltar andando para o mesmo lugar tem que mostrar os mesmos
+  destroços; senão o mundo "reembaralha" nas costas do jogador e a leitura de
+  espaço vai junto.
+- **Nada de gradiente por frame em código quente.** Props sem animação
+  (`STATIC_PROPS`) são renderizados uma vez num canvas e depois só copiados —
+  `createLinearGradient` dentro do laço de desenho é alocação a 60fps.
+
+O chão usa 8 variantes de laje escolhidas por hash da célula: um tile único
+repetido é o que mais denuncia cenário procedural barato.
+
+`Scenery.corruption` (0..1) vem de `elapsed / hardAt` e faz o mundo apodrecer
+junto com a run — veios mais vivos, mais brasa no ar, vinheta mais fechada.
 
 ### Zero assets externos
 

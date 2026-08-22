@@ -315,7 +315,6 @@ class Camera {
     this.shake = 0;
     this.ox = 0;
     this.oy = 0;
-    this.pattern = null; // textura do chão (CanvasPattern), setada pelo Game
   }
   resize(w, h) { this.w = w; this.h = h; }
   follow(target, dt, instant = false) {
@@ -334,19 +333,8 @@ class Camera {
   get left() { return this.x - this.w / 2 + this.ox; }
   get top() { return this.y - this.h / 2 + this.oy; }
 
-  // chão procedural: tile texturizado repetido, deslocado pela posição da câmera
-  drawGround(ctx) {
-    const t = BALANCE.world.tile;
-    const left = this.left, top = this.top;
-    const offX = left - Math.floor(left / t) * t;
-    const offY = top - Math.floor(top / t) * t;
-    ctx.save();
-    ctx.translate(-offX, -offY);
-    ctx.fillStyle = this.pattern;
-    ctx.fillRect(0, 0, this.w + t, this.h + t);
-    ctx.restore();
-  }
 }
+
 
 
 /* --- Barramento de eventos ------------------------------------------------
