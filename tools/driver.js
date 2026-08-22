@@ -136,7 +136,8 @@ g.ui.openMilestone = function () {
   if (g.state !== STATE.MILESTONE) return;
   const offers = g.ui.msOffers;
   const o = offers[Math.floor(rnd() * offers.length)];
-  g.ui.applyMilestone(o, !!o.wet && rnd() < 0.5);
+  // Carta sorteada so tem o lado com spell; a de eixo aberto sorteia o lado.
+  g.ui.applyMilestone(o, !o.dry || (!!o.wet && rnd() < 0.5));
 };
 g.ui.openChest = function () { g.state = STATE.PLAYING; };
 

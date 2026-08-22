@@ -159,6 +159,9 @@ else console.log(`  ok explosao em ${EXPLO.GRIDS.length} grades (${EXPLO.GRIDS.j
 // --- and the real game, drawing into the buffer -----------------------------
 g.ui.openLevelUp = () => { g.player.pendingLevels = 0; g.state = STATE.PLAYING; };
 g.ui.openChest = () => { g.state = STATE.PLAYING; };
+// A etapa tambem PARA o update: sem resolve-la o driver rodaria ate o
+// primeiro marco e chamaria de minutos. Quem mede etapa e `driver_milestone`.
+g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
 g.start();
 try {
   for (let i = 0; i < 60 * 90; i++) {

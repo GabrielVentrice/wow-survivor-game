@@ -5,6 +5,11 @@ Math.random = () => { s = (s*1103515245+12345)%2147483648; return s/2147483648; 
 const g = new Game(); window.game = g;
 g.ui.openLevelUp = () => { g.player.pendingLevels = 0; g.state = STATE.PLAYING; };
 g.ui.openChest = () => { g.state = STATE.PLAYING; };
+/* A etapa tambem para o update. Sem resolver ela, a "run de 4 min" media 40
+   segundos de jogo e chamava de quatro minutos — o driver mediria o silencio
+   de um jogo pausado. Nao interessa a escolha aqui, so que o jogo volte a
+   andar: quem mede etapa e `driver_milestone`. */
+g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
 g.start();
 
 let fails = 0;

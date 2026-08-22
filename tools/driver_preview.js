@@ -60,7 +60,8 @@ const take = (id, label, offers, hoverIdx) => {
    os dois estados em que os numeros da carta mudam de peso. */
 const msShots = [];
 const takeMs = (idx, label) => {
-  const offers = g.build.getMilestoneOffers(idx);
+  const offers = g.build.getMilestoneOffers();
+  if (!offers.length) return;
   let cards = "";
   for (const o of offers) {
     cards += `<div class="ms-card" style="--acc:${o.axis.color};--acc-dim:${o.axis.color}55;` +
@@ -70,16 +71,20 @@ const takeMs = (idx, label) => {
   // onde a linha do capstone tem algo a dizer.
   let hov = offers[0];
   for (const o of offers) if (g.build.axis[o.axisId] > g.build.axis[hov.axisId]) hov = o;
+  const step = hov.dry || hov.wet;
+  const falta = g.build.axisLeft;
   msShots.push({
     cards, label,
-    eyebrow: `Etapa ${idx + 1} de ${BALANCE.milestones.at.length} · ` +
-             `${mmss(BALANCE.milestones.at[idx])}`,
-    pool: g.ui.axesHtml(hov.axisId, hov.dry.gain),
-    cap: g.ui.capLineHtml(hov, hov.dry),
+    eyebrow: `Etapa ${idx + 1} · ${mmss(g.milestoneTimeAt(idx))} · ` +
+             `${falta} ponto${falta === 1 ? "" : "s"} de eixo por gastar`,
+    pool: g.ui.axesHtml(hov.axisId, step.gain),
+    cap: g.ui.capLineHtml(hov, step),
   });
 };
 
-takeMs(0, "primeiro marco — build crua, capstone longe");
+// Fase FECHADA: nenhum eixo em `unlockAt`, entao as tres cartas sao spells
+// sorteadas do catalogo inteiro e nao ha lado seco em lugar nenhum.
+takeMs(0, "fase fechada — três spells sorteadas, nenhum eixo aberto ainda");
 
 for (let r = 0; r < 300; r++) {
   const offers = g.build.getOffers(3);
@@ -87,12 +92,17 @@ for (let r = 0; r < 300; r++) {
   // Enquanto a run corre, as etapas vao caindo — sem elas o pool fica em zero e
   // a previa tardia mostraria uma tela que o jogo nunca produz.
   if (r > 0 && r % 4 === 0 && g.build.axisLeft > 0) {
-    const idx = Math.min(Math.floor(r / 4), BALANCE.milestones.points.length - 1);
-    const ms = g.build.getMilestoneOffers(idx);
-    // Sempre com a spell: a previa quer a build GRANDE, que e onde o painel
-    // troca de densidade e o contador de excedente aparece.
-    const alvo = ms.find((o) => o.wet) || ms[0];
-    g.build.applyMilestone(alvo, !!alvo.wet);
+    const ms = g.build.getMilestoneOffers();
+    if (ms.length) {
+      /* Empilha sempre o MESMO eixo: e o unico jeito de a previa alcancar a
+         fase aberta, que e a segunda tela que ela existe para mostrar. Com
+         spell enquanto a build precisa crescer (o painel troca de densidade
+         com o numero de spells), seca depois que o eixo abre. */
+      const alvo = ms.find((o) => o.locked)
+                || ms.find((o) => o.axisId === "corruption")
+                || ms[0];
+      g.build.applyMilestone(alvo, !alvo.dry);
+    }
   }
   const n = g.build.pieces.size;
   const evo = offers.findIndex((o) => o.isEvo && o.evo);
@@ -103,7 +113,9 @@ for (let r = 0; r < 300; r++) {
   g.ui.applyOffer(offers[Math.floor(Math.random() * offers.length)]);
 }
 
-takeMs(BALANCE.milestones.points.length - 1, "marco final — eixo carregado, capstone ao alcance");
+// Fase ABERTA: um eixo passou de `unlockAt` e agora tem slot fixo com os dois
+// lados, enquanto os outros slots seguem sorteados.
+takeMs(11, "fase aberta — o eixo comprometido virou slot fixo com as duas maneiras");
 
 let body = "";
 for (const sh of shots) {

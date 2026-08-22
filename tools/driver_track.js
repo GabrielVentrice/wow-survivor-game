@@ -13,6 +13,9 @@ function novoJogo() {
   window.game = g;
   g.ui.openLevelUp = () => { g.player.pendingLevels = 0; g.state = STATE.PLAYING; };
   g.ui.openChest = () => { g.state = STATE.PLAYING; };
+  // A etapa tambem PARA o update: sem resolve-la o driver rodaria ate o
+  // primeiro marco e chamaria de minutos. Quem mede etapa e `driver_milestone`.
+  g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
   return g;
 }
 

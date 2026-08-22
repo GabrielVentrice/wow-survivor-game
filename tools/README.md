@@ -125,20 +125,30 @@ level-up** e **escolha de level-up que mova o pool de eixo**. As duas são a
 mesma regressão vista de dois lados: uma tela em que largura e profundidade
 disputam a mesma escolha, e largura ganha sempre.
 
-`driver_milestone` guarda sete coisas, e três delas vieram de erros medidos:
+`driver_milestone` guarda a tela em suas duas fases, e a parte que mais importa
+é que ele **refaz a conta da cadência por simulação** em vez de conferir uma
+tabela — não existe tabela de pontos, a rampa é emergente:
 
-- a tabela fecha (`points` soma `AXIS_RULES.pool`, `at` do mesmo tamanho);
-- os **três** eixos aparecem em toda etapa — sortear qual eixo aparece faria do
-  capstone um acidente outra vez;
-- a carta **seca** existe sempre. Na primeira versão ela era um *fallback* para
-  quando o eixo tinha ficado sem spell a oferecer, e com dez peças por eixo isso
-  nunca acontecia: medido, o pool travava em 13 de 20 e **nenhuma** run
-  alcançava capstone;
-- o número anunciado é o creditado, nas duas maneiras;
-- levar a spell custa `pieceDiscount` de velocidade;
-- a spell da etapa não cobra eixo duas vezes (entra como `free`);
-- e **quem mira, chega**: um perfil que concentra o eixo e paga o preço fecha
-  capstone. Sem esta última o resto é contabilidade.
+- enquanto sobrar ponto, um marco ainda vem. As etapas não acabam numa contagem,
+  acabam quando a pool acaba. Enquanto uma lista fixa era o fim da linha, runs
+  terminavam em **12/20 e 13/20** com ponto que o jogo nunca entregava;
+- na fase **fechada** nenhuma carta tem lado seco, e o sorteio vê o catálogo
+  inteiro (o driver exige ver eixo repetido numa etapa);
+- na fase **aberta** o eixo comprometido **nunca falta**. É o que separa isto de
+  uma loteria: o eixo em que o jogador já investiu não pode depender do sorteio
+  para reaparecer;
+- o número anunciado é o creditado, nos dois lados; a spell credita no eixo
+  **dela** e não cobra eixo duas vezes (entra como `free`);
+- e **quem mira, chega** — fecha a pool inteira, dentro de uma run jogável
+  (o driver reprova se isso só acontecer depois dos 11 min: marco entregue
+  depois da morte não entrega nada), e com capstone. Sem esta última o resto é
+  contabilidade.
+
+**Driver que roda a simulação em laço precisa resolver a tela de etapa.** Ela
+para o `update` como o level-up e o baú, e sem um `openMilestone` de stub o
+driver roda até o primeiro marco e chama de minutos — `driver_audio` estava
+medindo 40 segundos de jogo e anunciando quatro minutos. Nove drivers ganharam
+o stub de uma linha; quem mede etapa de verdade é `driver_milestone`.
 
 ## Impacto
 

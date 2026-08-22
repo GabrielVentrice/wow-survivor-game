@@ -77,13 +77,43 @@ function setKeys(out, x, y) {
 /* --- políticas de escolha ------------------------------------------------
    Quatro perfis. Se o jogo só funciona sob um deles, isso é um problema de
    balanceamento, não uma virtude. */
+/* Mirar tem duas fases, porque a etapa tem duas fases. Antes de um eixo abrir
+   (`unlockAt`) nao existe carta seca: a unica maneira de somar eixo e levar
+   spell, entao mirar e escolher a spell do eixo que voce ja esta empilhando.
+   Depois que abre, a carta seca daquele eixo e sempre a jogada. */
+function pickMirando(g, offers, prefereSpell) {
+  const M = BALANCE.milestones;
+  let alvo = null, maior = -1;
+  for (const a in AXES) if (g.build.axis[a] > maior) { maior = g.build.axis[a]; alvo = a; }
+
+  const fixa = offers.find((o) => o.locked && o.axisId === alvo);
+  if (fixa) {
+    if (prefereSpell && fixa.wet && fixa.wet.gain > 0) return { o: fixa, wet: true };
+    if (fixa.dry.gain > 0) return { o: fixa, wet: false };
+  }
+  // Sem carta seca util: empilha spell do alvo, ou de quem estiver mais perto
+  // de abrir. `gain` real desempata para nao queimar marco num eixo no teto.
+  let best = null, bestScore = -1;
+  for (const o of offers) {
+    const step = o.dry && o.dry.gain > 0 ? o.dry : o.wet;
+    if (!step || !step.gain) continue;
+    const foco = o.axisId === alvo ? 1000 : 0;
+    const perto = g.build.axis[o.axisId] >= M.unlockAt - 2 ? 100 : 0;
+    const sc = foco + perto + step.gain * 10 + g.build.axis[o.axisId];
+    if (sc > bestScore) { bestScore = sc; best = o; }
+  }
+  if (!best) return { o: offers[0], wet: !offers[0].dry };
+  return { o: best, wet: !(best.dry && best.dry.gain > 0) };
+}
+
 const POLICIES = {
   // linha de base: sem nenhuma inteligencia, nas duas telas
   aleatorio: {
     lv: (g, offers, rnd) => offers[Math.floor(rnd() * offers.length)],
     ms: (g, offers, rnd) => {
       const o = offers[Math.floor(rnd() * offers.length)];
-      return { o, wet: !!o.wet && rnd() < 0.5 };
+      // Carta sorteada so tem o lado com spell; a de eixo aberto sorteia o lado.
+      return { o, wet: !o.dry || (!!o.wet && rnd() < 0.5) };
     },
   },
 
@@ -104,23 +134,14 @@ const POLICIES = {
       }
       return best;
     },
-    /* Mira o capstone: concentra no eixo ja investido, sempre com a carta
-       SECA — duas spells a run inteira e o preco, e o driver mede se ele vale.
+    /* Mira o capstone. Enquanto nenhum eixo abriu ele nao tem carta seca para
+       pegar: ele empilha spells do eixo mais investido, que e exatamente como
+       se chega a `unlockAt`. Depois que abre, so carta seca.
 
-       `gain` (o real) e nao `axis` (o acumulado) manda na pontuacao, senao o
-       bot insiste num eixo ja no teto e joga fora o marco de 5 pontos, que e o
-       maior da run. Um jogador de verdade le o "+0" apagado na carta e vai
-       para outro lugar; com pool 20 e teto 15 esses ultimos 5 sao exatamente o
-       lado secundario de um capstone hibrido. */
-    ms: (g, offers) => {
-      let best = offers[0], bestScore = -1;
-      for (const o of offers) {
-        if (!o.dry.gain) continue;
-        const sc = o.dry.gain * 100 + g.build.axis[o.axisId];
-        if (sc > bestScore) { bestScore = sc; best = o; }
-      }
-      return { o: best, wet: false };
-    },
+       `gain` (o real) e nao `axis` (o acumulado) desempata, senao o bot insiste
+       num eixo ja no teto e queima marcos sem andar. Um jogador de verdade le o
+       "+0" apagado e vai para outro lugar. */
+    ms: (g, offers) => pickMirando(g, offers, false),
   },
 
   /* O jogador de verdade: leva spell CEDO, quando ela ainda tem run pela
@@ -140,24 +161,15 @@ const POLICIES = {
       }
       return best;
     },
-    ms: (g, offers) => {
-      const cedo = g.elapsed < BALANCE.spawn.hardAt;
-      let best = offers[0], bestScore = -1;
-      for (const o of offers) {
-        if (!o.dry.gain) continue;
-        const sc = o.dry.gain * 100 + g.build.axis[o.axisId];
-        if (sc > bestScore) { bestScore = sc; best = o; }
-      }
-      return { o: best, wet: cedo && !!best.wet };
-    },
+    ms: (g, offers) => pickMirando(g, offers, g.elapsed < BALANCE.spawn.hardAt),
   },
 
   // build larga e rasa: pega spell nova sempre que a etapa oferece
   amplo: {
     lv: (g, offers) => offers.find((o) => o.kind === "passive") || offers[0],
     ms: (g, offers) => {
-      const o = offers.find((x) => x.wet) || offers[0];
-      return { o, wet: !!o.wet };
+      const o = offers.find((x) => x.wet && x.wet.gain > 0) || offers[0];
+      return { o, wet: !!(o.wet && o.wet.gain > 0) };
     },
   },
 
@@ -180,9 +192,11 @@ const POLICIES = {
         const d = g.damageBy.get(inst.key) || 0;
         if (d > bestDmg) { bestDmg = d; bestAxis = inst.def.axis; }
       }
-      const o = offers.find((x) => x.axisId === bestAxis) || offers[0];
-      // segue o eixo do dano, e leva a spell quando ela e do mesmo eixo
-      return { o, wet: !!o.wet };
+      const o = offers.find((x) => x.axisId === bestAxis && (x.dry ? x.dry.gain > 0 : x.wet.gain > 0))
+             || offers.find((x) => (x.dry ? x.dry.gain : x.wet.gain) > 0)
+             || offers[0];
+      // segue o eixo do dano, e leva a spell quando nao ha lado seco
+      return { o, wet: !o.dry };
     },
   },
 };
@@ -208,9 +222,9 @@ function runOnce(policy, seed) {
   let milestones = 0;
   g.ui.openMilestone = function () {
     if (g.build.axisLeft <= 0) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
-    const idx = Math.max(0, g.milestoneIdx - g.pendingMilestones);
-    const offers = g.build.getMilestoneOffers(idx);
-    const pick = POLICIES[policy].ms(g, offers, rnd) || { o: offers[0], wet: false };
+    const offers = g.build.getMilestoneOffers();
+    if (!offers.length) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
+    const pick = POLICIES[policy].ms(g, offers, rnd) || { o: offers[0], wet: !offers[0].dry };
     milestones++;
     picks.push("M:" + pick.o.axisId + (pick.wet ? "+" + pick.o.piece.id : ""));
     g.build.applyMilestone(pick.o, pick.wet);

@@ -26,10 +26,10 @@ g.ui.openLevelUp = function () {
    ha uma, porque bau so tem o que entregar se a build tiver caminhos abertos. */
 g.ui.openMilestone = function () {
   if (g.build.axisLeft <= 0) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
-  const idx = Math.max(0, g.milestoneIdx - g.pendingMilestones);
-  const offers = g.build.getMilestoneOffers(idx);
-  const o = offers.find((x) => x.wet) || offers[0];
-  g.build.applyMilestone(o, !!o.wet);
+  const offers = g.build.getMilestoneOffers();
+  if (!offers.length) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
+  const o = offers.find((x) => x.wet && x.wet.gain > 0) || offers[0];
+  g.build.applyMilestone(o, !!(o.wet && o.wet.gain > 0));
   g.pendingMilestones--;
   g.state = STATE.PLAYING;
 };

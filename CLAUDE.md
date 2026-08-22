@@ -401,7 +401,7 @@ Três armadilhas que a medição pegou:
 Evolução e capstone são o clímax da progressão. Se a medição mostrar que um
 perfil que MIRA não chega lá, o problema é de OFERTA e não de números — e as
 alavancas mudaram de lugar junto com o custo: hoje são `BALANCE.milestones`
-(`points`, `pieceDiscount`, `at`) para o capstone, e a ordenação do baú em
+(`unlockAt`, `axisPoints`, `every`) para o capstone, e a ordenação do baú em
 `UI.openChest` para a evolução. O peso de caminho já iniciado em `getOffers`
 saiu: ele era muleta para um bolo poluído por peças novas, que não existe mais.
 
@@ -476,9 +476,9 @@ não podem voltar a ser uma só.
 
 | | Level-up | Etapa |
 |---|---|---|
-| **Quando** | subiu de nível (~17–70 por run) | marco de tempo (`BALANCE.milestones.at`, 7 por run) |
+| **Quando** | subiu de nível (~17–70 por run) | marco de tempo, a cada `every` enquanto sobrar ponto |
 | **A pergunta** | qual das minhas spells vira *a* spell da run? | para onde essa run vai? |
-| **O que oferece** | tier de caminho, passiva global | ponto de eixo, com ou sem spell nova |
+| **O que oferece** | tier de caminho, passiva global | spell nova (+1 no eixo dela) e, no eixo aberto, +2 secos |
 | **Custa** | nada | é a **única** fonte de ponto de eixo |
 | **Desfaz?** | a próxima escolha corrige | **nunca** |
 | **Forma** | três linhas, leitura vertical | três cartas, leitura horizontal |
@@ -514,71 +514,111 @@ Consequências que valem para qualquer coisa nova:
   tomada o bolo esvazia, e o nível cura 35% em vez de sumir em silêncio. Subir
   de nível e não receber nada é o jogo cobrando atenção e devolvendo vazio.
 
-### A tela de etapa: três cartas, duas maneiras de levar cada uma
+### A tela de etapa: duas fases, e a virada é o comprometimento
 
-`BALANCE.milestones` é o dado inteiro. `at` e `points` andam por índice, e
-`points` **soma exatamente `AXIS_RULES.pool`**: o pool fecha aos 10 minutos, que
-é onde uma run competente deveria estar acabando. `driver_milestone` cobra a
-soma — se ela sobrar a promessa da pool nunca se cumpre, se passar `addAxis`
-come a diferença em silêncio.
+`BALANCE.milestones` é o dado inteiro, e a primeira coisa a saber é que **não há
+tabela de pontos por marco**. A rampa é *emergente*: o quanto uma etapa vale sai
+do estado da build, não de uma coluna de números.
 
 Marco de **tempo** e não de chefe: o primeiro Dreadlord só nasce aos 5 min e
 depois vem a cada 2:30, então metade da run ficaria sem marco e a única decisão
 irreversível chegaria tarde demais para ser mirada. `#msClock` no HUD conta para
 o próximo — marco que chega sem aviso não estrutura ritmo nenhum.
 
-**Os três eixos aparecem em toda etapa, sempre.** Isso é regra, não
-conveniência: sortear qual eixo aparece transformaria a única decisão
-irreversível do jogo em loteria, e o capstone voltaria a ser acidente. O que o
-sorteio decide é o *conteúdo* de cada carta — qual spell daquele eixo ela traz.
+**Quem para as etapas é a POOL, não uma contagem de marcos.** `every` continua
+disparando enquanto `axisLeft > 0`. Enquanto uma lista fixa era o fim da linha,
+quem levava spell terminava a run com ponto no bolso e nenhuma tela para
+gastá-lo — medido, runs acabando em **12/20 e 13/20**, com ponto aparecendo no
+painel que o jogo nunca entregava.
 
-**E cada carta tem duas maneiras de ser levada**, que é onde mora a economia:
+#### Fase fechada: três spells sorteadas
 
-- **só o eixo**: o marco inteiro vira ponto;
-- **com a spell**: `pieceDiscount` a menos, e a spell entra na build.
+Antes de qualquer eixo chegar a `unlockAt`, as três cartas são **spells
+sorteadas do catálogo inteiro** — podem cair três do mesmo eixo. Não existe
+carta seca: a única maneira de ganhar eixo é escolhendo uma spell, e cada uma
+carrega `spellPoints` para o eixo **dela**.
 
-Largura não **gasta** o pool, ela **desacelera** o pool. Sete etapas secas dão
-20 pontos (dois capstones) e duas spells a run inteira — o que seca o bolo do
-level-up em pouco mais de vinte tiers. Sete com spell dão 13 pontos (nenhum
-capstone) e nove spells rasas. Nenhum dos dois lados é a jogada certa; o jogo
-está na mistura, e ela é a decisão real desta tela.
+Isso faz o começo da run ser **descoberta e não mira**. O jogador ainda não sabe
+o que a run vai oferecer, e escolher spell é como ele descobre — o eixo cresce
+como consequência do que ele achou bom, não como uma aposta feita no escuro.
 
-**As duas maneiras têm que estar sempre na mesa.** Na primeira versão a carta
-seca era um *fallback* para quando o eixo tinha ficado sem spell a oferecer — e
-com dez peças por eixo isso nunca acontecia. Medido: o pool travava em 13 de 20
-e **nenhuma** run alcançava capstone, exatamente o defeito que a separação
-existia para consertar. Escolha que o jogador não pode fazer não é escolha.
+#### Fase aberta: o eixo comprometido vira slot fixo
 
-Regras de apresentação, e por quê:
+Quando um eixo chega a `unlockAt`, ele passa a ocupar um slot **em toda etapa**,
+e esse slot tem duas maneiras de ser levado: `axisPoints` secos, ou a spell
+daquele eixo por `spellPoints`. Os slots restantes seguem sorteados. Quando o
+segundo eixo abre, ele toma outro slot; com os três abertos não sobra sorteio.
 
+**A garantia chega quando o comprometimento chega**, e é isso que separa este
+desenho de uma loteria. O eixo em que o jogador já investiu cinco pontos nunca
+mais some da mesa, então o capstone deixa de depender de o sorteio colaborar.
+Antes disso ele não tem eixo para proteger.
+
+Cai daí que largura não **gasta** o pool, ela o **desacelera**: a carta seca
+anda `axisPoints` e a com spell anda `spellPoints`, então cada spell levada num
+eixo aberto custa um marco a mais. `driver_milestone` reprova
+`axisPoints <= spellPoints` — sem essa diferença, arsenal deixaria de custar.
+
+#### Cadência: sai da conta, não do gosto
+
+Pool 20; quem abre um eixo cedo gasta ~5 marcos a 1 ponto e o resto a 2, e as
+cartas sorteadas nem sempre oferecem o eixo alvo — na prática **~15 marcos**. A
+`every` 40s isso fecha em **10:00**, logo antes de onde uma run competente
+acaba. `driver_milestone` refaz essa conta em vez de confiar no número: se a
+pool só fechasse depois dos 11 min, ele reprova, porque **marco entregue depois
+da morte não entrega nada**.
+
+#### Apresentação
+
+- **Duas formas de carta, e o cabeçalho é onde elas se separam.** Na carta
+  **aberta** a manchete é o EIXO — a pergunta é quanto investir nele, e a spell
+  é uma das duas maneiras de levar. Na **sorteada** a manchete é a SPELL, porque
+  é ela que está sendo escolhida; o eixo vira etiqueta ao lado, na cor dele. Pôr
+  o eixo no topo de uma carta sorteada seria anunciar como título algo que o
+  jogador não escolheu — o sorteio é que pôs aquele eixo ali.
+- **`aberto` é o único selo da tela**, e marca a regra que mais importa: este
+  eixo não depende mais do sorteio para reaparecer.
 - **Cartas, não linhas.** O level-up compara três coisas *diferentes*, então o
-  olho corre na vertical por campo. Aqui as três respostas têm a mesma forma
-  preenchida com eixos diferentes, e comparar vira um movimento horizontal: o
-  número de cada eixo cai na mesma altura nas três. As duas telas também não
-  podem *parecer* a mesma tela, senão o jogador não percebe que a pergunta
-  mudou — e a desta é a única que ele não desfaz.
+  olho corre na vertical por campo. Aqui comparar é horizontal: o número de cada
+  carta cai na mesma altura. As duas telas também não podem *parecer* a mesma
+  tela, senão o jogador não percebe que a pergunta mudou — e a desta é a única
+  que ele não desfaz.
 - **O alvo é o botão, não a carta.** Carta inteira clicável exigiria escolher
   por ele qual das duas maneiras é o padrão, e é justamente a metade
   irreversível da decisão.
 - **O número anunciado é o creditado.** Com o eixo no teto ou o pool no fim,
-  `addAxis` entrega menos; `getMilestoneOffers` já devolve `gain` real ao lado
-  do `want` de tabela, e o driver compara os dois em toda carta de toda etapa.
-- **O rodapé é o que transforma "+3" num destino**: as três barras de eixo com
+  `addAxis` entrega menos; `getMilestoneOffers` devolve `gain` real ao lado do
+  `want` de tabela, e o driver compara os dois em toda carta de toda etapa.
+- **O rodapé é o que transforma "+2" num destino**: as três barras de eixo com
   prévia (`UI.axesHtml`, compartilhada com o painel do level-up) e o capstone
   mais próximo. Sem ele, alocar é uma decisão de rota longa com feedback só no
   fim da run.
+- **Sem denominador no rótulo.** "Etapa 4 de 7" mentiria justamente para quem
+  mais precisa saber que ainda vem mais: o jogador que levou spell toda vez e
+  está atrasado na pool. O rótulo diz quantos pontos faltam, não quantas telas.
 
-Alavancas de tuning, em ordem de força: `points` (velocidade em que o pool
-fecha), `pieceDiscount` (quanto arsenal custa), `at` (o ritmo da run).
+#### O que essa forma custa, medido
 
-**Um buraco conhecido, não introduzido aqui e agora visível:** o kit inicial é
-Corruption + Incinerate, então a run nasce com sementes de Corrupção e
-Cataclismo e nenhuma de Domínio. Com o eixo virando escolha deliberada, Domínio
-quase nunca é escolhido e o catálogo de demônios fica sem uso — `driver_balance`
-lista dez peças em `NUNCA ESCOLHIDA`, quase todas de Domínio. Antes isso ficava
-escondido porque peça nova era comprada por sorteio global. O conserto é de
-conteúdo (semear Domínio no kit inicial, ou dar a escolha ao jogador), não de
-motor.
+Ela conserta duas coisas e cobra uma terceira. Em 20 runs do `driver_balance`:
+
+| | tabela fixa de 7 marcos | duas fases |
+|---|---|---|
+| pool ao fim (mediana) | 13/20 | **19/20** |
+| runs com capstone | 4/20 | **8/20** |
+| runs com evolução | 11/20 | 7/20 |
+| auras (mediana) | 2 | 1 |
+
+O ganho é a pool fechar e o capstone acontecer. O custo é **profundidade**: a
+fase fechada só aceita spell, então toda build sai dela com 9–12 spells, e os
+tiers do level-up se espalham entre elas em vez de fechar caminhos. Se o alvo
+mudar e evolução voltar a importar mais que capstone, a alavanca é `unlockAt` —
+baixá-lo encurta a fase fechada e é o número que decide quantas spells a run é
+obrigada a carregar.
+
+Efeito colateral bom: o sorteio olha o **catálogo inteiro**, então Domínio
+voltou a aparecer. Enquanto as cartas eram uma por eixo e o kit inicial não
+semeava Domínio, ninguém escolhia aquele eixo e o catálogo de demônios ficava
+sem uso — `driver_balance` listava dez peças em `NUNCA ESCOLHIDA`.
 
 ### A tela de level-up compara linhas, não cartas
 

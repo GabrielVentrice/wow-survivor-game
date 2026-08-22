@@ -47,10 +47,12 @@ const b = g.build;
    jeito de chegar a 20 sem cruzar nenhum limiar (15 puro, 10+5 hibrido). */
 let guard = 0, volta = 0;
 while (b.axisLeft > 0 && guard++ < 200) {
-  const offers = b.getMilestoneOffers(guard % BALANCE.milestones.points.length);
+  const offers = b.getMilestoneOffers();
+  if (!offers.length) break;
   const o = offers[volta++ % offers.length];
   const antes = b.axisTotal;
-  b.applyMilestone(o, false);
+  // Carta sorteada so tem o lado com spell; a de eixo aberto tem os dois.
+  b.applyMilestone(o, !o.dry);
   if (b.axisTotal === antes) break;   // todo eixo no teto: nao ha mais o que dar
 }
 /* E confere que level up NAO move o pool: se ele voltar a cobrar eixo, a forma

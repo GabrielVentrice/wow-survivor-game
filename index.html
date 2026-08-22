@@ -785,10 +785,29 @@
   }
   .ms-card:hover { border-color: var(--acc); box-shadow: 0 20px 46px rgba(0, 0, 0, 0.5); }
 
+  /* Duas formas de carta, e o cabecalho e onde elas se separam.
+
+     ABERTA: a manchete e o EIXO — a pergunta e quanto investir nele, e a spell
+     e uma das duas maneiras de levar. SOLTA (`.loose`): a manchete e a SPELL,
+     porque e ela que esta sendo escolhida; o eixo vira consequencia e sai como
+     etiqueta ao lado, na cor dele. Por o eixo no topo de uma carta sorteada
+     seria anunciar como titulo algo que o jogador nao escolheu. */
   .ms-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
   .ms-ic { font-size: 22px; line-height: 1; }
   .ms-axis { font-size: 19px; font-weight: 700; color: var(--acc); }
+  .ms-head.loose .ms-axis { color: #efe9fa; }
   .ms-tag { flex-basis: 100%; font-size: 12px; color: #8b7fa3; }
+  .ms-head.loose .ms-tag { flex-basis: auto; font-weight: 600; }
+  /* "aberto" e o unico selo desta tela, e ele marca a regra que mais importa:
+     este eixo nao depende mais do sorteio para reaparecer. */
+  .ms-open {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 999px;
+    background: var(--acc); color: #14091f; font-weight: 700;
+  }
+  .ms-spell.bare {
+    background: none; border: none; padding: 4px 0;
+  }
 
   .ms-spell {
     display: flex; align-items: flex-start; gap: 11px; flex: 1;

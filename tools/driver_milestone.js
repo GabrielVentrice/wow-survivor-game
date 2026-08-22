@@ -2,183 +2,212 @@
 //
 // Esta e a tela que carrega a unica decisao irreversivel da run. Level up nao
 // cobra mais nada e o bau so entrega tier — se a etapa mentir sobre o quanto o
-// eixo anda, ou se ela deixar de oferecer uma das duas maneiras de levar o
-// eixo, o jogador perde de vez algo que nao tem como recuperar.
+// eixo anda, ou se ela deixar de oferecer o eixo em que o jogador ja investiu,
+// ele perde de vez algo que nao tem como recuperar.
+//
+// O desenho tem duas fases, e a virada e `unlockAt`:
+//
+//   FECHADO  — nenhum eixo chegou a `unlockAt`. As tres cartas sao spells
+//              sorteadas do catalogo INTEIRO, podendo repetir eixo. Nao ha
+//              carta seca: ganhar eixo e escolher spell.
+//   ABERTO   — um eixo chegou la. Ele passa a ter slot FIXO em toda etapa, com
+//              duas maneiras de ser levado (seco por `axisPoints`, ou a spell
+//              dele por `spellPoints`). Os slots restantes seguem sorteados.
 //
 // O que este driver cobra:
 //
-//   1. a tabela fecha: `points` soma exatamente AXIS_RULES.pool, e `at` tem o
-//      mesmo tamanho. Se ela sobrar, a promessa da pool nunca se cumpre; se
-//      passar, `addAxis` come a diferenca em silencio;
-//   2. os TRES eixos aparecem em toda etapa. Sortear qual eixo aparece faria do
-//      capstone um acidente de novo — que e o defeito que esta separacao
-//      inteira existe para consertar;
-//   3. a carta SECA sempre existe. Na primeira versao ela era um fallback para
-//      quando o eixo tinha ficado sem spell, e com dez pecas por eixo isso
-//      nunca acontecia: medido, o pool travava em 13 de 20 e NENHUMA run
-//      alcancava capstone. Escolha que o jogador nao pode fazer nao e escolha;
-//   4. o numero anunciado e o numero creditado, nas duas maneiras;
-//   5. arsenal custa velocidade: com spell o eixo anda `pieceDiscount` a menos;
-//   6. spell de etapa nao cobra eixo duas vezes (ela entra como `free`);
-//   7. e um jogador que MIRA chega ao capstone. Se nem ele chega, o climax da
-//      progressao continua inalcancavel e nada disso valeu.
+//   1. a conta da cadencia fecha: quem abre um eixo cedo gasta a pool inteira
+//      dentro de uma run jogavel. Nao ha tabela de pontos para conferir — a
+//      rampa e emergente —, entao a verificacao e a SIMULACAO da conta;
+//   2. enquanto sobrar ponto, um marco ainda vem. As etapas nao acabam numa
+//      contagem, acabam quando a pool acaba: `pieceDiscount` implicito (spell
+//      vale menos que eixo seco) atrasa quem leva largura, e sem esta regra
+//      esses pontos ficavam parados — medido, runs acabando em 12/20 e 13/20
+//      com ponto aparecendo no painel que o jogo nunca entregava;
+//   3. antes de abrir, nenhuma carta tem lado seco, e o sorteio ve o catalogo
+//      inteiro (pode cair tres do mesmo eixo);
+//   4. depois de abrir, o eixo aberto NUNCA falta. E o que separa este desenho
+//      de uma loteria: o eixo em que o jogador ja se comprometeu nao pode
+//      depender do sorteio para reaparecer;
+//   5. o numero anunciado e o numero creditado, nos dois lados;
+//   6. spell credita no eixo DELA, e nao cobra eixo duas vezes (entra `free`);
+//   7. e um jogador que MIRA chega ao capstone. Sem isso o resto e
+//      contabilidade.
 
 const M = BALANCE.milestones;
 let problems = 0;
 const bad = (m) => { problems++; console.log("X   " + m); };
 
-/* --- 1. a tabela ---------------------------------------------------------- */
-const soma = M.points.reduce((a, b) => a + b, 0);
-if (soma !== AXIS_RULES.pool) {
-  bad(`points soma ${soma}, pool e ${AXIS_RULES.pool} — sobra ou falta ponto na run`);
+/* --- 0. o dado ------------------------------------------------------------ */
+if (!(M.every > 0)) bad("every ausente: a pool ficaria sem como ser gasta");
+if (!(M.axisPoints > M.spellPoints)) {
+  bad(`axisPoints ${M.axisPoints} nao supera spellPoints ${M.spellPoints}: ` +
+      "levar arsenal deixaria de custar velocidade");
 }
-if (M.at.length !== M.points.length) {
-  bad(`at tem ${M.at.length} marcos e points tem ${M.points.length}`);
+if (M.unlockAt >= AXIS_RULES.pureAt) {
+  bad(`unlockAt ${M.unlockAt} nao abre nada antes do capstone puro (${AXIS_RULES.pureAt})`);
 }
-for (let i = 1; i < M.at.length; i++) {
-  if (M.at[i] <= M.at[i - 1]) bad(`marcos fora de ordem: at[${i}] = ${M.at[i]}`);
-}
-if (M.pieceDiscount < 1) bad("pieceDiscount 0: arsenal deixaria de custar velocidade");
+if (M.cards < 2) bad("menos de duas cartas nao e escolha");
 
-/* --- 2..6. as ofertas, ao longo de uma run inteira ------------------------ */
-const g = new Game();
-window.game = g;
-let s = 11;
-Math.random = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
-g.start();
-
-let rodadas = 0, comSpell = 0, secas = 0, tetos = 0;
-
-// Alterna as duas maneiras para exercitar os dois caminhos de `applyMilestone`.
-for (let round = 0; round < 40 && g.build.axisLeft > 0; round++) {
-  const idx = Math.min(round, M.points.length - 1);
-  const offers = g.build.getMilestoneOffers(idx);
-  rodadas++;
-
-  if (offers.length !== 3) bad(`etapa ${round}: ${offers.length} cartas, esperado 3`);
-  const eixos = new Set(offers.map((o) => o.axisId));
-  if (eixos.size !== 3) bad(`etapa ${round}: cartas repetem eixo (${[...eixos].join(",")})`);
-  for (const id in AXES) {
-    if (!eixos.has(id)) bad(`etapa ${round}: eixo ${id} nao foi oferecido`);
-  }
-
-  const base = M.points[idx];
-  for (const o of offers) {
-    // 3. a carta seca existe SEMPRE, mesmo com o eixo esgotado de spells.
-    if (!o.dry) { bad(`etapa ${round} ${o.axisId}: sem carta seca`); continue; }
-    if (o.dry.want !== base) {
-      bad(`etapa ${round} ${o.axisId}: carta seca pede ${o.dry.want}, tabela diz ${base}`);
-    }
-    // 5. arsenal custa velocidade.
-    if (o.wet) {
-      if (!o.piece) bad(`etapa ${round} ${o.axisId}: carta com spell sem spell`);
-      else if (o.piece.axis !== o.axisId) {
-        bad(`etapa ${round} ${o.axisId}: oferece spell de ${o.piece.axis}`);
-      }
-      const esperado = Math.max(1, base - M.pieceDiscount);
-      if (o.wet.want !== esperado) {
-        bad(`etapa ${round} ${o.axisId}: com spell pede ${o.wet.want}, esperado ${esperado}`);
-      }
-      if (o.wet.want >= o.dry.want && base > 1) {
-        bad(`etapa ${round} ${o.axisId}: levar a spell nao custou nada`);
-      }
-    }
-    // 4. o numero anunciado e o que `addAxis` vai creditar.
-    const room = Math.max(0, Math.min(
-      AXIS_RULES.capPerAxis - g.build.axis[o.axisId], g.build.axisLeft));
-    for (const [nome, step] of [["seca", o.dry], ["com spell", o.wet]]) {
-      if (!step) continue;
-      const real = Math.min(step.want, room);
-      if (step.gain !== real) {
-        bad(`etapa ${round} ${o.axisId} (${nome}): anuncia +${step.gain}, credita +${real}`);
-      }
-    }
-    if (!o.dry.gain) tetos++;
-  }
-
-  // A carta e o HTML tem que montar sem "undefined" nas duas maneiras.
-  for (const o of offers) {
-    let html;
-    try { html = g.ui.msCardHtml(o); }
-    catch (e) { bad(`etapa ${round} ${o.axisId}: msCardHtml explodiu — ${e.message}`); continue; }
-    if (html.includes("undefined")) bad(`etapa ${round} ${o.axisId}: carta com "undefined"`);
-    if (!html.includes(o.axis.name)) bad(`etapa ${round} ${o.axisId}: carta sem o nome do eixo`);
-    const botoes = (html.match(/<button class="ms-take/g) || []).length;
-    if (botoes !== (o.wet ? 2 : 1)) {
-      bad(`etapa ${round} ${o.axisId}: ${botoes} botoes, esperado ${o.wet ? 2 : 1}`);
-    }
-    for (const wet of [false, true]) {
-      if (wet && !o.wet) continue;
-      let foot;
-      try { foot = g.ui.capLineHtml(o, wet ? o.wet : o.dry); }
-      catch (e) { bad(`etapa ${round}: capLineHtml explodiu — ${e.message}`); continue; }
-      if (foot.includes("undefined")) bad(`etapa ${round}: rodape com "undefined"`);
-    }
-  }
-
-  // 6. a spell da etapa nao pode cobrar eixo de novo em `acquirePiece`: o
-  //    desconto ja foi o pagamento dela.
-  const pick = offers[round % 3];
-  const wet = !!pick.wet && round % 2 === 0;
-  const step = wet ? pick.wet : pick.dry;
-  const antes = g.build.axisTotal, antesEixo = g.build.axis[pick.axisId];
-  const res = g.build.applyMilestone(pick, wet);
-  const andou = g.build.axisTotal - antes;
-  if (andou !== step.gain) {
-    bad(`etapa ${round} ${pick.axisId}: prometeu +${step.gain}, pool andou +${andou}`);
-  }
-  if (g.build.axis[pick.axisId] - antesEixo !== step.gain) {
-    bad(`etapa ${round} ${pick.axisId}: ponto caiu em outro eixo`);
-  }
-  if (wet && !res.piece) bad(`etapa ${round}: pediu a spell e nao veio`);
-  if (!wet && res.piece) bad(`etapa ${round}: carta seca trouxe spell`);
-  if (wet) comSpell++; else secas++;
-}
-
-if (!comSpell || !secas) bad("as duas maneiras de levar o eixo precisam ser exercitadas");
-
-/* --- 7. quem mira, chega -------------------------------------------------- */
-// Sem esta parte o resto e contabilidade: o objetivo da separacao das telas era
-// tornar o capstone alcancavel de proposito. Um jogador que concentra o eixo e
-// paga o preco (poucas spells) tem que fechar pelo menos um.
-function runMirando(seed) {
+/* --- 1..6. uma run de etapas, com o relogio do jogo ----------------------- */
+// Perfil que MIRA: leva spell do eixo alvo ate ele abrir, e carta seca depois.
+// E o caminho mais curto ate a pool cheia, entao e ele que responde se a
+// cadencia cabe numa run.
+function simular(seed, alvo, sempreSpell) {
   let z = seed >>> 0;
   Math.random = () => { z = (z * 1103515245 + 12345) % 2147483648; return z / 2147483648; };
-  const h = new Game();
-  window.game = h;
-  h.start();
-  for (let i = 0; i < BALANCE.milestones.at.length; i++) {
-    if (h.build.axisLeft <= 0) break;
-    const offers = h.build.getMilestoneOffers(i);
-    let best = offers[0], bs = -1;
-    for (const o of offers) {
-      if (!o.dry.gain) continue;
-      const sc = o.dry.gain * 100 + h.build.axis[o.axisId];
-      if (sc > bs) { bs = sc; best = o; }
+  const g = new Game();
+  window.game = g;
+  g.start();
+
+  let abriuEm = -1, marcos = 0, viuSolto3 = false;
+  for (let i = 0; i < 60 && g.build.axisLeft > 0; i++) {
+    const offers = g.build.getMilestoneOffers();
+    if (!offers.length) { bad(`etapa ${i}: nenhuma carta com ${g.build.axisLeft} na pool`); break; }
+    if (offers.length > M.cards) bad(`etapa ${i}: ${offers.length} cartas, teto ${M.cards}`);
+
+    const abertos = [];
+    for (const a in AXES) if (g.build.axis[a] >= M.unlockAt) abertos.push(a);
+
+    // 3. antes de abrir nada, nenhuma carta tem lado seco.
+    if (!abertos.length) {
+      for (const o of offers) {
+        if (o.dry) bad(`etapa ${i}: carta seca com nenhum eixo em ${M.unlockAt}`);
+        if (o.locked) bad(`etapa ${i}: carta fixa com nenhum eixo aberto`);
+        if (!o.piece) bad(`etapa ${i}: carta sorteada sem spell`);
+      }
+      // o sorteio ve o catalogo inteiro: eixo repetido tem que ser possivel
+      const eixos = offers.map((o) => o.axisId);
+      if (new Set(eixos).size < eixos.length) viuSolto3 = true;
     }
-    h.build.applyMilestone(best, false);
+
+    // 4. todo eixo aberto tem slot fixo, e ele tem os dois lados.
+    for (const a of abertos) {
+      const fixa = offers.find((o) => o.locked && o.axisId === a);
+      if (!fixa) { bad(`etapa ${i}: eixo aberto ${a} sumiu da mesa`); continue; }
+      if (!fixa.dry) bad(`etapa ${i}: eixo aberto ${a} sem carta seca`);
+      else if (fixa.dry.want !== M.axisPoints) {
+        bad(`etapa ${i}: carta seca de ${a} pede ${fixa.dry.want}, dado diz ${M.axisPoints}`);
+      }
+      if (fixa.wet && fixa.wet.want !== M.spellPoints) {
+        bad(`etapa ${i}: spell de ${a} pede ${fixa.wet.want}, dado diz ${M.spellPoints}`);
+      }
+    }
+
+    // sem peca repetida na mesma etapa: duas cartas da mesma spell nao e escolha
+    const ids = offers.filter((o) => o.piece).map((o) => o.piece.id);
+    if (new Set(ids).size !== ids.length) bad(`etapa ${i}: a mesma spell em duas cartas`);
+
+    // 5. o numero anunciado e o que `addAxis` vai creditar.
+    for (const o of offers) {
+      for (const [nome, step] of [["seca", o.dry], ["spell", o.wet]]) {
+        if (!step) continue;
+        const real = Math.max(0, Math.min(step.want,
+          AXIS_RULES.capPerAxis - g.build.axis[o.axisId], g.build.axisLeft));
+        if (step.gain !== real) {
+          bad(`etapa ${i} ${o.axisId} (${nome}): anuncia +${step.gain}, credita +${real}`);
+        }
+      }
+      // a carta tem que montar, nas duas formas
+      let html;
+      try { html = g.ui.msCardHtml(o); }
+      catch (e) { bad(`etapa ${i}: msCardHtml explodiu — ${e.message}`); continue; }
+      if (html.includes("undefined")) bad(`etapa ${i} ${o.axisId}: carta com "undefined"`);
+      const botoes = (html.match(/<button class="ms-take/g) || []).length;
+      const esperado = (o.dry ? 1 : 0) + (o.wet ? 1 : 0);
+      if (botoes !== esperado) bad(`etapa ${i} ${o.axisId}: ${botoes} botoes, esperado ${esperado}`);
+      try { g.ui.capLineHtml(o, o.dry || o.wet); }
+      catch (e) { bad(`etapa ${i}: capLineHtml explodiu — ${e.message}`); }
+    }
+
+    /* A escolha: enquanto o alvo nao abriu, leva spell dele; depois, seca —
+       a menos que o perfil seja o `sempreSpell`, que e quem mais fica para
+       tras e por isso e quem prova que a cauda alcanca. */
+    const fixa = offers.find((o) => o.locked && o.axisId === alvo);
+    let pick = null, wet = false;
+    if (fixa && !sempreSpell && fixa.dry.gain > 0) { pick = fixa; wet = false; }
+    else if (fixa && sempreSpell && fixa.wet && fixa.wet.gain > 0) { pick = fixa; wet = true; }
+    if (!pick) {
+      pick = offers.find((o) => o.axisId === alvo && o.wet && o.wet.gain > 0)
+          || offers.find((o) => o.dry && o.dry.gain > 0)
+          || offers.find((o) => o.wet && o.wet.gain > 0);
+      wet = !!(pick && (!pick.dry || (pick.wet && pick.wet.gain > 0 && !pick.dry.gain)));
+      if (pick && !pick.dry) wet = true;
+    }
+    if (!pick) { bad(`etapa ${i}: nenhuma carta anda com ${g.build.axisLeft} na pool`); break; }
+
+    // 6. spell credita no eixo DELA, e o pool anda exatamente o anunciado.
+    const step = wet ? pick.wet : pick.dry;
+    const antesPool = g.build.axisTotal, antesEixo = g.build.axis[pick.axisId];
+    const res = g.build.applyMilestone(pick, wet);
+    if (g.build.axisTotal - antesPool !== step.gain) {
+      bad(`etapa ${i}: prometeu +${step.gain}, pool andou +${g.build.axisTotal - antesPool}`);
+    }
+    if (g.build.axis[pick.axisId] - antesEixo !== step.gain) {
+      bad(`etapa ${i}: ponto caiu em outro eixo`);
+    }
+    if (wet && !res.piece) bad(`etapa ${i}: pediu a spell e nao veio`);
+    if (!wet && pick.dry && res.piece) bad(`etapa ${i}: carta seca trouxe spell`);
+
+    marcos++;
+    if (abriuEm < 0 && g.build.axis[alvo] >= M.unlockAt) abriuEm = marcos;
   }
-  return { caps: h.build.capstones.size, axis: { ...h.build.axis }, pool: h.build.axisTotal };
+
+  const fecha = g.milestoneTimeAt(marcos - 1);
+  return {
+    marcos, abriuEm, fecha, viuSolto3,
+    pool: g.build.axisTotal, caps: g.build.capstones.size,
+    axis: { ...g.build.axis }, spells: g.build.pieces.size,
+  };
 }
 
-let semCap = 0;
-const amostras = [];
+/* --- quem mira ------------------------------------------------------------ */
+let viuRepetido = false;
+const mirando = [];
 for (const seed of [3, 17, 101, 907, 4242]) {
-  const r = runMirando(seed);
-  amostras.push(r);
-  if (!r.caps) {
-    semCap++;
-    bad(`quem mira o eixo terminou com ${r.pool}/${AXIS_RULES.pool} pontos ` +
-        `(${r.axis.corruption}/${r.axis.dominion}/${r.axis.cataclysm}) e nenhum capstone`);
-  }
+  const r = simular(seed, "corruption", false);
+  mirando.push(r);
+  viuRepetido = viuRepetido || r.viuSolto3;
+  // 2. a pool sempre fecha: as etapas nao param antes dela.
   if (r.pool !== AXIS_RULES.pool) {
-    bad(`quem mira nao gastou a pool inteira: ${r.pool}/${AXIS_RULES.pool}`);
+    bad(`quem mira nao fecha a pool: ${r.pool}/${AXIS_RULES.pool} em ${r.marcos} etapas`);
+  }
+  // 7. e quem mira chega ao capstone.
+  if (!r.caps) {
+    bad(`quem mira terminou com ${r.axis.corruption}/${r.axis.dominion}/${r.axis.cataclysm} ` +
+        "e nenhum capstone");
   }
 }
 
-const capsMed = amostras.map((r) => r.caps).sort((a, b) => a - b)[Math.floor(amostras.length / 2)];
+/* 1. a conta da cadencia. O numero que importa nao e "a pool fecha", e "a pool
+   fecha ENQUANTO o jogador ainda esta vivo": marco entregue depois da morte nao
+   entrega nada. Uma run competente acaba por volta dos 10-11 min. */
+const medFecha = mirando.map((r) => r.fecha).sort((a, b) => a - b)[Math.floor(mirando.length / 2)];
+if (medFecha > 11 * 60) {
+  bad(`quem mira so fecha a pool aos ${(medFecha / 60).toFixed(1)} min — ` +
+      `a ${M.every}s por marco a cadencia nao cabe na run`);
+}
+
+/* --- quem so leva spell --------------------------------------------------- */
+// O outro extremo: nunca pega a carta seca. Ele anda `spellPoints` por vez, e e
+// o unico que precisa das etapas continuarem depois do que seria uma tabela.
+const largo = simular(31, "dominion", true);
+if (largo.pool !== AXIS_RULES.pool) {
+  bad(`quem so leva spell nunca fecha a pool: ${largo.pool}/${AXIS_RULES.pool}`);
+}
+if (largo.marcos <= mirando[0].marcos) {
+  bad("levar spell deveria custar MARCOS: o largo fechou em tantos quanto o que mira");
+}
+
+if (!viuRepetido) {
+  bad("o sorteio nunca repetiu eixo numa etapa — ele deveria ver o catalogo inteiro");
+}
+
+const med = (a) => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)];
 console.log(problems
   ? `X   ${problems} problemas na tela de etapa`
-  : `ok  etapa validada — ${rodadas} etapas (${secas} secas, ${comSpell} com spell, ` +
-    `${tetos} cartas no teto), quem mira fecha ${capsMed} capstones`);
+  : `ok  etapa validada — quem mira abre o eixo na etapa ${med(mirando.map((r) => r.abriuEm))}, ` +
+    `fecha a pool em ${med(mirando.map((r) => r.marcos))} etapas (${(medFecha / 60).toFixed(1)} min) ` +
+    `com ${med(mirando.map((r) => r.caps))} capstone(s) e ${med(mirando.map((r) => r.spells))} spells; ` +
+    `quem so leva spell precisa de ${largo.marcos} etapas`);
 if (problems) __exit(1);

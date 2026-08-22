@@ -109,22 +109,31 @@ const BALANCE = {
    vem a cada 2:30. Metade da run ficaria sem marco nenhum, e o eixo — que e a
    unica decisao irreversivel do jogo — chegaria tarde demais para ser mirado.
 
-   `at` e `points` andam juntos por indice, e `points` SOMA exatamente
-   AXIS_RULES.pool: o pool fecha aos 10 minutos, que e onde uma run competente
-   deveria estar acabando. Nao ha marco depois disso porque nao ha mais ponto
-   para dar. `driver_milestone` cobra a soma.
+   NAO ha tabela de pontos por marco, e isso e de proposito. A rampa e
+   EMERGENTE: antes de abrir um eixo so existe carta de spell, que vale
+   `spellPoints`; depois de `unlockAt` aquele eixo ganha slot fixo com carta
+   seca de `axisPoints`. O jogador comeca ganhando de 1 em 1 e passa a ganhar de
+   2 em 2 porque ELE se comprometeu, nao porque uma coluna de numeros disse que
+   o sexto marco vale mais.
 
-   `pieceDiscount` e a economia inteira em um numero: largura NAO gasta o pool,
-   ela DESACELERA o pool. A carta de um eixo que vem com spell nova entrega um
-   ponto a menos que a carta seca do mesmo eixo. Sete etapas so de Dedicacao
-   dao 20 pontos (capstone puro + hibrido); sete com spell dao 13 (nenhum
-   capstone, mas nove spells). O jogador escolhe entre maestria e arsenal, e
-   pela primeira vez ele consegue ver o que esta pagando. */
+   Quem para as etapas e a POOL, nao um contador de marcos: `every` continua
+   disparando enquanto `axisLeft` for maior que zero. Ponto que sobra sem tela
+   para gasta-lo e ponto que o painel mostra e o jogo nunca entrega — foi o que
+   acontecia enquanto a lista de marcos era o fim da linha, com runs acabando em
+   12/20 e 13/20.
+
+   A cadencia sai da conta, nao do gosto: a pool e 20, um jogador que abre um
+   eixo cedo gasta ~5 marcos a 1 ponto e o resto a 2, entao fecha em ~13 marcos.
+   A 45s isso da ~9:45 — logo antes dos 10 min, que e onde uma run competente
+   deveria estar acabando. `driver_milestone` refaz essa conta. */
 BALANCE.milestones = {
-  at:     [60, 150, 240, 330, 420, 510, 600],  // segundos de run
-  points: [ 2,   2,   2,   3,   3,   3,   5],  // soma 20 = AXIS_RULES.pool
-  pieceDiscount: 1,   // quanto a carta com spell nova deixa de dar
-  warnAt: 12,         // s antes do marco em que o HUD comeca a avisar
+  first: 40,        // s ate o primeiro marco
+  every: 40,        // cadencia enquanto sobrar ponto de eixo
+  cards: 3,         // cartas por etapa
+  unlockAt: 5,      // pontos num eixo para ele ganhar slot fixo + carta seca
+  spellPoints: 1,   // eixo que uma spell carrega para o eixo dela
+  axisPoints: 2,    // eixo da carta seca de um eixo aberto
+  warnAt: 12,       // s antes do marco em que o HUD comeca a avisar
 };
 
 /* Baú: quantos tiers grátis ele entrega. Peso relativo, não porcentagem;

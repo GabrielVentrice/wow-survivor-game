@@ -451,66 +451,112 @@ class BuildSystem {
   }
 
   /* --- ofertas de etapa ----------------------------------------------------
-     A BATIDA LENTA. Tres cartas, SEMPRE uma por eixo — e o "sempre" e a regra,
-     nao conveniencia. O ponto de eixo e a unica coisa desta run que nao se
-     desfaz depois; sortear QUAL eixo aparece transformaria a unica decisao
-     irreversivel do jogo em loteria, e o capstone voltaria a ser acidente.
-     Com os tres na mesa toda etapa, ele e alvo miravel desde o primeiro marco.
+     A BATIDA LENTA, e a unica fonte de ponto de eixo. As cartas mudam de forma
+     conforme a run se define, e a virada e o eixo chegar a `unlockAt`:
 
-     Cada carta oferece DUAS maneiras de levar o mesmo eixo, e e ai que mora a
-     economia inteira:
+     ANTES de qualquer eixo abrir, as tres cartas sao SPELLS sorteadas do
+     catalogo inteiro — pode cair tres do mesmo eixo. Nao ha carta seca, entao
+     no comeco a unica maneira de ganhar eixo e escolhendo uma spell, e cada
+     uma carrega `spellPoints` para o eixo DELA. Isso faz o comeco da run ser
+     descoberta e nao mira: o jogador ainda nao sabe o que a run vai oferecer,
+     e escolher spell e como ele descobre.
 
-       - seca: o marco todo vira ponto de eixo;
-       - com spell: um ponto a menos, e a spell entra na build.
+     DEPOIS que um eixo chega a `unlockAt`, ele passa a ocupar um slot FIXO em
+     toda etapa, e esse slot tem duas maneiras de ser levado: `axisPoints` secos
+     ou a spell daquele eixo por `spellPoints`. Os slots que sobram continuam
+     sorteados. Quando o segundo eixo abre, ele toma outro slot fixo; com os
+     tres abertos nao sobra sorteio nenhum.
 
-     Largura nao gasta o pool, ela DESACELERA o pool. E as duas tem que estar
-     sempre na mesa: na primeira versao a carta seca so aparecia quando o eixo
-     tinha ficado sem spell para oferecer, e com dez pecas por eixo isso nunca
-     acontecia — medido, o pool travava em 13 de 20 e NENHUMA run alcancava
-     capstone, exatamente o defeito que a separacao das telas existia para
-     consertar. Uma escolha que o jogador nao pode fazer nao e uma escolha.
+     A garantia chega quando o comprometimento chega — e e isso que separa este
+     desenho de uma loteria. O eixo em que o jogador ja investiu cinco pontos
+     nunca mais some da mesa, entao o capstone deixa de depender de o sorteio
+     colaborar. Antes disso ele nao tem eixo para proteger.
 
-     Nenhum dos dois lados e a jogada certa. Sete etapas secas dao 20 pontos
-     (dois capstones) e duas spells a run inteira, que seca o bolo do level up
-     em pouco mais de vinte tiers; sete com spell dao 13 pontos (nenhum
-     capstone) e nove spells rasas. O jogo esta na mistura. */
-  getMilestoneOffers(index) {
+     Cai daqui que a rampa de pontos e EMERGENTE e nao tabelada: cedo o jogador
+     ganha de 1 em 1 (so ha spell), tarde ganha de 2 em 2 (a carta seca abriu).
+     A curva vem da progressao dele, nao de uma coluna de numeros. */
+  getMilestoneOffers() {
     const M = BALANCE.milestones;
-    const base = M.points[Math.min(index, M.points.length - 1)];
     /* Ganho REAL, nao o de tabela: com o eixo no teto ou o pool no fim,
-       `addAxis` entrega menos. Anunciar 3 e creditar 1 e a mentira mais cara
+       `addAxis` entrega menos. Anunciar 2 e creditar 1 e a mentira mais cara
        que esta tela pode contar, porque nao ha como desfazer. */
     const real = (axisId, want) => Math.max(0, Math.min(want,
       AXIS_RULES.capPerAxis - this.axis[axisId], this.axisLeft));
-    const out = [];
 
+    // Catalogo disponivel, por eixo — a mesma lista serve ao slot fixo e ao
+    // sorteio, entao um eixo esgotado some das duas pontas de uma vez.
+    const porEixo = {}, todas = [];
+    for (const id in PIECES) {
+      const def = PIECES[id];
+      if (def.evolutionOnly || this.pieces.has(def.key)) continue;
+      if (!this.meetsRequires(def)) continue;
+      (porEixo[def.axis] || (porEixo[def.axis] = [])).push(def);
+      todas.push(def);
+    }
+    for (const a in porEixo) shuffle(porEixo[a]);
+    shuffle(todas);
+
+    const out = [], usadas = new Set();
+    const pegar = (lista) => {
+      for (const def of lista) if (!usadas.has(def.id)) { usadas.add(def.id); return def; }
+      return null;
+    };
+
+    // 1. slots fixos: um por eixo aberto, na ordem em que os eixos estao no
+    //    dado (estavel entre etapas — carta fixa que dança de lugar deixa de
+    //    ser referencia visual).
     for (const axisId in AXES) {
-      const cands = [];
-      for (const id in PIECES) {
-        const def = PIECES[id];
-        if (def.evolutionOnly || def.axis !== axisId) continue;
-        if (this.pieces.has(def.key) || !this.meetsRequires(def)) continue;
-        cands.push(def);
-      }
-      shuffle(cands);
-      const piece = cands.length ? cands[0] : null;
-      const withWant = Math.max(1, base - M.pieceDiscount);
+      if (this.axis[axisId] < M.unlockAt) continue;
+      const piece = pegar(porEixo[axisId] || []);
       out.push({
-        kind: "milestone", axisId, axis: AXES[axisId], piece,
-        dry: { want: base, gain: real(axisId, base) },
-        wet: piece ? { want: withWant, gain: real(axisId, withWant) } : null,
+        kind: "milestone", axisId, axis: AXES[axisId], piece, locked: true,
+        dry: { want: M.axisPoints, gain: real(axisId, M.axisPoints) },
+        wet: piece ? { want: M.spellPoints, gain: real(axisId, M.spellPoints) } : null,
       });
+    }
+
+    // 2. o resto: spell sorteada do catalogo INTEIRO. Sem carta seca — antes de
+    //    abrir um eixo, ganhar ponto e escolher spell.
+    while (out.length < M.cards) {
+      const piece = pegar(todas);
+      if (!piece) break;
+      out.push({
+        kind: "milestone", axisId: piece.axis, axis: AXES[piece.axis], piece, locked: false,
+        dry: null,
+        wet: { want: M.spellPoints, gain: real(piece.axis, M.spellPoints) },
+      });
+    }
+
+    /* Fim do catalogo com nenhum eixo aberto: sem este fallback a etapa abriria
+       vazia e a pool ficaria sem como ser gasta. Entrega o eixo seco de quem
+       tem mais espaco — nao ha spell para oferecer, entao nao ha troca a fazer. */
+    if (!out.length) {
+      let melhor = null;
+      for (const axisId in AXES) {
+        const g = real(axisId, M.axisPoints);
+        if (!melhor || g > melhor.g) melhor = { axisId, g };
+      }
+      if (melhor && melhor.g > 0) {
+        out.push({
+          kind: "milestone", axisId: melhor.axisId, axis: AXES[melhor.axisId],
+          piece: null, locked: true,
+          dry: { want: M.axisPoints, gain: melhor.g }, wet: null,
+        });
+      }
     }
     return out;
   }
 
-  /* `takePiece` diz qual das duas maneiras o jogador escolheu. A spell entra
-     como `free`: o eixo dela ja foi pago pelo ponto que a carta deixou de dar
-     (`pieceDiscount`). Cobrar de novo em `acquirePiece` seria cobrar duas
+  /* `takePiece` diz qual das maneiras o jogador escolheu. Carta sorteada so tem
+     a maneira com spell; carta de eixo aberto tem as duas.
+
+     A spell entra como `free`: o eixo dela ja foi pago pelo `spellPoints` que a
+     propria carta creditou. Cobrar de novo em `acquirePiece` seria cobrar duas
      vezes pela mesma largura. */
   applyMilestone(o, takePiece) {
-    const take = !!(takePiece && o.piece);
-    const gained = this.addAxis(o.axisId, take ? o.wet.want : o.dry.want);
+    const take = o.dry ? !!(takePiece && o.piece) : !!o.piece;
+    const step = take ? o.wet : o.dry;
+    const gained = step ? this.addAxis(o.axisId, step.want) : 0;
     if (take) this.acquirePiece(o.piece.id, true);
     else this.afterChange();
     const caps = this.checkCapstones();

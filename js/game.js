@@ -526,20 +526,39 @@ class Game {
      A fila tambem cobre o caso raro de dois marcos no mesmo frame (timeScale 3
      com um travamento): o segundo espera sua vez em vez de sumir. */
   updateMilestones() {
-    const at = BALANCE.milestones.at;
-    while (this.milestoneIdx < at.length && this.elapsed >= at[this.milestoneIdx]) {
+    /* A condicao de parada e a POOL, nao a tabela.
+
+       Enquanto `at` era o fim da linha, quem levava spell nas etapas terminava
+       a run com ponto de eixo no bolso e sem tela nenhuma para gasta-lo:
+       `pieceDiscount` atrasa o ritmo em um ponto por spell, entao sete spells
+       deixavam sete pontos parados. Medido, runs acabando em 12/20 e 13/20 —
+       ponto que existe, aparece no painel, e nao tem como virar nada. */
+    if (this.build.axisLeft <= 0) return;
+    // Teto de fila: com `tailEvery` pequeno e um travamento longo, o laco
+    // poderia enfileirar dezenas de telas de uma vez.
+    while (this.pendingMilestones < 3 && this.elapsed >= this.milestoneTimeAt(this.milestoneIdx)) {
       this.milestoneIdx++;
       this.pendingMilestones++;
     }
   }
 
-  /* Segundos ate o proximo marco, ou null quando nao ha mais nenhum. E o que o
-     HUD mostra: marco que chega sem aviso nao estrutura ritmo nenhum — o
+  /* Quando o marco `idx` acontece. Cadencia fixa, sem tabela: quem decide
+     quantos marcos a run tem e a POOL, nao uma lista de horarios.
+
+     Uma funcao so para os dois usos (disparar e contar no HUD): duas copias
+     divergiriam na primeira vez que a cadencia mudasse, e o HUD passaria a
+     contar para um marco que nao e o que vai disparar. */
+  milestoneTimeAt(idx) {
+    const M = BALANCE.milestones;
+    return M.first + idx * M.every;
+  }
+
+  /* Segundos ate o proximo marco, ou null quando nao ha mais ponto a dar. E o
+     que o HUD mostra: marco que chega sem aviso nao estrutura ritmo nenhum — o
      jogador precisa poder ver a decisao se aproximando. */
   nextMilestoneIn() {
-    const at = BALANCE.milestones.at;
-    if (this.milestoneIdx >= at.length) return null;
-    return Math.max(0, at[this.milestoneIdx] - this.elapsed);
+    if (this.build.axisLeft <= 0) return null;
+    return Math.max(0, this.milestoneTimeAt(this.milestoneIdx) - this.elapsed);
   }
 
   /* A trilha acompanha a pressao real da run, nao um cronometro proprio:

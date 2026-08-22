@@ -676,14 +676,22 @@ class UI {
     g.sfx.levelUp();
     g.addShake(10);
 
-    const idx = g.milestoneIdx - g.pendingMilestones;
-    const offers = g.build.getMilestoneOffers(Math.max(0, idx));
+    const idx = Math.max(0, g.milestoneIdx - g.pendingMilestones);
+    const offers = g.build.getMilestoneOffers();
+    if (!offers.length) {
+      g.pendingMilestones = 0;
+      g.state = STATE.PLAYING;
+      return;
+    }
     this.msOffers = offers;
     this.msHover = null;
 
-    const at = BALANCE.milestones.at;
-    const n = Math.min(idx + 1, at.length);
-    this.el.msEyebrow.textContent = `Etapa ${n} de ${at.length} · ${mmss(at[Math.min(idx, at.length - 1)])}`;
+    /* Sem denominador: as etapas nao acabam numa contagem, acabam quando a pool
+       acaba. Dizer "de 7" mentiria justo para quem mais precisa saber que ainda
+       vem mais — o jogador que levou spell toda vez e esta atrasado na pool. */
+    const falta = g.build.axisLeft;
+    this.el.msEyebrow.textContent = `Etapa ${idx + 1} · ${mmss(g.milestoneTimeAt(idx))} · ` +
+      `${falta} ponto${falta === 1 ? "" : "s"} de eixo por gastar`;
 
     this.el.msRows.innerHTML = "";
     for (let i = 0; i < offers.length; i++) {
@@ -722,7 +730,7 @@ class UI {
      mataria a transicao de `transform` que o CSS esta rodando naquele
      instante. */
   msRender(o, wet) {
-    const step = !o ? null : (wet ? o.wet : o.dry);
+    const step = !o ? null : ((wet ? o.wet : o.dry) || o.wet || o.dry);
     this.el.msPool.innerHTML = this.axesHtml(o ? o.axisId : null, step ? step.gain : 0);
     this.el.msCap.innerHTML = this.capLineHtml(o, step);
   }
@@ -750,11 +758,13 @@ class UI {
   }
 
   msCardHtml(o) {
-    const cur = this.game.build.axis[o.axisId];
-    /* Os dois botoes carregam o numero REAL, e e a diferenca entre eles que
-       conta a economia do jogo em um lugar so. Sem a linha da troca o jogador
-       ve dois numeros diferentes e conclui que foi sorte, quando na verdade
-       foi a spell que ele esta levando junto. */
+    const b = this.game.build, cur = b.axis[o.axisId];
+    const M = BALANCE.milestones;
+
+    /* Os botoes carregam o numero REAL. Com o eixo no teto ou o pool no fim,
+       `addAxis` entrega menos do que a tabela promete — e esta e a unica tela
+       do jogo cujo numero nao pode ser desfeito, entao ela e a ultima que pode
+       arredondar a verdade. */
     const take = (step, wet, label, note) => {
       if (!step) return "";
       const dead = step.gain <= 0;
@@ -763,7 +773,7 @@ class UI {
         <span class="ms-take-n">${dead ? "+0" : "+" + step.gain}</span>
         <span class="ms-take-s">${dead
           ? (cur >= AXIS_RULES.capPerAxis ? "eixo no teto" : "pool no fim")
-          : `${cur} → ${cur + step.gain}` + (note ? ` · ${note}` : "")}</span>
+          : `${o.axis.name} ${cur} → ${cur + step.gain}` + (note ? ` · ${note}` : "")}</span>
       </button>`;
     };
 
@@ -781,16 +791,41 @@ class UI {
             <span class="ms-spell-desc">Todas as spells de ${o.axis.name} já estão na build.</span>
           </span></div>`;
 
+    /* Duas formas de carta, e a diferenca e o que cada uma esta perguntando.
+
+       ABERTA (eixo em `unlockAt`+): a manchete e o EIXO, porque a pergunta e
+       quanto investir nele — a spell e uma das duas maneiras de levar, nao o
+       assunto. Ela ganha o cabecalho de eixo e os dois botoes.
+
+       SORTEADA: a manchete e a SPELL, porque e ela que esta sendo escolhida; o
+       eixo aparece no botao como consequencia (+1 em Corrupcao). Por o eixo no
+       topo aqui seria anunciar como titulo algo que o jogador nao escolheu — o
+       sorteio e que pos aquele eixo ali. */
+    if (!o.locked) {
+      return `
+        <div class="ms-head loose">
+          <span class="ms-ic">${o.piece.icon}</span>
+          <span class="ms-axis">${o.piece.name}</span>
+          <span class="ms-tag" style="color:${o.axis.color}">${o.axis.icon} ${o.axis.name}</span>
+        </div>
+        <div class="ms-spell bare"><span class="ms-spell-txt">
+          <span class="ms-spell-desc">${o.piece.desc}</span></span></div>
+        <div class="ms-takes">
+          ${take(o.wet, true, "Levar esta spell", "")}
+        </div>`;
+    }
+
     return `
       <div class="ms-head">
         <span class="ms-ic">${o.axis.icon}</span>
         <span class="ms-axis">${o.axis.name}</span>
+        <span class="ms-open" title="Eixo com ${M.unlockAt}+ pontos: nunca mais sai da mesa">aberto</span>
         <span class="ms-tag">${o.axis.tag}</span>
       </div>
       ${spell}
       <div class="ms-takes">
         ${take(o.dry, false, "Só o eixo", "")}
-        ${take(o.wet, true, "Com a spell", `−${BALANCE.milestones.pieceDiscount} pelo arsenal`)}
+        ${take(o.wet, true, "Com a spell", `−${M.axisPoints - M.spellPoints} pelo arsenal`)}
       </div>`;
   }
 

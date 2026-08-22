@@ -6,6 +6,9 @@ Math.random = () => { s = (s*1103515245+12345)%2147483648; return s/2147483648; 
 const g = new Game(); window.game = g;
 g.ui.openLevelUp = () => { g.player.pendingLevels = 0; g.state = STATE.PLAYING; };
 g.ui.openChest = () => { g.state = STATE.PLAYING; };
+// A etapa tambem PARA o update: sem resolve-la o driver rodaria ate o
+// primeiro marco e chamaria de minutos. Quem mede etapa e `driver_milestone`.
+g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
 
 let fails = 0;
 const fail = (m) => { console.error("  X " + m); fails++; };
