@@ -194,6 +194,12 @@ aparece acima de um limiar.
 - Peça com `requires` só é oferecida depois que a habilitadora está na build.
 - O kit inicial da classe entra **de graça** (`acquirePiece(id, true)`), para o
   pool de 20 ficar inteiro para as escolhas do jogador.
+- **Baú é a única fonte de tiers grátis**, e por isso é dado: `BALANCE.spawn`
+  diz com que frequência ele nasce (avulso pelo spawner a partir dos 45s, e de
+  todo Dreadlord morto) e `BALANCE.chest.rarity` diz quantos tiers ele entrega —
+  1, 3 ou 5, com `lateWeight` trocando os pesos depois de `hardAt`, quando um
+  tier avulso não muda mais o jogo. Mexer nesses números é mexer na velocidade
+  em que a build fecha; `driver_chest` mede as duas pontas.
 
 ### Uma build, uma família de cor
 

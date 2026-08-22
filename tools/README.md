@@ -18,6 +18,7 @@ DRIVER=driver_render.js node tools/harness.js .  # cenário, demônios e explos�
 DRIVER=driver_track.js node tools/harness.js .   # trilha em arquivo: loop, fallback, estados
 DRIVER=driver_cards.js node tools/harness.js .   # cartas de level up: faixa de tipo, pips, custo
 DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas, abertura
+DRIVER=driver_chest.js node tools/harness.js .   # baú: cadência de aparição e tamanho do prêmio
 ```
 
 `make_track.py` não é driver: é o gerador da trilha de fundo
