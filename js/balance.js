@@ -15,6 +15,22 @@ const BALANCE = {
   },
   camera: {
     lerp: 0.12,          // suavização do follow (0 = travado, 1 = instantâneo)
+
+    /* Impacto. `addShake` continua recebendo as magnitudes antigas (4..22);
+       `ref` é o que converte isso em trauma 0..1, então todo call site já
+       existente mantém seu peso relativo sem ser reescrito. */
+    shake: {
+      ref: 22,           // magnitude que vale amplitude cheia — o evento mais alto
+      max: 22,           // unidades de mundo de desvio no primeiro quadro
+      freq: 54,          // rad/s da oscilação (~8,6 Hz, ~7 amostras por ciclo)
+      damping: 11,       // quão rápido o soco morre (~0,35s até o silêncio)
+      lateral: 0.45,     // quanto ele desvia do eixo do golpe
+    },
+
+    /* Hitstop, em segundos REAIS. Congelar a simulação por um relógio escalado
+       faria um stop de 50ms durar 150ms no timeScale 3. `cooldown` é o que
+       impede que uma tela cheia de explosão vire apresentação de slides. */
+    hitstop: { big: 0.034, boss: 0.11, hurt: 0.067, cooldown: 0.26 },
   },
   spawn: {
     /* Densidade DOBRADA em relação ao tuning original.

@@ -412,23 +412,80 @@ class Camera {
     this.y = 0;
     this.w = 0;
     this.h = 0;
-    this.shake = 0;
+    this.amp = 0;      // amplitude do soco, em unidades de mundo
+    this.dx = 1;       // eixo em que ele acontece
+    this.dy = 0;
+    this.shakeT = 0;
+    this.shakeSeq = 0; // angulo do proximo evento sem direcao propria
     this.ox = 0;
     this.oy = 0;
   }
   resize(w, h) { this.w = w; this.h = h; }
+  resetShake() { this.amp = 0; this.shakeT = 0; this.ox = 0; this.oy = 0; }
   follow(target, dt, instant = false) {
     const t = instant ? 1 : 1 - Math.pow(1 - BALANCE.camera.lerp, dt * 60);
     this.x += (target.x - this.x) * t;
     this.y += (target.y - this.y) * t;
   }
-  updateShake(dt) {
-    if (this.shake > 0) {
-      this.ox = (Math.random() * 2 - 1) * this.shake;
-      this.oy = (Math.random() * 2 - 1) * this.shake;
-      this.shake = Math.max(0, this.shake - dt * 30);
-    } else { this.ox = 0; this.oy = 0; }
+  /* Tremor de tela nao e ruido: e um SOCO. A camera e empurrada de uma vez na
+     direcao em que o golpe viajou e volta oscilando, com a oscilacao morrendo
+     em ~0,35s. E isso que diz DE ONDE veio a pancada, e nao apenas que veio.
+
+     A versao anterior sorteava `Math.random()` por frame. Isso nao e tremor, e
+     chuvisco: o desvio cai num ponto novo de uma caixa de ±22 unidades a cada
+     frame, sem nenhuma continuidade — e depois do `snapUnit` le como a tela
+     inteira piscando um pixel por vez, em vez de se mexer.
+
+     Trocar o sorteio por ruido de senoide nao resolveria: a 60fps qualquer
+     coisa acima de ~7Hz e amostrada perto de Nyquist e volta a aliasar em
+     chuvisco. Uma oscilacao amortecida a 8,6Hz da ~7 amostras por ciclo, entao
+     o caminho e desenhado de verdade em vez de sugerido.
+
+     `lateral` e uma segunda oscilacao perpendicular, mais lenta e menor: sem
+     ela o soco corre numa reta e le como falha de render, e nao como impacto.
+
+     A amplitude sai ao quadrado (Eiserloh): acerto duas vezes mais alto sacode
+     quatro vezes mais, e o fim da cauda desaparece em vez de parar seco. */
+  addTrauma(mag, dx, dy) {
+    const S = BALANCE.camera.shake;
+    const t = clamp(mag / S.ref, 0, 1);
+    const amp = S.max * t * t;
+    // `Math.max` e nao soma: dez acertos no mesmo frame nao podem virar uma
+    // camera arremessada para fora do mapa. O golpe mais forte manda, e
+    // reinicia a fase — um soco novo comeca do proprio impacto.
+    if (amp <= this.amp * Math.exp(-this.shakeT * S.damping)) return;
+    this.amp = amp;
+    this.shakeT = 0;
+    if (dx !== undefined) {
+      const L = Math.sqrt(dx * dx + dy * dy);
+      if (L > 1e-4) { this.dx = dx / L; this.dy = dy / L; return; }
+    }
+    /* Evento sem posicao (subir de nivel, virada de fase) ainda precisa de UM
+       eixo: o que nao pode existir e direcao nova a cada frame. O angulo aureo
+       espalha os eventos seguidos em vez de repetir sempre o mesmo lado. */
+    const a = (this.shakeSeq = (this.shakeSeq + 2.39996323) % 6.28318531);
+    this.dx = Math.cos(a); this.dy = Math.sin(a);
   }
+
+  /* Amostra ANTES de avancar o relogio, e essa ordem e o efeito inteiro. O
+     deslocamento maximo esta em t=0: e o quadro do soco. Avancando primeiro, a
+     primeira amostra ja sai 0,9rad adiantada, o pico nunca chega a ser
+     desenhado e o que o jogador ve e a camera comecando na metade do caminho
+     de volta — impacto vira sacudida. */
+  updateShake(dt) {
+    if (this.amp <= 0) { this.ox = 0; this.oy = 0; return; }
+    const S = BALANCE.camera.shake;
+    const t = this.shakeT;
+    const env = Math.exp(-t * S.damping);
+    if (env < 0.02) { this.amp = 0; this.shakeT = 0; this.ox = 0; this.oy = 0; return; }
+    const a = this.amp * env;
+    const main = a * Math.cos(t * S.freq);
+    const side = a * S.lateral * Math.sin(t * S.freq * 0.62);
+    this.ox = this.dx * main - this.dy * side;
+    this.oy = this.dy * main + this.dx * side;
+    this.shakeT = t + dt;
+  }
+
   /* Two viewports, and the difference between them is what makes the world
      scroll smoothly on a pixel grid.
 

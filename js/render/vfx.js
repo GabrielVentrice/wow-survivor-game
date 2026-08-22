@@ -217,6 +217,18 @@ const PIECE_VFX = {
    A simulacao chama game.emitVfx(kind, x, y, r, color) e segue em frente.
    Nada aqui pode alterar estado de jogo — se alterar, esta no lugar errado. */
 
+/* Curvas de impacto. Nada num acerto e linear: uma onda de choque sai rapido e
+   desacelera, e a luz morre antes da forma que a criou.
+
+   Por isso sao DUAS curvas e nao uma. `ease` governa o tamanho e `a` governa o
+   brilho, e elas nao andam juntas de proposito: quando as duas caem na mesma
+   reta o efeito le como um circulo sendo apagado, e nao como energia se
+   dissipando. Foi o que a versao anterior fazia — `k` cru no raio e `1-k` na
+   alpha, nos onze eventos visuais do jogo. */
+const outCubic = (k) => { const u = 1 - k; return 1 - u * u * u; };
+const outQuint = (k) => { const u = 1 - k; return 1 - u * u * u * u * u; };
+const inCubic = (k) => k * k * k;
+
 const VFX_LIFE = {
   burst: 0.46, shock: 0.3, spread: 0.6, jump: 0.25, summon: 0.4,
   unsummon: 0.3, execute: 0.4, echo: 0.5, blink: 0.35, heal: 0.6,
@@ -255,7 +267,9 @@ class VfxLayer {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     for (let i = 0; i < l.length; i++) {
-      const v = l[i], k = v.t / v.life, a = 1 - k;
+      const v = l[i], k = v.t / v.life;
+      const e = outCubic(k);            // tamanho: sai rapido e desacelera
+      const a = (1 - k) * (1 - k);      // brilho: cai antes da forma parar
       const x = v.x - cam.left, y = v.y - cam.top;
       switch (v.kind) {
         case "burst": {
@@ -263,43 +277,59 @@ class VfxLayer {
           break;
         }
         case "echo": {
-          ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.4).toFixed(2)})`;
+          ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.45).toFixed(2)})`;
           ctx.lineWidth = 1 + a * 3;
-          ctx.beginPath(); ctx.arc(x, y, v.r * (0.25 + k * 0.85), 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x, y, v.r * (0.25 + e * 0.85), 0, Math.PI * 2); ctx.stroke();
           break;
         }
         case "shock": {
-          ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.85).toFixed(2)})`;
-          ctx.lineWidth = 2 + a * 3;
-          ctx.beginPath(); ctx.arc(x, y, v.r * (0.4 + k * 0.7), 0, Math.PI * 2); ctx.stroke();
-          ctx.beginPath(); ctx.arc(x, y, v.r * (0.15 + k * 0.4), 0, Math.PI * 2); ctx.stroke();
+          /* Quadro de impacto: os primeiros milissegundos sao luz branca e nao
+             um anel fino. E o que registra que ALGO aconteceu ali antes de o
+             olho ter tempo de ler o raio. Sai do glowBlob cacheado, entao
+             custa o mesmo com um na tela e com cem. */
+          const fl = 1 - Math.min(1, k * 6);
+          if (fl > 0) {
+            const fr = v.r * (0.3 + (1 - fl) * 0.55);
+            ctx.globalAlpha = fl * fl * 0.6;
+            ctx.drawImage(glowBlob(v.color), x - fr, y - fr, fr * 2, fr * 2);
+            ctx.globalAlpha = 1;
+          }
+          // o anel de fora sai na frente; o de dentro persegue, e a distancia
+          // entre os dois e o que da espessura ao golpe
+          ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.9).toFixed(2)})`;
+          ctx.lineWidth = 1 + a * 4;
+          ctx.beginPath(); ctx.arc(x, y, v.r * (0.35 + outQuint(k) * 0.75), 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x, y, v.r * (0.12 + e * 0.45), 0, Math.PI * 2); ctx.stroke();
           break;
         }
         case "spread": {
-          ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.7).toFixed(2)})`;
-          ctx.lineWidth = 2;
-          const rr = v.r * (0.2 + k * 0.9);
+          ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.75).toFixed(2)})`;
+          ctx.lineWidth = 1 + a * 2;
+          const rr = v.r * (0.2 + e * 0.9);
           for (let s = 0; s < 10; s++) {
-            const a0 = (s / 10) * Math.PI * 2 + k * 1.2;
+            const a0 = (s / 10) * Math.PI * 2 + e * 1.2;
             ctx.beginPath(); ctx.arc(x, y, rr, a0, a0 + 0.26); ctx.stroke();
           }
           break;
         }
         case "jump": {
           ctx.fillStyle = `rgba(${v.rgb},${a.toFixed(2)})`;
-          ctx.beginPath(); ctx.arc(x, y, 3 + k * 6, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(x, y, 3 + e * 6, 0, Math.PI * 2); ctx.fill();
           break;
         }
         case "summon": {
           ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.9).toFixed(2)})`;
           ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.arc(x, y, v.r * (1 - k * 0.75), 0, Math.PI * 2); ctx.stroke();
+          // anel que FECHA: acelera para dentro em vez de encolher parelho —
+          // convergencia constante le como circulo diminuindo, nao como algo
+          // sendo puxado para um ponto
+          ctx.beginPath(); ctx.arc(x, y, v.r * (1 - inCubic(k) * 0.78), 0, Math.PI * 2); ctx.stroke();
           break;
         }
         case "unsummon": {
           ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.6).toFixed(2)})`;
           ctx.lineWidth = 1.5;
-          const s = v.r * (0.6 + k);
+          const s = v.r * (0.6 + e);
           ctx.beginPath();
           ctx.moveTo(x - s, y - s); ctx.lineTo(x + s, y + s);
           ctx.moveTo(x + s, y - s); ctx.lineTo(x - s, y + s);
@@ -311,7 +341,7 @@ class VfxLayer {
           ctx.lineWidth = 1 + a * 2;
           for (let s = 0; s < 6; s++) {
             const a0 = (s / 6) * Math.PI * 2;
-            const r0 = v.r * 0.3, r1 = v.r * (0.7 + k * 1.1);
+            const r0 = v.r * (0.3 + e * 0.5), r1 = v.r * (0.7 + outQuint(k) * 1.1);
             ctx.beginPath();
             ctx.moveTo(x + Math.cos(a0) * r0, y + Math.sin(a0) * r0);
             ctx.lineTo(x + Math.cos(a0) * r1, y + Math.sin(a0) * r1);
@@ -323,7 +353,7 @@ class VfxLayer {
           ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.8).toFixed(2)})`;
           ctx.lineWidth = 3 * a;
           ctx.beginPath();
-          ctx.ellipse(x, y, v.r * (1 - k), v.r * 1.6 * (1 - k), 0, 0, Math.PI * 2);
+          ctx.ellipse(x, y, v.r * (1 - e), v.r * 1.6 * (1 - e), 0, 0, Math.PI * 2);
           ctx.stroke();
           break;
         }
@@ -336,7 +366,7 @@ class VfxLayer {
         }
         case "heal": {
           ctx.fillStyle = `rgba(${v.rgb},${(a * 0.8).toFixed(2)})`;
-          const hy = y - k * 34;
+          const hy = y - e * 34;
           ctx.fillRect(x - 6, hy - 2, 12, 4);
           ctx.fillRect(x - 2, hy - 6, 4, 12);
           break;
@@ -385,12 +415,18 @@ function drawExplosion(ctx, x, y, r, k, color, seed) {
   drawPixelCanvas(ctx, frames[fi], px, py, size, size, (seed & 1) === 1);
   ctx.restore();
 
-  const rk = Math.min(1, k * 2.4);
-  if (rk < 1) {
-    const fade = 1 - rk;
-    ctx.strokeStyle = `rgba(255,255,255,${(fade * 0.55).toFixed(2)})`;
+  /* A onda e a unica parte desenhada no raio real do dano, entao ela e a que
+     mais precisa da curva — e a unica em que forma e brilho NAO podem usar a
+     mesma. O raio sai da detonacao rapido e desacelera ate o alcance; a alpha
+     cai parelho, porque ela e o tempo que o jogador tem para ler ate onde a
+     explosao pegou. Amarrar a alpha na curva do raio apagaria o anel no
+     primeiro decimo da vida, quando ele ainda esta dizendo o que importa. */
+  const rt = Math.min(1, k * 2.4);
+  if (rt < 1) {
+    const fade = 1 - rt;
+    ctx.strokeStyle = `rgba(255,255,255,${(fade * 0.6).toFixed(2)})`;
     ctx.lineWidth = 1 + fade * 3;
-    ctx.beginPath(); ctx.arc(x, y, r * (0.3 + rk * 0.78), 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, r * (0.3 + outQuint(rt) * 0.78), 0, Math.PI * 2); ctx.stroke();
   }
 }
 

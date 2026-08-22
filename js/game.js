@@ -97,6 +97,8 @@ class Game {
     this.selectedClass = "warlock";
     this.selectedSpeed = 1;
     this.timeScale = 1;
+    this._hitstop = 0;      // segundos REAIS de simulacao congelada
+    this._hitstopCd = 0;
     this.elapsed = 0;
     this.clock = 0;         // relogio de simulacao: base de TODO agendamento
     this.lastTime = 0;
@@ -295,6 +297,10 @@ class Game {
 
     if (big) {
       this.lastBigHit = { amount: amt, key };
+      // o golpe viajou do jogador para o alvo: a camera vai junto, e assim o
+      // soco diz ONDE bateu, e nao apenas que bateu
+      this.addShake(9, e.x - this.player.x, e.y - this.player.y);
+      this.addHitstop(BALANCE.camera.hitstop.big);
       this.events.emit(EVENTS.BIG_HIT, { enemy: e, amount: amt, key });
     }
     this.events.emit(EVENTS.ENEMY_HIT, { enemy: e, amount: amt, key });
@@ -328,6 +334,9 @@ class Game {
     this.damageBy.clear();
     this._chain.clear();
     this._fxDepth = 0;
+    this._hitstop = 0;
+    this._hitstopCd = 0;
+    this.camera.resetShake();
     this.lastBigHit = null;
     this.build.reset();
     this.elapsed = 0;
@@ -377,7 +386,26 @@ class Game {
   resume() { this.ui.hidePause(); this.music.setState("playing"); this.state = STATE.PLAYING; }
   quitToMenu() { this.ui.toMenu(); this.music.setState("menu"); this.state = STATE.MENU; }
 
-  addShake(mag) { this.camera.shake = Math.max(this.camera.shake, mag); }
+  /* `dx,dy` apontam para ONDE o golpe foi: a camera e empurrada no mesmo
+     sentido em que ele viajou. Quem nao tem posicao (subir de nivel, virada de
+     fase) omite os dois e recebe so a cauda de tremor. */
+  addShake(mag, dx, dy) { this.camera.addTrauma(mag, dx, dy); }
+
+  /* Congela a simulacao por alguns milissegundos REAIS. E a coisa mais barata
+     que existe num jogo de acao para fazer um golpe ATERRISSAR em vez de
+     apenas acontecer: o frame em que ele conecta fica no ar tempo suficiente
+     para ser visto.
+
+     Segundos reais, nunca `clock`: o relogio e escalado, entao um stop de 50ms
+     duraria 150ms no timeScale 3. E limitado por cadencia, porque este jogo
+     poe dezenas de acertos grandes em tela ao mesmo tempo e um stop por acerto
+     e uma apresentacao de slides. `force` e para o que acontece uma vez por
+     run e nao pode ser comido pela cadencia de outro evento. */
+  addHitstop(d, force) {
+    if (this._hitstopCd > 0 && !force) return;
+    this._hitstop = Math.max(this._hitstop, d);
+    this._hitstopCd = BALANCE.camera.hitstop.cooldown;
+  }
 
   spawnParticles(x, y, color, count) {
     for (let i = 0; i < count; i++) {
@@ -418,13 +446,25 @@ class Game {
     this.lastTime = now;
     if (dt > 0.1) dt = 0.1;
 
-    let total = dt * this.timeScale;
+    /* O hitstop mora aqui e nao em `update`: ele para a SIMULACAO, e a camera
+       e a apresentacao dela. Segurar as duas junto esconderia o soco de camera
+       exatamente no acerto que o gerou. */
+    if (this._hitstopCd > 0) this._hitstopCd -= dt;
+    let scale = this.timeScale;
+    if (this._hitstop > 0) { this._hitstop -= dt; scale = 0; }
+
+    let total = dt * scale;
     while (total > 0) {
       const step = Math.min(0.025, total);
       this.update(step);
       total -= step;
     }
-    this.vfxLayer.update(dt * this.timeScale);
+    this.vfxLayer.update(dt * scale);
+    /* Tremor em tempo real, fora de `update`: ele nao e simulacao. Preso ao
+       relogio escalado a cauda morria 3x mais rapido no timeScale 3, e preso
+       ao `update` o tremor que a tela de level up pede ficava parado esperando
+       a run voltar em vez de tocar na hora. */
+    this.camera.updateShake(dt);
     this.music.update(dt);   // relogio do audio, nao do jogo: ignora timeScale
     this._frameDt = dt;      // brasas e vinheta vivem em tempo real
     this.render();
@@ -453,7 +493,6 @@ class Game {
     this.updateParticles(dt);
 
     this.camera.follow(this.player, dt);
-    this.camera.updateShake(dt);
     // o mundo apodrece junto com a run: veios mais vivos, mais brasa no ar
     this.scenery.corruption = clamp(this.elapsed / BALANCE.spawn.hardAt, 0, 1);
     this.music.setIntensity(this.musicIntensity());
@@ -592,7 +631,11 @@ class Game {
         if (dx * dx + dy * dy < rr * rr) {
           this.damagePlayer(p.damage, "projectile");
           p.dead = true;
-          this.addShake(6);
+          // longe de quem atirou. Dano de contato (`touch`) fica de fora do
+          // stop de proposito: ele cobra por sub-step enquanto houver encosto,
+          // e um congelamento por cobranca faria o jogo arrastar.
+          this.addShake(7, pl.x - p.x, pl.y - p.y);
+          this.addHitstop(BALANCE.camera.hitstop.hurt);
           this.sfx.hurt();
           this.spawnParticles(pl.x, pl.y, "#ff5a5f", 8);
         }
@@ -684,7 +727,10 @@ class Game {
         const heft = e.type.boss ? 1 : clamp((e.radius - 12) / 26, 0, 1);
         this.sfx.death(heft, e.type.deathSfx);
         if (e.type.boss) this.bossAlive = Math.max(0, this.bossAlive - 1);
-        if (e.type.boss) this.addShake(8);
+        if (e.type.boss) {
+          this.addShake(13, e.x - this.player.x, e.y - this.player.y);
+          this.addHitstop(BALANCE.camera.hitstop.boss, true);
+        }
         this.player.kills++;
         this.dropLoot(e);
       }

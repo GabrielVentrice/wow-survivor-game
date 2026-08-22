@@ -21,6 +21,7 @@ DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas,
 DRIVER=driver_chest.js node tools/harness.js .   # baú: cadência de aparição e tamanho do prêmio
 DRIVER=driver_form.js  node tools/harness.js .   # metamorfose por capstone e aura por spell concluída
 DRIVER=driver_pixel.js node tools/harness.js .   # grid de pixel: buffer, câmera, escala de sprite, laje
+DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câmera, curvas de evento
 DRIVER=driver_preview.js node tools/harness.js . # escreve tools/levelup-preview.html (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
@@ -66,6 +67,38 @@ O HTML sai do mesmo `UI.rowHtml`/`UI.buildPanelHtml` do jogo e o CSS é lido do
 `index.html`, então prévia que diverge do jogo não existe. Mesmo argumento do
 `sprites.html`: tela que só aparece por segundos, em estados sorteados, não se
 revisa jogando.
+
+## Impacto
+
+`driver_feel` guarda a camada que faz um acerto **aterrissar** em vez de apenas
+acontecer: hitstop, soco de câmera e as curvas dos eventos visuais. São as três
+coisas que não se revisam jogando — hitstop mal limitado só aparece depois de a
+build ficar grande, tremor que voltou a ser ruído branco só aparece em
+movimento, e curva linear parece aceitável isolada e genérica no conjunto.
+
+O que ele reprova:
+
+- **Hitstop sem teto.** Ele para a *simulação*. O driver roda 8 min pelo
+  `_loop` e mede que fração do tempo **real** o jogo passou congelado, quantos
+  stops por segundo, e o stop mais longo em frames. Hoje: 6,1% e 1,2 stops/s.
+  O teto vem da própria cadência (`BALANCE.camera.hitstop.cooldown`), então
+  afrouxar a cadência afrouxa o teste junto — de propósito: o número que
+  interessa é o medido, e ele fica impresso.
+- **Hitstop no relógio errado.** O mesmo stop é medido a 1x e a 3x. Preso ao
+  `clock` (escalado), 50ms virariam 150ms no timeScale 3 — e o modo rápido
+  seria o que mais trava.
+- **Tremor sem continuidade.** Mede o passo entre frames contra a amplitude.
+  Ruído branco salta até 2x a amplitude; oscilação amostrada 7x por ciclo fica
+  em 0,68x. Também cobra que o soco saia **na direção do golpe** em 6 direções,
+  que o eixo não mude no meio do evento, que 100 eventos no mesmo frame saturem
+  em vez de somar, e que o tremor termine em zero exato.
+- **Curva que voltou a ser reta.** `outCubic`/`outQuint` têm que ser
+  adiantadas: no primeiro quarto da vida o evento já andou mais da metade.
+
+Duas coisas ele **não** mede, e por isso ficam como dado em `BALANCE.camera`:
+se o hitstop lê como impacto ou como engasgo, e se a amplitude do soco está
+alta demais. Isso é uma passada de dez segundos no browser — as alavancas são
+`hitstop.big`/`hitstop.cooldown` e `shake.max`.
 
 ## Galerias
 

@@ -299,6 +299,68 @@ mesmo tempo. Bonito com um e ilegível com cinquenta significa que a alpha
 divide por quantidade (`1/sqrt(n)`), que existe um teto, ou que o efeito só
 aparece acima de um limiar.
 
+### Impacto: o acerto tem que aterrissar, não só acontecer
+
+Efeito bonito não é o que separa VFX profissional de amador — **antecipação,
+impacto e recuperação** são. Antes desta camada, todo evento visual do jogo era
+pura *emissão*: nascia no tamanho final, sumia com alpha linear, acabou. Três
+peças consertam isso, e as três moram em `BALANCE.camera`.
+
+**1. Hitstop congela a simulação por alguns milissegundos.** É a coisa mais
+barata que existe num jogo de ação para fazer um golpe aterrissar: o frame em
+que ele conecta fica no ar tempo suficiente para ser visto. Três regras:
+
+- **Segundos reais, nunca `clock`.** Ele vive em `Game._loop`, fora do
+  sub-stepping. No relógio de simulação (que é escalado) um stop de 50ms
+  duraria 150ms no timeScale 3, e o modo rápido seria o que mais trava.
+- **Cadência obrigatória.** Este jogo põe dezenas de acertos grandes em tela ao
+  mesmo tempo; um stop por acerto é apresentação de slides. `hitstop.cooldown`
+  é o que segura, e `force` é só para o que acontece uma vez por run (morte de
+  chefe) e não pode ser comido pela cadência de outro evento.
+- **Dano contínuo fica de fora.** `touch` cobra por sub-step enquanto houver
+  encosto — um stop por cobrança faria o jogo arrastar exatamente quando a
+  horda fecha. Quem para o jogo é evento **discreto**: acerto `big`, morte de
+  chefe, projétil no jogador.
+
+**2. Tremor de tela é um SOCO, não ruído.** A câmera é empurrada de uma vez na
+direção em que o golpe viajou e volta oscilando, morrendo em ~0,35s. É isso que
+diz *de onde* veio a pancada, e não apenas que veio — por isso `addShake` aceita
+`(mag, dx, dy)` e quem tem posição passa direção.
+
+A versão antiga sorteava `Math.random()` por frame. Isso não é tremor, é
+chuvisco: o desvio cai num ponto novo de uma caixa de ±22 unidades a cada frame,
+sem nenhuma continuidade, e depois do `snapUnit` lê como a tela inteira piscando
+um pixel por vez. **Trocar o sorteio por ruído de senoide não resolveria** — a
+60fps qualquer coisa acima de ~7Hz é amostrada perto de Nyquist e volta a
+aliasar. Uma oscilação amortecida a 8,6Hz dá ~7 amostras por ciclo, então o
+caminho é desenhado de verdade em vez de sugerido.
+
+Duas coisas que custaram uma rodada e estão no driver para não voltarem:
+
+- **`updateShake` amostra ANTES de avançar o relógio.** O deslocamento máximo
+  está em `t = 0`: é o quadro do soco. Avançando primeiro, a primeira amostra
+  já sai 0,9rad adiantada, o pico nunca chega a ser desenhado, e o que aparece
+  é a câmera começando na metade do caminho de volta.
+- **`Math.max` na amplitude, e nunca soma.** Dez acertos no mesmo frame não
+  podem virar uma câmera arremessada para fora do mapa. O golpe mais forte
+  manda e reinicia a fase.
+
+**3. Nada num acerto é linear.** `VfxLayer.draw` calcula **duas** curvas e elas
+não andam juntas de propósito: `e = outCubic(k)` governa o tamanho (sai rápido e
+desacelera) e `a = (1-k)²` governa o brilho (cai antes de a forma parar). Quando
+as duas caem na mesma reta, o efeito lê como um círculo sendo apagado e não como
+energia se dissipando.
+
+A exceção é a **onda de choque da explosão**, e ela é a exceção porque é a única
+parte desenhada no raio real do dano: o raio usa a curva, mas a alpha cai
+parelho — ela é o tempo que o jogador tem para ler até onde a explosão pegou.
+Amarrar a alpha na curva do raio apagaria o anel no primeiro décimo da vida,
+quando ele ainda está dizendo o que importa.
+
+`driver_feel` guarda as três. O que ele **não** mede é se o hitstop lê como
+impacto ou como engasgo — isso é uma passada de dez segundos no browser, e as
+alavancas são `hitstop.big`/`hitstop.cooldown` e `shake.max`.
+
 ### Balanceamento: mais corpos, menos vida cada
 
 O eixo do tuning é a **sensação de rampagem**. Um inimigo que exige três tiros

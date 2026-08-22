@@ -46,7 +46,8 @@ else console.log(`  ok blit desliza em ${slid}/400 posicoes (maximo ${worst} de 
 let off = 0;
 for (let i = 0; i < 200; i++) {
   g.camera.x = i * 0.37; g.camera.y = -i * 1.13;
-  g.camera.shake = i % 7; g.camera.updateShake(1 / 60);
+  if (i % 7 === 0) g.camera.addTrauma(4 + (i % 3) * 8, i % 2 ? 1 : -0.4, i % 5 ? 0.3 : 1);
+  g.camera.updateShake(1 / 60);
   if (!onGrid(g.camera.left) || !onGrid(g.camera.top)) off++;
 }
 if (off) fail(`camera saiu do grid em ${off}/200 posicoes`);
