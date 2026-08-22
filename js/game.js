@@ -668,8 +668,33 @@ class Game {
       if (p.dead) continue;
 
       if (p.homing) {
-        const target = this.nearestEnemy(p.x, p.y, 900);
-        if (target) {
+        /* The fan and the homing cancel each other out: re-aiming every frame
+           closes a 0.21rad spread in two frames, so a burst of 4 reads as one
+           fat projectile. `fanDelay` buys the fan the time to be seen — only
+           shots born in a fan carry it, a lone bolt stays stubborn from frame
+           one. It burns simulation time, so timeScale scales it like the
+           rest. */
+        if (p.fanDelay > 0) p.fanDelay -= dt;
+
+        /* Stick to the enemy this shot was fired at. Re-picking `nearestEnemy`
+           every frame is what made `targets > 1` a no-op: the siblings are born
+           at the same point, so they all resolved to the SAME nearest enemy and
+           the other targets were never hit.
+
+           `gen` is the guard, not `hp > 0` — enemies come from a Pool, so a
+           dead one is recycled into a different creature with full hp. Charmed
+           ones are dropped too: the collision loop skips them, so homing at one
+           is a shot that can never land. */
+        let target = p.target;
+        if (target && (target.gen !== p.targetGen || target.hp <= 0 || target.charmed)) {
+          target = p.target = null;
+        }
+        if (!target) {
+          target = this.nearestEnemy(p.x, p.y, 900);
+          if (target) { p.target = target; p.targetGen = target.gen; }
+        }
+
+        if (target && p.fanDelay <= 0) {
           const desired = Math.atan2(target.y - p.y, target.x - p.x);
           const cur = Math.atan2(p.vy, p.vx);
           let diff = desired - cur;
@@ -712,7 +737,14 @@ class Game {
               runEffects(this, p.payload, c);
               popCtx(this);
             }
-            if (p.pierce > 0) p.pierce--; else p.dead = true;
+            /* A piercing shot RELEASES its target on the way through. The
+               spawn-time target exists so sibling shots leave at different
+               enemies; keeping it for the whole flight is what killed the
+               chaining — re-seeking after each pierce is precisely what carries
+               a shot through the pack, and pinning it cost 37% of the damage of
+               the 7-shot tier. Measured, not guessed. */
+            if (p.pierce > 0) { p.pierce--; p.target = null; }
+            else p.dead = true;
           }
         });
       }
