@@ -104,5 +104,75 @@ else if (__audio.nodes < 4) fail(`sem a amostra, o sintetico so fez ${__audio.no
 else console.log(`  ok sem a amostra, os estalos sinteticos assumem (${__audio.nodes} fontes)`);
 g.sfx.bone = guardado;
 
-console.log(fails ? `\nX ${fails} falhas` : "\nok som de morte validado");
+/* =========================================================================
+   AS VOZES DE COMBATE
+
+   Antes desta camada o combate era mudo: nenhuma peca tocava nada. As quatro
+   perguntas abaixo sao as que decidem se ele volta a ser mudo — ou se vira
+   lama, que e o outro jeito de nao dizer nada.
+   ========================================================================= */
+console.log("");
+g.sfx.muted = false;
+g.sfx.init();
+
+// 1. toda voz do registry monta um grafo sem estourar rampa
+for (const name in VOICES) {
+  __audio.nodes = 0;
+  g.clock += 5;                                   // longe do gap de qualquer voz
+  g.sfx._voiceBurst = 0;
+  try { g.sfx.say(name, { dist: 0, size: 0.6 }); }
+  catch (e) { fail(`voz "${name}": ${e.message}`); continue; }
+  if (!__audio.nodes) fail(`voz "${name}" nao criou nenhuma fonte`);
+}
+if (!fails) console.log(`  ok as ${Object.keys(VOICES).length} vozes montam o grafo`);
+
+// 2. o gap por voz segura a densidade. Sem ele uma build madura vira zumbido.
+const alvo = "hit", gap = VOICES[alvo].gap;
+g.clock += 5;
+let tocou = 0;
+for (let i = 0; i < 40; i++) {                    // 40 acertos em 0.4s de jogo
+  __audio.nodes = 0;
+  g.clock += 0.01;
+  g.sfx.say(alvo, { dist: 0, size: 0 });
+  if (__audio.nodes) tocou++;
+}
+const teto = Math.ceil(0.4 / gap) + 1;
+if (tocou > teto) fail(`gap de "${alvo}" nao segurou: ${tocou} sons em 0.4s (teto ${teto})`);
+else console.log(`  ok gap por voz: 40 acertos em 0.4s -> ${tocou} sons`);
+
+// 3. evento longe da tela nao e nem agendado
+g.clock += 5;
+__audio.nodes = 0;
+g.sfx.say("burst", { dist: SFX_RANGE + 200, size: 1 });
+if (__audio.nodes) fail("voz agendada alem de SFX_RANGE");
+else console.log(`  ok fora de ${SFX_RANGE} unidades a voz nao existe`);
+
+// 4. mudo silencia as vozes tambem
+g.sfx.muted = true;
+g.clock += 5;
+__audio.nodes = 0;
+g.sfx.say("burst", { dist: 0, size: 1 });
+if (__audio.nodes) fail("tocou voz de combate com o audio mudo (M)");
+else console.log("  ok mudo (M) silencia as vozes de combate");
+g.sfx.muted = false;
+
+/* 5. e o combate precisa REALMENTE soar durante o jogo. Este e o teste que
+   pega o caso que motivou a fase: o grafo perfeito, o registry completo, e
+   nenhuma chamada partindo do jogo. */
+const antesVoz = {};
+for (const k in g.sfx._voiceAt) antesVoz[k] = 1;
+g.start();
+g.sfx._voiceAt = {};
+__audio.nodes = 0;
+for (let i = 0; i < 60 * 90; i++) {
+  g.player.hp = g.player.maxHp;
+  g.input.keys = new Set(["d", "s"]);
+  g.update(1 / 60);
+}
+const faladas = Object.keys(g.sfx._voiceAt);
+const mudas = ["cast", "hit"].filter((k) => faladas.indexOf(k) < 0);
+if (mudas.length) fail("90s de jogo sem tocar: " + mudas.join(", "));
+else console.log(`  ok 90s de jogo -> ${faladas.length} vozes diferentes usadas: ` + faladas.join(", "));
+
+console.log(fails ? `\nX ${fails} falhas` : "\nok som de morte e vozes de combate validados");
 if (fails) __exit(1);

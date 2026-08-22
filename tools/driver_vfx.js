@@ -1,0 +1,350 @@
+"use strict";
+/* =========================================================================
+   DRIVER — VFX: a assinatura de cada peca, e a cor no codigo de render.
+
+   Duas perguntas que nenhum outro driver faz:
+
+   1. DA PARA DISTINGUIR DUAS PECAS PELO QUE ELAS DESENHAM? Cor e predicado do
+      eixo, entao duas pecas do mesmo eixo que emitem o mesmo evento saem
+      literalmente iguais em tela — e o jogador nao tem como saber qual delas
+      acabou de disparar. Aqui cada peca e DISPARADA de verdade (firePiece, o
+      mesmo funil do jogo) e o que ela faz aparecer e anotado. Peca cuja
+      assinatura desenhada e vazia esta cobrando em silencio; duas pecas com a
+      mesma assinatura sao irmas visuais.
+
+      A assinatura sai do que aconteceu, nao de uma tabela: tabela de "o que
+      cada efeito desenha" seria uma segunda lista para divergir da primeira.
+
+   2. ALGUMA COR SATURADA FOI CRAVADA NO CODIGO DE RENDER? `driver_palette`
+      olha SPRITE_DATA e `driver.js` olha o `color:` do conteudo — ninguem
+      olhava js/render/ nem js/entities.js, e e la que moram a casca ciano do
+      escudo (a mesma para as seis pecas que dao escudo) e a parada roxa que
+      desbota todo tiro de fogo na borda.
+
+   As duas reprovam contra uma DIVIDA declarada. O que ja esta quebrado hoje
+   esta listado com a fase que o mata; o driver falha quando aparece algo NOVO
+   fora da lista, e falha tambem quando um item da lista foi consertado e nao
+   saiu dela — lista que mente e pior que lista nenhuma.
+
+   Uso:  DRIVER=driver_vfx.js node tools/harness.js .
+   ========================================================================= */
+
+let fails = 0;
+const bad = (m) => { console.error("  X " + m); fails++; };
+
+let s = 7;
+Math.random = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+
+/* =========================================================================
+   A DIVIDA — o que o plano de VFX ainda nao consertou.
+
+   Cada linha morre numa fase. Linha que sobra depois da fase e regressao;
+   linha que ficou obsoleta e mentira. As duas reprovam.
+   ========================================================================= */
+
+// Cor saturada cravada no codigo de render (fase 7).
+const DIVIDA_COR = {
+  "rgba(120,200,255": "casca de escudo — a MESMA para as 6 pecas de escudo, e ciano saiu da identidade",
+  "#ffd24a": "anel de stun (entities) e olho do orbe generico de demonio (vfx)",
+  "#c850ff": "anel de fear",
+  "#5acfff": "anel de slow",
+  "#ff3b6b": "barra de vida do chefe",
+  "rgba(122,60,255": "parada do gradiente do projetil: todo tiro de fogo desbota para roxo na borda",
+  "#7a3cff": "cor de classe de fallback",
+  "#ff7a2c": "cor de fallback da zona",
+  "#6fdc4a": "halo do orbe de XP",
+  "#d8ffb0": "nucleo do orbe de XP",
+  "#ffe6b0": "orbe generico de demonio (kind sem sprite)",
+  "#a8ff6a": "veio de fel do cenario",
+  "#c88aff": "veio arcano do cenario",
+  "rgba(120,255,90": "brasa do cenario",
+  "rgba(60,180,40": "brasa do cenario, tom baixo",
+};
+
+// Peca que dispara e nao desenha nada (fase 3).
+const DIVIDA_MUDA = {
+  curseOfTongues: "weaken nao tem marca nenhuma",
+  curseOfExhaustion: "slow so tem o anel de 4px",
+  banish: "stun so tem o anel de 4px",
+  howlOfTerror: "fear so tem o anel de 4px",
+  burningRush: "self_speed + self_damage: nem esteira, nem dreno visivel",
+  demonicCircle: "o blink desenha a chegada; o circuito no chao e invisivel",
+  soulLeech: "escudo por fracao do dano: sem dano no funil, nem a casca aparece",
+  healthstone: "cura por carga abaixo do limiar: nada anuncia a carga reposta",
+};
+
+// Pecas que desenham exatamente a mesma coisa (fase 5). Chave = assinatura.
+const DIVIDA_IRMAS = {
+  "minion+vfx:summon": "todo demonio nasce do mesmo anel fechando",
+  "dot": "aplicar DoT nao tem evento proprio: so a nevoa generica no alvo",
+  "vfx:burst": "a bola de fogo unica, em peca de dano em area puro",
+  "area": "um desenho de zona para toda zona do jogo",
+  "minion+vfx:burst+vfx:summon": "invocacao que tambem bate: anel + a mesma bola",
+  "veil": "as pecas de escudo, todas na mesma casca ciano",
+  "dot+vfx:burst": "DoT com estouro junto",
+  "veil+vfx:burst": "escudo com estouro junto",
+  "vfx:heal": "a cruz de cura, identica em toda peca que cura",
+};
+
+/* =========================================================================
+   1. COR NO CODIGO DE RENDER
+
+   A regra e objetiva: cor SATURADA que aparece literal no codigo de desenho
+   tem que sair da paleta (PAL, AXIS_PALETTE, UI_PAL). Neutro passa sozinho —
+   contorno, sombra, vinheta e o branco do nucleo de um flash nao sao decisao
+   de identidade, sao luz e ausencia dela.
+   ========================================================================= */
+
+const ARQUIVOS = ["js/render/vfx.js", "js/render/scenery.js", "js/render/tiles.js",
+                  "js/render/debris.js", "js/entities.js"];
+
+const CROMA_NEUTRO = 24;     // abaixo disso e cinza/preto/branco, nao e cor
+
+function comps(lit) {
+  if (lit[0] === "#") {
+    let h = lit.slice(1);
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  const n = lit.match(/[0-9]+/g).map(Number);
+  return [n[0], n[1], n[2]];
+}
+function croma(lit) {
+  const c = comps(lit);
+  return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]);
+}
+
+// Tudo que a paleta autoriza, ja normalizado em "r,g,b".
+const AUTORIZADO = new Set();
+const guarda = (hex) => { if (typeof hex === "string" && hex[0] === "#") AUTORIZADO.add(comps(hex).join(",")); };
+for (const k in PAL) guarda(PAL[k]);
+for (const a in AXIS_PALETTE) for (const t in AXIS_PALETTE[a]) guarda(AXIS_PALETTE[a][t]);
+if (typeof UI_PAL !== "undefined") for (const k in UI_PAL) guarda(UI_PAL[k]);
+/* Cor de inimigo e de demonio NAO entram: elas sao dado, e dado se referencia
+   por `e.type.color` / `def.color`. O mesmo hex escrito a mao no render nao e a
+   cor daquele bicho, e coincidencia — foi assim que o anel de stun virou o
+   ambar do Tirano e o de fear virou o roxo do Darkglare. */
+
+const RE_COR = /#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b|rgba?\(\s*[0-9]+\s*,\s*[0-9]+\s*,\s*[0-9]+/g;
+const achadas = new Map();          // literal -> "arquivo:linha"
+
+for (const arq of ARQUIVOS) {
+  const linhas = __read(arq).split("\n");
+  for (let i = 0; i < linhas.length; i++) {
+    const m = linhas[i].match(RE_COR);
+    if (!m) continue;
+    for (const lit of m) {
+      if (croma(lit) < CROMA_NEUTRO) continue;
+      if (AUTORIZADO.has(comps(lit).join(","))) continue;
+      const chave = lit.startsWith("#") ? lit : lit.replace(/\s/g, "");
+      if (!achadas.has(chave)) achadas.set(chave, arq + ":" + (i + 1));
+    }
+  }
+}
+
+const corNova = [...achadas.keys()].filter((k) => !(k in DIVIDA_COR));
+const corPaga = Object.keys(DIVIDA_COR).filter((k) => !achadas.has(k));
+for (const k of corNova) bad(`cor "${k}" cravada em ${achadas.get(k)} — fora da paleta e fora da divida`);
+for (const k of corPaga) bad(`DIVIDA_COR."${k}" ja nao existe no codigo: tire a linha da lista`);
+if (!corNova.length && !corPaga.length) {
+  console.log(`ok  cor no render: ${achadas.size} pendencia(s) conhecida(s), nenhuma nova`);
+}
+
+/* =========================================================================
+   2. A ASSINATURA DE CADA PECA
+
+   Cada peca e adquirida sozinha numa build limpa e disparada pelo mesmo funil
+   do jogo. O que ela faz aparecer vira um conjunto de fichas.
+   ========================================================================= */
+
+const g = new Game();
+window.game = g;
+g.ui.openLevelUp = () => { g.player.pendingLevels = 0; g.state = STATE.PLAYING; };
+g.ui.openChest = () => { g.state = STATE.PLAYING; };
+g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
+
+const emitido = [];
+const emitReal = g.emitVfx.bind(g);
+g.emitVfx = (kind, x, y, r, color) => { emitido.push(kind); return emitReal(kind, x, y, r, color); };
+
+/* A mesa de teste nao pode ser homogenea. Metade das pecas do catalogo so
+   dispara contra uma condicao: `onlyDotted` (Malefic Rapture) sai calada num
+   inimigo limpo, e `execute` (Shadowburn) so acende abaixo do limiar. Num
+   campo de alvos cheios e sem DoT essas pecas apareceriam como mudas sem
+   serem — o driver estaria medindo o proprio cenario. */
+function alvos(n) {
+  g.grid.clear();
+  const list = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const e = g.enemies.spawn(ENEMIES.abomination, g.player.x + Math.cos(a) * 70,
+                              g.player.y + Math.sin(a) * 70, g.spawner.scale);
+    e.maxHp = 4000;
+    e.hp = i % 3 === 2 ? 40 : 4000;      // um em cada tres na faixa de execucao
+    g.grid.insert(e);
+    list.push(e);
+  }
+  return list;
+}
+
+// DoT de fora, para as pecas que so mordem quem ja esta apodrecendo.
+function apodrecer(list) {
+  const c = { key: "fixture", color: "#7fdc4a", now: g.clock, x: 0, y: 0, target: null };
+  for (let i = 0; i < list.length; i += 2) {
+    c.target = list[i]; c.x = list[i].x; c.y = list[i].y;
+    g.dots.apply(list[i], { key: "fixture", dps: 1, duration: 30, tickInterval: 5,
+                            stacking: { mode: "refresh", max: 1 } }, c);
+  }
+}
+
+// O que a peca fez APARECER. Fichas mudas ficam de fora do desenho de
+// proposito: elas sao a resposta da pergunta "isso cobra em silencio?".
+const MUDAS = {
+  stun: "anel de 4px", fear: "anel de 4px", slow: "anel de 4px",
+  weaken: "nada", mark: "nada", desloca: "nada", velocidade: "nada",
+  dreno: "nada", cura: "nada no mundo",
+};
+
+function assinar(id) {
+  g.start();
+  g.build.pieces.clear();
+  g.build.vfx.length = 0;
+  g.enemies.clear(); g.projectiles.clear(); g.areas.clear();
+  g.minions.reset();
+
+  const inst = g.build.acquirePiece(id, true);
+  if (!inst) return null;
+
+  /* Vida em 40%: as pecas de emergencia (Healthstone, Soul Leech, Unending
+     Resolve) so existem quando o jogador esta apanhando. Com a barra cheia
+     elas sairiam como mudas por causa do cenario, nao por causa delas. */
+  g.player.hp = g.player.maxHp * 0.4;
+
+  const alvo = alvos(6);
+  apodrecer(alvo);
+  const dotBase = alvo.map((e) => e.dots.length);
+  const antes = {
+    proj: g.projectiles.active.length, area: g.areas.active.length,
+    minion: g.minions.count(),
+    escudo: g.player.shield, hp: g.player.hp,
+    pos: alvo.map((e) => e.x + "," + e.y),
+  };
+  emitido.length = 0;
+
+  /* Contagem de PICO, nao do fim: um projetil nasce e some no mesmo intervalo
+     (a 480 u/s ele cobre os 70 ate o alvo em 0,15s), e olhar so o estado final
+     dava Incinerate como peca que nao desenha nada. */
+  const pico = { proj: antes.proj, area: antes.area, minion: antes.minion };
+  const marcar = () => {
+    pico.proj = Math.max(pico.proj, g.projectiles.active.length);
+    pico.area = Math.max(pico.area, g.areas.active.length);
+    pico.minion = Math.max(pico.minion, g.minions.count());
+  };
+
+  const p = g.player;
+  for (let i = 0; i < 3; i++) {
+    firePiece(g, inst, p.x, p.y, alvo[i % alvo.length], 1, 0, g.clock + i * 0.5);
+    marcar();
+  }
+  // os efeitos persistentes so viram tela depois de um passo de simulacao
+  for (let i = 0; i < 8; i++) { g.update(0.025); marcar(); }
+
+  const desenha = new Set(), mudo = new Set();
+  for (const k of emitido) desenha.add("vfx:" + k);
+  if (pico.proj > antes.proj) desenha.add("proj");
+  if (pico.area > antes.area) desenha.add("area");
+  if (pico.minion > antes.minion) desenha.add("minion");
+  if (alvo.some((e, i) => e.dots.length > dotBase[i])) desenha.add("dot");
+  if (g.player.shield > antes.escudo) desenha.add("veil");
+
+  const now = g.clock;
+  if (alvo.some((e) => e.stunUntil > now)) mudo.add("stun");
+  if (alvo.some((e) => e.fearUntil > now)) mudo.add("fear");
+  if (alvo.some((e) => e.slowUntil > now)) mudo.add("slow");
+  if (alvo.some((e) => (e.weakUntil || 0) > now)) mudo.add("weaken");
+  if (alvo.some((e) => e.marked > 0)) mudo.add("mark");
+  if (alvo.some((e, i) => e.x + "," + e.y !== antes.pos[i])) mudo.add("desloca");
+  if (g.player.speedBoostUntil > now) mudo.add("velocidade");
+  if (g.player.hp < antes.hp) mudo.add("dreno");
+  if (g.player.hp > antes.hp) mudo.add("cura");
+
+  return { desenha: [...desenha].sort(), mudo: [...mudo].sort() };
+}
+
+const porAssinatura = new Map();
+const mudas = [];
+const quebrou = [];
+
+for (const id in PIECES) {
+  let a = null;
+  try { a = assinar(id); } catch (e) { quebrou.push(id + ": " + e.message); continue; }
+  if (!a) { quebrou.push(id + ": nao entrou na build"); continue; }
+  const chave = a.desenha.join("+");
+  if (!chave) { mudas.push({ id, mudo: a.mudo }); continue; }
+  if (!porAssinatura.has(chave)) porAssinatura.set(chave, []);
+  porAssinatura.get(chave).push(id);
+}
+
+if (quebrou.length) bad("peca que nao pode ser assinada: " + quebrou.join(" · "));
+
+/* --- 2a. peca muda ------------------------------------------------------- */
+const mudaNova = mudas.filter((m) => !(m.id in DIVIDA_MUDA));
+const mudaPaga = Object.keys(DIVIDA_MUDA).filter((id) => !mudas.some((m) => m.id === id));
+for (const m of mudaNova) {
+  bad(`peca "${m.id}" dispara e nao desenha nada` +
+      (m.mudo.length ? ` (so ${m.mudo.map((k) => k + ": " + MUDAS[k]).join(", ")})` : ""));
+}
+for (const id of mudaPaga) bad(`DIVIDA_MUDA."${id}" ja desenha alguma coisa: tire a linha da lista`);
+if (!mudaNova.length && !mudaPaga.length) {
+  console.log(`ok  pecas mudas: ${mudas.length} conhecida(s), nenhuma nova`);
+}
+
+/* --- 2b. irmas visuais --------------------------------------------------- */
+const irmas = [...porAssinatura.entries()].filter(([, ids]) => ids.length > 1);
+const irmaNova = irmas.filter(([k]) => !(k in DIVIDA_IRMAS));
+const irmaPaga = Object.keys(DIVIDA_IRMAS)
+  .filter((k) => !irmas.some(([j]) => j === k));
+for (const [k, ids] of irmaNova) {
+  bad(`assinatura "${k}" e desenhada por ${ids.length} pecas iguais em tela: ` + ids.join(", "));
+}
+for (const k of irmaPaga) bad(`DIVIDA_IRMAS."${k}" ja nao tem duas pecas: tire a linha da lista`);
+if (!irmaNova.length && !irmaPaga.length) {
+  const presas = irmas.reduce((n, [, ids]) => n + ids.length, 0);
+  console.log(`ok  irmas visuais: ${presas} pecas em ${irmas.length} assinatura(s) repetida(s), nenhuma nova`);
+}
+
+/* =========================================================================
+   3. TODO EVENTO VISUAL TEM VOZ
+
+   A camada de som nao tem registry proprio: ela consome o MESMO fato que a
+   camada de desenho (`game.emitVfx`). E o que garante que uma peca nova nao
+   nasca muda — mas so garante enquanto as duas listas fecharem, entao e aqui
+   que elas fecham.
+
+   `cast` e `hit` sao os dois fatos que nao tem evento visual: o conjuro nao
+   desenha por si (quem desenha e o efeito) e o acerto sem raio so acende o
+   flash do inimigo. Eles existem em VOICES sem par em VFX_LIFE, de proposito.
+   ========================================================================= */
+const SEM_EVENTO = ["cast", "hit", "crit"];
+
+const semVoz = Object.keys(VFX_LIFE).filter((k) => !VOICES[k]);
+const vozOrfa = Object.keys(VOICES).filter((k) => !VFX_LIFE[k] && SEM_EVENTO.indexOf(k) < 0);
+if (semVoz.length) bad("evento visual sem voz em VOICES: " + semVoz.join(", "));
+if (vozOrfa.length) bad("voz sem evento visual que a dispare: " + vozOrfa.join(", "));
+if (!semVoz.length && !vozOrfa.length) {
+  console.log(`ok  som: ${Object.keys(VFX_LIFE).length} eventos visuais com voz` +
+              ` + ${SEM_EVENTO.length} vozes sem evento (${SEM_EVENTO.join(", ")})`);
+}
+
+/* --- placar -------------------------------------------------------------- */
+const total = Object.keys(PIECES).length;
+const distintas = porAssinatura.size;
+console.log(`--  placar: ${total} pecas · ${distintas} assinaturas distintas · ` +
+            `${mudas.length} mudas · ${achadas.size} cores fora da paleta · ` +
+            `${Object.keys(VOICES).length} vozes`);
+for (const [k, ids] of irmas.sort((a, b) => b[1].length - a[1].length)) {
+  console.log(`      ${String(ids.length).padStart(2)}x  ${k || "(nada)"}`);
+}
+
+if (fails) { console.error(`\nFALHOU: ${fails} problema(s) de vfx`); __exit(1); }
+console.log("ok  vfx integro");

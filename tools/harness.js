@@ -138,6 +138,11 @@ const sandbox = {
         },
         get curve() { return this._c; },
         oversample: "none" }),
+      // o barramento das vozes de combate: compressor de verdade no browser,
+      // no-op aqui — o que interessa e que o grafo seja montado sem estourar
+      createDynamicsCompressor: () => Object.assign(node(), {
+        threshold: param(0), knee: param(0), ratio: param(0),
+        attack: param(0), release: param(0) }),
       createOscillator: () => Object.assign(node(), {
         type: "", frequency: param(0), detune: param(0),
         start: () => { __audio.nodes++; }, stop: () => {} }),

@@ -71,6 +71,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/balance.js` | `BALANCE`, `ENEMIES`, `AXES`, `AXIS_RULES`, `PATH_RULES`, `CLASSES`, `ITEMS` |
 | `js/sprites.js` | `SPRITE_DATA` + geração de pixel-art e do tile de chão em runtime |
 | `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
+| `js/voices.js` | `VOICES` — o que cada evento visual SOA (o irmão de `js/render/vfx.js`) |
 | `js/music.js` | `MUSIC` + `Music` — trilha procedural (a **reserva**) |
 | `js/track.js` | `Track` + `Soundtrack` — toca `audio/gothic-lofi.mp3`, com fallback |
 | `js/assets/sfx-bone.js` | amostra de osso quebrando embutida em base64 |
@@ -1092,6 +1093,44 @@ Efeitos e trilha são gerados em runtime. Duas regras que não dá para violar:
 
 A intensidade da trilha (`Game.musicIntensity`) vem do estado real da run —
 tempo, fase dura, chefe em campo — nunca de um contador próprio da música.
+
+#### As vozes: um fato, duas consumidoras
+
+`game.emitVfx(kind, ...)` alimenta **as duas** camadas — a que desenha
+(`js/render/vfx.js`) e a que toca (`js/voices.js`). **Não existe registry de som
+por peça**, e não pode existir: seriam duas listas para divergir, e a que
+envelhecesse deixaria uma peça muda sem ninguém notar. Evento visual novo exige
+voz nova, e `driver_vfx` reprova evento sem ela.
+
+Dois fatos não têm evento visual e por isso são chamados à mão: **`cast`** (o
+conjuro em si não desenha nada — quem desenha é o efeito) e **`hit`/`crit`** (o
+acerto sem raio só acende o flash branco do inimigo). Eles moram em `VOICES`
+sem par em `VFX_LIFE`, e o driver conhece a exceção pelo nome.
+
+Quatro regras, e as quatro existem porque uma build madura põe dezenas de
+eventos por segundo em tela:
+
+- **Gap por voz, não global.** `VOICES.<nome>.gap` é o intervalo mínimo entre
+  duas emissões daquela voz — mesma ideia do `hitstop.cooldown`. Ele é por voz
+  porque a densidade tolerada é diferente: o estalo do acerto pode ser denso, o
+  rasgo do portal não.
+- **Duck por leva.** Nenhum gap individual segura dezenas de vozes *diferentes*
+  no mesmo segundo; o que segura é a leva inteira abaixar, exatamente como
+  `death()` já fazia com `_deathBurst`.
+- **Dano contínuo não fala.** Tique de DoT e de zona cobram por sub-step
+  enquanto durarem — um estalo por cobrança viraria metralhadora justo quando a
+  horda fecha. Quem toca é evento **discreto**: acerto de projétil, dano
+  instantâneo, `big`. É a mesma regra que os mantém fora do hitstop.
+- **Distância corta antes de agendar.** Além de `SFX_RANGE` a voz não é nem
+  criada, e a raiz quadrada da distância só é paga depois que o gap deixou
+  passar (`Sfx.can` é a metade barata de `say`).
+
+Tudo passa por um **barramento com compressor** (`Sfx._buildBus`). Não é
+polimento: é o que torna possível dar voz a cada peça. Cinquenta acertos no
+mesmo frame somam amplitude linearmente e estouram o master; com o compressor a
+leva é empurrada para baixo junta, e o que se perde é volume, não informação.
+Sem ele o caminho seria abaixar cada voz até ela sumir sozinha — o contrário do
+que se foi buscar ali.
 
 ### Cenário: determinístico por posição, nunca por ordem de visita
 

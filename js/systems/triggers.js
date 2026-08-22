@@ -30,7 +30,10 @@ function firePiece(game, inst, x, y, target, dirX, dirY, now) {
      peca dispara, entao e o unico lugar que nao precisa ser repetido em cada
      trigger — e `reactive` fica de fora porque ele e o tique de um DoT que ja
      esta no ar, nao um novo conjuro. */
-  if (inst.r.trigger.type !== "reactive") game.player.castPulse();
+  if (inst.r.trigger.type !== "reactive") {
+    game.player.castPulse();
+    game.emitSfx("cast", x, y, 0);
+  }
 }
 
 // Nihilam deixa TODOS os cooldowns 30% mais lentos. Aplicado num unico ponto

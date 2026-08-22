@@ -218,7 +218,23 @@ class Game {
 
   /* --- servicos usados pelos efeitos -------------------------------------- */
 
-  emitVfx(kind, x, y, r, color) { this.vfxLayer.emit(kind, x, y, r, color); }
+  /* Um fato visual, duas consumidoras: a camada que desenha e a que toca. Nao
+     existe um registry de som por peca — seriam duas listas para divergir, e a
+     que envelhecesse deixaria uma peca muda em silencio. Evento novo em tela
+     exige voz nova, e `driver_vfx` reprova evento sem ela. */
+  emitVfx(kind, x, y, r, color) {
+    this.vfxLayer.emit(kind, x, y, r, color);
+    this.emitSfx(kind, x, y, r / 220);
+  }
+
+  /* A distancia so e calculada depois que a voz passou pelo gap: `say` recusa
+     a maioria das chamadas numa build madura, e a raiz quadrada nao pode ser
+     paga por chamada recusada. */
+  emitSfx(name, x, y, size) {
+    if (!this.sfx.can(name)) return;
+    const p = this.player, dx = x - p.x, dy = y - p.y;
+    this.sfx.say(name, { dist: Math.sqrt(dx * dx + dy * dy), size: size });
+  }
 
   schedule(delay, fn) { this.timers.push({ at: this.clock + delay, fn }); }
 
@@ -303,6 +319,7 @@ class Game {
       // soco diz ONDE bateu, e nao apenas que bateu
       this.addShake(9, e.x - this.player.x, e.y - this.player.y);
       this.addHitstop(BALANCE.camera.hitstop.big);
+      this.emitSfx("crit", e.x, e.y, 0.5);
       this.events.emit(EVENTS.BIG_HIT, { enemy: e, amount: amt, key });
     }
     this.events.emit(EVENTS.ENEMY_HIT, { enemy: e, amount: amt, key });
@@ -722,6 +739,11 @@ class Game {
           if (dx * dx + dy * dy < rr * rr) {
             if (p.hits) { if (p.hits.has(e)) return; p.hits.add(e); }
             const dealt = this.damageEnemy(e, p.damage, p.source);
+            /* Som so em acerto DISCRETO. Tique de DoT e de zona cobram por
+               sub-step enquanto durarem — um estalo por cobranca viraria
+               metralhadora exatamente quando a horda fecha. E a mesma regra
+               que mantem o dano continuo fora do hitstop. */
+            this.emitSfx("hit", e.x, e.y, 0.2);
             if (p.payload) {
               const c = pushCtx(this);
               c.key = p.source; c.color = p.color; c.now = this.clock;

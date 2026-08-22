@@ -155,6 +155,7 @@ const EFFECTS = {
     }
     c.amount = amt;
     if (e.radius > 0) game.emitVfx("burst", c.x, c.y, e.radius, c.color);
+    else if (list.length) game.emitSfx("hit", c.x, c.y, 0.2);
   },
 
   // Executa alvos abaixo de um limiar de vida; fora dele, dano reduzido.

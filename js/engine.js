@@ -154,6 +154,11 @@ function driveCurve() {
   return c;
 }
 
+/* Alcance em unidades de mundo alem do qual uma voz nao e nem agendada, e a
+   folga que separa a nota do instante em que o frame rodou. */
+const SFX_RANGE = 1100;
+const SFX_LATENCY = 0.008;
+
 // --- Som procedural via WebAudio (sem assets). Toggle com M. ---
 class Sfx {
   constructor() {
@@ -162,6 +167,10 @@ class Sfx {
     this._lastDeath = 0;
     this._deathBurst = 0;   // quantas mortes recentes: abaixa o volume em leva
     this.bone = null;       // amostra de osso quebrando, quando decodificada
+    this.bus = null;        // barramento das vozes de combate (ver `say`)
+    this._voiceAt = {};     // ultima vez que cada voz falou, por nome
+    this._voiceBurst = 0;   // quantas vozes recentes: abaixa a leva inteira
+    this._voiceLast = 0;
   }
   init() {
     if (!this.ctx) {
@@ -170,6 +179,7 @@ class Sfx {
     }
     // browsers suspendem o contexto ate um gesto do usuario
     if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+    this._buildBus();
     this._loadBone();
   }
   // toca um tom simples com envelope de decaimento
@@ -181,7 +191,7 @@ class Sfx {
     o.type = type; o.frequency.value = freq;
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(this.ctx.destination);
+    o.connect(g); g.connect(this._dest());
     o.start(t); o.stop(t + dur);
   }
 
@@ -214,7 +224,7 @@ class Sfx {
     src.playbackRate.value = rate;
     const g = ctx.createGain();
     g.gain.setValueAtTime(vol, t);
-    src.connect(g); g.connect(ctx.destination);
+    src.connect(g); g.connect(this._dest());
     src.start(t);
   }
 
@@ -230,7 +240,7 @@ class Sfx {
     const g = ctx.createGain();
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(f); f.connect(g); g.connect(ctx.destination);
+    src.connect(f); f.connect(g); g.connect(this._dest());
     src.start(t); src.stop(t + dur);
   }
 
@@ -251,7 +261,7 @@ class Sfx {
       f.type = "lowpass"; f.frequency.value = lowpass; f.Q.value = 0.7;
       o.connect(f); node = f;
     }
-    node.connect(g); g.connect(ctx.destination);
+    node.connect(g); g.connect(this._dest());
     o.start(t); o.stop(t + dur);
   }
 
@@ -336,6 +346,113 @@ class Sfx {
     }
   }
 
+  /* --- o barramento -------------------------------------------------------
+     Todo som do jogo passa por um compressor antes de sair. Nao e polimento:
+     e o que torna possivel dar voz a cada peca. Cinquenta acertos no mesmo
+     frame somam amplitude linearmente e estouram o master; com o compressor a
+     leva inteira e empurrada para baixo junta e o que se perde e volume, nao
+     informacao. Sem ele o caminho seria abaixar cada voz ate ela sumir
+     sozinha, que e o contrario do que a fase quer.
+
+     Browser sem `createDynamicsCompressor` cai direto no destino: o jogo fica
+     mais alto, nunca mudo. */
+  _buildBus() {
+    if (this.bus || !this.ctx) return;
+    const ctx = this.ctx;
+    const g = ctx.createGain();
+    g.gain.value = 0.9;
+    if (ctx.createDynamicsCompressor) {
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -18;
+      comp.knee.value = 12;
+      comp.ratio.value = 6;
+      comp.attack.value = 0.004;
+      comp.release.value = 0.18;
+      g.connect(comp); comp.connect(ctx.destination);
+    } else {
+      g.connect(ctx.destination);
+    }
+    this.bus = g;
+  }
+  _dest() { return this.bus || this.ctx.destination; }
+
+  /* Ruido com o FILTRO andando, em vez do tom. E o bloco que faltava: sopro,
+     rasgo e propagacao sao a mesma materia (ruido) com a janela abrindo ou
+     fechando, e nenhum deles se faz com `_burst`, que tem o filtro parado. */
+  _wash(t, dur, f0, f1, q, vol, rate) {
+    const ctx = this.ctx;
+    if (vol < 0.0005) return;
+    const src = ctx.createBufferSource();
+    src.buffer = this._noise();
+    src.playbackRate.value = rate || 1;
+    const f = ctx.createBiquadFilter();
+    f.type = "bandpass"; f.Q.value = q;
+    f.frequency.setValueAtTime(Math.max(20, f0), t);
+    f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(this._dest());
+    src.start(t); src.stop(t + dur);
+  }
+
+  /* Nota afinada em instante ABSOLUTO. `tone` agenda em `currentTime + delay`
+     e serve para a UI, que dispara uma vez; uma voz precisa cair no mesmo
+     instante que as outras camadas dela, e "agora" varia com o frame. */
+  _bell(t, freq, dur, vol, type) {
+    const ctx = this.ctx;
+    if (vol < 0.0005) return;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type || "sine";
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this._dest());
+    o.start(t); o.stop(t + dur);
+  }
+
+  /* --- a voz de um evento -------------------------------------------------
+     `say` e o funil unico das vozes de combate (js/voices.js). Tres travas, e
+     cada uma existe por um motivo diferente:
+
+       1. GAP POR VOZ — dois eventos iguais colados nao sao mais informacao,
+          sao um zumbido. O gap e por voz porque a densidade tolerada e
+          diferente: estalo de acerto pode ser denso, rasgo de portal nao.
+       2. DUCK POR LEVA — o mesmo mecanismo que `death` ja usa. Numa build
+          madura dezenas de vozes diferentes caem no mesmo segundo, e nenhum
+          gap individual segura isso; o que segura e a leva inteira abaixar.
+       3. DISTANCIA — evento longe da tela nao pode soar como evento no colo.
+          Alem do corte, nada e agendado: a voz nem chega a existir.
+
+     `SFX_LATENCY` e por que nada e marcado para `currentTime` cru: uma folga
+     de 8ms deixa o hardware montar a nota em vez de emenda-la no meio. */
+  // A metade barata de `say`, para quem chama de dentro de codigo quente.
+  can(name) {
+    if (!this.ctx || this.muted) return false;
+    const v = VOICES[name];
+    if (!v) return false;
+    return this.ctx.currentTime - (this._voiceAt[name] || -9) >= v.gap;
+  }
+
+  say(name, o) {
+    if (!this.can(name)) return;
+    const v = VOICES[name];
+    const now = this.ctx.currentTime;
+
+    const dist = o && o.dist > 0 ? o.dist : 0;
+    if (dist > SFX_RANGE) return;
+    const near = 1 - (dist / SFX_RANGE) * 0.75;
+
+    this._voiceBurst = Math.min(10, Math.max(0, this._voiceBurst - (now - this._voiceLast) * 7) + 1);
+    this._voiceLast = now;
+    this._voiceAt[name] = now;
+
+    const duck = 1 / (1 + this._voiceBurst * 0.16);
+    const size = o && o.size > 0 ? (o.size > 1 ? 1 : o.size) : 0;
+    v.play(this, now + SFX_LATENCY, { v: near * duck * (o && o.vol != null ? o.vol : 1), size });
+  }
+
   // guincho demoniaco: serra caindo rapido, saturada, num bandpass estreito
   _screech(t, dur, vol, size) {
     if (vol < 0.0005) return;
@@ -354,7 +471,7 @@ class Sfx {
     const g = ctx.createGain();
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(sh); sh.connect(bp); bp.connect(g); g.connect(ctx.destination);
+    o.connect(sh); sh.connect(bp); bp.connect(g); g.connect(this._dest());
     o.start(t); o.stop(t + dur + 0.02);
   }
 
