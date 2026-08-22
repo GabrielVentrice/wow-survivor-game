@@ -6,12 +6,12 @@
    segundos, em estados que dependem de sorteio, nao se revisa jogando. O level
    up aparece com a build pequena, media e grande — a ultima e onde a tira passa
    do teto e o contador aparece; a etapa aparece nas duas fases, fechada e
-   aberta, que e onde as linhas dela trocam de forma.
+   aberta, que e onde as colunas dela trocam de forma.
 
    A etapa merece revisao ainda mais que o level up: ela e a unica decisao
-   irreversivel da run, aparece so sete vezes, e as tres linhas precisam ser
-   comparaveis de relance. Se os dois numeros de uma linha nao contarem a troca
-   sozinhos, o jogador escolhe no escuro e nao tem como voltar.
+   irreversivel da run, aparece so sete vezes, e as tres colunas precisam ser
+   comparaveis de relance. Se o buff e os dois numeros de uma coluna nao
+   contarem a troca sozinhos, o jogador escolhe no escuro e nao tem como voltar.
 
    O HTML sai dos mesmos `UI.cardHtml` / `UI.buildStripHtml` / `UI.msRowHtml` do
    jogo e o CSS e lido do proprio `index.html`: previa que diverge do jogo nao

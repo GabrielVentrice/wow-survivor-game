@@ -774,24 +774,23 @@
   }
 
   /* --- ETAPA: a batida lenta ------------------------------------------------
-     Deliberadamente o oposto da tela de level up — e as duas ja trocaram de
-     forma uma vez, porque o que decide a forma nao e a tela, e o que ela
-     compara.
+     Tres COLUNAS, e cada uma e um destino inteiro lido de cima para baixo.
 
-     Aqui as tres ofertas tem a MESMA estrutura preenchida com eixos diferentes:
-     um rotulo, uma spell e um numero (ou dois). Estrutura repetida e o caso da
-     LINHA com colunas fixas: o rotulo cai sempre na primeira coluna, a spell
-     sempre na segunda e o numero sempre na terceira, entao comparar e correr o
-     olho por UMA coluna em vez de reencontrar o campo dentro de tres blocos.
+     Enquanto a linha valia, o argumento era alinhamento: mesma estrutura em
+     tres eixos, entao comparar era correr UMA coluna. So que a estrutura deixou
+     de ser a mesma quando a fase fechada entrou — oferta sorteada tem manchete
+     de spell e um botao, oferta aberta tem manchete de eixo e dois. Alinhar
+     campo que nao existe nas tres nao alinha nada, e quem pagava a conta era o
+     BUFF: espremido na faixa do meio, ele lia como legenda do rotulo.
 
-     E as duas telas nao podem PARECER a mesma tela, senao o jogador nao percebe
-     que a pergunta mudou — e a desta e a unica que ele nao desfaz. Desde que o
-     level up virou cartas, a diferenca de forma voltou a ser a primeira coisa
-     que ele ve. */
-  .ms {
-    align-items: center; justify-content: center;
-    --ms-cols: 250px minmax(0, 1fr) 316px;
-  }
+     Em coluna cada oferta e um bloco fechado, na ordem da decisao — de que eixo
+     e, O QUE FAZ, e quanto anda. O que faz e o buff, e ele e a manchete.
+
+     E as duas telas continuam sem parecer a mesma: aqui o acento e a barra
+     VERTICAL a esquerda (no level up e a de cima), o bloco nao levanta nem e
+     clicavel, a decisao mora em botoes solidos, o eyebrow e ambar e o rodape
+     carrega as barras de eixo. */
+  .ms { align-items: center; justify-content: center; }
   .ms-wrap {
     position: relative; z-index: 1; pointer-events: auto;
     display: flex; flex-direction: column; gap: 22px;
@@ -808,37 +807,39 @@
   }
   .ms-sub { font-size: 14px; color: #8b7fa3; text-wrap: pretty; }
 
-  /* `grid-auto-rows: 1fr` iguala a altura das tres: numa grade de altura
-     indefinida a faixa flexivel resolve pelo maior conteudo, entao a linha
-     aberta (duas linhas de botao) puxa as sorteadas para a altura dela sem
-     numero magico nenhum — e quando as tres sao sorteadas, as tres encolhem
-     juntas. Altura desigual dizia que uma das ofertas era maior que as outras,
-     que e exatamente o que esta tela NAO esta perguntando. */
-  .ms-rows { display: grid; grid-auto-rows: 1fr; gap: 12px; min-height: 0; }
-  /* A linha NAO e clicavel (`cursor: default`): o alvo e o botao, e sao dois.
-     O acento migrou do topo para a esquerda junto com a forma — barra no topo
-     de uma linha larga vira sublinhado do nada. */
+  /* Flex e nao grade de 3 colunas, porque a mesa nem sempre tem tres ofertas:
+     no fim da run o catalogo esgota e sobram duas, ou uma. Numa grade fixa a
+     unica sobrevivente ficaria encolhida no canto esquerdo com dois buracos ao
+     lado; aqui as colunas dividem o que existe e ficam centradas.
+     O `stretch` padrao iguala a altura: a coluna aberta (dois botoes) define e
+     as sorteadas acompanham — altura desigual dizia que uma das ofertas era
+     maior que as outras, que e exatamente o que esta tela NAO pergunta. */
+  .ms-rows {
+    display: flex; justify-content: center; gap: 14px; min-height: 0;
+  }
+  /* O bloco NAO e clicavel: o alvo e o botao, e sao dois. Por isso ele tambem
+     nao levanta no hover como a carta do level up — so acende a borda. */
   .ms-row {
-    pointer-events: auto;
-    display: grid; grid-template-columns: var(--ms-cols); gap: 18px; align-items: center;
-    padding: 15px 18px; border-radius: 13px;
-    background: linear-gradient(90deg, var(--acc-wash), rgba(255, 255, 255, 0.015));
+    pointer-events: auto; flex: 1 1 0; min-width: 0; max-width: 372px;
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 16px 17px; border-radius: 13px;
+    background: linear-gradient(165deg, var(--acc-wash), rgba(255, 255, 255, 0.015));
     border: 1.5px solid var(--acc-dim);
     border-left: 5px solid var(--acc);
     transition: box-shadow 0.16s, border-color 0.16s;
   }
   .ms-row:hover { border-color: var(--acc); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5); }
 
-  /* Duas formas de linha, e o cabecalho e onde elas se separam.
+  /* Duas formas de bloco, e o cabecalho e onde elas se separam.
 
      ABERTA: a manchete e o EIXO — a pergunta e quanto investir nele, e a spell
      e uma das duas maneiras de levar. SOLTA (`.loose`): a manchete e a SPELL,
      porque e ela que esta sendo escolhida; o eixo vira consequencia e sai como
-     etiqueta abaixo, na cor dele. Por o eixo na primeira coluna de uma linha
-     sorteada seria anunciar como titulo algo que o jogador nao escolheu. */
+     etiqueta abaixo, na cor dele. Por o eixo no topo de um bloco sorteado seria
+     anunciar como titulo algo que o jogador nao escolheu. */
   .ms-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
   .ms-ic { font-size: 22px; line-height: 1; }
-  .ms-axis { font-size: 19px; font-weight: 700; color: var(--acc); }
+  .ms-axis { font-size: 18px; font-weight: 700; color: var(--acc); line-height: 1.15; }
   .ms-head.loose .ms-axis { color: #efe9fa; }
   .ms-tag { flex-basis: 100%; font-size: 12px; color: #8b7fa3; }
   .ms-head.loose .ms-tag { font-weight: 600; }
@@ -849,18 +850,27 @@
     text-transform: uppercase; padding: 2px 7px; border-radius: 999px;
     background: var(--acc); color: #14091f; font-weight: 700;
   }
-  .ms-spell.bare {
-    background: none; border: none; padding: 0;
-  }
+  /* O BUFF, e ele e a manchete do bloco.
 
+     Esta e a unica parte da tela que diz o que a run vai GANHAR, e ate aqui era
+     texto cinza de 12.5px espremido entre o rotulo e os numeros — o jogador
+     comparava dois numeros sem ler o que estava comprando. Agora e caixa acesa
+     na cor do eixo, com o texto na altura de leitura que o `.lv-plain` tem na
+     outra tela.
+
+     Ela fica na altura do proprio texto e NAO estica para preencher a coluna:
+     quem alinha os numeros das tres na mesma linha e o `margin-top: auto` dos
+     botoes. Esticada, a oferta de frase curta virava um retangulo aceso meio
+     vazio — que lê como conteudo faltando, e nao como respiro. */
   .ms-spell {
-    display: flex; align-items: flex-start; gap: 11px; min-width: 0;
-    padding: 12px; border-radius: 11px;
-    background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.07);
+    display: flex; align-items: flex-start; gap: 10px; min-width: 0;
+    padding: 12px 13px; border-radius: 11px;
+    background: var(--acc-wash);
+    border: 1px solid var(--acc-dim);
   }
-  .ms-spell.empty { background: rgba(0, 0, 0, 0.16); }
-  .ms-spell-ic { font-size: 26px; line-height: 1.1; }
-  .ms-spell-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .ms-spell.empty { background: rgba(0, 0, 0, 0.16); border-color: rgba(255, 255, 255, 0.07); }
+  .ms-spell-ic { font-size: 24px; line-height: 1.1; }
+  .ms-spell-txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .ms-spell-kind {
     display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
     font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
@@ -868,22 +878,26 @@
     background: var(--acc); color: #14091f;
   }
   .ms-spell-kind i { font-style: normal; }
-  .ms-spell-name { font-size: 15.5px; font-weight: 600; color: #efe9fa; }
-  .ms-spell-desc { font-size: 12.5px; line-height: 1.35; color: #8b7fa3; text-wrap: pretty; }
+  /* O nome perde para o EFEITO de proposito: no bloco aberto a manchete ja e o
+     eixo e o nome e so identificacao — quem decide a jogada e a frase abaixo. */
+  .ms-spell-name { font-size: 13.5px; font-weight: 600; color: #cfc4e2; }
+  .ms-spell-desc { font-size: 15px; line-height: 1.36; color: #f3ecff; text-wrap: pretty; }
+  .ms-spell.empty .ms-spell-name { color: #9b8fb0; }
+  .ms-spell.empty .ms-spell-desc { font-size: 12.5px; color: #8b7fa3; }
 
   /* Os DOIS botoes sao o alvo, nao a linha. A linha e um eixo; o eixo tem duas
      maneiras de ser levado, e a diferenca entre os dois numeros e a economia
      inteira do jogo dita em um lugar so.
 
-     Eles ficam empilhados na terceira coluna em vez de lado a lado: os dois
-     numeros precisam ser lidos um SOBRE o outro para a diferenca aparecer, e
-     um ao lado do outro eles viram duas ofertas independentes.
+     Eles ficam empilhados no pe do bloco em vez de lado a lado: os dois numeros
+     precisam ser lidos um SOBRE o outro para a diferenca aparecer, e um ao lado
+     do outro eles viram duas ofertas independentes.
 
      Aqui, ao contrario do `.lv-pick`, os botoes sao solidos em repouso: eles
      nao sao lembrete de que a linha e clicavel (ela nao e) — eles SAO a
      decisao, e cada um carrega um numero diferente que o jogador precisa
      comparar antes de mirar o mouse em qualquer lugar. */
-  .ms-takes { display: flex; flex-direction: column; gap: 8px; }
+  .ms-takes { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
   .ms-take {
     cursor: pointer; pointer-events: auto; text-align: left; font: inherit;
     display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
@@ -893,10 +907,10 @@
     transition: background 0.14s, border-color 0.14s, transform 0.14s;
   }
   .ms-take:hover { transform: translateY(-2px); border-color: var(--acc); background: var(--acc-wash); }
-  .ms-take-l { font-size: 14px; font-weight: 600; color: #efe9fa; }
+  .ms-take-l { font-size: 13.5px; font-weight: 600; color: #efe9fa; }
   .ms-take-n {
     grid-row: span 2; align-self: center;
-    font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--acc);
+    font-family: var(--mono); font-size: 24px; font-weight: 700; color: var(--acc);
   }
   .ms-take-s { font-size: 11.5px; color: #8b7fa3; }
   /* Levar a spell e a opcao que ANDA MENOS: o ambar do bau marca ela como o
@@ -925,19 +939,20 @@
   .ms-cap.none { color: #7c6f92; }
 
   @media (max-width: 980px) {
-    .ms-row, .ms-pool { grid-template-columns: 1fr; }
-    .ms-row { gap: 12px; }
+    .ms-rows { flex-direction: column; align-items: stretch; }
+    .ms-row { max-width: none; }
+    .ms-pool { grid-template-columns: 1fr; }
   }
-  /* Tres linhas com dois botoes cada sao mais altas do que tres cartas eram, e
-     overlay de jogo nao rola. Em tela baixa a linha aperta o proprio padding e
+  /* Overlay de jogo nao rola. Em tela baixa o bloco aperta o proprio padding e
      o numero desce um degrau — nada some, porque tudo aqui e a decisao. */
   @media (max-height: 700px) {
     .ms-wrap { gap: 14px; }
     .ms-title { font-size: 30px; }
-    .ms-row { padding: 11px 16px; }
+    .ms-row { padding: 12px 14px; gap: 10px; }
     .ms-spell { padding: 9px 11px; }
+    .ms-spell-desc { font-size: 13.5px; }
     .ms-take { padding: 8px 12px; }
-    .ms-take-n { font-size: 22px; }
+    .ms-take-n { font-size: 21px; }
   }
 
   /* --- barras de eixo -------------------------------------------------------

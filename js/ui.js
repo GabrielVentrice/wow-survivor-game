@@ -662,8 +662,8 @@ class UI {
       row.style.setProperty("--acc-dim", o.axis.color + "55");
       row.style.setProperty("--acc-wash", o.axis.color + "1c");
       row.innerHTML = this.msRowHtml(o);
-      /* O ALVO e o botao, nao a linha: a linha e um eixo e o eixo tem duas
-         maneiras de ser levado. Linha inteira clicavel precisaria de um padrao
+      /* O ALVO e o botao, nao o bloco: o bloco e um eixo e o eixo tem duas
+         maneiras de ser levado. Bloco inteiro clicavel precisaria de um padrao
          escolhido por nos, e escolher pelo jogador a metade irreversivel da
          decisao e o oposto do que esta tela existe para fazer. */
       const btns = row.querySelectorAll(".ms-take");
@@ -686,7 +686,7 @@ class UI {
     this.msRender(o, wet);
   }
 
-  /* Como no level up, o hover re-renderiza so o RODAPE: mexer nas linhas
+  /* Como no level up, o hover re-renderiza so o RODAPE: mexer nas colunas
      mataria a transicao que o CSS esta rodando naquele instante. */
   msRender(o, wet) {
     const step = !o ? null : ((wet ? o.wet : o.dry) || o.wet || o.dry);
@@ -750,16 +750,20 @@ class UI {
             <span class="ms-spell-desc">Todas as spells de ${o.axis.name} já estão na build.</span>
           </span></div>`;
 
-    /* Duas formas de linha, e a diferenca e o que cada uma esta perguntando.
+    /* Duas formas de bloco, e a diferenca e o que cada uma esta perguntando.
 
        ABERTA (eixo em `unlockAt`+): a manchete e o EIXO, porque a pergunta e
        quanto investir nele — a spell e uma das duas maneiras de levar, nao o
        assunto. Ela ganha o cabecalho de eixo e os dois botoes.
 
        SORTEADA: a manchete e a SPELL, porque e ela que esta sendo escolhida; o
-       eixo aparece no botao como consequencia (+1 em Corrupcao). Por o eixo na
-       primeira coluna aqui seria anunciar como titulo algo que o jogador nao
-       escolheu — o sorteio e que pos aquele eixo ali. */
+       eixo aparece no botao como consequencia (+1 em Corrupcao). Por o eixo no
+       topo aqui seria anunciar como titulo algo que o jogador nao escolheu — o
+       sorteio e que pos aquele eixo ali.
+
+       Nas duas, o meio do bloco e o BUFF: a mesma caixa acesa, porque o que a
+       spell FAZ e a coisa que a tela existe para o jogador ler antes de gastar
+       o unico ponto que nao volta. */
     if (!o.locked) {
       return `
         <div class="ms-head loose">
@@ -767,7 +771,7 @@ class UI {
           <span class="ms-axis">${o.piece.name}</span>
           <span class="ms-tag" style="color:${o.axis.color}">${o.axis.icon} ${o.axis.name}</span>
         </div>
-        <div class="ms-spell bare"><span class="ms-spell-txt">
+        <div class="ms-spell"><span class="ms-spell-txt">
           <span class="ms-spell-desc">${o.piece.desc}</span></span></div>
         <div class="ms-takes">
           ${take(o.wet, true, "Levar esta spell", "")}

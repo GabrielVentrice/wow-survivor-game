@@ -487,7 +487,7 @@ não podem voltar a ser uma só.
 | **O que oferece** | tier de caminho; passiva global a partir do nível 10 | spell nova (+1 no eixo dela) e, no eixo aberto, +2 secos |
 | **Custa** | nada | é a **única** fonte de ponto de eixo |
 | **Desfaz?** | a próxima escolha corrige | **nunca** |
-| **Forma** | três cartas + tira da build | três linhas + rodapé de eixos |
+| **Forma** | três cartas + tira da build | três colunas + rodapé de eixos |
 
 **Por que foram separadas.** Antes as duas moedas dividiam a mesma escolha:
 comprar peça nova custava 2 pontos de eixo, tier acima do 2 custava 1. Com
@@ -541,7 +541,7 @@ painel que o jogo nunca entregava.
 
 #### Fase fechada: três spells sorteadas
 
-Antes de qualquer eixo chegar a `unlockAt`, as três linhas são **spells
+Antes de qualquer eixo chegar a `unlockAt`, as três colunas são **spells
 sorteadas do catálogo inteiro** — podem cair três do mesmo eixo. Não existe
 oferta seca: a única maneira de ganhar eixo é escolhendo uma spell, e cada uma
 carrega `spellPoints` para o eixo **dela**.
@@ -578,36 +578,51 @@ da morte não entrega nada**.
 
 #### Apresentação
 
-- **Três linhas com as mesmas três colunas** (que eixo · que spell · quanto
-  anda). Aqui as três ofertas têm a MESMA estrutura preenchida com eixos
-  diferentes, e estrutura repetida é o caso da linha: o número cai sempre na
-  terceira coluna, então comparar é correr o olho por uma coluna só, em vez de
-  reencontrar o mesmo campo dentro de três blocos.
-- **A forma é o que separa as duas telas, e ela já trocou de dono.** Enquanto o
-  level-up era linhas, a etapa era cartas; quando o level-up virou cartas, a
-  etapa virou linhas. O que decide a forma não é a tela, é o que ela compara —
-  o level-up compara três coisas que hoje são o mesmo tipo de degrau, a etapa
-  compara três preenchimentos da mesma estrutura. E as duas não podem *parecer*
-  a mesma tela: o jogador precisa perceber que a pergunta mudou, e a desta é a
-  única que ele não desfaz. Junto da forma, a diferença mora no rodapé (barras
-  de eixo e capstone aqui, tira de spells lá), no selo `aberto`, nos **dois
-  botões** por linha e na cor do eyebrow — âmbar aqui, verde lá.
-- **Duas formas de linha, e a primeira coluna é onde elas se separam.** Na linha
-  **aberta** a manchete é o EIXO — a pergunta é quanto investir nele, e a spell
-  é uma das duas maneiras de levar. Na **sorteada** a manchete é a SPELL, porque
+- **Três colunas, cada uma lida de cima para baixo na ordem da decisão**: de
+  que eixo é · **o que faz** · quanto anda. Ela já foi três linhas com colunas
+  fixas, e o argumento era alinhamento — mesma estrutura em três eixos, então
+  comparar era correr uma coluna só. Só que a estrutura deixou de ser a mesma
+  quando a fase fechada entrou: oferta sorteada tem manchete de spell e um
+  botão, oferta aberta tem manchete de eixo e dois. Alinhar campo que não
+  existe nas três não alinha nada, e quem pagava a conta era o buff.
+- **O BUFF é a manchete do bloco.** É a única parte da tela que diz o que a run
+  vai *ganhar*, e na linha ele era texto cinza de 12.5px espremido na faixa do
+  meio — o jogador comparava dois números sem ler o que estava comprando. Hoje
+  é caixa acesa na cor do eixo, com o texto na altura de leitura que o
+  `.lv-plain` tem na outra tela, e o nome da spell perde de propósito para o
+  efeito. A caixa **não estica** para preencher a coluna: quem alinha os
+  números das três é o `margin-top: auto` dos botões — esticada, a oferta de
+  frase curta virava um retângulo aceso meio vazio, que lê como conteúdo
+  faltando e não como respiro.
+- **A forma é o que separa as duas telas, e ela já trocou de dono duas vezes.**
+  O que decide a forma não é a tela, é o que ela compara. E as duas não podem
+  *parecer* a mesma tela: o jogador precisa perceber que a pergunta mudou, e a
+  desta é a única que ele não desfaz. Com as duas em coluna, a diferença mora
+  no acento (barra **vertical à esquerda** aqui, de topo lá), no bloco que não
+  levanta nem é clicável, no rodapé (barras de eixo e capstone aqui, tira de
+  spells lá), no selo `aberto`, nos **dois botões** por oferta e na cor do
+  eyebrow — âmbar aqui, verde lá.
+- **Duas formas de bloco, e o cabeçalho é onde elas se separam.** No bloco
+  **aberto** a manchete é o EIXO — a pergunta é quanto investir nele, e a spell
+  é uma das duas maneiras de levar. No **sorteado** a manchete é a SPELL, porque
   é ela que está sendo escolhida; o eixo vira etiqueta abaixo, na cor dele. Pôr
-  o eixo na manchete de uma linha sorteada seria anunciar como título algo que o
+  o eixo no topo de um bloco sorteado seria anunciar como título algo que o
   jogador não escolheu — o sorteio é que pôs aquele eixo ali.
 - **`aberto` é o único selo da tela**, e marca a regra que mais importa: este
   eixo não depende mais do sorteio para reaparecer.
-- **O alvo é o botão, não a linha** — e por isso a linha nem carrega `cursor:
-  pointer`. Linha inteira clicável exigiria escolher por ele qual das duas
-  maneiras é o padrão, e é justamente a metade irreversível da decisão. Os dois
-  botões ficam empilhados na terceira coluna, não lado a lado: os números
-  precisam ser lidos um SOBRE o outro para a diferença aparecer.
+- **O alvo é o botão, não o bloco** — e por isso ele nem carrega `cursor:
+  pointer` nem levanta no hover como a carta do level-up. Bloco inteiro clicável
+  exigiria escolher por ele qual das duas maneiras é o padrão, e é justamente a
+  metade irreversível da decisão. Os dois botões ficam empilhados no pé, não
+  lado a lado: os números precisam ser lidos um SOBRE o outro para a diferença
+  aparecer.
+- **A mesa nem sempre tem três.** No fim da run o catálogo esgota e sobram duas
+  ofertas, ou uma. Por isso as colunas são flex centrado e não grade de três:
+  numa grade fixa a sobrevivente ficaria encolhida no canto esquerdo com dois
+  buracos ao lado.
 - **O número anunciado é o creditado.** Com o eixo no teto ou o pool no fim,
   `addAxis` entrega menos; `getMilestoneOffers` devolve `gain` real ao lado do
-  `want` de tabela, e o driver compara os dois em toda linha de toda etapa.
+  `want` de tabela, e o driver compara os dois em toda oferta de toda etapa.
 - **E carta que credita +0 não é oferta, é botão morto.** O sorteio pula spell
   cujo eixo não anda mais, e se ainda assim a mesa inteira ficar em zero — todo
   eixo com espaço já teve o catálogo esgotado — o fallback seco entra no lugar
