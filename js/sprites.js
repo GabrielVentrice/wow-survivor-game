@@ -484,30 +484,38 @@ const SPRITE_DATA = {
       "..odo...odo..",
     ],
   },
-  // 3ª forma: chifres grandes, asas membranosas e olhos em brasa
+  /* 3ª forma: o clímax da progressão. Com dois capstones fechados ela precisa
+     dizer "pouco resta do humano" em 20 pixels — o que carrega isso é a
+     SILHUETA: chifres de osso curvando para dentro acima da cabeça, asas de
+     membrana como massa de verdade nas laterais, e só os antebraços ainda em
+     pele. A versão anterior tinha 26 colunas porque as asas eram tiras de 1px
+     em arc2: energia ocupando área grande, que lia como decoração girando ao
+     lado do corpo em vez de asa. */
   warlockDemon: {
-    pal: { o: PAL.inkDeep, d: PAL.vio1, m: PAL.vio2, l: PAL.vio3, B: PAL.bone2, E: PAL.pyr0, f: PAL.vio0, F: PAL.pyr1, R: PAL.arc2, g: PAL.gold2, h: PAL.gold1, W: PAL.vio1 },
+    pal: { o: PAL.inkDeep, d: PAL.vio1, m: PAL.vio2, l: PAL.vio3,
+           D: PAL.vio0, M: PAL.vio1, L: PAL.vio2,
+           s: PAL.meat0, S: PAL.meat2, b: PAL.bone0, B: PAL.bone1, e: PAL.pyr1 },
     rows: [
-      ".....BBh..........hBB.....",
-      ".....BBh..........hBB.....",
-      "......BBh........hBB......",
-      ".......BBh......hBB.......",
-      "........BBhoooohBB........",
-      ".........oolllloo.........",
-      "........ollddddllo........",
-      ".......olddddddddlo.......",
-      ".......oldffffffldo.......",
-      ".......olffEffEfflo.......",
-      ".R.....olfffffffflo.....R.",
-      ".RW....ollfFFFFfldo....WR.",
-      ".RWW....ollllllldo....WWR.",
-      "..RWW..olmddRRldmlo..WWR..",
-      "..RWWWolmdFERREFlmloWWWR..",
-      "...RWWolmmllRRllmmdoWWR...",
-      "....RWglddmmllmmdddgWR....",
-      "....RWoldddddddddddoWR....",
-      ".....RWoldddddddddoWR.....",
-      ".....R.oooldddddooo.R.....",
+      "........Bb..Bb........",
+      ".......Bb....Bb.......",
+      "......Bb......Bb......",
+      ".oo...Bb......Bb...oo.",
+      "oLLo..BbooooooBb..oDDo",
+      "oLLMo..olmmmmdo..oMDDo",
+      "oLLMDo.olemmedo.oMMDDo",
+      "oLMMDo.omBoobmo.oMMDDo",
+      "oLMMDo.olmmmmdo.oMMDDo",
+      "oLMMDDlmmmmmmmmdMMDDDo",
+      ".oMMDDmdddddddddMDDDo.",
+      "..oMDDmdddddddddMDDo..",
+      "...oDDSsmddddmSsDDo...",
+      ".....oSsmddddmSso.....",
+      ".....oSsmddddmSso.....",
+      "......omdddddddo......",
+      "......omdddddddo......",
+      "......omdo..oddo......",
+      "......omdo..oddo......",
+      ".....omddo..odddo.....",
     ],
   },
   /* Ghoul — o lixo da horda. A 13px o que precisa chegar e "isso e muitos e
