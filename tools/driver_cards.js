@@ -50,7 +50,7 @@ for (let round = 0; round < 400; round++) {
     if ((o.kind === "passive") !== html.includes("lv-tile round")) {
       bad(`${o.kind} (${o.def.name}): forma do tile nao casa com o tipo`);
     }
-    if (!v.costLine) bad(`${o.kind} (${o.def.name}): linha sem custo`);
+    if (!v.costHead || !v.costTail) bad(`${o.kind} (${o.def.name}): linha sem custo`);
     if (v.delta.length) seen.delta++;
     if (v.rec) seen.rec++;
 

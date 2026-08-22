@@ -375,6 +375,36 @@ separados para comparar um mesmo campo; linhas deixam o olho correr na vertical.
 O que caiu junto com as cartas: a legenda de tipos do topo (o tipo agora vive na
 própria linha) e o chip minúsculo de custo no rodapé (custo virou coluna).
 
+**A coluna do meio é a manchete.** Quem decide a compra é o que a oferta *faz* —
+não o nome de fantasia do tier, não o ícone, não o botão. A primeira versão
+errava isso: o efeito saía em 17px lavanda apagada disputando com um nome de
+20px branco, um tile de 52px e um botão de preenchimento sólido, e o olho
+pousava em tudo menos na informação. A hierarquia hoje:
+
+1. **`.lv-plain`, 21px** — o que muda no jogo, o item mais claro da linha.
+2. **o delta** logo abaixo, com o número que o jogador vai passar a ter.
+3. nome da spell, custo e etiqueta de tipo — um degrau abaixo, legíveis sem
+   competir.
+4. `.lv-why`, ícone e botão — o fundo da pilha.
+
+Três regras que caem daí, e que valem para qualquer coisa nova nesta tela:
+
+- **O slot do nome carrega a SPELL, não o nome do tier.** O jogador reconhece
+  "Incinerate" de imediato — está na build dele, no painel e no HUD; "Brasa" não
+  quer dizer nada até ser lido. O nome do tier desce para o subtítulo. Em
+  evolução o nome é a **forma nova** e o subtítulo diz de onde ela veio.
+- **A linha inteira é clicável, então o botão é lembrete e não alvo.**
+  Preenchido em repouso ele era o segundo bloco mais barulhento de cada linha.
+  Vazado em repouso, enche no hover da linha — que é quando ele tem algo a dizer.
+- **Veredito antes de detalhe no custo.** A pergunta é "gasta ou não?", e ela
+  cabe em três palavras (`Custa 2` / `Não gasta ponto`); o detalhe
+  (`Domínio 0 → 2`) vem abaixo, menor e mais fraco. Numa frase única e forte o
+  custo quebrava em duas linhas e virava o bloco mais pesado da coluna.
+
+Regra prática ao acrescentar qualquer coisa à linha: se ela chama mais atenção
+que `.lv-plain`, ela está errada — ou ela é mais importante que o efeito, e aí
+o argumento precisa ser feito.
+
 **O tipo da oferta é carregado por forma, nunca por cor.** A cor da linha é a do
 **eixo** — qual build ela alimenta —, então uma melhoria verde e uma spell nova
 verde são a mesma cor: cor já está ocupada. Quem separa as três é:

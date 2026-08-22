@@ -299,8 +299,15 @@ class UI {
       // ele e indistinguivel do icone de uma spell nova.
       v.badge = o.tierIndex + 1;
       v.icon = evo ? evo.icon : o.def.icon;
-      v.name = o.tier.name;
-      v.subtitle = `${o.def.name} · ${o.path.name} · tier ${o.tierIndex + 1} de ${PATH_RULES.tiers}`;
+      /* O slot do nome carrega a SPELL, nao o nome de fantasia do tier. O
+         jogador reconhece "Incinerate" de imediato — esta na build dele, no
+         painel e no HUD; "Brasa" nao quer dizer nada ate ser lido. O nome do
+         tier desce para o subtitulo, junto do caminho e do degrau, que e onde
+         ele serve de referencia sem disputar atencao com o efeito. */
+      v.name = evo ? evo.name : o.def.name;
+      v.subtitle = evo
+        ? `${o.def.name} · ${o.path.name} · tier ${PATH_RULES.tiers} de ${PATH_RULES.tiers}`
+        : `${o.tier.name} · ${o.path.name} · tier ${o.tierIndex + 1} de ${PATH_RULES.tiers}`;
       /* O `desc` dos sete tiers de evolucao comeca com "EVOLUÇÃO — ", de quando
          a carta nao tinha onde marcar isso. Agora a etiqueta marca, entao o
          prefixo repetiria a palavra tres vezes na mesma linha (etiqueta, frase
@@ -308,9 +315,9 @@ class UI {
          a quem le o catalogo direto. */
       const plain = o.tier.desc.replace(/^EVOLUÇÃO\s*[—-]\s*/, "");
       v.plain = plain.charAt(0).toUpperCase() + plain.slice(1);
-      v.why = evo
-        ? `⭐ ${o.def.name} vira ${evo.name} — ${evo.desc}`
-        : `${o.def.icon} ${o.def.name} — ${o.def.desc}`;
+      // Sem repetir o nome que agora esta no slot acima: o "porque" fica so
+      // com o que a spell E, que e o contexto da melhoria.
+      v.why = evo ? evo.desc : o.def.desc;
       v.delta = this.tierDelta(o);
       v.progress = o.path.name;
       v.pips = o.tierIndex + 1;
@@ -324,18 +331,25 @@ class UI {
       v.gain = Math.max(0, Math.min(v.cost,
         AXIS_RULES.capPerAxis - b.axis[axis.id], b.axisLeft));
     }
+    /* Veredito primeiro, detalhe depois e mais fraco: a pergunta e "gasta ou
+       nao?", e ela cabe em tres palavras. Numa unica frase forte o custo
+       quebrava em duas linhas e virava o bloco mais pesado da coluna, o que
+       ele nao precisa ser para ser lido. */
     if (!v.cost) {
       v.costFree = true;
-      v.costLine = o.kind === "passive"
-        ? "Não gasta ponto — passivas são livres"
-        : `Não gasta ponto — até o tier ${PATH_RULES.freeTier} é livre`;
+      v.costHead = "Não gasta ponto";
+      v.costTail = o.kind === "passive"
+        ? "passivas são livres"
+        : `até o tier ${PATH_RULES.freeTier} é livre`;
     } else if (!v.gain) {
       v.costFree = true;
-      v.costLine = `Não gasta ponto — ${axis.name} já no teto`;
+      v.costHead = "Não gasta ponto";
+      v.costTail = `${axis.name} já no teto`;
     } else {
       v.costFree = false;
       const cur = b.axis[axis.id];
-      v.costLine = `Custa ${v.gain} · ${axis.name} ${cur} → ${cur + v.gain}`;
+      v.costHead = `Custa ${v.gain}`;
+      v.costTail = `${axis.name} ${cur} → ${cur + v.gain}`;
     }
 
     v.rec = this.recFor(o, v);
@@ -437,7 +451,8 @@ class UI {
         <div class="lv-why">${v.why}</div>
       </div>
       <div class="lv-cost">
-        <div class="lv-cost-line ${v.costFree ? "free" : "pay"}">${v.costLine}</div>
+        <div class="lv-cost-line ${v.costFree ? "free" : "pay"}">${v.costHead}
+          <span>${v.costTail}</span></div>
         <div class="lv-prog"><span class="lv-prog-lbl">${v.progress}</span>${
           v.pips != null ? this.pipsHtml(v.pips) : ""}</div>
         ${v.rec ? `<div class="lv-rec">${v.rec}</div>` : ""}
