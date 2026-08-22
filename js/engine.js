@@ -161,7 +161,7 @@ class Sfx {
     this.muted = false;
     this._lastDeath = 0;
     this._deathBurst = 0;   // quantas mortes recentes: abaixa o volume em leva
-    this._noiseBuf = null;
+    this.bone = null;       // amostra de osso quebrando, quando decodificada
   }
   init() {
     if (!this.ctx) {
@@ -170,6 +170,7 @@ class Sfx {
     }
     // browsers suspendem o contexto ate um gesto do usuario
     if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+    this._loadBone();
   }
   // toca um tom simples com envelope de decaimento
   tone(freq, dur, type = "sine", vol = 0.08, delay = 0) {
@@ -189,6 +190,33 @@ class Sfx {
      materia-prima de tudo que e percussivo: estalo de osso, esmagamento,
      baque de corpo. */
   _noise() { return noiseBuffer(this.ctx); }
+
+  /* Decodifica a amostra de osso embutida em base64. Enquanto nao termina — e
+     se falhar — `death()` continua usando os estalos sinteticos, entao o som
+     nunca some por causa disso. */
+  _loadBone() {
+    if (!this.ctx || this.bone || this._boneTried) return;
+    this._boneTried = true;
+    try {
+      const data = decodeBase64Audio(BONE_BREAK_WAV);
+      const done = (buf) => { this.bone = buf; };
+      const p = this.ctx.decodeAudioData(data, done, () => {});
+      if (p && p.then) p.then(done, () => {});
+    } catch (e) { /* fica com os estalos sinteticos */ }
+  }
+
+  // toca a amostra com tom e volume variados; corpo maior toca mais grave
+  _sample(buf, t, rate, vol) {
+    if (vol < 0.0005) return;
+    const ctx = this.ctx;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    src.connect(g); g.connect(ctx.destination);
+    src.start(t);
+  }
 
   // rajada de ruido filtrada — o timbre vem do filtro, o "peso" vem do decay
   _burst(t, dur, filter, freq, q, vol, rate) {
@@ -254,13 +282,26 @@ class Sfx {
     const rot = kind === "rot";
     const vol = duck * (0.75 + s * 0.55);
 
-    // 1. estalos de osso: bandpass estreito e decay curtissimo
-    const cracks = bony ? 3 + (Math.random() < 0.5 ? 1 : 0) : 2 + (Math.random() < 0.4 ? 1 : 0);
-    for (let i = 0; i < cracks; i++) {
-      const t = now + i * (0.011 + Math.random() * 0.022);
-      const f = (bony ? 3100 : 2500) - s * 900 + Math.random() * 800;
-      this._burst(t, 0.038 + Math.random() * 0.02, "bandpass", f, 11,
-                  (bony ? 0.075 : 0.055) * vol, 0.85 + Math.random() * 0.5);
+    /* 1. o estalo. Com a amostra decodificada usamos ela — osso quebrando de
+       verdade tem uma irregularidade que ruido filtrado nao imita. O tom cai
+       com o tamanho do corpo e sobe um pouco no esqueleto, que estala mais
+       seco. Os estalos sinteticos ficam de reserva. */
+    if (this.bone) {
+      const rate = (bony ? 1.18 : 1.0) - s * 0.32 + (Math.random() - 0.5) * 0.16;
+      this._sample(this.bone, now, Math.max(0.55, rate), (bony ? 0.5 : 0.36) * vol);
+      // corpo grande: um segundo estalo logo atras, mais grave
+      if (s > 0.45) {
+        this._sample(this.bone, now + 0.05 + Math.random() * 0.04,
+                     Math.max(0.5, rate * 0.8), 0.24 * vol);
+      }
+    } else {
+      const cracks = bony ? 3 + (Math.random() < 0.5 ? 1 : 0) : 2 + (Math.random() < 0.4 ? 1 : 0);
+      for (let i = 0; i < cracks; i++) {
+        const t = now + i * (0.011 + Math.random() * 0.022);
+        const f = (bony ? 3100 : 2500) - s * 900 + Math.random() * 800;
+        this._burst(t, 0.038 + Math.random() * 0.02, "bandpass", f, 11,
+                    (bony ? 0.075 : 0.055) * vol, 0.85 + Math.random() * 0.5);
+      }
     }
 
     // 2. esmagamento: grave, largo, curto

@@ -10,15 +10,22 @@ g.start();
 let fails = 0;
 const fail = (m) => { console.error("  X " + m); fails++; };
 
+// a amostra de osso precisa decodificar e ser realmente usada
+g.sfx.init();
+if (!g.sfx.bone) fail("amostra de osso nao decodificou");
+else console.log(`  ok amostra de osso decodificada (${g.sfx.bone.duration.toFixed(3)}s)`);
+
 for (const id in ENEMIES) {
   const t = ENEMIES[id];
   const heft = t.boss ? 1 : Math.min(1, Math.max(0, (t.radius - 12) / 26));
-  __audio.nodes = 0;
+  __audio.nodes = 0; __audio.samples = 0;
   g.clock += 1;                       // afasta do throttle
   try { g.sfx.death(heft, t.deathSfx); }
   catch (e) { fail(`${id}: ${e.message}`); continue; }
   if (__audio.nodes < 4) fail(`${id}: so ${__audio.nodes} fontes de som (esperado 4+)`);
-  else console.log(`  ok ${t.name.padEnd(18)} timbre "${t.deathSfx}" peso ${heft.toFixed(2)} -> ${__audio.nodes} fontes`);
+  else if (!__audio.samples) fail(`${id}: nao tocou a amostra de osso`);
+  else console.log(`  ok ${t.name.padEnd(18)} timbre "${t.deathSfx}" peso ${heft.toFixed(2)} -> ` +
+                   `${__audio.nodes} fontes (${__audio.samples} de osso)`);
 }
 
 // chacina: o throttle e o duck precisam segurar sem quebrar nem emudecer
@@ -61,6 +68,17 @@ for (let i = 0; i < 60 * 60 * 4; i++) {
   try { g.update(1 / 60); } catch (e) { fail(`durante o jogo aos ${g.elapsed.toFixed(0)}s: ${e.message}`); break; }
 }
 console.log(`  ok 4 min de jogo -> ${__audio.nodes} fontes de som criadas, ${g.player.kills} abates`);
+
+// se a amostra nao existir, o sintetico tem que assumir — nunca silencio
+const guardado = g.sfx.bone;
+g.sfx.bone = null;
+__audio.nodes = 0; __audio.samples = 0;
+g.clock += 2;
+g.sfx.death(0.5, "bone");
+if (__audio.samples) fail("tocou amostra mesmo sem buffer");
+else if (__audio.nodes < 4) fail(`sem a amostra, o sintetico so fez ${__audio.nodes} fontes`);
+else console.log(`  ok sem a amostra, os estalos sinteticos assumem (${__audio.nodes} fontes)`);
+g.sfx.bone = guardado;
 
 console.log(fails ? `\nX ${fails} falhas` : "\nok som de morte validado");
 if (fails) __exit(1);

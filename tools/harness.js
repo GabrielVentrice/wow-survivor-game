@@ -67,6 +67,8 @@ const sandbox = {
   URLSearchParams: class { constructor() {} get() { return null; } },
   addEventListener: () => {},
   requestAnimationFrame: () => 1,
+  atob: (b64) => Buffer.from(b64, "base64").toString("binary"),
+  Buffer,
   setTimeout: () => 0,
   // AudioContext falso: o codigo de som constroi o grafo de verdade, entao
   // erro de API (createBuffer, rampa exponencial partindo de zero) aparece aqui
@@ -84,13 +86,25 @@ const sandbox = {
       // nenhum tempo passou e o som nunca toca duas vezes
       get currentTime() { return sandbox.game ? sandbox.game.clock : 0; },
       destination: node(), resume: () => {},
+      // decodifica de mentira, mas so aceita bytes de WAV de verdade
+      decodeAudioData: (arr, ok) => {
+        const b = new Uint8Array(arr);
+        const tag = String.fromCharCode(b[0], b[1], b[2], b[3]);
+        if (tag !== "RIFF") throw new Error("decodeAudioData recebeu algo que nao e WAV: " + tag);
+        const buf = { duration: (b.length - 44) / 2 / 22050, sampleRate: 22050, __wav: true };
+        ok(buf);
+        return null;
+      },
       createBuffer: (ch, len, rate) => {
         if (!(len > 0)) throw new Error("createBuffer com length invalido");
         return { getChannelData: () => new Float32Array(len) };
       },
-      createBufferSource: () => Object.assign(node(), {
-        buffer: null, playbackRate: param(1),
-        start: () => { __audio.nodes++; }, stop: () => {} }),
+      createBufferSource: () => {
+        const n = Object.assign(node(), { buffer: null, playbackRate: param(1) });
+        n.start = () => { __audio.nodes++; if (n.buffer && n.buffer.__wav) __audio.samples++; };
+        n.stop = () => {};
+        return n;
+      },
       createBiquadFilter: () => Object.assign(node(), {
         type: "", frequency: param(0), Q: param(0) }),
       createGain: () => Object.assign(node(), { gain: param(0) }),
@@ -110,7 +124,28 @@ const sandbox = {
   },
   webkitAudioContext: undefined,
 };
-const __audio = { nodes: 0 };
+const __audio = { nodes: 0, samples: 0 };
+// Elemento <audio> falso: guarda os listeners para que o driver decida se o
+// arquivo carrega, falha ou fica pendente — os tres caminhos importam.
+const __track = {
+  els: [], plays: 0,
+  reset() { this.els = []; this.plays = 0; },
+  succeed() { for (const e of this.els) (e._l.canplaythrough || []).forEach((f) => f()); },
+  fail() { for (const e of this.els) (e._l.error || []).forEach((f) => f()); },
+};
+sandbox.__track = __track;
+sandbox.Audio = function () {
+  const el = {
+    preload: "", loop: false, volume: 0, currentTime: 0, duration: 57.5,
+    ended: false, src: "", playing: false, _l: {},
+    addEventListener(n, fn) { (this._l[n] = this._l[n] || []).push(fn); },
+    load() {},
+    play() { __track.plays++; this.playing = true; return { catch: () => {} }; },
+    pause() { this.playing = false; },
+  };
+  __track.els.push(el);
+  return el;
+};
 sandbox.__audio = __audio;
 sandbox.__draw = __draw;
 sandbox.window = sandbox;

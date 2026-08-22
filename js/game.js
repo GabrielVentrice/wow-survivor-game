@@ -35,7 +35,7 @@ class Game {
     this.spawner = new SpawnManager();
     this.lastBossChestAt = -BALANCE.spawn.bossChestCooldown;
     this.sfx = new Sfx();
-    this.music = new Music();
+    this.music = new Soundtrack("audio/legion.mp3");
     this.grid = new SpatialGrid(48);
     this.events = new EventBus();
     this.vfxLayer = new VfxLayer();
@@ -79,7 +79,7 @@ class Game {
         this.sfx.muted = !this.sfx.muted;
         this.music.setMuted(this.sfx.muted);
       }
-      if (k === "n") this.music.setMuted(!this.music.muted);   // N: so a trilha
+      if (k === "n") this.music.setMuted(!this.music.isMuted);  // N: so a trilha
       if (e.key === "Escape") this.togglePause();
     });
     /* O browser so cria AudioContext depois de um gesto do usuario, entao a
@@ -351,7 +351,7 @@ class Game {
       total -= step;
     }
     this.vfxLayer.update(dt * this.timeScale);
-    this.music.update();     // relogio do audio, nao do jogo: ignora timeScale
+    this.music.update(dt);   // relogio do audio, nao do jogo: ignora timeScale
     this._frameDt = dt;      // brasas e vinheta vivem em tempo real
     this.render();
   }

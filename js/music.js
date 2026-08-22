@@ -62,7 +62,10 @@ class Music {
     this.nextStepAt = 0;
     this.intensity = 0;
     this._target = 0;
-    this.state = "menu";
+    /* Comeca em "off", nao em "menu": setState ignora mudanca para o mesmo
+       estado, entao nascer ja em "menu" fazia o primeiro setState("menu") ser
+       um no-op e a trilha do menu nunca ligava. */
+    this.state = "off";
     this.nodes = null;
   }
 
@@ -142,10 +145,11 @@ class Music {
   _applyLevel() {
     if (!this.ctx) return;
     const g = this.nodes.master.gain;
+    // fundo e fundo: os efeitos de combate tem que passar por cima
     const level = this.muted || !this.on ? 0
-      : this.state === "paused" ? 0.05
-      : this.state === "menu" ? 0.1
-      : 0.155;
+      : this.state === "paused" ? 0.028
+      : this.state === "menu" ? 0.062
+      : 0.075;
     g.cancelScheduledValues(this.ctx.currentTime);
     g.setValueAtTime(Math.max(0.0001, g.value), this.ctx.currentTime);
     g.linearRampToValueAtTime(level, this.ctx.currentTime + 1.2);
