@@ -321,10 +321,10 @@ class UI {
     }
     shuffle(cands);
 
-    const roll = Math.random();
-    const rarity = roll < 0.6 ? { count: 1, label: "Comum", color: "#cfd2dc" }
-      : roll < 0.9 ? { count: 3, label: "Raro", color: "#5acfff" }
-      : { count: 5, label: "Lendário", color: "#ffd24a" };
+    // Raridade é dado (BALANCE.chest.rarity); depois de hardAt a tabela troca de
+    // coluna e os baús grandes passam a ser a regra.
+    const late = g.elapsed >= BALANCE.spawn.hardAt;
+    const rarity = pickWeighted(BALANCE.chest.rarity, late ? "lateWeight" : "weight");
 
     const results = [];
     const used = new Set();
@@ -356,7 +356,7 @@ class UI {
     this.updatePieceBar();
 
     g.sfx.levelUp();
-    g.addShake(rarity.count >= 5 ? 16 : rarity.count >= 3 ? 10 : 6);
+    g.addShake(rarity.shake);
     let rows = results.length
       ? results.map((r) => `<div class="chest-row">
           <span class="chest-ic" style="color:${r.def.color}">${r.def.icon}</span>
@@ -364,7 +364,12 @@ class UI {
           <span class="chest-lv">Tier ${r.from} → ${r.to}</span></div>`).join("")
       : `<div class="chest-empty">Arsenal no máximo — cura total!</div>`;
     this.el.chestList.innerHTML = rows;
-    this.el.chestRarity.textContent = `${rarity.label} · ${rarity.count} tier${rarity.count > 1 ? "s" : ""}`;
+    // O rótulo conta o que caiu, não o que foi sorteado: com o arsenal quase no
+    // teto um Lendário entrega menos de 5 e dizer "5 tiers" seria mentira.
+    const got = results.length;
+    this.el.chestRarity.textContent = got
+      ? `${rarity.label} · ${got} tier${got > 1 ? "s" : ""}`
+      : `${rarity.label} · arsenal no máximo`;
     this.el.chestRarity.style.color = rarity.color;
     g.state = STATE.CHEST;
     this.el.chest.classList.remove("hidden");

@@ -20,13 +20,13 @@ DRIVER=driver_cards.js node tools/harness.js .   # cartas de level up: faixa de 
 DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas, abertura
 ```
 
-O stub de `AudioContext` monta o grafo de verdade e explode em rampa
-exponencial com alvo <= 0, então erro de WebAudio aparece aqui e não só no
 `make_track.py` não é driver: é o gerador da trilha de fundo
 (`audio/gothic-lofi.mp3`). Precisa de numpy e scipy, roda em ~7 s e imprime o
 nível de cada barramento e o degrau no ponto de volta do loop. Como reencodar
 está em `audio/README.md`.
 
+O stub de `AudioContext` monta o grafo de verdade e explode em rampa
+exponencial com alvo <= 0, então erro de WebAudio aparece aqui e não só no
 browser.
 
 O driver padrão também valida o registry antes de simular: tiers faltando,

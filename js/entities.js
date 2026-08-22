@@ -788,5 +788,13 @@ class SpawnManager {
     }
     game.onBossSpawn(n);
   }
+  // Perto o bastante para ser visto, longe o bastante para exigir atravessar a
+  // horda: com movimento como único input, o baú é a decisão de posicionamento.
+  spawnChest(game) {
+    const reach = this._reach(game) * BALANCE.spawn.chestDist;
+    const a = Math.random() * Math.PI * 2;
+    game.spawnChestAt(game.player.x + Math.cos(a) * reach,
+                      game.player.y + Math.sin(a) * reach);
+  }
 }
 
