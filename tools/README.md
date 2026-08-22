@@ -13,6 +13,7 @@ DRIVER=driver_evo.js   node tools/harness.js .   # as 7 evoluções + regras de 
 DRIVER=driver_hooks.js node tools/harness.js .   # todo hook de capstone/passiva dispara?
 DRIVER=driver_dot.js   node tools/harness.js .   # cadência, stacking e expiração de DoT
 DRIVER=driver_audio.js node tools/harness.js .   # som de morte: grafo, throttle, mudo
+DRIVER=driver_music.js node tools/harness.js .   # trilha: andamento, camadas, estados
 ```
 
 O stub de `AudioContext` monta o grafo de verdade e explode em rampa

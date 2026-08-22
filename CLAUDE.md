@@ -21,6 +21,7 @@ python3 -m http.server 8000     # alternativa se precisar de http://
 ```
 
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
+Antes de commitar, rode a bateria headless: veja `tools/README.md`.
 
 **Scripts são clássicos (`<script src>`), nunca `type="module"`.** Módulo ES é
 buscado com CORS e `file://` tem origem opaca — o browser bloquearia e "abrir o
@@ -36,6 +37,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/balance.js` | `BALANCE`, `ENEMIES`, `AXES`, `AXIS_RULES`, `PATH_RULES`, `CLASSES`, `ITEMS` |
 | `js/sprites.js` | `SPRITE_DATA` + geração de pixel-art e do tile de chão em runtime |
 | `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
+| `js/music.js` | `MUSIC` (andamento, escala, acordes) + `Music` — trilha procedural |
 | `js/entities.js` | `Player`, `Enemy`, `Projectile`, `Minion`, `AreaEffect`, `DotInstance`, `XPOrb`, `Pickup`, `Particle`, `SpawnManager` |
 | `js/systems/resolve.js` | registries (`PIECES`, `PASSIVES`, `CAPSTONES`, `MINIONS`) + pipeline de stats |
 | `js/systems/effects.js` | `EFFECTS` — o que acontece |
@@ -160,11 +162,26 @@ A ordem das chamadas em `Game.render()` **é** a ordem de profundidade.
 - O kit inicial da classe entra **de graça** (`acquirePiece(id, true)`), para o
   pool de 20 ficar inteiro para as escolhas do jogador.
 
+### Áudio: agendado no relógio do AudioContext, não no do jogo
+
+Efeitos e trilha são gerados em runtime. Duas regras que não dá para violar:
+
+- **Nada é marcado para "agora".** O `requestAnimationFrame` varia de 8ms a 30ms
+  por frame; nota marcada no instante em que o frame roda chega sempre atrasada e
+  desigual. `Music.update()` só empurra uma fila com `lookahead` de 250ms — quem
+  toca no tempo certo é o hardware de áudio. Por isso a trilha também **ignora
+  `timeScale`**: ela vive em tempo real.
+- **`exponentialRampToValueAtTime` precisa de alvo e valor inicial > 0.** Rampa
+  partindo de zero é inválida; `_burst`/`_sweep`/`_voice` fazem `if (vol < 0.0005) return`.
+
+A intensidade da trilha (`Game.musicIntensity`) vem do estado real da run —
+tempo, fase dura, chefe em campo — nunca de um contador próprio da música.
+
 ### Zero assets externos
 
 Sprites saem de grids ASCII em `SPRITE_DATA`; o chão é um tile procedural
-repetido via `CanvasPattern`; o som é WebAudio procedural. Não adicione arquivos
-de imagem ou áudio.
+repetido via `CanvasPattern`; som e música são WebAudio procedural. Não adicione
+arquivos de imagem ou áudio.
 
 ## Convenções
 

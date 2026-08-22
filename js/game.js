@@ -34,6 +34,7 @@ class Game {
     this.spawner = new SpawnManager();
     this.lastBossChestAt = -BALANCE.spawn.bossChestCooldown;
     this.sfx = new Sfx();
+    this.music = new Music();
     this.grid = new SpatialGrid(48);
     this.events = new EventBus();
     this.vfxLayer = new VfxLayer();
@@ -60,6 +61,7 @@ class Game {
     this.lastBigHit = null;
 
     this.state = STATE.MENU;
+    this.bossAlive = 0;        // alimenta a intensidade da trilha
     this.selectedClass = "warlock";
     this.selectedSpeed = 1;
     this.timeScale = 1;
@@ -71,13 +73,28 @@ class Game {
     this.ui = new UI(this);
     this._loop = this._loop.bind(this);
     addEventListener("keydown", (e) => {
-      if (e.key.toLowerCase() === "m") this.sfx.muted = !this.sfx.muted;
+      const k = e.key.toLowerCase();
+      if (k === "m") {                      // M: tudo
+        this.sfx.muted = !this.sfx.muted;
+        this.music.setMuted(this.sfx.muted);
+      }
+      if (k === "n") this.music.setMuted(!this.music.muted);   // N: so a trilha
       if (e.key === "Escape") this.togglePause();
     });
+    /* O browser so cria AudioContext depois de um gesto do usuario, entao a
+       trilha do menu comeca no primeiro clique — nao na carga da pagina. */
+    addEventListener("pointerdown", () => this.enableAudio(), { once: true });
     addEventListener("resize", () => this.resize());
     this.resize();
     this.ui.buildMenu();
     requestAnimationFrame(this._loop);
+  }
+
+  enableAudio() {
+    this.sfx.init();
+    this.music.attach(this.sfx.ctx);
+    this.music.setMuted(this.sfx.muted);
+    if (this.state === STATE.MENU) this.music.setState("menu");
   }
 
   resize() {
@@ -239,6 +256,7 @@ class Game {
     this.build.reset();
     this.elapsed = 0;
     this.clock = 0;
+    this.bossAlive = 0;
     this.lastBossChestAt = -BALANCE.spawn.bossChestCooldown;
     this.timeScale = this.selectedSpeed;
     this.camera.x = 0; this.camera.y = 0;
@@ -247,7 +265,9 @@ class Game {
     for (const id of cls.starting) this.build.acquirePiece(id, true);
     this.build.afterChange();
 
-    this.sfx.init();
+    this.enableAudio();
+    this.music.restart();
+    this.music.setState("playing");
     this.state = STATE.PLAYING;
     this.ui.onStart();
   }
@@ -266,16 +286,20 @@ class Game {
       return;
     }
     this.state = STATE.GAMEOVER;
+    this.music.setState("gameover");
     this.sfx.gameOver();
     this.ui.onGameOver();
   }
 
   togglePause() {
-    if (this.state === STATE.PLAYING) { this.state = STATE.PAUSED; this.ui.onPause(); }
-    else if (this.state === STATE.PAUSED) this.resume();
+    if (this.state === STATE.PLAYING) {
+      this.state = STATE.PAUSED;
+      this.music.setState("paused");
+      this.ui.onPause();
+    } else if (this.state === STATE.PAUSED) this.resume();
   }
-  resume() { this.ui.hidePause(); this.state = STATE.PLAYING; }
-  quitToMenu() { this.ui.toMenu(); this.state = STATE.MENU; }
+  resume() { this.ui.hidePause(); this.music.setState("playing"); this.state = STATE.PLAYING; }
+  quitToMenu() { this.ui.toMenu(); this.music.setState("menu"); this.state = STATE.MENU; }
 
   addShake(mag) { this.camera.shake = Math.max(this.camera.shake, mag); }
 
@@ -289,6 +313,7 @@ class Game {
   }
 
   onBossSpawn(count = 1) {
+    this.bossAlive += count;
     this.addShake(10 + (count - 1) * 4);
     this.sfx.boss();
     this.ui.toast({ head: "Chefe!", color: "#b23cff", icon: "☠",
@@ -324,6 +349,7 @@ class Game {
       total -= step;
     }
     this.vfxLayer.update(dt * this.timeScale);
+    this.music.update();     // relogio do audio, nao do jogo: ignora timeScale
     this.render();
   }
 
@@ -351,12 +377,23 @@ class Game {
 
     this.camera.follow(this.player, dt);
     this.camera.updateShake(dt);
+    this.music.setIntensity(this.musicIntensity());
     this.ui.updateHUD();
     this._dmgTimer -= dt;
     if (this._dmgTimer <= 0) { this._dmgTimer = 0.25; this.ui.updateDamageMeter(); }
 
     if (this.player.hp <= 0) { this.gameOver(); return; }
     if (this.player.pendingLevels > 0) this.ui.openLevelUp();
+  }
+
+  /* A trilha acompanha a pressao real da run, nao um cronometro proprio:
+     sobe devagar com o tempo, salta na fase dura e vai ao teto com chefe em
+     campo. Quem le isso e Music.setIntensity, que suaviza a transicao. */
+  musicIntensity() {
+    if (this.bossAlive > 0) return 1;
+    let k = Math.min(0.72, this.elapsed / 400);
+    if (this.elapsed >= BALANCE.spawn.hardAt) k = Math.max(k, 0.62);
+    return k;
   }
 
   runTimers() {
@@ -567,6 +604,7 @@ class Game {
         // corpo maior = som mais grave; o timbre vem do dado do inimigo
         const heft = e.type.boss ? 1 : clamp((e.radius - 12) / 26, 0, 1);
         this.sfx.death(heft, e.type.deathSfx);
+        if (e.type.boss) this.bossAlive = Math.max(0, this.bossAlive - 1);
         if (e.type.boss) this.addShake(8);
         this.player.kills++;
         this.dropLoot(e);

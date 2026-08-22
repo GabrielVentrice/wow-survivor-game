@@ -69,7 +69,7 @@ const sandbox = {
       exponentialRampToValueAtTime: (target) => {
         if (!(target > 0)) throw new Error("exponentialRamp com alvo <= 0");
       },
-      linearRampToValueAtTime: () => {} });
+      linearRampToValueAtTime: () => {}, cancelScheduledValues: () => {} });
     const node = () => ({ connect: () => {} });
     const ctx = {
       state: "running", sampleRate: 44100,
@@ -87,8 +87,9 @@ const sandbox = {
       createBiquadFilter: () => Object.assign(node(), {
         type: "", frequency: param(0), Q: param(0) }),
       createGain: () => Object.assign(node(), { gain: param(0) }),
+      createDelay: () => Object.assign(node(), { delayTime: param(0) }),
       createOscillator: () => Object.assign(node(), {
-        type: "", frequency: param(0),
+        type: "", frequency: param(0), detune: param(0),
         start: () => { __audio.nodes++; }, stop: () => {} }),
     };
     return ctx;
