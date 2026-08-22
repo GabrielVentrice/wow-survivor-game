@@ -216,7 +216,7 @@ const CLASSES = {
        mestre. Com pool 20 e teto 15, cabem no máximo dois numa run: são
        exatamente as duas formas abaixo da base. */
     forms: [
-      { sprite: "warlock", caps: 0, scale: 3.0 },
+      { sprite: "warlock", caps: 0, scale: 3.375 },
       { sprite: "warlockFel", caps: 1, scale: 3.56, dy: -0.33, color: "#aaff5a",
         icon: "👹", name: "Corrompido",
         desc: "O primeiro capstone cobra o corpo: chifres despontam e a mandíbula acende." },
