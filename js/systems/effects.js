@@ -77,6 +77,65 @@ function effectTargets(game, e, c) {
   return out;
 }
 
+/* Dois projeteis que saem da MESMA boca no MESMO instante na mesma direcao
+   leem como um projetil so: o de tras fica escondido atras do da frente a run
+   inteira. O leque de um unico disparo ja e separado por `spread`, mas nada
+   separava disparos IRMAOS — `auto_target` com `targets > 1` chama este efeito
+   uma vez por alvo no mesmo instante, e dois alvos na mesma direcao devolviam
+   tiros sobrepostos. Da mesma forma duas pecas nao podem ser separadas aqui: a
+   rajada e identificada por (key, origem, instante), entao demonio nenhum tem
+   o tiro desviado por causa de um irmao que atira do outro lado do campo.
+
+   O registro e um objeto unico reaproveitado — codigo quente, zero alocacao
+   por disparo. */
+const PROJ_BURST = { key: null, x: 0, y: 0, now: -1, angles: [] };
+
+// Menor angulo com sinal entre dois rumos, em [-PI, PI].
+function angleDelta(a, b) {
+  let d = (a - b) % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  else if (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+/* Devolve um rumo livre: desliza `a` para fora de todo rumo ja tomado na
+   rajada e fica com o lado que exigiu menos desvio. O deslize e monotonico de
+   proposito — empurrar para o vizinho mais proximo a cada passo oscila entre
+   dois rumos ocupados e nunca converge; aqui cada passada so anda para frente,
+   entao ela termina em no maximo uma volta por tiro ja colocado.
+
+   Tudo e medido como deslocamento em relacao ao rumo pedido (`angleDelta`),
+   entao a conta vira 1-D e o problema de dar a volta no circulo some.
+
+   `minSep` fica um pouco ABAIXO do passo do leque de proposito: o leque que a
+   peca desenhou ja esta correto e nao pode ser reaberto por erro de ponto
+   flutuante — quem desvia e so quem colide de verdade. */
+function claimAngle(a, minSep) {
+  const list = PROJ_BURST.angles;
+  if (minSep > 0 && list.length) {
+    let up = 0, down = 0;
+    for (let guard = 0; guard <= list.length; guard++) {
+      let moved = false;
+      for (let i = 0; i < list.length; i++) {
+        const o = angleDelta(list[i], a);
+        if (up > o - minSep && up < o + minSep) { up = o + minSep; moved = true; }
+      }
+      if (!moved) break;
+    }
+    for (let guard = 0; guard <= list.length; guard++) {
+      let moved = false;
+      for (let i = 0; i < list.length; i++) {
+        const o = angleDelta(list[i], a);
+        if (down > o - minSep && down < o + minSep) { down = o - minSep; moved = true; }
+      }
+      if (!moved) break;
+    }
+    a += up <= -down ? up : down;
+  }
+  list.push(a);
+  return a;
+}
+
 const EFFECTS = {
 
   /* --- dano ------------------------------------------------------------- */
@@ -122,8 +181,18 @@ const EFFECTS = {
     const n = Math.max(1, Math.round(e.count || 1));
     const spread = e.spread != null ? e.spread : 0.14;
     const sp = e.speed || 480;
+
+    // Mesma boca, mesmo instante, mesma peca = mesma rajada.
+    if (PROJ_BURST.key !== c.key || PROJ_BURST.now !== c.now ||
+        PROJ_BURST.x !== c.x || PROJ_BURST.y !== c.y) {
+      PROJ_BURST.key = c.key; PROJ_BURST.now = c.now;
+      PROJ_BURST.x = c.x; PROJ_BURST.y = c.y;
+      PROJ_BURST.angles.length = 0;
+    }
+    const minSep = spread * 0.9;
+
     for (let i = 0; i < n; i++) {
-      const a = base + (i - (n - 1) / 2) * spread;
+      const a = claimAngle(base + (i - (n - 1) / 2) * spread, minSep);
       game.projectiles.spawn({
         x: c.x, y: c.y,
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
