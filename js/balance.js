@@ -16,18 +16,31 @@ const BALANCE = {
     lerp: 0.12,          // suavização do follow (0 = travado, 1 = instantâneo)
   },
   spawn: {
-    baseInterval: 1.1,   // s entre spawns no início
-    minInterval: 0.18,   // piso do intervalo
+    /* Densidade DOBRADA em relação ao tuning original.
+
+       A sensação de rampagem vem de ceifar leva, não de duelar. Intervalo pela
+       metade, teto de vivos e tamanho de wave dobrados, e o HP por ramp
+       reduzido para compensar: mais corpos, menos vida cada. Um inimigo que
+       exige três tiros não dá dopamina; vinte que caem no mesmo pulso, sim. */
+    baseInterval: 0.55,  // s entre spawns no início
+    minInterval: 0.09,   // piso do intervalo
     rampEvery: 30,       // a cada Xs aperta o spawn e o HP
-    intervalDecay: 0.88, // multiplicador do intervalo a cada ramp
-    hpGrowth: 0.18,      // +18% HP base por ramp
+    intervalDecay: 0.86, // multiplicador do intervalo a cada ramp
+    /* HP por ramp caiu de 0.18 para 0.11, e o teto de vivos subiu.
+
+       A troca é deliberada: MAIS CORPOS, MENOS VIDA CADA. Vida crescendo a
+       18% a cada 30s vira exponencial (167x a base aos 10 min) e o dano do
+       jogador não acompanha — a curva de abates achatava e virava parede.
+       Densidade alta com vida baixa dá o oposto: dá para ceifar levas
+       inteiras, que é de onde vem a dopamina. */
+    hpGrowth: 0.11,      // +11% HP base por ramp
     dmgGrowth: 0,        // touch damage does not scale before the hard phase
     speedGrowth: 0,      // same for enemy speed
-    maxAlive: 400,       // teto de inimigos vivos (perf)
+    maxAlive: 1100,      // teto de inimigos vivos (perf)
     margin: 80,          // distância fora da tela onde nascem
     abominationAt: 180,  // s até Abomination entrar no pool
     waveEvery: 120,      // a cada Xs, wave densa em círculo
-    waveBase: 14,        // inimigos por wave (cresce com ramps)
+    waveBase: 36,        // inimigos por wave (cresce com ramps)
     bossAt: 300,         // 1º Dreadlord aos 5 min
     bossEvery: 150,      // novos Dreadlords a cada Xs depois disso
     // Boss HP uses hpMul raised to this exponent: without it a Dreadlord at
@@ -38,21 +51,41 @@ const BALANCE = {
     // competent run to end somewhere around the 10 minute mark.
     hardAt: 300,             // second gear kicks in here (5 min)
     hardRampEvery: 15,       // ramps twice as often
-    hardIntervalDecay: 0.86, // spawn interval tightens faster
-    hardMinInterval: 0.09,   // new floor for the interval
-    hardHpGrowth: 0.19,      // +19% HP per ramp (every 15s)
+    hardIntervalDecay: 0.84, // spawn interval tightens faster
+    hardMinInterval: 0.035,  // new floor for the interval
+    hardHpGrowth: 0.105,     // +10.5% HP per ramp (every 15s)
     hardDmgGrowth: 0.06,     // +6% touch damage per ramp
     hardSpeedGrowth: 0.02,   // +2% enemy speed per ramp
-    hardMaxAlive: 480,       // alive cap rises alongside
+    hardMaxAlive: 1500,      // alive cap rises alongside
     hardWaveEvery: 50,       // dense waves nearly twice as frequent
     hardBossEvery: 75,       // Dreadlords every 75s
     hardBossStack: 150,      // every Xs past hardAt, +1 Dreadlord per summon
     maxBossStack: 3,         // cap on Dreadlords per summon
-    bossChestCooldown: 60,   // min seconds between boss chests (anti-snowball)
+    // Baú é a fonte de tiers grátis: espaçá-lo custava as evoluções. Com 10s
+    // cada Dreadlord de um summon empilhado larga o seu.
+    bossChestCooldown: 10,   // min seconds between boss chests
+    // Baú de mundo: não espera boss. Antes disso a run passava 5 minutos sem
+    // ver um único baú, porque o 1º Dreadlord só nasce aos 300s.
+    chestAt: 45,             // 1º baú avulso aos 45s
+    chestEvery: 55,          // novos baús a cada Xs
+    hardChestEvery: 40,      // cadência apertada na fase dura
+    chestDist: 0.42,         // fração do alcance de spawn: perto, mas exige andar
     // No enemy may exceed this fraction of the player's speed: the pressure
     // comes from density, not from taking kiting off the table.
     speedCap: 0.9,
   },
+};
+
+
+/* Baú: quantos tiers grátis ele entrega. Peso relativo, não porcentagem;
+   `lateWeight` substitui `weight` depois de BALANCE.spawn.hardAt — no fim da run
+   um tier avulso não muda mais nada, um pacote de 5 sim. */
+BALANCE.chest = {
+  rarity: [
+    { count: 1, label: "Comum",    color: "#cfd2dc", shake: 6,  weight: 34, lateWeight: 12 },
+    { count: 3, label: "Raro",     color: "#5acfff", shake: 10, weight: 44, lateWeight: 46 },
+    { count: 5, label: "Lendário", color: "#ffd24a", shake: 16, weight: 22, lateWeight: 42 },
+  ],
 };
 
 // Inimigos como data. radius, hp, speed, touchDps, color, weight (peso de spawn).

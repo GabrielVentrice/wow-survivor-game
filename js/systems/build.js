@@ -401,13 +401,23 @@ class BuildSystem {
 
     shuffle(pool);
 
-    // Garante variedade: no maximo 2 ofertas da mesma peca no mesmo saque.
+    /* Um tier que COMPLETA uma evolução vai para a frente da fila.
+
+       Sem isso a evolução é loteria: são 5 compras no mesmo caminho, sorteadas
+       entre dezenas de ofertas. Medido antes desta regra: zero evoluções em 20
+       runs — o clímax do sistema de progressão nunca aparecia. Puxar só o
+       último degrau não entrega nada de graça; o jogador ainda pagou os
+       quatro tiers anteriores. */
+    pool.sort((a, b) => (b.isEvo ? 1 : 0) - (a.isEvo ? 1 : 0));
+
+    // Deixa até 2 caminhos da mesma peça no mesmo saque: com o limite de 1,
+    // aprofundar dependia de a peça certa cair de novo no sorteio seguinte.
     const out = [], perPiece = new Map();
     for (let i = 0; i < pool.length && out.length < count; i++) {
       const o = pool[i];
       if (o.kind === "path") {
         const n = perPiece.get(o.inst.key) || 0;
-        if (n >= 1) continue;
+        if (n >= 2) continue;
         perPiece.set(o.inst.key, n + 1);
       }
       out.push(o);

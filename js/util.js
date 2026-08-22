@@ -10,9 +10,19 @@ const EMPTY_ARR = [];            // sentinela p/ render nao alocar por frame
 const PULSE_LIFE = 0.9;          // duracao da onda de choque de desbloqueio
 const DEFAULT_FORMS = [{ sprite: "warlock", at: 0, scale: 2.9 }];
 
-// XP necessária para sair do nível `l` (lvl 1 = 1 orbe; ramp suave depois)
+/* XP para sair do nível `l`.
+
+   A curva anterior era quadrática forte (nível 20 custava 183, nível 30
+   custava 395), então os níveis secavam exatamente quando a build deveria
+   estar explodindo. Numa run de 15 min o jogador chegava ao nível ~20, ou
+   seja ~20 escolhas — e uma evolução sozinha custa 5 escolhas no MESMO
+   caminho. Resultado medido: zero evoluções em 20 runs.
+
+   A curva nova é quase linear com uma leve subida. Mais escolhas por run =
+   a build continua crescendo enquanto a horda cresce, que é a condição para
+   existir sensação de rampagem em vez de parede. */
 function xpForLevel(l) {
-  return Math.floor(1 + (l - 1) * 2 + (l - 1) * (l - 1) * 0.4);
+  return Math.floor(2 + (l - 1) * 2.6 + (l - 1) * (l - 1) * 0.09);
 }
 
 // número compacto: 1234 -> "1.2k", 2.5e6 -> "2.5M"
@@ -38,6 +48,18 @@ function shuffle(arr) {
     const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
   }
   return arr;
+}
+
+// Weighted pick over a table of entries. `key` names the weight field, so the
+// same table can carry an early-game and a late-game column (weight/lateWeight)
+// the way ENEMIES already does.
+function pickWeighted(list, key) {
+  let total = 0;
+  for (const e of list) total += e[key] || 0;
+  if (total <= 0) return list[0];
+  let roll = Math.random() * total;
+  for (const e of list) { if ((roll -= e[key] || 0) < 0) return e; }
+  return list[list.length - 1];
 }
 
 // Clona estruturas de dado puras (objetos, arrays, primitivos). Usado pela
