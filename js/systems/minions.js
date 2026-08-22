@@ -11,8 +11,15 @@
    em codigo.
    ========================================================================= */
 
+// Ponto de formacao reaproveitado por _slot: alocar por frame aqui seria lixo
+// a 60fps com uma duzia de demonios em campo.
+const MINION_SLOT = { x: 0, y: 0 };
+
 const MINION_AI = {
   // Orbita o player. Dano por contato, sem mira.
+  // O Voidwalker e escudo giratorio de propriedade: o giro E a peca (trigger
+  // `orbital`, caminho "Orbita", tier de velocidade de giro). Ele e o unico
+  // que ainda roda em volta — todo demonio com passo proprio segue o jogador.
   orbit(m, dt, g, now) {
     m.angle += dt * (m.orbitSpeed || 1.5);
     const tx = g.player.x + Math.cos(m.angle) * m.orbitRadius;
@@ -36,18 +43,14 @@ const MINION_AI = {
     return d <= m.radius + t.radius + 6 ? t : null;
   },
 
-  // Fica colado no player e bate em quem chegar perto (Felguard).
+  // Anda junto do player e investe em quem chegar perto DELE (Felguard).
   anchor(m, dt, g, now) {
-    const ax = g.player.x + Math.cos(m.angle) * m.orbitRadius;
-    const ay = g.player.y + Math.sin(m.angle) * m.orbitRadius;
     const t = g.nearestEnemy(g.player.x, g.player.y, m.range);
-    let tx = ax, ty = ay;
-    if (t) { tx = t.x; ty = t.y; }
-    const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy) || 1;
+    if (!t) { MINION_AI._follow(m, dt, g, m.orbitRadius); return null; }
+    const dx = t.x - m.x, dy = t.y - m.y, d = Math.hypot(dx, dy) || 1;
     m.x += (dx / d) * m.speed * dt;
     m.y += (dy / d) * m.speed * dt;
     m.facing = dx < 0 ? -1 : 1;
-    if (!t) return null;
     const td = Math.hypot(t.x - m.x, t.y - m.y);
     return td <= m.radius + t.radius + 8 ? t : null;
   },
@@ -57,13 +60,9 @@ const MINION_AI = {
     return g.nearestEnemy(m.x, m.y, m.range);
   },
 
-  // Acompanha o player de longe e atira (Wild Imps).
+  // Acompanha o player e atira de onde estiver (Wild Imps).
   ranged(m, dt, g, now) {
-    m.angle += dt * 0.6;
-    const tx = g.player.x + Math.cos(m.angle) * m.orbitRadius;
-    const ty = g.player.y + Math.sin(m.angle) * m.orbitRadius;
-    const k = Math.min(1, dt * 6);
-    m.x += (tx - m.x) * k; m.y += (ty - m.y) * k;
+    MINION_AI._follow(m, dt, g, m.orbitRadius);
     const t = g.nearestEnemy(m.x, m.y, m.range);
     if (t) m.facing = t.x < m.x ? -1 : 1;
     return t;
@@ -83,15 +82,47 @@ const MINION_AI = {
     return d <= m.radius + t.radius + 6 ? t : null;
   },
 
-  // Volta para perto do player quando nao ha alvo — impede o demonio de
+  /* Formation slot: a point BEHIND the player, opposite to the direction they
+     last moved in. `m.angle` is frozen at spawn and used as the slot id — it
+     fans the pack sideways and staggers its depth so a dozen demons do not
+     collapse into one pixel. It is never advanced by time: an angle that grows
+     is what makes a pet circle instead of follow.
+
+     Writes into a shared scratch point — this runs once per demon per sub-step
+     and a fresh object here would be garbage at 60fps. */
+  _slot(m, g, dist) {
+    const p = g.player;
+    let bx = -(p.dirX || 0), by = -(p.dirY || 0);
+    const bl = Math.hypot(bx, by);
+    if (bl < 0.001) { bx = -1; by = 0; } else { bx /= bl; by /= bl; }
+    const a = Math.sin(m.angle) * 0.85;
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const r = dist * (0.8 + 0.2 * (1 + Math.cos(m.angle)));
+    MINION_SLOT.x = p.x + (bx * ca - by * sa) * r;
+    MINION_SLOT.y = p.y + (bx * sa + by * ca) * r;
+    return MINION_SLOT;
+  },
+
+  /* Walks to that slot at the demon's own speed, with a dead zone so it stops
+     instead of vibrating on top of the point. Falling behind speeds it up: the
+     player outruns most demons the moment a speed buff lands, and a pet that
+     cannot catch up is a pet that left the screen. */
+  _follow(m, dt, g, dist) {
+    const s = MINION_AI._slot(m, g, dist || 72);
+    const dx = s.x - m.x, dy = s.y - m.y, d = Math.hypot(dx, dy);
+    const slack = m.radius + 8;
+    if (d <= slack) return;
+    const sp = m.speed * Math.min(2.2, 0.6 + d / 160);
+    const step = Math.min(d - slack, sp * dt);
+    m.x += (dx / d) * step;
+    m.y += (dy / d) * step;
+    m.facing = dx < 0 ? -1 : 1;
+  },
+
+  // Volta para o lado do player quando nao ha alvo — impede o demonio de
   // ficar preso do outro lado do mapa depois de limpar uma leva.
   _returnHome(m, dt, g) {
-    const dx = g.player.x - m.x, dy = g.player.y - m.y, d = Math.hypot(dx, dy);
-    if (d > 90) {
-      m.x += (dx / d) * m.speed * dt;
-      m.y += (dy / d) * m.speed * dt;
-      m.facing = dx < 0 ? -1 : 1;
-    }
+    MINION_AI._follow(m, dt, g, m.orbitRadius);
     return null;
   },
 };

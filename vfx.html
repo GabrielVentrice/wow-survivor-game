@@ -598,11 +598,10 @@ function stepWorld(w, dt) {
   for (let i = w.minions.length - 1; i >= 0; i--) {
     const m = w.minions[i];
     m.animTime += dt * 4;
-    m.angle += dt * 0.9;
-    const r = m.orbitR || 56;
-    const nx = p.x + Math.cos(m.angle) * r, ny = p.y + Math.sin(m.angle) * r * 0.5;
-    m.facing = nx < m.x ? -1 : 1;
-    m.x = nx; m.y = ny;
+    // Same walk the game gives them: a demon follows the player to a slot
+    // behind him. The card used to spin them around the player, which is
+    // exactly the motion MINION_AI stopped doing.
+    MINION_AI._follow(m, dt, w, m.orbitR || 56);
     if (w.t > m.expiresAt) {
       w.vfx.emit("unsummon", m.x, m.y, m.radius * 2.5, m.color);
       w.minions.splice(i, 1);

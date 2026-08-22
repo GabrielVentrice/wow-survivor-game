@@ -111,6 +111,21 @@ render cai no orbe genérico, que é fallback e não padrão: `driver_render`
 reprova tipo de demônio sem sprite próprio. Com uma dúzia deles em campo, a
 silhueta é a única coisa que diz o que está ali.
 
+**Demônio que anda por conta própria SEGUE o jogador — não gira em volta dele.**
+`MINION_AI._follow` leva cada um a um slot de formação *atrás* do jogador (na
+direção oposta à do último movimento), e o `angle` do spawn deixa de ser um
+ângulo que cresce para virar só o número do slot no leque. Ângulo que cresce com
+o tempo é literalmente o que faz um pet orbitar em vez de acompanhar, e com meia
+dúzia deles em campo a órbita lia como decoração girando, não como bicho. Vale
+para `chase`, `hunter`, `ranged` e `anchor` — e para o `_returnHome` deles, que
+agora é o mesmo passo com zona morta, em vez de um corte seco em 90 unidades que
+fazia o demônio tremer na borda.
+
+As duas exceções são de propósito: `turret` (Infernal, Nether Portal, Darkglare)
+fica plantado onde nasceu, e `orbit` é o **Voidwalker**, cuja peça inteira é a
+órbita — trigger `orbital`, caminho "Órbita", tiers de raio de anel e velocidade
+de giro. Ali o giro é a mecânica, não o transporte.
+
 ### `key` é a identidade estável, `id` é a aparência
 
 `id`, `name`, `icon`, `trigger` e `effects` mudam na evolução. **`key` nunca.**
