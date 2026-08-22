@@ -74,7 +74,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `vfx.html` | galeria de tudo que se mexe: uma cena viva por mecânica, com o que não anima marcado |
 | `js/util.js` | helpers puros (`xpForLevel`, `fmtNum`, `hexRgb`, `deepClone`, `setPath`) |
 | `js/balance.js` | `BALANCE`, `ENEMIES`, `AXES`, `AXIS_RULES`, `PATH_RULES`, `CLASSES`, `ITEMS` |
-| `js/sprites.js` | `SPRITE_DATA` + geração de pixel-art, tile de chão e estilhaços de morte |
+| `js/sprites.js` | `SPRITE_DATA`, `STATE_MARKS` + geração de pixel-art, chão e estilhaços |
 | `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
 | `js/voices.js` | `VOICES` — o que cada evento visual SOA (o irmão de `js/render/vfx.js`) |
 | `js/music.js` | `MUSIC` + `Music` — trilha procedural (a **reserva**) |
@@ -89,6 +89,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
 | `js/content/*.js` | o catálogo: 31 peças, passivas, capstones, demônios |
+| `js/render/fx-shapes.js` | `FX_SHAPES` — o gerador de eventos em pixel (`bloom`, `implode`, `nova`, `rip`) |
 | `js/render/tiles.js` | `TILE_ROWS` — as 8 lajes do chão, desenhadas em grade de 42x42 |
 | `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
@@ -598,6 +599,62 @@ acabou de acontecer". Consequências:
 - A voz dela é **o único som do jogo que sobe** em altura e brilho ao mesmo
   tempo. Todo o resto do combate cai (explosão, morte, execução, choque), e
   subir é o que faz o ouvido ler recompensa em vez de dano.
+
+### O gerador de formas: uma máquina, quatro eventos
+
+A explosão já era gerada do jeito certo — um campo de calor amostrado numa
+grade, silhueta irregular vinda de harmônicos no ângulo, quantizado em quatro
+bandas. O que ela não era é **genérica**: era uma função chamada
+`buildExplosionFrame`, e por isso o jogo inteiro tinha **uma** forma de evento.
+Dezesseis peças emitindo a mesma bola de fogo, distinguidas só pela matiz do
+eixo — e como matiz é predicado do eixo, duas peças do mesmo eixo saíam
+idênticas.
+
+`FX_SHAPES` (`js/render/fx-shapes.js`) é a mesma máquina aceitando mais de um
+formato. Um arquétipo declara **duas funções** e todo o resto é compartilhado:
+
+```js
+begin(u, variant, half)  // -> `st`, o estado daquele quadro
+depth(st, dx, dy)        // -> 0..1, quanto aquela célula está acesa
+```
+
+Tamanho de grade, rampa de quatro bandas, quantização, cache por (forma, cor,
+grade), variantes e espelho no blit são iguais para todos — é isso que faz
+quatro formas custarem o que uma custava.
+
+**O que separa os arquétipos não é a silhueta, é a curva de calor.** Duas
+formas com o mesmo desenho e a mesma curva são um tuning, não um evento novo:
+
+| forma | células quentes por quadro | o que ela conta |
+|---|---|---|
+| `bloom` | 10/20/25/**85**/59/14/0/0 | queima cedo, esvazia por dentro, esfria |
+| `implode` | 0/0/38/56/50/**89**/86/0 | a casca converge fria e **o clarão chega no fim** |
+| `nova` | 16/84/**128**/112/67/3/0/0 | só a casca, nunca o miolo |
+| `rip` | 0/34/62/**72**/66/38/0/0 | fenda vertical que abre e fecha |
+
+`rip` existe justamente por não ser radial: com quatro arquétipos redondos o
+catálogo continuaria com uma silhueta só. O eixo dela é vertical de propósito,
+porque tudo o mais em tela é horizontal — o chão, a horda, o rastro do
+projétil.
+
+Três regras que `driver_vfx` cobra:
+
+- **`bloom` é a explosão de hoje, célula por célula.** A extração foi mecânica
+  de propósito e o campo dela está preso a um **hash de referência** tirado do
+  gerador anterior (5 grades × 3 variantes × 8 quadros). Forma nova não pode
+  mexer de raspão na forma que dezesseis peças já usam.
+- **Nenhuma forma nasce vazia, e nenhuma nasce igual à vizinha** — o campo do
+  quadro do meio é comparado entre todas.
+- **Toda forma tem que ESFRIAR.** O que se mede é a área *quente* (bandas 0 e
+  1) e não a área acesa: o `bloom` termina em arcos rasgados que ainda ocupam
+  muita célula, e é certo que ocupem — o que não pode é continuar branco no
+  último quadro. Evento que termina no próprio pico é cortado pelo fim da vida
+  em vez de se dissipar, que é a diferença entre energia sumindo e alguém
+  apagando o desenho.
+
+O campo (`fxField`) vive separado do desenho pelos dois motivos acima: é o que
+o driver compara, e é a única coisa que muda entre arquétipos — o painter é um
+só.
 
 ### Mecânica que cobra, avisa
 

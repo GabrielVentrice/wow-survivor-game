@@ -193,7 +193,7 @@ está ocupada.
 Ordenadas por dopamina-por-hora, não por elegância. Cada uma fecha sozinha,
 roda a bateria e commita.
 
-> **Estado:** fases 0 a 3 entregues (`feat/vfx-impacto`). Placar do
+> **Estado:** fases 0 a 4 entregues (`feat/vfx-impacto`). Placar do
 > `driver_vfx`, do começo até aqui:
 >
 > | | fase 0 | fase 3 |
@@ -322,10 +322,27 @@ da galeria 25 → 16, e a mesa de teste passou a satisfazer toda condição que 
 peça declara (Demonic Circle pede 7 inimigos em volta; com 6 na mesa o driver
 media a própria mesa).
 
-### Fase 4 — O gerador (1–2 sessões)
-`js/render/fx-shapes.js`: generaliza `explosionFrames`. Entra com quatro
-archetypes (`bloom` migrado, `implode`, `nova`, `rip`). Nenhuma mudança de
-conteúdo ainda — a explosão de hoje tem que sair pixel a pixel igual.
+### ~~Fase 4 — O gerador~~ ✅
+`js/render/fx-shapes.js`. Um arquétipo declara `begin(u, variant, half)` e
+`depth(st, dx, dy)`; grade, rampa, quantização, cache, variantes e espelho são
+compartilhados — é isso que faz quatro formas custarem o que uma custava.
+
+**A descoberta:** o que separa um arquétipo do outro **não é a silhueta, é a
+curva de calor**. Duas formas com o mesmo desenho e a mesma curva são um
+tuning, não um evento novo. `bloom` queima cedo e esfria; `implode` converge
+frio e o clarão chega no **fim**; `nova` nunca tem miolo; `rip` é o único que
+não é radial — e existe por isso, senão o catálogo continuaria com uma
+silhueta só.
+
+**A explosão saiu pixel a pixel igual**, e isso é provado e não afirmado: o
+campo do `bloom` está preso a um hash tirado do gerador anterior sobre 5 grades
+× 3 variantes × 8 quadros. Junto entrou a regra de que **toda forma tem que
+esfriar** — medida na área *quente* e não na área acesa, porque o `bloom`
+termina em arcos rasgados que ainda ocupam muita célula, e é certo que ocupem.
+
+Nenhuma mudança de conteúdo, como planejado: as quatro formas existem e são
+revisáveis lado a lado na `sprites.html`, e ninguém as usa ainda — é a fase 5
+que liga cada peça à sua.
 
 ### Fase 5 — Assinatura por peça (2–3 sessões)
 Os oito archetypes restantes e o campo `fx` em todas as 43. É aqui que "repetido"

@@ -97,7 +97,7 @@ try {
 const cells = [];
 for (let f = 0; f < EXPLO.FRAMES; f++) {
   __draw.reset();
-  buildExplosionFrame(0, f, "#ff8a3c");
+  buildFxFrame("bloom", 0, f, "#ff8a3c", EXPLO.GRID);
   cells.push(__draw.calls.fillRect || 0);
 }
 if (cells.some((n) => n < 20)) fail(`quadro de explosao quase vazio: ${cells.join("/")}`);
@@ -114,11 +114,11 @@ if (explosionFrames("#ff8a3c") !== setA) fail("frames de explosao remontados a c
 if (setA.length !== EXPLO.VARIANTS || setA[0].length !== EXPLO.FRAMES) {
   fail(`esperava ${EXPLO.VARIANTS}x${EXPLO.FRAMES} quadros de explosao`);
 }
-const shape = (v) => { __draw.reset(); buildExplosionFrame(v, 3, "#ff8a3c"); return __draw.calls.fillRect; };
+const shape = (v) => { __draw.reset(); buildFxFrame("bloom", v, 3, "#ff8a3c", EXPLO.GRID); return __draw.calls.fillRect; };
 if (EXPLO.VARIANTS > 1 && shape(0) === shape(1)) fail("variantes de explosao com a mesma silhueta");
 explosionFrames("#c850ff");
-if (EXPLOSION_SPRITES.size !== 2) fail(`cache de explosao com ${EXPLOSION_SPRITES.size} entradas, esperava 2`);
-console.log(`  ok ${setA.length} variantes cacheadas por cor (${EXPLOSION_SPRITES.size} cores)`);
+if (FX_SETS.size !== 2) fail(`cache de explosao com ${FX_SETS.size} entradas, esperava 2`);
+console.log(`  ok ${setA.length} variantes cacheadas por cor (${FX_SETS.size} entradas)`);
 
 // e o desenho: toda fase da vida da explosao passa pelo stub de canvas
 try {

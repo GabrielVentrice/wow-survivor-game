@@ -403,6 +403,86 @@ const esparso = ceifar(14, 0.5);
 if (esparso.length) bad(`abate esparso (1 a cada 0,5s) acendeu a ceifa ${esparso.length} vez(es)`);
 else console.log("ok  ceifa: abate esparso nao acende — ela mede abates por SEGUNDO");
 
+/* =========================================================================
+   5. O GERADOR DE FORMAS
+
+   `bloom` e a explosao que ja estava no jogo, extraida para dentro do gerador.
+   A extracao foi mecanica de proposito, e o hash abaixo e a prova: uma forma
+   nova nao pode mexer, de raspao, na forma que dezesseis pecas ja usam.
+
+   O valor de referencia foi tirado do gerador ANTERIOR (antes da extracao),
+   sobre as 5 grades x 3 variantes x 8 quadros. Se ele mudar, ou a extracao
+   nao foi fiel ou alguem re-tunou a explosao — e as duas coisas precisam ser
+   uma decisao, nao um efeito colateral.
+   ========================================================================= */
+const GOLDEN_BLOOM = "d95f4554";
+
+function hashField(f) {
+  let h = 2166136261;
+  for (let i = 0; i < f.length; i++) { h ^= f[i]; h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(16);
+}
+const amostras = [];
+for (const G of EXPLO.GRIDS) {
+  for (let v = 0; v < EXPLO.VARIANTS; v++) {
+    for (let f = 0; f < EXPLO.FRAMES; f++) amostras.push(hashField(fxField("bloom", v, f, G)));
+  }
+}
+let hb = 2166136261;
+for (const a of amostras) for (let i = 0; i < a.length; i++) { hb ^= a.charCodeAt(i); hb = Math.imul(hb, 16777619); }
+const bloomHash = (hb >>> 0).toString(16);
+if (bloomHash !== GOLDEN_BLOOM) {
+  bad(`o campo do "bloom" mudou: ${bloomHash} (esperado ${GOLDEN_BLOOM}) — a explosao do jogo nao e mais a mesma`);
+} else {
+  console.log(`ok  gerador: "bloom" identico ao de antes da extracao (${amostras.length} quadros)`);
+}
+
+/* Toda forma precisa existir de verdade, e precisa ser OUTRA forma. Duas
+   coisas separadas: um arquetipo pode nascer vazio (curva errada, limiar que
+   nunca acende) ou nascer igual ao vizinho — e ai o catalogo continuaria com
+   uma silhueta so, que e o defeito que a fase inteira existe para consertar. */
+const G0 = EXPLO.GRID;
+const perfil = new Map();
+for (const shape in FX_SHAPES) {
+  const vivos = [], quentes = [];
+  for (let f = 0; f < EXPLO.FRAMES; f++) {
+    const campo = fxField(shape, 0, f, G0);
+    let n = 0, q = 0;
+    for (let i = 0; i < campo.length; i++) {
+      if (campo[i] === 255) continue;
+      n++;
+      if (campo[i] <= 1) q++;          // bandas 0 e 1: o que ainda esta quente
+    }
+    vivos.push(n); quentes.push(q);
+  }
+  if (vivos.every((n) => n < 20)) bad(`forma "${shape}" nasce vazia: ${vivos.join("/")}`);
+  /* E toda forma tem que ESFRIAR. O que se mede e a area QUENTE (bandas 0 e
+     1), nao a area acesa: o `bloom` termina em arcos rasgados que ainda ocupam
+     muita celula, e e certo que ocupem — o que nao pode e continuar branco no
+     ultimo quadro. Evento que termina no proprio pico e cortado pelo fim da
+     vida em vez de se dissipar, que e a diferenca entre energia sumindo e
+     alguem apagando o desenho. */
+  const pico = Math.max(...quentes);
+  const fim = quentes[quentes.length - 1];
+  if (pico > 0 && fim > pico * 0.25) {
+    bad(`forma "${shape}" nao esfria: termina com ${fim} celulas quentes de um pico de ${pico}`);
+  }
+  const meio = hashField(fxField(shape, 0, 4, G0));
+  if (perfil.has(meio)) bad(`"${shape}" e "${perfil.get(meio)}" desenham o MESMO campo`);
+  perfil.set(meio, shape);
+  console.log(`      ${shape.padEnd(8)} ${vivos.join("/")} celulas · quentes ${quentes.join("/")}`);
+}
+if (perfil.size === Object.keys(FX_SHAPES).length) {
+  console.log(`ok  gerador: ${perfil.size} formas distintas, nenhuma vazia`);
+}
+
+// e o cache continua sendo por (forma, cor, grade)
+const antesCache = FX_SETS.size;
+const s1 = fxFrames("nova", "#7fdc4a", G0);
+if (fxFrames("nova", "#7fdc4a", G0) !== s1) bad("fxFrames remonta o mesmo conjunto");
+fxFrames("nova", "#7fdc4a", 24);
+if (FX_SETS.size !== antesCache + 2) bad("cache de forma nao separa por grade");
+
 /* --- placar -------------------------------------------------------------- */
 const total = Object.keys(PIECES).length;
 const distintas = porAssinatura.size;
