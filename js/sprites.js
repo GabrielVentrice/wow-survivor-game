@@ -1524,7 +1524,113 @@ const SPRITE_DATA = {
   },
 };
 
+/* --- Marcas de estado ------------------------------------------------------
+   O que o inimigo esta SOFRENDO, desenhado sobre a cabeca dele.
+
+   Antes eram tres aneis de 4 pixels em amarelo, roxo e ciano — cores cravadas
+   no codigo, fora da paleta, e as tres com a MESMA forma. Quem lia a diferenca
+   lia por matiz num circulo de quatro pixels, que e a coisa menos legivel que
+   existe no meio de uma horda. E `weaken` e `mark` nao tinham nada: duas
+   mecanicas que mudam a conta de dano e nao gastavam um pixel.
+
+   Tres decisoes:
+
+   - **Nove por nove, e nao os 16x16 de `UI_ICONS`.** O icone da peca trabalha
+     num tile de 30px na UI; a marca trabalha sobre um corpo de 13 pixels no
+     meio de uma horda de mil. Encolher a grade de 16 para 9 nao devolve o
+     desenho — devolve mancha. Sao trabalhos diferentes, entao sao grades
+     diferentes, e a de 9 e desenhada para sobreviver ao tamanho em que ela
+     aparece.
+   - **Forma, nunca cor.** Todas em osso. O que separa atordoado de amedrontado
+     e X contra seta dupla, e nao amarelo contra roxo — matiz e a variavel mais
+     ocupada do projeto e ela ja pertence ao eixo da build.
+   - **Silhueta pura; o contorno vem do render.** As grades tem um tom so e
+     `drawSpriteRim` poe a tinta em volta, igual a todo sprite do jogo. Escrever
+     o contorno na grade custaria duas celulas de cada lado, e a 9x9 nao ha
+     duas celulas para gastar.
+
+   Um inimigo carrega UMA marca — a de maior prioridade. Duas marcas sobre o
+   mesmo corpo e a mesma parede de informacao que o anel de podridao evita
+   aparecendo so em quem tem 3+ DoTs. */
+const MARK_GRID = 9;
+const STATE_MARKS = {
+  // atordoado: travado no lugar
+  stun: [
+    "BB.....BB",
+    ".BB...BB.",
+    "..BB.BB..",
+    "...BBB...",
+    "....B....",
+    "...BBB...",
+    "..BB.BB..",
+    ".BB...BB.",
+    "BB.....BB",
+  ],
+  // amedrontado: o vetor inverteu, ele esta indo embora
+  fear: [
+    "BB.BB....",
+    ".BB.BB...",
+    "..BB.BB..",
+    "...BB.BB.",
+    "....BB.BB",
+    "...BB.BB.",
+    "..BB.BB..",
+    ".BB.BB...",
+    "BB.BB....",
+  ],
+  // lento: a ampulheta, a unica forma que significa tempo sem texto
+  slow: [
+    "BBBBBBBBB",
+    ".BBBBBBB.",
+    "..BBBBB..",
+    "...BBB...",
+    "....B....",
+    "...BBB...",
+    "..BBBBB..",
+    ".BBBBBBB.",
+    "BBBBBBBBB",
+  ],
+  // enfraquecido: o dano dele desce
+  weaken: [
+    "...BBB...",
+    "...BBB...",
+    "...BBB...",
+    "...BBB...",
+    "BBBBBBBBB",
+    ".BBBBBBB.",
+    "..BBBBB..",
+    "...BBB...",
+    "....B....",
+  ],
+  // marcado (Haunt): alguma coisa esta OLHANDO para ele, e tudo dói mais
+  mark: [
+    ".........",
+    "..BBBBB..",
+    ".B.....B.",
+    "B..BBB..B",
+    "B.BBBBB.B",
+    "B..BBB..B",
+    ".B.....B.",
+    "..BBBBB..",
+    ".........",
+  ],
+};
+
+let MARK_SPRITES = {};
+
+/* A marca nasce sempre em degrau 1: um pixel de grade = um pixel do buffer, o
+   mesmo degrau de todo o elenco. Amarra-la ao raio do corpo daria marca em
+   degrau 2 no chefe — o mixel silencioso que `driver_pixel` cobra. */
+function drawStateMark(ctx, kind, cx, cy) {
+  const spr = MARK_SPRITES[kind];
+  if (!spr) return;
+  const h = MARK_GRID * PIXEL_GRID;
+  drawSpriteRim(ctx, spr, cx, cy, h, false, null, PAL.inkDeep, 0.85);
+  drawSprite(ctx, spr, cx, cy, h, false, 0, null);
+}
+
 function buildSprites() {
+  for (const k in STATE_MARKS) MARK_SPRITES[k] = makeSprite(STATE_MARKS[k], { B: PAL.bone2 });
   for (const id in SPRITE_DATA) {
     const d = SPRITE_DATA[id];
     const base = makeSprite(d.rows, d.pal);

@@ -121,7 +121,10 @@ const HOOKS = {
       ramp: d.rampPerSec, color: d.color, onExpire: d.onExpire,
     }, c);
     popCtx(game);
+    // o `jump` marcava a origem e deixava o destino no escuro: quem recebeu o
+    // DoT e a informacao inteira desta passiva
     game.emitVfx("jump", e.x, e.y, 20, d.color);
+    game.emitVfx("link", e.x, e.y, 0, d.color, next.x, next.y);
   },
 
   // Eco do Vazio: golpes grandes se repetem a 40% depois de 3s. O alvo pode
@@ -185,9 +188,14 @@ const HOOKS = {
     let ax, ay;
     if (n) { const m = Math.hypot(sx, sy) || 1; ax = -sx / m; ay = -sy / m; }
     else { ax = p.dirX; ay = p.dirY; }
-    game.emitVfx("blink", p.x, p.y, 40, c.color);
+    const ox = p.x, oy = p.y;
+    game.emitVfx("blink", ox, oy, 40, c.color);
     p.x += ax * d; p.y += ay * d;
     game.emitVfx("blink", p.x, p.y, 40, c.color);
+    /* Os dois aneis diziam "aqui" e "ali" e nada dizia que era o MESMO
+       movimento — e a fuga acontece sem o jogador pedir, entao ele acorda
+       noutro lugar sem saber por onde passou. O rastro liga os dois. */
+    game.emitVfx("dash", ox, oy, p.radius * 1.6, c.color, p.x, p.y);
   },
 
   // Healthstone: cura de emergencia, so quando realmente precisa.

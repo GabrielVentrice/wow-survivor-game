@@ -31,6 +31,8 @@ class Player {
     this.kills = 0;
     this.animTime = 0;
     this.moving = false;
+    this.rushing = false;              // Game.update: o buff de velocidade esta de pe
+    this.speedBoostColor = null;
     this.forms = cls.forms || DEFAULT_FORMS;
     this.formIdx = 0;
     // Cor de cada forma, pre-resolvida: a luz de chao e desenhada por frame e
@@ -244,6 +246,48 @@ class Player {
       fx[i].over?.(ctx, p);
     }
 
+    /* BURNING RUSH. `self_speed` e `self_damage` eram as duas mecanicas mais
+       invisiveis do jogo: a peca acelerava o jogador e queimava a vida dele
+       sem gastar um pixel — a unica evidencia era a barra de vida descendo
+       sozinha, o que le como bug e nao como custo.
+
+       Isto e um ESTADO e nao um acontecimento, entao nao pode ser um evento
+       visual: evento por pulso da aura seria o mesmo erro de emitir alguma
+       coisa a cada 0.5s para dizer "voce tem escudo". Estado se desenha como
+       sobreposicao enquanto dura, do mesmo jeito que a casca do escudo e o
+       anel de carga do `rooted`.
+
+       As riscas ficam ATRAS do movimento e no CHAO. Atras porque e o rastro do
+       que ja passou — a frente elas empurrariam a leitura para onde ele ainda
+       nao esta; no chao porque a faixa de cima do personagem ja pertence a
+       build acesa, e o corpo do warlock e a coisa que nao pode ser coberta. */
+    if (this.rushing) {
+      const col = this.speedBoostColor || "#ff8a3c";
+      const rgb = hexRgb(col);
+      const bx = -this.dirX, by = -this.dirY;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = 0; i < 3; i++) {
+        // fases diferentes: as tres riscas nao piscam juntas, senao lê como
+        // um retangulo acendendo
+        const ph = (t * 2.6 + i * 0.37) % 1;
+        const off = (i - 1) * r * 0.55;
+        const x0 = sx + bx * r * 0.5 - by * off;
+        const y0 = sy + r * 0.75 + by * r * 0.25 + bx * off * 0.4;
+        const len = r * (1.1 + ph * 1.9);
+        ctx.strokeStyle = `rgba(${rgb},${((1 - ph) * 0.5).toFixed(2)})`;
+        ctx.lineWidth = 1 + (1 - ph) * 2.2;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x0 + bx * len, y0 + by * len * 0.45);
+        ctx.stroke();
+      }
+      ctx.restore();
+      // e o corpo queima junto: e ele que esta pagando
+      const beat = 0.1 + (Math.sin(t * 9) + 1) * 0.06;
+      drawSpriteGlow(ctx, spr, sx, sy, drawH, this.facing < 0, anim, col, beat);
+    }
+
     // escudo: casca girando, so quando ha carga
     if (this.shield > 0) {
       const lim = this.maxShield > 0 ? this.maxShield : this.maxHp;
@@ -344,10 +388,20 @@ class Enemy {
     }
     if (dotted) this.drawDotOver(ctx, sx, sy, r, spr, anim);
 
-    // marcadores de controle
-    if (now < this.stunUntil) this.drawRing(ctx, sx, sy - r * 1.4, "#ffd24a", 0.8);
-    else if (now < this.fearUntil) this.drawRing(ctx, sx, sy - r * 1.4, "#c850ff", 0.7);
-    else if (now < this.slowUntil) this.drawRing(ctx, sx, sy - r * 1.4, "#5acfff", 0.5);
+    /* UMA marca por corpo, a de maior prioridade. Duas marcas sobre o mesmo
+       inimigo sao a mesma parede de informacao que o anel de podridao evita
+       aparecendo so em quem carrega 3+ DoTs — e aqui a horda tem mil corpos.
+
+       A ordem e por quanto o estado muda a JOGADA: atordoado e o unico que
+       para o corpo, medo e o unico que o manda embora, lento muda a rota, e os
+       dois de baixo so mudam a conta de dano. */
+    const mk = now < this.stunUntil ? "stun"
+             : now < this.fearUntil ? "fear"
+             : now < this.slowUntil ? "slow"
+             : now < (this.weakUntil || 0) ? "weaken"
+             : (this.marked > 0 && now < this.markedUntil) ? "mark"
+             : null;
+    if (mk) drawStateMark(ctx, mk, sx, sy - r * 1.55);
 
     if (this.type.boss) {
       const bw = r * 2, bh = 5, by = sy - r - 12;
@@ -356,13 +410,6 @@ class Enemy {
       ctx.fillStyle = "#ff3b6b";
       ctx.fillRect(sx - r, by, bw * Math.max(0, this.hp / this.maxHp), bh);
     }
-  }
-  drawRing(ctx, x, y, color, a) {
-    ctx.strokeStyle = color;
-    ctx.globalAlpha = a;
-    ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.stroke();
-    ctx.globalAlpha = 1;
   }
   // névoa do DoT no chão, sob o inimigo. Cor vem do DoT mais recente.
   drawDotUnder(ctx, sx, sy, r) {

@@ -45,14 +45,12 @@ Math.random = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147
 // Cor saturada cravada no codigo de render (fase 7).
 const DIVIDA_COR = {
   "rgba(120,200,255": "casca de escudo — a MESMA para as 6 pecas de escudo, e ciano saiu da identidade",
-  "#ffd24a": "anel de stun (entities) e olho do orbe generico de demonio (vfx)",
-  "#c850ff": "anel de fear",
-  "#5acfff": "anel de slow",
   "#ff3b6b": "barra de vida do chefe",
   "rgba(122,60,255": "parada do gradiente do projetil: todo tiro de fogo desbota para roxo na borda",
   "#7a3cff": "cor de classe de fallback",
   "#ff7a2c": "cor de fallback da zona",
   "#ffe6b0": "orbe generico de demonio (kind sem sprite)",
+  "#ffd24a": "olho do orbe generico de demonio (kind sem sprite)",
   "#a8ff6a": "veio de fel do cenario",
   "#c88aff": "veio arcano do cenario",
   "rgba(120,255,90": "brasa do cenario",
@@ -61,14 +59,7 @@ const DIVIDA_COR = {
 
 // Peca que dispara e nao desenha nada (fase 3).
 const DIVIDA_MUDA = {
-  curseOfTongues: "weaken nao tem marca nenhuma",
-  curseOfExhaustion: "slow so tem o anel de 4px",
-  banish: "stun so tem o anel de 4px",
-  howlOfTerror: "fear so tem o anel de 4px",
-  burningRush: "self_speed + self_damage: nem esteira, nem dreno visivel",
-  demonicCircle: "o blink desenha a chegada; o circuito no chao e invisivel",
-  soulLeech: "escudo por fracao do dano: sem dano no funil, nem a casca aparece",
-  healthstone: "cura por carga abaixo do limiar: nada anuncia a carga reposta",
+  soulLeech: "escudo por fracao do dano recebido: sem dano no funil nem a casca aparece, e a casca e a mesma das outras cinco pecas de escudo (fase 5)",
 };
 
 // Pecas que desenham exatamente a mesma coisa (fase 5). Chave = assinatura.
@@ -77,8 +68,7 @@ const DIVIDA_IRMAS = {
   "dot": "aplicar DoT nao tem evento proprio: so a nevoa generica no alvo",
   "vfx:burst": "a bola de fogo unica, em peca de dano em area puro",
   "area": "um desenho de zona para toda zona do jogo",
-  "minion+vfx:burst+vfx:summon": "invocacao que tambem bate: anel + a mesma bola",
-  "veil": "as pecas de escudo, todas na mesma casca ciano",
+  "veil": "as pecas de escudo, todas na mesma casca",
   "dot+vfx:burst": "DoT com estouro junto",
   "veil+vfx:burst": "escudo com estouro junto",
   "vfx:heal": "a cruz de cura, identica em toda peca que cura",
@@ -195,11 +185,12 @@ function apodrecer(list) {
   }
 }
 
-// O que a peca fez APARECER. Fichas mudas ficam de fora do desenho de
-// proposito: elas sao a resposta da pergunta "isso cobra em silencio?".
+/* O que a peca fez APARECER. Nem todo tell e um evento emitido: marca de
+   estado sobre o inimigo e sobreposicao presa ao jogador sao desenho que dura,
+   e um driver que so olhasse `emitVfx` diria que elas nao existem. As fichas
+   mudas que sobram sao a resposta da pergunta "isso cobra em silencio?". */
 const MUDAS = {
-  stun: "anel de 4px", fear: "anel de 4px", slow: "anel de 4px",
-  weaken: "nada", mark: "nada", desloca: "nada", velocidade: "nada",
+  desloca: "reposicionamento", velocidade: "buff sem corpo",
   dreno: "nada", cura: "nada no mundo",
 };
 
@@ -213,12 +204,17 @@ function assinar(id) {
   const inst = g.build.acquirePiece(id, true);
   if (!inst) return null;
 
-  /* Vida em 40%: as pecas de emergencia (Healthstone, Soul Leech, Unending
-     Resolve) so existem quando o jogador esta apanhando. Com a barra cheia
-     elas sairiam como mudas por causa do cenario, nao por causa delas. */
-  g.player.hp = g.player.maxHp * 0.4;
+  /* Vida em 25%: as pecas de emergencia so existem quando o jogador esta
+     apanhando, e cada uma declara o proprio limiar — o Healthstone so paga
+     abaixo de 30%. Com a barra cheia elas sairiam como mudas por causa do
+     cenario, nao por causa delas. */
+  g.player.hp = g.player.maxHp * 0.25;
 
-  const alvo = alvos(6);
+  /* OITO alvos, e o numero nao e estetico: Demonic Circle declara
+     `minEnemies: 7`. Com seis na mesa ele nunca dispara, e o driver estaria
+     medindo a propria mesa em vez da peca. Toda condicao que uma peca declara
+     tem que caber aqui, senao "muda" quer dizer "nao consegui provocar". */
+  const alvo = alvos(8);
   apodrecer(alvo);
   const dotBase = alvo.map((e) => e.dots.length);
   const antes = {
@@ -256,13 +252,15 @@ function assinar(id) {
   if (g.player.shield > antes.escudo) desenha.add("veil");
 
   const now = g.clock;
-  if (alvo.some((e) => e.stunUntil > now)) mudo.add("stun");
-  if (alvo.some((e) => e.fearUntil > now)) mudo.add("fear");
-  if (alvo.some((e) => e.slowUntil > now)) mudo.add("slow");
-  if (alvo.some((e) => (e.weakUntil || 0) > now)) mudo.add("weaken");
-  if (alvo.some((e) => e.marked > 0)) mudo.add("mark");
+  // marca de estado: uma grade de 9x9 em osso sobre a cabeca, uma forma por
+  // estado. Ver STATE_MARKS (js/sprites.js) e Enemy.draw.
+  if (alvo.some((e) => e.stunUntil > now)) desenha.add("marca:stun");
+  if (alvo.some((e) => e.fearUntil > now)) desenha.add("marca:fear");
+  if (alvo.some((e) => e.slowUntil > now)) desenha.add("marca:slow");
+  if (alvo.some((e) => (e.weakUntil || 0) > now)) desenha.add("marca:weaken");
+  if (alvo.some((e) => e.marked > 0)) desenha.add("marca:mark");
+  if (g.player.speedBoostUntil > now) desenha.add("rush");   // Player.draw
   if (alvo.some((e, i) => e.x + "," + e.y !== antes.pos[i])) mudo.add("desloca");
-  if (g.player.speedBoostUntil > now) mudo.add("velocidade");
   if (g.player.hp < antes.hp) mudo.add("dreno");
   if (g.player.hp > antes.hp) mudo.add("cura");
 

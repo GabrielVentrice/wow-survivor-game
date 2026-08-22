@@ -193,10 +193,16 @@ está ocupada.
 Ordenadas por dopamina-por-hora, não por elegância. Cada uma fecha sozinha,
 roda a bateria e commita.
 
-> **Estado:** fases 0, 1 e 2 entregues (`feat/vfx-impacto`). Placar do
-> `driver_vfx` no fechamento da fase 2: **43 peças · 14 assinaturas distintas ·
-> 8 mudas · 13 cores fora da paleta · 15 vozes · 9 paletas de estilhaço**.
-> É esse placar que as fases seguintes movem.
+> **Estado:** fases 0 a 3 entregues (`feat/vfx-impacto`). Placar do
+> `driver_vfx`, do começo até aqui:
+>
+> | | fase 0 | fase 3 |
+> |---|---|---|
+> | assinaturas visuais distintas | 14 | **24** |
+> | peças que disparam sem desenhar nada | 8 | **1** |
+> | cores fora da paleta no render | 15 | **11** |
+> | vozes | 0 | **17** |
+> | mecânicas sem tell (galeria) | 25 | **16** |
 
 ### ~~Fase 0 — Instrumentação~~ ✅
 Sem isso as fases seguintes não têm como provar nada.
@@ -290,12 +296,31 @@ abates em leva dando **três** anúncios (um por degrau, nunca um por corpo) e
 abate esparso não acendendo nenhum. `driver_perf`: 0,7ms de 16,7ms no pior
 bucket com a horda no teto.
 
-### Fase 3 — As 25 mudas (1–2 sessões) ⚡
-Cobertura de V2, na ordem em que a galeria já lista. Prioridade para as que
-mudam decisão: `mark` (Haunt), `chain` (a ligação entre alvos), `weaken`,
-`knockback`, `pull`, `self_speed`/`self_damage` (Burning Rush), e o círculo do
-Demonic Circle — hoje o jogador **não vê para onde vai teleportar**.
-**Verificação:** `driver_gallery` — a contagem de tarjas cai de 25 para 0.
+### ~~Fase 3 — As mudas~~ ✅
+O achado da fase: **não é um formato de tell, são três**, e qual usar sai da
+natureza do fato.
+
+- **Estado do inimigo → marca 9×9 sobre a cabeça** (`STATE_MARKS`). Os três
+  anéis de 4px em amarelo/roxo/ciano viraram cinco formas em osso — X, seta
+  dupla, ampulheta, seta para baixo, olho —, e `weaken` e `mark`, que não
+  tinham nada, entraram. Nove e não os 16 de `UI_ICONS`: encolher aquela grade
+  não devolve o desenho, devolve mancha.
+- **Relação entre dois lugares → evento de dois pontos.** `VfxLayer` ganhou
+  `x2/y2`, e `link`/`dash` cobrem `chain`, Contágio, empurrão, puxão e o blink
+  do Demonic Circle. O salto acontecia ENTRE dois corpos e era exatamente esse
+  entre que não era desenhado.
+- **Estado do jogador que dura → sobreposição**, nunca evento por pulso. É o
+  Burning Rush, que era a mecânica mais invisível do jogo.
+
+Três das quatro cores cravadas mais visíveis morreram junto (os anéis de
+controle), então parte da fase 7 veio de graça.
+
+**Verificação:** o driver precisou aprender a enxergar tell que não é evento
+emitido — marca e sobreposição contam como desenho. Mudas 8 → 1 (sobrou Soul
+Leech, cuja casca é a mesma das outras cinco peças de escudo: fase 5), tarjas
+da galeria 25 → 16, e a mesa de teste passou a satisfazer toda condição que uma
+peça declara (Demonic Circle pede 7 inimigos em volta; com 6 na mesa o driver
+media a própria mesa).
 
 ### Fase 4 — O gerador (1–2 sessões)
 `js/render/fx-shapes.js`: generaliza `explosionFrames`. Entra com quatro

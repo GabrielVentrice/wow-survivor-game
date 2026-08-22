@@ -106,6 +106,24 @@ const VOICES = {
     },
   },
 
+  // O salto ligando dois corpos: estalo curto com cauda de faisca.
+  link: {
+    gap: 0.09,
+    play(s, t, o) {
+      s._burst(t, 0.05, "bandpass", 2900, 12, 0.026 * o.v, 1.5);
+      s._sweep(t + 0.01, 700, 1500, 0.08, "square", 0.014 * o.v, 3200);
+    },
+  },
+
+  // Deslocamento: sopro curto caindo. Ele nao e um golpe, e uma consequencia.
+  dash: {
+    gap: 0.12,
+    play(s, t, o) {
+      s._wash(t, 0.14, 1800, 380, 1.8, 0.03 * o.v, 1.2);
+      s._sweep(t, 210, 90, 0.1, "triangle", 0.018 * o.v, 700);
+    },
+  },
+
   // Salto de DoT: um blip. E o unico som do jogo que sobe e para.
   jump: {
     gap: 0.08,

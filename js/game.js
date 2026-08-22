@@ -233,8 +233,8 @@ class Game {
      existe um registry de som por peca — seriam duas listas para divergir, e a
      que envelhecesse deixaria uma peca muda em silencio. Evento novo em tela
      exige voz nova, e `driver_vfx` reprova evento sem ela. */
-  emitVfx(kind, x, y, r, color) {
-    this.vfxLayer.emit(kind, x, y, r, color);
+  emitVfx(kind, x, y, r, color, x2, y2) {
+    this.vfxLayer.emit(kind, x, y, r, color, x2, y2);
     this.emitSfx(kind, x, y, r / 220);
   }
 
@@ -583,6 +583,9 @@ class Game {
     this.updatePickups(dt);
     this.updateParticles(dt);
     this.tickReap(dt);
+    // buff que DURA nao se desenha por evento: evento por pulso e a forma
+    // errada para um estado. O render precisa do relogio, e o Player nao o tem.
+    this.player.rushing = this.player.speedBoostUntil > this.clock;
 
     this.camera.follow(this.player, dt);
     // o mundo apodrece junto com a run: veios mais vivos, mais brasa no ar

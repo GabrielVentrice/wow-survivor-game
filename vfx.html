@@ -677,16 +677,25 @@ const VFX_EMITTER = {
   heal: "hooks soulstone e healthstone",
   portal: 'efeito vfx com kind:"portal" (Nether Portal)',
   reap: "Game.onReapKill — abates por SEGUNDO cruzando um degrau de BALANCE.reap",
+  link: "EFFECTS.chain e o hook contagion — o filamento ENTRE os dois alvos",
+  dash: "EFFECTS.knockback e EFFECTS.pull — o rastro do corpo que foi deslocado",
 };
 const VFX_RADIUS = {
   burst: 70, shock: 100, spread: 85, jump: 18, summon: 44,
   unsummon: 26, execute: 34, echo: 70, blink: 40, heal: 40, portal: 46,
-  reap: 150,
+  reap: 150, link: 0, dash: 14,
+};
+/* Os eventos de DOIS pontos precisam do segundo, senao o card emite uma linha
+   de comprimento zero e o driver o acusa de mudo — com razao: um salto que
+   comeca e acaba no mesmo lugar nao e um salto. */
+const VFX_TO = {
+  link: [96, -34],
+  dash: [78, 26],
 };
 const VFX_NAME = {
   burst: "explosão", shock: "onda de choque", spread: "propagação", jump: "salto de DoT",
   summon: "invocação", unsummon: "desinvocação", execute: "execução", echo: "eco",
-  blink: "teleporte", heal: "cura", portal: "portal rasgando", reap: "a ceifa",
+  blink: "teleporte", heal: "cura", portal: "portal rasgando", reap: "a ceifa", link: "salto ligado", dash: "deslocamento",
 };
 
 function eventItems() {
@@ -702,7 +711,11 @@ function eventItems() {
              ref("emissores", VFX_EMITTER[kind] || "—")],
       setup(w) { w.showPlayer = false; },
       tick(w) {
-        every(w, "e", VFX_LIFE[kind] + 0.25, () => w.vfx.emit(kind, 0, 0, R, axc()));
+        const to = VFX_TO[kind];
+        every(w, "e", VFX_LIFE[kind] + 0.25, () => {
+          if (to) w.vfx.emit(kind, -to[0] / 2, -to[1] / 2, R, axc(), to[0] / 2, to[1] / 2);
+          else w.vfx.emit(kind, 0, 0, R, axc());
+        });
       },
     };
   });
@@ -919,24 +932,20 @@ const EFFECT_INFO = {
     setup(w) { w.enemies.push(dummyEnemy("skeleton", 80, -12)); },
     tick(w) { every(w, "a", 3, () => { w.enemies[0].fearUntil = w.t + 1.6; }); } },
 
-  weaken: { name: "enfraquecer", tell: "nenhuma marca: weakUntil/weakFactor não são desenhados em lugar nenhum",
-    gap: true,
+  weaken: { name: "enfraquecer", tell: "marca de boca-para-baixo sobre a cabeça: o dano DELE desce",
     setup(w) { w.enemies.push(dummyEnemy("skeleton", 90, -12)); },
     tick(w) { w.enemies[0].weakUntil = w.t + 1; } },
 
-  knockback: { name: "empurrão", tell: "reposicionamento instantâneo, sem rastro nem vfx — só o inimigo aparecendo longe",
-    gap: true,
+  knockback: { name: "empurrão", tell: "rastro `dash` de onde ele saiu até onde parou — o corpo ainda anda de uma vez, mas agora conta que andou",
     setup(w) { for (let i = 0; i < 3; i++) w.enemies.push(dummyEnemy("ghoul", 60 + i * 10, -20 + i * 22)); },
     tick(w) { every(w, "a", 2, () => playEffect(w, { type: "knockback", force: 80 }, w.player.x, w.player.y, null, axc(), 0)); } },
 
-  mark: { name: "marca (Haunt)", tell: "amplifica todo dano recebido e NÃO desenha nada — o alvo marcado é invisível",
-    gap: true,
+  mark: { name: "marca (Haunt)", tell: "o olho sobre a cabeça: alguma coisa está olhando para ele, e tudo dói mais",
     setup(w) { w.enemies.push(dummyEnemy("ghoul", 95, -12)); },
     tick(w) { const e = w.enemies[0]; e.marked = 0.3; e.markedUntil = w.t + 2;
       every(w, "a", 1.4, () => { e.hitFlash = 0.1; }); } },
 
-  pull: { name: "puxão", tell: "reposicionamento em direção ao ponto, sem vfx próprio",
-    gap: true,
+  pull: { name: "puxão", tell: "o mesmo rastro `dash`, agora apontando para dentro",
     setup(w) { for (let i = 0; i < 3; i++) w.enemies.push(dummyEnemy("ghoul", 90 + i * 14, -30 + i * 30)); },
     tick(w) { every(w, "a", 1.6, () => playEffect(w, { type: "pull", force: 55 }, w.player.x, w.player.y, null, axc(), 0)); } },
 
@@ -944,13 +953,11 @@ const EFFECT_INFO = {
     setup(w) { w.enemies.push(dummyEnemy("ghoul", 90, -14)); },
     tick(w) { every(w, "a", 3.6, () => playEffect(w, { type: "convert" }, w.player.x, w.player.y, w.enemies[0], axc(), 0)); } },
 
-  self_speed: { name: "velocidade própria", tell: "nada em tela: o player só anda mais rápido (Burning Rush)",
-    gap: true,
+  self_speed: { name: "velocidade própria", tell: "riscas no chão ATRÁS do movimento + o corpo queimando: estado que dura se desenha como sobreposição, não como evento",
     setup(w) { w.walkPlayer = true; },
     tick(w) { w.player.speedBoost = 1.35; w.player.speedBoostUntil = w.t + 1; } },
 
-  self_damage: { name: "dreno em si mesmo", tell: "nada em tela: só a barra de vida caindo — e o piso que impede matar o jogador",
-    gap: true,
+  self_damage: { name: "dreno em si mesmo", tell: "quem paga é o corpo do warlock, aceso pelas riscas do Burning Rush; a barra de vida conta quanto",
     setup(w) { w.walkPlayer = true; },
     tick(w) { every(w, "a", 0.5, () => { w.player.hp = Math.max(w.player.maxHp * 0.3, w.player.hp - 3); }); } },
 
@@ -973,8 +980,7 @@ const EFFECT_INFO = {
       every(w, "die", 3.2, () => playEffect(w, { type: "spread_on_death", radius: 90 }, 0, 0, w.enemies[0], axc(), 0));
     } },
 
-  chain: { name: "salto (chain)", tell: "o efeito filho acontece no próximo alvo — NÃO há raio ligando os dois",
-    gap: true,
+  chain: { name: "salto (chain)", tell: "filamento quebrado ligando os dois alvos: a mecânica acontece ENTRE eles",
     size: 280,
     setup(w) { for (let i = 0; i < 3; i++) w.enemies.push(dummyEnemy("skeleton", 80 + i * 26, -34 + i * 34)); },
     tick(w) { every(w, "a", 1.8, () => {
@@ -1073,24 +1079,24 @@ function stateItems() {
       (w) => { w.showPlayer = false; const e = dummyEnemy("abomination", 0, 0); w.enemies.push(e);
                addDot(w, e, "#7fdc4a"); addDot(w, e, "#a8f05c"); addDot(w, e, "#7fdc4a"); },
       (w) => { const e = w.enemies[0]; while (e.dots.length < 3) addDot(w, e, "#7fdc4a"); }),
-    mk("stunUntil", "atordoado", "anel amarelo acima da cabeça + o bicho congela no lugar",
+    mk("stunUntil", "atordoado", "o X sobre a cabeça + o bicho congela no lugar — forma, nunca matiz",
       null,
       (w) => { w.enemies.push(dummyEnemy("ghoul", 70, -10)); },
       (w) => { w.enemies[0].stunUntil = w.t + 0.5; }),
-    mk("fearUntil", "amedrontado", "anel roxo + o vetor de perseguição inverte: ele foge de você",
+    mk("fearUntil", "amedrontado", "a seta dupla + o vetor de perseguição inverte: ele foge de você",
       null,
       (w) => { w.enemies.push(dummyEnemy("skeleton", 60, -10)); },
       (w) => { w.enemies[0].fearUntil = w.t + 0.5; }),
-    mk("slowUntil", "lento", "anel azul + a mesma caminhada, na metade da velocidade",
+    mk("slowUntil", "lento", "a ampulheta + a mesma caminhada, na metade da velocidade",
       null,
       (w) => { w.enemies.push(dummyEnemy("ghoul", 80, -10)); },
       (w) => { const e = w.enemies[0]; e.slowUntil = w.t + 0.5; e.slowFactor = 0.35; }),
-    mk("marked", "marcado (Haunt)", "NADA. O alvo que recebe +30% de dano é idêntico ao que não recebe.",
-      "sem animação própria",
+    mk("marked", "marcado (Haunt)", "o olho: alguma coisa está olhando para ele, e todo dano que chega dói mais",
+      null,
       (w) => { w.showPlayer = false; w.enemies.push(dummyEnemy("ghoul", 0, 0)); },
       (w) => { const e = w.enemies[0]; e.marked = 0.3; e.markedUntil = w.t + 1; }),
-    mk("weakUntil", "enfraquecido", "NADA. weakFactor corta o dano de contato e nenhum pixel avisa.",
-      "sem animação própria",
+    mk("weakUntil", "enfraquecido", "a marca de boca-para-baixo: o dano que ELE causa desce",
+      null,
       (w) => { w.showPlayer = false; w.enemies.push(dummyEnemy("skeleton", 0, 0)); },
       (w) => { w.enemies[0].weakUntil = w.t + 1; }),
     mk("morte", "o corpo se desfaz",

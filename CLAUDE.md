@@ -599,6 +599,64 @@ acabou de acontecer". Consequências:
   tempo. Todo o resto do combate cai (explosão, morte, execução, choque), e
   subir é o que faz o ouvido ler recompensa em vez de dano.
 
+### Mecânica que cobra, avisa
+
+Vinte e cinco mecânicas mudavam o jogo sem gastar um pixel. Três formatos de
+tell cobrem quase todas, e **qual dos três usar sai da natureza do fato**, não
+do gosto:
+
+| A mecânica é… | O tell é… | Exemplos |
+|---|---|---|
+| um **estado** do inimigo | **marca** de 9×9 sobre a cabeça | atordoado, medo, lento, enfraquecido, marcado |
+| uma **relação entre dois lugares** | evento de **dois pontos** | `chain`, Contágio, empurrão, puxão, o blink |
+| um **estado** do jogador que dura | **sobreposição** presa ao corpo | Burning Rush, escudo, carga do `rooted` |
+
+**As marcas de estado (`STATE_MARKS`, `js/sprites.js`).** Eram três anéis de 4
+pixels em amarelo, roxo e ciano — cores cravadas no código, fora da paleta, e
+os três com a **mesma forma**: a diferença era lida por matiz num círculo de
+quatro pixels, que é a coisa menos legível que existe no meio de uma horda. E
+`weaken` e `mark` não tinham nada.
+
+- **9×9, e não os 16×16 de `UI_ICONS`.** O ícone da peça trabalha num tile de
+  30px na UI; a marca trabalha sobre um corpo de 13 pixels no meio de mil.
+  Encolher a grade de 16 para 9 não devolve o desenho, devolve mancha — são
+  trabalhos diferentes, então são grades diferentes.
+- **Forma, nunca cor.** X, seta dupla, ampulheta, seta para baixo e olho. Matiz
+  é a variável mais ocupada do projeto e ela já pertence ao eixo.
+- **Silhueta pura; o contorno vem do render** (`drawSpriteRim`), porque a 9×9
+  não há duas células para gastar com contorno desenhado à mão.
+- **Uma marca por corpo**, por prioridade — e a ordem é por quanto o estado
+  muda a jogada: atordoado para o corpo, medo o manda embora, lento muda a
+  rota, e os dois de baixo só mudam a conta de dano. Duas marcas sobre o mesmo
+  inimigo são a mesma parede que o anel de podridão evita aparecendo só em quem
+  tem 3+ DoTs.
+- **Degrau 1, sempre.** Amarrar o tamanho ao raio do corpo daria marca em
+  degrau 2 no chefe — o mixel silencioso.
+
+**Os eventos de dois pontos (`link` e `dash`).** `VfxLayer` ganhou `x2/y2`
+porque duas mecânicas do jogo são uma **relação** e não um acontecimento: o
+salto (`chain`, Contágio) e o deslocamento (`knockback`, `pull`, o blink do
+Demonic Circle). Sem o par, a única maneira de desenhar um salto seria piscar
+algo no destino — que é o que o jogo fazia, e por isso ninguém via de onde
+veio. O filamento do `link` é **quebrado e não reto** (reta lê como régua) e a
+amplitude morre nas duas pontas, porque ele nasce ancorado nos dois corpos.
+
+O `dash` não desfaz o teletransporte — ele **conta que houve um**. Tornar o
+empurrão gradual seria mexer na simulação para consertar um defeito de
+apresentação.
+
+**A sobreposição do jogador (Burning Rush).** Estado que dura **não pode ser
+evento**: emitir algo a cada pulso da aura é o mesmo erro que emitir um evento
+a cada 0,5s para dizer "você tem escudo". Estado se desenha enquanto dura, como
+a casca do escudo e o anel de carga do `rooted` já faziam. As riscas ficam
+**atrás** do movimento (é o rastro do que já passou) e **no chão** (a faixa de
+cima já pertence à build acesa, e o corpo do warlock é o que não pode ser
+coberto). Quem entrega a cor é o efeito (`self_speed` grava
+`player.speedBoostColor`); quem desenha é `Player.draw`.
+
+`driver_vfx` mede as três: marca e sobreposição contam como **desenho**, não
+como evento — um driver que só olhasse `emitVfx` diria que elas não existem.
+
 ### Balanceamento: mais corpos, menos vida cada
 
 O eixo do tuning é a **sensação de rampagem**. Um inimigo que exige três tiros

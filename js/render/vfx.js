@@ -228,11 +228,12 @@ const PIECE_VFX = {
 const outCubic = (k) => { const u = 1 - k; return 1 - u * u * u; };
 const outQuint = (k) => { const u = 1 - k; return 1 - u * u * u * u * u; };
 const inCubic = (k) => k * k * k;
+const LINK_SEGS = 7;   // quebras do filamento de salto
 
 const VFX_LIFE = {
   burst: 0.46, shock: 0.3, spread: 0.6, jump: 0.25, summon: 0.4,
   unsummon: 0.3, execute: 0.4, echo: 0.5, blink: 0.35, heal: 0.6,
-  portal: 0.9, reap: 0.55,
+  portal: 0.9, reap: 0.55, link: 0.28, dash: 0.2,
 };
 
 // Which variant of a multi-variant vfx this instance gets. A counter, not
@@ -242,8 +243,14 @@ let VFX_SEQ = 0;
 
 class VfxLayer {
   constructor() {
-    this.pool = new Pool(() => ({}), (o, kind, x, y, r, color) => {
+    /* `x2/y2` sao o SEGUNDO ponto, e existem porque duas mecanicas do jogo sao
+       uma relacao entre dois lugares e nao um acontecimento num lugar: o salto
+       (`chain`, Contagio) e o deslocamento (`knockback`, `pull`). Sem o par, a
+       unica maneira de desenhar um salto seria piscar alguma coisa no destino
+       — que e o que o jogo fazia, e por isso ninguem via de ONDE veio. */
+    this.pool = new Pool(() => ({}), (o, kind, x, y, r, color, x2, y2) => {
       o.kind = kind; o.x = x; o.y = y; o.r = r;
+      o.x2 = x2 != null ? x2 : x; o.y2 = y2 != null ? y2 : y;
       o.seed = (VFX_SEQ = (VFX_SEQ + 1) & 1023);
       o.color = color || "#ffffff";
       o.rgb = hexRgb(o.color);
@@ -251,9 +258,9 @@ class VfxLayer {
     });
   }
   reset() { this.pool.clear(); }
-  emit(kind, x, y, r, color) {
+  emit(kind, x, y, r, color, x2, y2) {
     if (this.pool.active.length > 160) return;   // teto: vfx nunca engasga o loop
-    this.pool.spawn(kind, x, y, r, color);
+    this.pool.spawn(kind, x, y, r, color, x2, y2);
   }
   update(dt) {
     const l = this.pool.active;
@@ -392,6 +399,46 @@ class VfxLayer {
           ctx.lineWidth = 1 + a * 3;
           ctx.beginPath(); ctx.arc(0, 0, v.r * (0.08 + e * 0.5), 0, Math.PI * 2); ctx.stroke();
           ctx.restore();
+          break;
+        }
+        case "link": {
+          /* O salto. Ate aqui `chain` acertava o proximo alvo sem NADA ligando
+             os dois, e o jogador via dois inimigos piscando em lugares
+             diferentes — a mecanica inteira acontecia entre os dois pontos e
+             era exatamente esse entre que nao era desenhado.
+
+             O filamento e quebrado e nao reto: reta le como regua, e o seed do
+             evento e que sorteia as quebras, entao dois saltos no mesmo frame
+             nao saem paralelos. */
+          const x2 = v.x2 - cam.left, y2 = v.y2 - cam.top;
+          const dx = x2 - x, dy = y2 - y;
+          const nx = -dy, ny = dx;
+          ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.95).toFixed(2)})`;
+          ctx.lineWidth = 1 + a * 2.5;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          for (let sgm = 1; sgm < LINK_SEGS; sgm++) {
+            const f = sgm / LINK_SEGS;
+            // amplitude morre nas duas pontas: o filamento nasce e termina
+            // ancorado nos corpos, e so o meio chicoteia
+            const w = Math.sin(f * Math.PI) * 0.16 * (vfxRand(v.seed + sgm) - 0.5) * 2;
+            ctx.lineTo(x + dx * f + nx * w, y + dy * f + ny * w);
+          }
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          break;
+        }
+        case "dash": {
+          /* O empurrao e o puxao movem o corpo de uma vez, e ate aqui o corpo
+             simplesmente aparecia longe. O rastro nao desfaz o teletransporte —
+             ele CONTA que houve um, que e a informacao que faltava. Estreita
+             enquanto morre, entao a ponta larga diz de onde ele saiu. */
+          const x2 = v.x2 - cam.left, y2 = v.y2 - cam.top;
+          ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.7).toFixed(2)})`;
+          ctx.lineCap = "round";
+          ctx.lineWidth = Math.max(1, v.r * 0.55 * a);
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y2); ctx.stroke();
+          ctx.lineCap = "butt";
           break;
         }
         case "heal": {

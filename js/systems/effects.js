@@ -322,7 +322,10 @@ const EFFECTS = {
     for (let i = 0; i < targets.length; i++) {
       const en = targets[i];
       const dx = en.x - c.x, dy = en.y - c.y, d = Math.hypot(dx, dy) || 1;
+      const ox = en.x, oy = en.y;
       en.x += (dx / d) * f; en.y += (dy / d) * f;
+      // o corpo anda de uma vez; o rastro nao desfaz isso, ele CONTA que houve
+      game.emitVfx("dash", ox, oy, en.radius, c.color, en.x, en.y);
     }
   },
 
@@ -343,7 +346,9 @@ const EFFECTS = {
       const en = targets[i];
       if (en.type.boss) continue;
       const dx = c.x - en.x, dy = c.y - en.y, d = Math.hypot(dx, dy) || 1;
+      const ox = en.x, oy = en.y;
       en.x += (dx / d) * f; en.y += (dy / d) * f;
+      game.emitVfx("dash", ox, oy, en.radius, c.color, en.x, en.y);
     }
   },
 
@@ -361,6 +366,8 @@ const EFFECTS = {
   self_speed(game, e, c) {
     game.player.speedBoost = e.factor || 1;
     game.player.speedBoostUntil = c.now + (e.duration || 0.5);
+    // a cor e um FATO que o efeito entrega; quem desenha e Player.draw
+    game.player.speedBoostColor = c.color;
   },
 
   /* Dano na propria vida (Burning Rush). Nao aciona os reativos de "tomei
@@ -399,6 +406,10 @@ const EFFECTS = {
     if (!c.target) return;
     const next = game.nearestEnemyExcept(c.target.x, c.target.y, e.range || 140, c.target);
     if (!next) return;
+    /* O salto acontece ENTRE dois corpos, e era exatamente esse entre que nao
+       era desenhado: o jogador via dois inimigos piscando em lugares
+       diferentes e nada dizendo que um foi consequencia do outro. */
+    game.emitVfx("link", c.target.x, c.target.y, 0, c.color, next.x, next.y);
     const n = childCtx(game, c, next, (c.amount || 0) * (e.falloff || 0.6));
     runEffects(game, e.effects, n);
     popCtx(game);
