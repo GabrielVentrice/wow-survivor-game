@@ -6,3 +6,5 @@ tools/spritesheet.png
 
 # worktree por task (regra global): mora dentro do repo, mas nao e do repo
 .claude/worktrees/
+__pycache__/
+*.pyc
