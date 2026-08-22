@@ -203,22 +203,32 @@ BALANCE.chest = {
    When no step fits (the Dreadlord wanted to sit between two), the fix is not
    going back to free scaling: it is drawing the grid at the size it will be
    seen at. A 14-row boss blown up 3x is a small boss blown up, not a boss. */
+/* HP base DOBRADO em todo corpo comum — chefe de fora, que tem a sua propria
+   curva por `bossHpExp`.
+
+   Isso empurra contra o "MAIS CORPOS, MENOS VIDA CADA" que o bloco de spawn
+   defende, e o contrapeso e de la mesmo: o fluxo de spawn foi multiplicado por
+   oito. Uma horda oito vezes mais densa com o HP antigo evapora antes de
+   chegar perto, e o que era ceifar leva vira varrer nevoa — a horda para de
+   ser ameaca e vira so contador de abate subindo. O dobro de vida devolve o
+   tempo que o corpo passa em tela sem devolver a parede de um-inimigo-tres-
+   tiros: com oito vezes mais corpos, o pulso de abate continua sendo leva. */
 const ENEMIES = {
   ghoul: {
     id: "ghoul", art: 3.0, name: "Ghoul",
-    radius: 13, hp: 10, speed: 130, touchDps: 8, xp: 1,
+    radius: 13, hp: 20, speed: 130, touchDps: 8, xp: 1,
     color: "#7fae5a", weight: 6, lateWeight: 4, minTime: 0,
     deathSfx: "flesh",
   },
   skeleton: {
     id: "skeleton", art: 3.2, name: "Skeleton Warrior",
-    radius: 15, hp: 26, speed: 92, touchDps: 12, xp: 3,
+    radius: 15, hp: 52, speed: 92, touchDps: 12, xp: 3,
     color: "#cfc8b0", weight: 3, lateWeight: 4, minTime: 45,
     deathSfx: "bone",       // esqueleto estala mais e esmaga menos
   },
   abomination: {
     id: "abomination", art: 3.23, name: "Abomination",
-    radius: 26, hp: 120, speed: 56, touchDps: 22, xp: 12,
+    radius: 26, hp: 240, speed: 56, touchDps: 22, xp: 12,
     color: "#9a6b4f", weight: 1, lateWeight: 2, minTime: 180,
     deathSfx: "rot",        // massa de carne: grave e molhado
   },
@@ -234,7 +244,7 @@ const ENEMIES = {
      a PAL reserva para horda. */
   ganarg: {
     id: "ganarg", art: 3.0, name: "Gan'arg Sapador",
-    radius: 11, hp: 14, speed: 150, touchDps: 6, xp: 2,
+    radius: 11, hp: 28, speed: 150, touchDps: 6, xp: 2,
     color: "#8790a8", weight: 4, lateWeight: 5, minTime: 60,
     deathSfx: "bone",
     /* O touchDps e baixo DE PROPOSITO: a ameaca dele nao e o encosto, e a
@@ -245,22 +255,22 @@ const ENEMIES = {
   },
   felbat: {
     id: "felbat", art: 3.0, name: "Morcego Fel",
-    radius: 12, hp: 18, speed: 205, touchDps: 10, xp: 4,
+    radius: 12, hp: 36, speed: 205, touchDps: 10, xp: 4,
     color: "#3a2456", weight: 3, lateWeight: 5, minTime: 120,
   },
   inquisitor: {
     id: "inquisitor", art: 3.75, name: "Inquisidora Man'ari",
-    radius: 16, hp: 40, speed: 70, touchDps: 8, xp: 10,
+    radius: 16, hp: 80, speed: 70, touchDps: 8, xp: 10,
     color: "#5f3b80", weight: 1, lateWeight: 1, minTime: 150,
     /* O primeiro inimigo COMUM que atira — `ranged` ja existia e so o chefe
-       usava. Peso 1 nao e timidez: com maxAlive em 2200 um peso 2 poria ~200
+       usava. Peso 1 nao e timidez: com maxAlive em 4400 um peso 2 poria ~400
        atiradoras vivas, e ai a chuva de projetil e dano E custo de frame. */
     ranged: true,
     shootInterval: 3.2, shootDamage: 7, shootSpeed: 240, shootRange: 380,
   },
   fellord: {
     id: "fellord", art: 3.0, name: "Fel Lord",
-    radius: 30, hp: 420, speed: 66, touchDps: 34, xp: 34,
+    radius: 30, hp: 840, speed: 66, touchDps: 34, xp: 34,
     /* weight 0 + lateWeight 3: corpo que so existe depois de hardAt, quando
        pickType troca de peso. Maior que o Abomination e mais rapido que ele —
        e o corpo que FECHA a rota, nao o que persegue. */
