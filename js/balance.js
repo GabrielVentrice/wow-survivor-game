@@ -99,6 +99,22 @@ const BALANCE = {
 };
 
 
+/* LEVEL UP: a batida rapida. So aprofunda o que a build ja tem.
+
+   `passiveFrom` segura as passivas ate o nivel 10, e a razao e o que uma
+   passiva E: ela nao adiciona nada, ela MULTIPLICA o que ja esta la
+   (`pieceMods` sobre um `match`). Oferecida no nivel 2, com duas spells no
+   tier 0, ela multiplica quase nada — e pior, ocupa uma das tres cartas
+   disputando com o tier que faria diferenca de verdade agora.
+
+   Sao oito passivas para uma run de dezenas de niveis, entao adiar nao custa
+   variedade: custa so o comeco, que e onde a spell precisa de tier e nao de
+   multiplicador. */
+BALANCE.levelup = {
+  cards: 3,
+  passiveFrom: 10,   // nivel a partir do qual passiva entra no bolo
+};
+
 /* ETAPAS: a batida lenta da run, e a UNICA fonte de ponto de eixo.
 
    O level up passou a ser so profundidade (um tier de uma spell que voce ja

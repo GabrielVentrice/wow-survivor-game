@@ -478,10 +478,10 @@ não podem voltar a ser uma só.
 |---|---|---|
 | **Quando** | subiu de nível (~17–70 por run) | marco de tempo, a cada `every` enquanto sobrar ponto |
 | **A pergunta** | qual das minhas spells vira *a* spell da run? | para onde essa run vai? |
-| **O que oferece** | tier de caminho, passiva global | spell nova (+1 no eixo dela) e, no eixo aberto, +2 secos |
+| **O que oferece** | tier de caminho; passiva global a partir do nível 10 | spell nova (+1 no eixo dela) e, no eixo aberto, +2 secos |
 | **Custa** | nada | é a **única** fonte de ponto de eixo |
 | **Desfaz?** | a próxima escolha corrige | **nunca** |
-| **Forma** | três linhas, leitura vertical | três cartas, leitura horizontal |
+| **Forma** | três cartas + tira da build | três cartas + rodapé de eixos |
 
 **Por que foram separadas.** Antes as duas moedas dividiam a mesma escolha:
 comprar peça nova custava 2 pontos de eixo, tier acima do 2 custava 1. Com
@@ -503,7 +503,9 @@ Consequências que valem para qualquer coisa nova:
   recolocaria o imposto sobre profundidade sem que a tela dissesse isso.
 - **Passiva fica no level-up, e não é exceção.** Ela não tem tier, não tem eixo
   e não pede investimento depois: só multiplica o que a build já tem
-  (`pieceMods` sobre um `match`). Isso é aprofundar, não alargar.
+  (`pieceMods` sobre um `match`). Isso é aprofundar, não alargar — e é a mesma
+  razão pela qual ela só entra a partir do nível `passiveFrom`: cedo demais não
+  há o que multiplicar.
 - **Peça nova só entra por etapa**, e como `free` — o eixo dela já foi pago pelo
   ponto que a carta deixou de dar.
 - **Muletas que saíram junto.** O peso extra para caminho já começado e o sort
@@ -578,11 +580,12 @@ da morte não entrega nada**.
   jogador não escolheu — o sorteio é que pôs aquele eixo ali.
 - **`aberto` é o único selo da tela**, e marca a regra que mais importa: este
   eixo não depende mais do sorteio para reaparecer.
-- **Cartas, não linhas.** O level-up compara três coisas *diferentes*, então o
-  olho corre na vertical por campo. Aqui comparar é horizontal: o número de cada
-  carta cai na mesma altura. As duas telas também não podem *parecer* a mesma
-  tela, senão o jogador não percebe que a pergunta mudou — e a desta é a única
-  que ele não desfaz.
+- **As duas telas são cartas, então o que as separa é outra coisa.** Enquanto o
+  level-up era linhas a diferença se via de longe; hoje ela mora no rodapé (a
+  etapa tem barras de eixo e a linha do capstone, o level-up tem a tira de
+  spells), no selo `aberto`, nos **dois botões** por carta, e na cor do eyebrow
+  — âmbar aqui, verde lá. Isso importa: o jogador precisa perceber que a
+  pergunta mudou, e a desta é a única que ele não desfaz.
 - **O alvo é o botão, não a carta.** Carta inteira clicável exigiria escolher
   por ele qual das duas maneiras é o padrão, e é justamente a metade
   irreversível da decisão.
@@ -620,92 +623,76 @@ voltou a aparecer. Enquanto as cartas eram uma por eixo e o kit inicial não
 semeava Domínio, ninguém escolhia aquele eixo e o catálogo de demônios ficava
 sem uso — `driver_balance` listava dez peças em `NUNCA ESCOLHIDA`.
 
-### A tela de level-up compara linhas, não cartas
+### A tela de level-up: três cartas em coluna
 
-Ela é três **linhas** com as mesmas três colunas (o que é / o que muda no jogo /
-onde chega) mais um painel com a build de agora, e não três cartas verticais.
-Cartas obrigam a ler três blocos separados para comparar um mesmo campo; linhas
-deixam o olho correr na vertical. Comparar é o ponto: as três ofertas são coisas
-diferentes, e a decisão é qual campo delas pesa mais.
+Três **cartas verticais** lado a lado, e abaixo uma tira com a build de agora.
 
-O que caiu junto com as cartas: a legenda de tipos do topo (o tipo agora vive na
-própria linha) e o chip minúsculo de custo no rodapé.
+**Ela já foi três linhas, e a razão era boa enquanto valia.** Enquanto a tela
+oferecia três coisas *diferentes* — spell nova, melhoria, passiva —, comparar
+significava correr o mesmo campo nas três, e linha com colunas fixas (o que é /
+o que muda / custo) é a forma que deixa o olho fazer isso na vertical. Depois
+que spell nova mudou para a tela de etapa, as ofertas viraram a mesma coisa: um
+degrau numa spell que o jogador já tem. Grade de três colunas para comparar
+campos que não divergem mais é só moldura, e a coluna de custo já tinha virado
+progresso porque não havia mais custo.
 
-**A terceira coluna era CUSTO e virou PROGRESSO**, quando o ponto de eixo saiu
-daqui (ver "As duas batidas"). O que sobrou de custo — a coluna, o chip de
-orçamento no cabeçalho e o gancho de capstone no chip verde — foi removido em
-vez de mantido dizendo "não gasta ponto" nas três linhas: um terço da tela
-repetindo a mesma informação é um terço da tela em silêncio. A pergunta desta
-tela agora é onde a compra deixa a trilha, e é isso que a coluna responde
-(`Fecha o caminho` / `A um tier do fim` / `Tier 3 de 5`, e embaixo qual
-caminho).
+**A hierarquia interna é a regra que sobrevive à mudança de forma:**
 
-**A coluna do meio é a manchete.** Quem decide a compra é o que a oferta *faz* —
-não o nome de fantasia do tier, não o ícone, não o botão. A primeira versão
-errava isso: o efeito saía em 17px lavanda apagada disputando com um nome de
-20px branco, um tile de 52px e um botão de preenchimento sólido, e o olho
-pousava em tudo menos na informação. A hierarquia hoje:
-
-1. **`.lv-plain`, 21px** — o que muda no jogo, o item mais claro da linha.
+1. **`.lv-plain`, 19px** — o que muda no jogo, o item mais claro da carta.
 2. **o delta** logo abaixo, com o número que o jogador vai passar a ter.
-3. nome da spell, progresso e etiqueta de tipo — um degrau abaixo, legíveis sem
-   competir.
-4. `.lv-why`, ícone e botão — o fundo da pilha.
+3. nome da spell, subtítulo e etiqueta de tipo — um degrau abaixo.
+4. `.lv-why`, ícone, pips e botão — o fundo da pilha.
 
-Três regras que caem daí, e que valem para qualquer coisa nova nesta tela:
+Numa carta o nome vem **antes no espaço**, então ele tem que perder no
+**tamanho** — senão a leitura pousa no rótulo em vez de no efeito, que é
+exatamente o defeito que esta tela já corrigiu uma vez. `driver_cards` reprova
+carta sem `.lv-plain`.
+
+Regras que continuam valendo:
 
 - **O slot do nome carrega a SPELL, não o nome do tier.** O jogador reconhece
-  "Incinerate" de imediato — está na build dele, no painel e no HUD; "Brasa" não
-  quer dizer nada até ser lido. O nome do tier desce para o subtítulo. Em
-  evolução o nome é a **forma nova** e o subtítulo diz de onde ela veio.
-- **A linha inteira é clicável, então o botão é lembrete e não alvo.**
-  Preenchido em repouso ele era o segundo bloco mais barulhento de cada linha.
-  Vazado em repouso, enche no hover da linha — que é quando ele tem algo a dizer.
-- **Veredito antes de detalhe.** A pergunta cabe em três palavras
-  (`A um tier do fim`); o detalhe (o nome do caminho) vem abaixo, menor e mais
-  fraco. Numa frase única e forte a coluna quebrava em duas linhas e virava o
-  bloco mais pesado da linha. Valia para o custo e vale igual para o progresso
-  que tomou o lugar dele.
+  "Incinerate" de imediato; "Brasa" não quer dizer nada até ser lido. O nome do
+  tier desce para o subtítulo. Em evolução o nome é a **forma nova**.
+- **A carta inteira é clicável, então o botão é lembrete e não alvo** — vazado
+  em repouso, enche no hover. Na tela de **etapa** é o contrário, e de
+  propósito: lá os botões *são* a decisão, porque cada um carrega um número
+  diferente que precisa ser comparado antes de mirar o mouse.
+- **O tipo é carregado por forma, nunca por cor.** A cor da carta é a do
+  **eixo**, então melhoria verde e evolução verde são a mesma cor. Quem separa é
+  etiqueta sólida com glifo (`▲` melhoria, `⭐` evolução, `✦` passiva — `◈`
+  spell nova só existe na tela de etapa), tile redondo na passiva, e o selo do
+  tier no canto do tile na melhoria, porque aí o ícone *mente*: é o ícone de uma
+  spell que o jogador já tem e sozinho não diz quão fundo ela está.
+- **Veredito, não coordenada.** O subtítulo já diz "caminho · tier N de 5"; o
+  rodapé da carta diz o que aquilo *significa* (`Fecha o caminho` / `A um tier
+  do fim`).
+- **`.lv-why` só aparece quando acrescenta.** Na linha ele carregava sempre o
+  que a spell é, porque a coluna existia de qualquer jeito. Numa carta o nome
+  está logo acima e repetir a identidade é ruído — sobram os dois casos em que
+  há informação nova: passiva **exclusiva** (fecha uma porta) e **evolução** (a
+  peça troca de identidade inteira).
 
-Regra prática ao acrescentar qualquer coisa à linha: se ela chama mais atenção
-que `.lv-plain`, ela está errada — ou ela é mais importante que o efeito, e aí
-o argumento precisa ser feito.
-
-**O tipo da oferta é carregado por forma, nunca por cor.** A cor da linha é a do
-**eixo** — qual build ela alimenta —, então uma melhoria verde e uma spell nova
-verde são a mesma cor: cor já está ocupada. Quem separa as três é:
-
-- **etiqueta sólida com glifo** (`▲` melhoria, `✦` passiva — e `◈` spell nova,
-  que hoje só aparece na tela de etapa) em vez de legenda solta na cor do eixo,
-  que lia como comentário e não como rótulo;
-- **tile redondo quando é passiva** — a mesma convenção que a barra de peças do
-  HUD já usa (`.pb-icon.pb-passive`);
-- **selo com o tier no canto do tile quando é melhoria**, porque aí o ícone
-  *mente*: ele é o ícone de uma spell que o jogador já tem, e sozinho não diz
-  quão fundo ela já está. O número é o que diz "isto é profundidade".
-- **evolução tem etiqueta própria** (`⭐ Evolução`), não `Melhoria · evolução`:
-  ela não é um degrau a mais, é conversão — a peça troca de nome, arte, trigger
-  e efeitos. Chamar as duas coisas de melhoria some com o clímax justamente na
-  linha em que ele acontece. Os sete `desc` de evolução começam com
-  `"EVOLUÇÃO — "`, de quando a carta não tinha onde marcar isso; o prefixo é
-  removido **na exibição**, não no dado.
-
-Os glifos são os mesmos da legenda que a tela perdeu: o vocabulário não mudou,
-só saiu do topo e entrou na linha. `driver_cards` cobra os três marcadores em
-toda oferta.
+**Passiva só entra a partir do nível `BALANCE.levelup.passiveFrom`** (10). Uma
+passiva não adiciona nada — ela **multiplica** o que já está lá (`pieceMods`
+sobre um `match`). Oferecida no nível 2, com duas spells no tier 0, ela
+multiplica quase nada, e pior: ocupa uma das três cartas disputando com o tier
+que faria diferença agora. São oito passivas para uma run de dezenas de níveis,
+então adiar não custa variedade — custa só o começo, que é onde a spell precisa
+de tier e não de multiplicador. `driver_cards` confere a trava no nível 1 antes
+de subir o nível para medir o resto.
 
 **Nenhum texto novo por tier.** São 645 tiers no catálogo — escrever "antes →
-depois" à mão em cada um seria conteúdo que envelhece no primeiro rebalanceamento.
-Tudo o que a linha mostra sai do que já existe:
+depois" à mão em cada um seria conteúdo que envelhece no primeiro
+rebalanceamento. Tudo o que a carta mostra sai do que já existe:
 
-| Campo da linha | De onde vem |
+| Campo da carta | De onde vem |
 |---|---|
 | frase principal | `tier.desc` / `def.desc` — já são frases em pt-BR |
 | antes → depois | `tier.mods` aplicado a `inst.r.stats` (`UI.tierDelta`) |
-| porquê | a peça que o tier melhora |
-| onde chega | `tier.tierIndex` contra `PATH_RULES.tiers`, e o nome do caminho |
+| onde chega | `tierIndex` contra `PATH_RULES.tiers` |
+| porquê | só em evolução e passiva exclusiva |
 | chip verde | fecha um caminho (acende a aura) |
-| painel inteiro | `build.pieces`, `build.passives`, `build.axis`, `CAPSTONES` |
+| tira inteira | `build.pieces`, `build.passives` |
 
 Consequências:
 
@@ -717,35 +704,31 @@ Consequências:
 - **`STAT_FMT` (`js/ui.js`) é quem sabe a unidade.** `duration: 6` é seis
   segundos, `frac: 0.06` é seis por cento e `radius: 440` não tem sufixo — sem
   a tabela o delta imprimiria "limiar 0.35 → 0.5". Stat sem entrada não aparece,
-  e `driver_cards` reprova mod que mexa em stat fora da tabela: o silêncio não
-  passa batido.
-- **Chip de recomendação só com gancho real.** Recomendação decorativa vira
-  ruído e o jogador para de ler o chip que importa. Sobrou **um** gancho aqui, e
-  é o certo: fechar um caminho acende a aura. O de capstone migrou para a tela
-  de etapa — apontar para ele numa tela que não entrega ponto de eixo seria
-  apontar para uma porta que está na outra sala. (A regra de que o número
-  anunciado é o número real não sumiu: ela mudou de tela, e
-  `driver_milestone` a cobra em toda carta de toda etapa.)
+  e `driver_cards` reprova mod que mexa em stat fora da tabela.
+- **Chip de recomendação só com gancho real.** Sobrou um, e é o certo: fechar um
+  caminho acende a aura. O de capstone migrou para a tela de etapa — apontar
+  para ele numa tela que não entrega ponto de eixo seria apontar para uma porta
+  que está na outra sala.
 
-**O painel não rola — ele resume.** Overlay de jogo não tem barra de rolagem, e
-a build cresce a run inteira. Em ordem: densidade automática (`PANEL.fullRows`
-spells → linha inteira; acima disso → linha única), teto de linhas visíveis
-(`PANEL.slimRows`) com o excedente virando contador, passivas sempre em chips
-(elas não têm tier, só existência), e a spell afetada pela oferta sob o mouse
-sobe para o topo para nunca cair dentro do contador. **Eixos e capstone são
-`flex-shrink: 0`**: são a informação que decide a compra, então são a última
-que pode sumir — quem cede espaço é a lista de spells.
+**A build virou uma TIRA, não um painel.** Era uma coluna de 316px com densidade
+automática, teto de linhas, contador de excedente, chips, três barras de eixo e
+a linha do capstone. Metade daquilo existia só para caber numa coluna estreita;
+a outra metade respondia perguntas que esta tela não faz mais. **Eixo e capstone
+saíram de vez**: nenhuma oferta daqui os move, e a tela de etapa — que é onde
+eles mudam — já os mostra com prévia ao vivo; repetir aqui era mostrar um número
+parado ao lado de três cartas que não o tocam. `driver_cards` reprova `lv-ax` de
+volta na tira.
 
-Estado novo é **um só**: o índice da oferta sob o mouse. O hover re-renderiza
-só o painel (`lvBuild`); mexer nas linhas mataria a transição de `transform` que
-o CSS está rodando naquele instante. A mesma regra vale na tela de etapa, onde o
-hover re-renderiza só o rodapé.
+Sobrou a única pergunta que a tira responde, e ela é a desta tela: **em que
+degrau estão as minhas outras spells?** Ícone, nome, pips do caminho mais fundo,
+e a spell que a carta sob o mouse melhora acende — é o que liga a decisão ao
+estado da build sem a tira ter que explicar nada por escrito. `STRIP.spells` é o
+teto e o excedente vira contador, porque overlay de jogo não rola.
 
-**Os eixos continuam no painel, agora como leitura.** Nenhuma oferta desta tela
-os move, mas eles ficam porque respondem "o que a próxima etapa decide" — e o
-jogador precisa dessa resposta enquanto escolhe onde aprofundar, senão investe
-fundo num eixo que a run não vai seguir. A prévia de ganho migrou para a tela de
-etapa, que é onde o número muda; `UI.axesHtml` desenha as barras nas duas.
+Estado novo é **um só**: o índice da carta sob o mouse. O hover re-renderiza só
+a tira; mexer nas cartas mataria a transição de `transform` que o CSS está
+rodando naquele instante. A mesma regra vale na tela de etapa, onde o hover
+re-renderiza só o rodapé.
 
 Tipografia: **Outfit** e **IBM Plex Mono**, vindas do Google Fonts. É a exceção
 à regra de "nenhum asset novo" — baixar os `.woff2` adicionaria arquivo ao repo.

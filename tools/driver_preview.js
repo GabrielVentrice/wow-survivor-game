@@ -4,16 +4,16 @@
 
    Vale o mesmo argumento do `sprites.html`: uma tela que so aparece por alguns
    segundos, em estados que dependem de sorteio, nao se revisa jogando. O level
-   up aparece em tres tamanhos de build — 2, 6 e 11 spells —, que e onde a
-   densidade do painel troca e o contador de excedente aparece; a etapa aparece
-   cedo e tarde, que e onde os numeros dela mudam de escala.
+   up aparece com a build pequena, media e grande — a ultima e onde a tira passa
+   do teto e o contador aparece; a etapa aparece nas duas fases, fechada e
+   aberta, que e onde as cartas dela trocam de forma.
 
    A etapa merece revisao ainda mais que o level up: ela e a unica decisao
    irreversivel da run, aparece so sete vezes, e as tres cartas precisam ser
    comparaveis de relance. Se os dois numeros de uma carta nao contarem a troca
    sozinhos, o jogador escolhe no escuro e nao tem como voltar.
 
-   O HTML sai dos mesmos `UI.rowHtml` / `UI.buildPanelHtml` / `UI.msCardHtml` do
+   O HTML sai dos mesmos `UI.cardHtml` / `UI.buildStripHtml` / `UI.msCardHtml` do
    jogo e o CSS e lido do proprio `index.html`: previa que diverge do jogo nao
    serve. */
 const g = new Game();
@@ -44,12 +44,12 @@ const take = (id, label, offers, hoverIdx) => {
   g.ui.lvViews = offers.map((o) => g.ui.offerView(o));
   let rows = "";
   for (const v of g.ui.lvViews) {
-    rows += `<div class="lv-row" style="--acc:${v.color};--acc-dim:${v.color}55;` +
-            `--acc-wash:${v.color}1c">${g.ui.rowHtml(v)}</div>`;
+    rows += `<div class="lv-card" style="--acc:${v.color};--acc-dim:${v.color}55;` +
+            `--acc-wash:${v.color}1c">${g.ui.cardHtml(v)}</div>`;
   }
   shots.push({
     lv: g.player.level, rows,
-    panel: g.ui.buildPanelHtml(hoverIdx),
+    panel: g.ui.buildStripHtml(hoverIdx),
     label: `${label} — ${plural(g.build.pieces.size, "spell")} · ` +
            `${plural(g.build.passives.size, "passiva")} · hover na linha ${hoverIdx + 1}`,
   });
@@ -107,9 +107,9 @@ for (let r = 0; r < 300; r++) {
   const n = g.build.pieces.size;
   const evo = offers.findIndex((o) => o.isEvo && o.evo);
   if (evo >= 0) take("evo", "evolução na mesa", offers, pickHover(offers, evo));
-  else if (r === 0) take("small", "linha completa", offers, pickHover(offers, -1));
-  else if (n > PANEL.slimRows) take("over", "compacta com excedente", offers, pickHover(offers, -1));
-  else if (n > PANEL.fullRows) take("mid", "linha compacta", offers, pickHover(offers, -1));
+  else if (r === 0) take("small", "build crua — duas spells", offers, pickHover(offers, -1));
+  else if (n > STRIP.spells) take("over", "tira no teto, com contador", offers, pickHover(offers, -1));
+  else if (n > 4) take("mid", "build média", offers, pickHover(offers, -1));
   g.ui.applyOffer(offers[Math.floor(Math.random() * offers.length)]);
 }
 
@@ -119,22 +119,17 @@ takeMs(11, "fase aberta — o eixo comprometido virou slot fixo com as duas mane
 
 let body = "";
 for (const sh of shots) {
-  body += `<p class="cap">${sh.label}</p>
+  body += `<p class="cap">level up · ${sh.label}</p>
   <div class="frame"><div class="screen lv">
     <div class="lv-glow"></div>
-    <div class="lv-grid">
-      <div class="lv-main">
-        <div class="lv-head">
-          <div class="lv-head-txt">
-            <div class="lv-eyebrow">Nível ${sh.lv} → ${sh.lv + 1}</div>
-            <div class="lv-title">Aprofunde uma</div>
-          </div>
-        </div>
-        <div class="lv-colhead"><span>O que é</span><span>O que muda no jogo</span><span>Onde chega</span></div>
-        <div class="lv-rows">${sh.rows}</div>
-        <div class="lv-foot">Nada aqui custa ponto de eixo — isso é assunto das etapas. Uma escolha e a partida continua.</div>
+    <div class="lv-wrap">
+      <div class="lv-head">
+        <div class="lv-eyebrow">Nível ${sh.lv} → ${sh.lv + 1}</div>
+        <div class="lv-title">Aprofunde uma</div>
       </div>
-      <div class="lv-build">${sh.panel}</div>
+      <div class="lv-cards">${sh.rows}</div>
+      <div class="lv-strip">${sh.panel}</div>
+      <div class="lv-foot">Nada aqui custa ponto de eixo — isso é assunto das etapas.</div>
     </div></div></div>`;
 }
 

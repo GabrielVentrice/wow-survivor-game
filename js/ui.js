@@ -228,11 +228,11 @@ class UI {
     for (let i = 0; i < offers.length; i++) {
       const v = this.lvViews[i];
       const row = document.createElement("div");
-      row.className = "lv-row";
+      row.className = "lv-card";
       row.style.setProperty("--acc", v.color);
       row.style.setProperty("--acc-dim", v.color + "55");
       row.style.setProperty("--acc-wash", v.color + "1c");
-      row.innerHTML = this.rowHtml(v);
+      row.innerHTML = this.cardHtml(v);
       row.onclick = () => this.applyOffer(offers[i]);
       // O hover so re-renderiza o PAINEL: mexer nas linhas mataria a transicao
       // de `transform` que o CSS esta rodando naquele instante.
@@ -240,14 +240,14 @@ class UI {
       row.onmouseleave = () => this.lvHoverTo(-1);
       this.el.lvRows.appendChild(row);
     }
-    this.el.lvBuild.innerHTML = this.buildPanelHtml(-1);
+    this.el.lvBuild.innerHTML = this.buildStripHtml(-1);
     this.el.levelup.classList.remove("hidden");
   }
 
   lvHoverTo(i) {
     if (this.lvHover === i) return;
     this.lvHover = i;
-    this.el.lvBuild.innerHTML = this.buildPanelHtml(i);
+    this.el.lvBuild.innerHTML = this.buildStripHtml(i);
   }
 
   /* Tudo o que a linha mostra, derivado do que a oferta ja carrega. Roda uma
@@ -273,15 +273,15 @@ class UI {
       v.name = o.def.name;
       v.subtitle = "não dispara · afeta a build inteira";
       v.plain = o.def.desc;
-      /* Passiva mora no level up junto com os tiers porque ela nao e largura:
-         ela nao tem tier, nao tem eixo e nao pede investimento nenhum depois
-         de tomada. Ela so multiplica o que a build ja tem — que e exatamente
-         o que esta tela faz. */
+      /* `why` so aparece quando ACRESCENTA. Na linha ele carregava sempre o
+         que a spell e, porque a coluna existia de qualquer jeito; numa carta o
+         nome esta logo acima e repetir a identidade e ruido. Sobra o caso em
+         que ha um aviso de verdade: passiva exclusiva fecha uma porta, e essa
+         e uma consequencia que a carta nao mostra em lugar nenhum. */
       v.why = o.def.exclusive
-        ? `Escolher esta fecha a porta de ${PASSIVES[o.def.exclusive].name} — a build tem que optar.`
-        : "Vale para a build inteira, não para uma peça só.";
-      v.progHead = "Vale para tudo";
-      v.progTail = "não sobe de tier";
+        ? `Fecha a porta de ${PASSIVES[o.def.exclusive].name} — a build tem que optar.`
+        : "";
+      v.progHead = "Vale para a build inteira";
     } else {
       const evo = o.isEvo && o.evo ? o.evo : null;
       /* Evolucao ganha etiqueta propria em vez de "Melhoria · evolução": ela
@@ -310,20 +310,23 @@ class UI {
          a quem le o catalogo direto. */
       const plain = o.tier.desc.replace(/^EVOLUÇÃO\s*[—-]\s*/, "");
       v.plain = plain.charAt(0).toUpperCase() + plain.slice(1);
-      // Sem repetir o nome que agora esta no slot acima: o "porque" fica so
-      // com o que a spell E, que e o contexto da melhoria.
-      v.why = evo ? evo.desc : o.def.desc;
+      /* So a evolucao ganha `why`, e por um motivo: ali a peca troca de
+         identidade inteira (nome, arte, trigger, efeitos), entao o que ela
+         PASSA A SER e informacao nova. Numa melhoria comum o nome da spell esta
+         logo acima e repetir o `desc` dela seria encher a carta com o que o
+         jogador ja sabe. */
+      v.why = evo ? evo.desc : "";
       v.delta = this.tierDelta(o);
       v.pips = o.tierIndex + 1;
       /* Veredito primeiro, detalhe depois — a mesma hierarquia que o custo
          tinha. O veredito e quao fundo esta compra deixa a trilha; o detalhe e
          qual trilha, porque uma spell tem tres e elas nao se misturam. */
+      /* Veredito, nao coordenada: o subtitulo ja diz "caminho · tier N de 5".
+         Aqui vai o que aquilo SIGNIFICA para a compra. */
       const falta = PATH_RULES.tiers - (o.tierIndex + 1);
-      v.progHead = evo ? "Fecha o caminho"
-        : falta === 0 ? "Fecha o caminho"
+      v.progHead = falta === 0 ? "Fecha o caminho"
         : falta === 1 ? "A um tier do fim"
         : `Tier ${o.tierIndex + 1} de ${PATH_RULES.tiers}`;
-      v.progTail = o.path.name;
     }
 
     v.rec = this.recFor(o, v);
@@ -400,18 +403,31 @@ class UI {
     return best;
   }
 
-  rowHtml(v) {
+  /* Uma CARTA por oferta, em coluna. A tela nasceu em linhas porque comparava
+     tres coisas diferentes (spell nova / melhoria / passiva) e o olho precisava
+     correr um campo de cada vez na vertical. Depois que peca nova saiu para as
+     etapas, as tres ofertas viraram a mesma coisa — um degrau numa spell que
+     voce ja tem — e as colunas de "o que e / o que muda / onde chega" passaram
+     a repartir uma informacao que ja era homogenea. Grade de tres colunas para
+     comparar campos que nao divergem mais e so moldura.
+
+     A hierarquia interna nao mudou, e ela e a regra que sobrevive a qualquer
+     forma: `.lv-plain` — o que muda no jogo — e o item mais claro da carta,
+     acima do nome da spell, do icone e do botao. Numa carta o nome vem antes
+     no espaco, entao ele tem que perder no TAMANHO, senao a leitura pousa no
+     rotulo em vez de no efeito. */
+  cardHtml(v) {
     let delta = "";
     for (const d of v.delta) {
       delta += `<div class="lv-delta"><span class="was">${d[0]}</span>` +
                `<span class="arrow">→</span><span class="now">${d[1]}</span></div>`;
     }
     return `
+      <div class="lv-kind"><i>${v.glyph}</i>${v.kind}</div>
       <div class="lv-what">
         <div class="lv-tile${v.round ? " round" : ""}">${v.icon}${
           v.badge ? `<b>${v.badge}</b>` : ""}</div>
         <div class="lv-what-txt">
-          <div class="lv-kind"><i>${v.glyph}</i>${v.kind}</div>
           <div class="lv-name">${v.name}</div>
           <div class="lv-subtitle">${v.subtitle}</div>
         </div>
@@ -419,12 +435,13 @@ class UI {
       <div class="lv-change">
         <div class="lv-plain">${v.plain}</div>
         ${delta}
-        <div class="lv-why">${v.why}</div>
+        ${v.why ? `<div class="lv-why">${v.why}</div>` : ""}
       </div>
-      <div class="lv-cost">
-        <div class="lv-cost-line ${v.pips != null ? "pay" : "free"}">${v.progHead}
-          <span>${v.progTail}</span></div>
-        ${v.pips != null ? `<div class="lv-prog">${this.pipsHtml(v.pips)}</div>` : ""}
+      <div class="lv-foot-card">
+        <div class="lv-prog-line">
+          <span class="lv-prog-head">${v.progHead}</span>
+          ${v.pips != null ? this.pipsHtml(v.pips) : ""}
+        </div>
         ${v.rec ? `<div class="lv-rec">${v.rec}</div>` : ""}
         <div class="lv-pick">Escolher</div>
       </div>`;
@@ -465,122 +482,65 @@ class UI {
     return out;
   }
 
-  /* Painel da build: o contexto sem o qual "melhoria" e "spell nova" sao
-     palavras abstratas. Tudo derivado do Build — nenhum estado novo alem do
-     indice da oferta sob o mouse.
+  /* A build de agora, em UMA TIRA. Era um painel lateral de 316px com densidade
+     automatica, teto de linhas, contador de excedente, chips de passiva, tres
+     barras de eixo e a linha do capstone — metade daquilo existia para caber
+     numa coluna estreita, e a outra metade respondia perguntas que esta tela
+     nao faz mais.
 
-     Ele nao rola: quando a build cresce, ele muda de DENSIDADE e depois
-     RESUME. Eixos e capstone ficam presos embaixo porque sao a informacao que
-     decide a compra; quem cede espaco e a lista de spells. */
-  buildPanelHtml(hoverIdx) {
-    const g = this.game, b = g.build;
+     Os eixos e o capstone saem daqui de vez: nenhuma oferta de level up os
+     move, e a tela de ETAPA — que e onde eles mudam — ja os mostra com previa
+     ao vivo. Repetir aqui era mostrar um numero parado ao lado de tres cartas
+     que nao o tocam.
+
+     O que sobra e a unica pergunta que a tira responde, e ela e a pergunta
+     desta tela: em que degrau estao as minhas outras spells? Icone, pips do
+     caminho mais fundo, e destaque em quem a carta sob o mouse melhora. */
+  buildStripHtml(hoverIdx) {
+    const b = this.game.build;
     const o = hoverIdx >= 0 && this.lvOffers ? this.lvOffers[hoverIdx] : null;
-    const v = hoverIdx >= 0 && this.lvViews ? this.lvViews[hoverIdx] : null;
+    const alvo = o && o.kind === "path" ? o.inst.key : null;
 
-    /* Qual spell a oferta sob o mouse mexe. So o tier tem alvo: passiva vale
-       para a build inteira, entao destacar tudo seria destacar nada. */
-    const hit = new Set();
-    if (o && o.kind === "path") hit.add(o.inst.key);
-
-    const start = (CLASSES[g.selectedClass] && CLASSES[g.selectedClass].starting) || [];
     const rows = [];
     for (const inst of b.pieces.values()) {
-      const d = inst.def;
-      const paths = [];
+      let top = 0, nome = "";
       for (const pid in inst.paths) {
-        if (inst.paths[pid] > 0) paths.push({ name: d.paths[pid].name, n: inst.paths[pid] });
+        if (inst.paths[pid] > top) { top = inst.paths[pid]; nome = inst.def.paths[pid].name; }
       }
-      paths.sort((x, y) => y.n - x.n);
-      rows.push({
-        def: d, paths, hit: hit.has(inst.key),
-        meta: start.indexOf(inst.key) >= 0
-          ? "kit inicial"
-          : `${AXES[d.axis].icon} ${AXES[d.axis].name}`,
-      });
+      rows.push({ def: inst.def, top, nome, hit: inst.key === alvo, done: b.isComplete(inst) });
     }
-    // A spell afetada sobe para o topo, para nunca cair dentro do contador.
+    // A spell afetada vai para a frente: numa tira ela nunca pode cair no "+N".
     rows.sort((a, z) => (z.hit ? 1 : 0) - (a.hit ? 1 : 0));
 
-    const compact = rows.length > PANEL.fullRows;
-    const maxRows = compact ? PANEL.slimRows : PANEL.fullRows;
+    const teto = STRIP.spells;
     let list = "";
-    for (let i = 0; i < rows.length && i < maxRows; i++) {
+    for (let i = 0; i < rows.length && i < teto; i++) {
       const r = rows[i], c = r.def.color;
-      const style = `--acc:${c};--acc-dim:${c}55` +
-        (r.hit ? `;background:${c}1f;border-color:${c}aa` : "");
-      if (compact) {
-        const top = r.paths[0];
-        list += `<div class="lv-sp slim" style="${style}">
-          <span class="lv-sp-ic">${r.def.icon}</span>
-          <span class="lv-sp-name">${r.def.name}</span>
-          ${top ? this.pipsHtml(top.n) : ""}
-          ${r.hit ? `<span class="lv-sp-tag">↑ afetada</span>` : ""}</div>`;
-      } else {
-        let pr = "";
-        for (const p of r.paths) {
-          pr += `<div class="lv-sp-path"><span>${p.name}</span>${this.pipsHtml(p.n)}</div>`;
-        }
-        list += `<div class="lv-sp full" style="${style}">
-          <div class="lv-sp-top">
-            <span class="lv-sp-ic">${r.def.icon}</span>
-            <span class="lv-sp-txt">
-              <span class="lv-sp-name">${r.def.name}</span>
-              <span class="lv-sp-meta">${r.meta}</span>
-            </span>
-          </div>
-          ${pr}
-          ${r.hit ? `<div class="lv-sp-hint">↑ a linha em destaque melhora esta spell</div>` : ""}
-        </div>`;
-      }
+      list += `<div class="lv-sp${r.hit ? " hit" : ""}${r.done ? " done" : ""}"
+        style="--acc:${c};--acc-dim:${c}55" title="${r.def.name}${
+        r.nome ? ` — ${r.nome} tier ${r.top}` : ""}">
+        <span class="lv-sp-ic">${r.def.icon}</span>
+        <span class="lv-sp-name">${r.def.name}</span>
+        ${this.pipsHtml(r.top)}</div>`;
     }
-    const overflow = rows.length - maxRows;
+    if (rows.length > teto) {
+      list += `<div class="lv-sp more">+${rows.length - teto}</div>`;
+    }
 
     let chips = "";
     let np = 0;
     for (const id of b.passives.keys()) {
-      if (np >= PANEL.chips) break;
+      if (np >= STRIP.chips) break;
       const p = PASSIVES[id];
-      chips += `<span class="lv-chip" style="--acc-dim:${p.color}55;--acc-wash:${p.color}16">
-        <i>${p.icon}</i><span>${p.name}</span></span>`;
+      chips += `<span class="lv-chip" style="--acc-dim:${p.color}55;--acc-wash:${p.color}16"
+        title="${p.name}: ${p.desc}"><i>${p.icon}</i></span>`;
       np++;
     }
-    if (b.passives.size > np) {
-      chips += `<span class="lv-chip more">+${b.passives.size - np}</span>`;
-    }
+    if (b.passives.size > np) chips += `<span class="lv-chip more">+${b.passives.size - np}</span>`;
 
-    /* Os eixos continuam no painel, mas agora sao so LEITURA: nenhuma oferta
-       de level up os move. Eles ficam porque respondem "o que a proxima etapa
-       decide" — e o jogador precisa dessa resposta enquanto escolhe onde
-       aprofundar, senao ele investe fundo num eixo que a run nao vai seguir.
-       A previa de ganho migrou para a tela de etapa, que e onde o numero
-       muda. */
-    const axes = this.axesHtml(null, 0);
-
-    let cap = "";
-    const near = this.nearestCapstone();
-    if (near && near.gaps.length) {
-      const falta = near.gaps.map((x) => `${x.need} de ${x.axis.name}`).join(" e ");
-      const pago = near.paid.map((x) => `${x.name} ${near.cap.req[x.id]}`).join(" e ");
-      cap = `<div class="lv-cap">${near.cap.icon}
-        <b style="color:${near.cap.color}">${near.cap.name}</b> a ${falta}${
-        pago ? ` — ${pago} já pago.` : "."}</div>`;
-    }
-
-    const nS = rows.length, nP = b.passives.size;
-    return `
-      <div class="lv-b-head">
-        <span class="lv-b-lbl">Sua build agora</span>
-        <span class="lv-b-count">${nS} spell${nS === 1 ? "" : "s"} · ${nP} passiva${nP === 1 ? "" : "s"}</span>
-      </div>
-      <div class="lv-b-list">${list}</div>
-      ${overflow > 0 ? `<div class="lv-b-more">+${overflow} spell${
-        overflow === 1 ? "" : "s"} — abra a pausa para ver tudo</div>` : ""}
-      ${nP ? `<div class="lv-b-sec">
-        <div class="lv-b-lbl">Passivas</div>
-        <div class="lv-b-chips">${chips}</div></div>` : ""}
-      <div class="lv-b-div"></div>
-      <div class="lv-b-axes">${axes}</div>
-      ${cap}`;
+    return `<span class="lv-strip-lbl">Sua build</span>
+      <div class="lv-strip-list">${list}</div>
+      ${chips ? `<div class="lv-strip-chips">${chips}</div>` : ""}`;
   }
 
   applyOffer(o) {
@@ -1055,11 +1015,12 @@ class UI {
   }
 }
 
-/* Tetos do painel de build da tela de level-up. Sao TETOS DE LEITURA, nao de
-   dados: o overlay nao rola, entao o que passa disso vira contador. Com quatro
-   spells cada uma cabe inteira (icone, custo e uma linha por caminho); da
-   quinta em diante a linha encolhe e so a trilha mais funda mostra pips. */
-const PANEL = { fullRows: 4, slimRows: 8, chips: 6 };
+/* Tetos da TIRA de build da tela de level-up. Sao TETOS DE LEITURA, nao de
+   dados: o overlay nao rola e a tira e uma linha so, entao o que passa disso
+   vira contador. Substituiram os tetos do painel lateral, que tinha densidade
+   automatica e duas alturas de linha — complexidade que existia para caber numa
+   coluna de 316px que nao existe mais. */
+const STRIP = { spells: 8, chips: 6 };
 
 /* Como cada stat vira texto no "antes -> depois" da linha de oferta.
 

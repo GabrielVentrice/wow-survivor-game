@@ -103,12 +103,12 @@ falhando, não regressão.
 `driver_preview` também não mede nada: escreve `tools/levelup-preview.html`,
 com as **duas** telas de escolha montadas a partir de builds de verdade. Os
 quatro estados do level-up são **caçados na simulação**, não fixados por número
-de rodada: linha completa, linha compacta, compacta com excedente e **evolução
-na mesa** — esse último é o mais raro de encontrar jogando e o que tem etiqueta
+de rodada: build crua, build média, tira no teto com contador e **evolução na
+mesa** — esse último é o mais raro de encontrar jogando e o que tem etiqueta
 própria. A etapa sai nos dois extremos: primeiro marco (2 pontos, build crua,
 capstone longe) e marco final (5 pontos, eixo carregado, capstone ao alcance),
 que é onde os números da carta mudam de peso.
-O HTML sai dos mesmos `UI.rowHtml`/`UI.buildPanelHtml`/`UI.msCardHtml` do jogo e
+O HTML sai dos mesmos `UI.cardHtml`/`UI.buildStripHtml`/`UI.msCardHtml` do jogo e
 o CSS é lido do `index.html`, então prévia que diverge do jogo não existe. Mesmo
 argumento do `sprites.html`: tela que só aparece por segundos, em estados
 sorteados, não se revisa jogando — e a etapa aparece **sete vezes por run** e
@@ -121,9 +121,14 @@ entre eles é a mesma do jogo: level-up só aprofunda, etapa é a única fonte d
 ponto de eixo.
 
 `driver_cards` reprova, além do que já checava, **oferta de peça nova no
-level-up** e **escolha de level-up que mova o pool de eixo**. As duas são a
+level-up** e **escolha de level-up que mova o pool de eixo** — as duas são a
 mesma regressão vista de dois lados: uma tela em que largura e profundidade
-disputam a mesma escolha, e largura ganha sempre.
+disputam a mesma escolha, e largura ganha sempre. Depois que a tela virou
+cartas, ele cobra mais três: **carta sem `.lv-plain`** (a manchete é o efeito, e
+numa carta o nome vem antes no espaço — só o tamanho segura a hierarquia),
+**`lv-ax` de volta na tira** (eixo não é assunto desta tela) e a **trava de
+nível das passivas**, verificada no nível 1 antes de subir o nível para medir o
+resto.
 
 `driver_milestone` guarda a tela em suas duas fases, e a parte que mais importa
 é que ele **refaz a conta da cadência por simulação** em vez de conferir uma

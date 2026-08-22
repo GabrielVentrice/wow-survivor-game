@@ -599,151 +599,179 @@
      vezes na mesma pagina e id nao se repete. `.lv` vem depois de `.screen` na
      folha, entao ganha dele sem precisar da especificidade do id. */
   .lv {
-    display: block;
-    padding: 0;
-    backdrop-filter: none;
-    font-family: var(--ui);
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; backdrop-filter: none; font-family: var(--ui);
     background: radial-gradient(120% 90% at 50% 8%, #241137 0%, #150c22 45%, #0a0510 100%);
-    --lv-cols: 226px minmax(0, 1fr) 190px;
   }
   .lv-glow {
     position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(60% 40% at 50% 0%, rgba(154, 76, 255, 0.18), transparent 70%);
   }
-  .lv-grid {
-    position: relative; height: 100%;
-    display: grid; grid-template-columns: minmax(0, 1fr) 316px;
+  .lv-wrap {
+    position: relative; z-index: 1; pointer-events: auto;
+    display: flex; flex-direction: column; gap: 20px;
+    width: min(1120px, 94vw); max-height: 94vh; padding: 4px;
   }
-
-  /* --- coluna esquerda: as tres ofertas --- */
-  .lv-main {
-    display: flex; flex-direction: column; gap: 16px;
-    padding: 32px 32px 28px 44px; min-width: 0; min-height: 0;
-  }
-  .lv-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
-  .lv-head-txt { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .lv-head { display: flex; flex-direction: column; gap: 5px; text-align: center; }
   .lv-eyebrow {
     font-family: var(--mono); font-size: 13px; letter-spacing: 0.22em;
     text-transform: uppercase; color: #7fdc4a;
   }
   .lv-title {
-    font-size: 42px; font-weight: 800; line-height: 1;
+    font-size: clamp(30px, 4vw, 42px); font-weight: 800; line-height: 1;
     letter-spacing: -0.01em; color: #f3ecff;
   }
-  .lv-colhead {
-    display: grid; grid-template-columns: var(--lv-cols); gap: 16px; padding: 0 16px;
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em;
-    text-transform: uppercase; color: #6a5d80;
-  }
-  .lv-rows { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
-  .lv-row {
-    flex: 1; min-height: 0; cursor: pointer; pointer-events: auto;
-    display: grid; grid-template-columns: var(--lv-cols); gap: 16px; align-items: center;
-    padding: 16px; border-radius: 13px;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+
+  /* --- as tres cartas -------------------------------------------------------
+     A tela nasceu em LINHAS, e a razao era boa enquanto valia: ela comparava
+     tres coisas diferentes (spell nova / melhoria / passiva) e o olho precisava
+     correr um campo de cada vez na vertical. Depois que peca nova mudou para a
+     tela de etapa, as tres ofertas viraram a mesma coisa — um degrau numa spell
+     que voce ja tem — e as colunas "o que e / o que muda / onde chega" passaram
+     a repartir uma informacao que ja era homogenea. Grade de tres colunas para
+     comparar campos que nao divergem mais e so moldura.
+
+     A hierarquia INTERNA e a regra que sobrevive a mudanca de forma:
+     `.lv-plain` continua sendo o item mais claro da carta. Numa carta o nome da
+     spell vem antes no espaco, entao ele tem que perder no TAMANHO — senao a
+     leitura pousa no rotulo em vez de no efeito, que e o defeito que esta tela
+     ja corrigiu uma vez. */
+  .lv-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; min-height: 0; }
+  .lv-card {
+    cursor: pointer; pointer-events: auto;
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 18px 18px 16px; border-radius: 15px;
+    background: linear-gradient(170deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015));
     border: 1.5px solid var(--acc-dim);
-    border-left: 5px solid var(--acc);
-    transition: transform 0.16s, box-shadow 0.16s;
+    border-top: 5px solid var(--acc);
+    transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s;
   }
-  .lv-row:hover { transform: translateX(5px); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5); }
+  .lv-card:hover {
+    transform: translateY(-6px); border-color: var(--acc);
+    box-shadow: 0 20px 46px rgba(0, 0, 0, 0.55);
+  }
+
+  /* O tipo NAO pode depender de cor: a cor da carta e a do EIXO (qual build ela
+     alimenta), entao uma melhoria verde e uma evolucao verde sao a mesma cor.
+     Quem separa e forma — etiqueta solida com glifo, tile redondo na passiva, e
+     o selo do tier no canto quando e melhoria, porque ai o icone mente: ele e o
+     icone de uma spell que voce ja tem e sozinho nao diz quao fundo ela esta. */
+  .lv-kind {
+    display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px; background: var(--acc); color: #14091f;
+  }
+  .lv-kind i { font-style: normal; }
 
   .lv-what { display: flex; align-items: center; gap: 11px; min-width: 0; }
-  /* O tipo da oferta NAO pode depender de cor. A cor da linha e a do eixo (qual
-     build ela alimenta), entao uma melhoria verde e uma spell nova verde sao a
-     mesma cor — cor ja esta ocupada. Quem carrega o tipo e FORMA:
-
-       - etiqueta solida com glifo, em vez de legenda solta na cor do eixo, que
-         lia como comentario e nao como rotulo;
-       - o tile e circulo quando e passiva, a mesma convencao que a barra de
-         pecas do HUD ja usa (`.pb-icon.pb-passive`);
-       - selo com o tier no canto do tile quando e melhoria — porque ai o icone
-         MENTE: ele e o icone de uma spell que voce ja tem, identico ao de uma
-         spell nova. O numero e o que diz "isto e profundidade, nao largura".
-
-     Os glifos sao os mesmos da legenda que a tela perdeu (◈ ▲ ✦): o vocabulario
-     nao mudou, so saiu do topo e entrou na linha. */
   .lv-tile {
-    position: relative;
-    width: 46px; height: 46px; flex: none; border-radius: 12px;
-    display: grid; place-items: center; font-size: 21px;
-    border: 1px solid var(--acc-dim); background: var(--acc-wash);
+    position: relative; flex: none;
+    width: 46px; height: 46px; border-radius: 12px;
+    display: grid; place-items: center; font-size: 24px;
+    background: var(--acc-wash); border: 1px solid var(--acc-dim); color: var(--acc);
   }
   .lv-tile.round { border-radius: 50%; }
   .lv-tile > b {
     position: absolute; right: -5px; bottom: -5px;
-    min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px;
+    min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px;
     display: grid; place-items: center;
-    font-family: var(--mono); font-size: 10px; font-weight: 600; line-height: 1;
-    color: #14091f; background: var(--acc);
-    box-shadow: 0 0 0 2px rgba(11, 6, 18, 0.92);
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    background: var(--acc); color: #14091f; border: 2px solid #191026;
   }
-  .lv-what-txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .lv-kind {
-    display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
-    padding: 2px 8px 2px 6px; border-radius: 999px; white-space: nowrap;
-    font-family: var(--mono); font-size: 10px; font-weight: 600;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    color: #14091f; background: var(--acc);
-  }
-  .lv-kind > i { font-style: normal; font-size: 11px; }
-  .lv-name { font-size: 15.5px; font-weight: 600; line-height: 1.2; color: #cfc4e2; }
-  .lv-subtitle { font-size: 12px; color: #7c6f92; }
+  .lv-what-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .lv-name { font-size: 15.5px; font-weight: 600; color: #efe9fa; line-height: 1.15; }
+  .lv-subtitle { font-size: 12px; color: #8b7fa3; line-height: 1.3; }
 
-  /* A COLUNA DO MEIO E A MANCHETE. Quem decide a compra e o que a oferta faz —
-     nao o nome de fantasia do tier, nao o icone, nao o botao. Antes o efeito
-     saia em 17px lavanda apagada disputando com um nome de 20px branco, um
-     tile de 52px e um botao de preenchimento solido; o olho pousava em tudo
-     menos na informacao. Aqui ele e o maior e o mais claro da linha, e todo o
-     resto foi rebaixado um degrau para caber atras dele. */
-  .lv-change { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
-  .lv-plain { font-size: 21px; font-weight: 500; line-height: 1.28; color: #f5f0ff; text-wrap: pretty; }
-  /* O "antes -> depois" nao e enfeite: sem ele "melhora a spell X" nao diz se
-     a melhoria e de 5% ou de 100%. Os dois lados saem dos mods do tier
-     aplicados aos stats resolvidos da instancia (ver UI.tierDelta). */
+  .lv-change { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
+  /* A MANCHETE. Maior e mais clara que tudo o mais na carta, incluindo o nome. */
+  .lv-plain { font-size: 19px; line-height: 1.28; color: #f3ecff; text-wrap: pretty; }
   .lv-delta {
-    display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
-    font-family: var(--mono); font-size: 13px;
+    display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+    font-family: var(--mono);
   }
-  .lv-delta .was {
-    color: #8b7fa3;
-    text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, 0.25);
-  }
+  .lv-delta .was { font-size: 12.5px; color: #7c6f92; }
   .lv-delta .arrow { color: #5b4d72; }
   .lv-delta .now { font-size: 14.5px; font-weight: 600; color: var(--acc); }
-  .lv-why { font-size: 13px; line-height: 1.4; color: #8b7fa3; text-wrap: pretty; }
+  /* So aparece quando acrescenta: aviso de passiva exclusiva, ou o que a peca
+     PASSA A SER numa evolucao. Fundo da pilha, abaixo da manchete e do delta. */
+  .lv-why { font-size: 12.5px; line-height: 1.4; color: #8b7fa3; text-wrap: pretty; }
 
-  .lv-cost { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-  .lv-cost-line { font-size: 14px; font-weight: 600; line-height: 1.25; }
-  .lv-cost-line > span {
-    display: block; margin-top: 2px;
-    font-size: 12px; font-weight: 400; color: #8b7fa3;
-  }
-  .lv-cost-line.free { color: #7fdc4a; }
-  .lv-cost-line.pay { color: #ff8a3c; }
-  .lv-prog { display: flex; align-items: center; gap: 7px; }
-  .lv-prog-lbl { font-size: 12px; color: #8b7fa3; }
+  .lv-foot-card { display: flex; flex-direction: column; gap: 9px; }
+  .lv-prog-line { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .lv-prog-head { font-size: 12.5px; font-weight: 600; color: #9b8fb0; }
   .lv-pips { display: flex; gap: 3px; }
   .lv-pips i { width: 12px; height: 5px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); }
   .lv-pips i.on { background: var(--acc); }
-  /* Marco (aura, capstone) e informacao de verdade, mas em pilula de contorno
-     ela brigava com a linha de custo logo acima — as duas verdes quando o tier
-     e livre. Fundo lavado, sem borda: continua legivel, para de competir. */
+  /* Marco (a aura) e informacao de verdade; fundo lavado e sem borda para ela
+     continuar legivel sem competir com a manchete. */
   .lv-rec {
+    align-self: flex-start;
     font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
     background: rgba(127, 220, 74, 0.13); color: #7fdc4a;
   }
-  /* A LINHA INTEIRA e clicavel; o botao e lembrete, nao o alvo. Preenchido em
-     repouso ele era o segundo bloco mais barulhento de cada linha e roubava o
-     olho do efeito. Vazado em repouso, enche quando a linha esta sob o mouse —
-     que e exatamente quando ele tem algo a dizer. */
+  /* A CARTA INTEIRA e clicavel; o botao e lembrete, nao alvo. Vazado em
+     repouso, enche quando a carta esta sob o mouse — que e quando ele tem algo
+     a dizer. (Na tela de ETAPA e o contrario, e de proposito: la os botoes SAO
+     a decisao, porque cada um carrega um numero diferente.) */
   .lv-pick {
-    margin-top: 2px; font-size: 13.5px; font-weight: 600;
-    padding: 8px 16px; border-radius: 9px;
+    text-align: center; font-size: 13.5px; font-weight: 600;
+    padding: 9px 16px; border-radius: 9px;
     color: var(--acc); background: transparent; border: 1px solid var(--acc-dim);
     transition: background 0.16s, color 0.16s, border-color 0.16s;
   }
-  .lv-row:hover .lv-pick { color: #14091f; background: var(--acc); border-color: var(--acc); }
-  .lv-foot { font-size: 13px; color: #7c6f92; }
+  .lv-card:hover .lv-pick { color: #14091f; background: var(--acc); border-color: var(--acc); }
+
+  /* --- a tira da build ------------------------------------------------------
+     Era um painel lateral de 316px com densidade automatica, teto de linhas,
+     contador de excedente, chips e tres barras de eixo. Metade daquilo existia
+     so para caber numa coluna estreita; a outra metade respondia perguntas que
+     esta tela nao faz mais — eixo e capstone nao sao movidos por nada daqui, e
+     a tela de ETAPA ja os mostra com previa ao vivo.
+
+     Sobrou a unica pergunta que a tira responde, que e a desta tela: em que
+     degrau estao as minhas outras spells? */
+  .lv-strip {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 11px 14px; border-radius: 12px;
+    background: rgba(0, 0, 0, 0.34); border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .lv-strip-lbl {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: #6a5d80;
+  }
+  .lv-strip-list { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; flex: 1; min-width: 0; }
+  .lv-strip-chips { display: flex; align-items: center; gap: 5px; }
+  .lv-sp {
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 9px; border-radius: 9px;
+    background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.07);
+    transition: background 0.16s, border-color 0.16s;
+  }
+  .lv-sp-ic { font-size: 14px; color: var(--acc); }
+  .lv-sp-name { font-size: 12.5px; color: #cfc4e2; white-space: nowrap; }
+  .lv-sp .lv-pips i { width: 9px; height: 4px; }
+  /* A spell que a carta sob o mouse melhora acende — e o que liga a decisao ao
+     estado da build sem a tira ter que explicar nada por escrito. */
+  .lv-sp.hit { background: var(--acc-wash); border-color: var(--acc); }
+  .lv-sp.hit .lv-sp-name { color: #f3ecff; }
+  /* Spell concluida ja tem aura no personagem: o anel diz que ela fechou. */
+  .lv-sp.done { box-shadow: inset 0 0 0 1px var(--acc-dim); }
+  .lv-sp.more, .lv-chip.more {
+    font-family: var(--mono); font-size: 11.5px; color: #6a5d80;
+  }
+  .lv-chip {
+    display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--acc-wash); border: 1px solid var(--acc-dim);
+  }
+  .lv-chip i { font-style: normal; font-size: 13px; }
+  .lv-chip.more { width: auto; padding: 0 8px; border-radius: 999px; }
+
+  .lv-foot { font-size: 12.5px; color: #7c6f92; text-align: center; }
+
+  @media (max-width: 860px) {
+    .lv-cards { grid-template-columns: 1fr; }
+    .lv-plain { font-size: 17px; }
+  }
 
   /* --- ETAPA: a batida lenta ------------------------------------------------
      Deliberadamente o oposto da tela de level up. La sao LINHAS porque a
@@ -880,74 +908,11 @@
     .ms-rows, .ms-pool { grid-template-columns: 1fr; }
   }
 
-  /* --- coluna direita: o painel elastico da build ----------------------------
-     Overlay de jogo nao rola — ele RESUME. A lista de spells e a unica coisa
-     que cede espaco (`flex:1; overflow:hidden`); eixos e capstone sao
-     `flex:none` e ficam presos embaixo, porque sao a informacao que decide a
-     compra. Densidade e automatica pelo tamanho da build (ver
-     UI.buildPanelHtml): ate 4 spells cada uma ganha linha inteira, de 5 em
-     diante viram linha unica, e o que ainda nao couber vira contador. */
-  .lv-build {
-    display: flex; flex-direction: column; gap: 12px;
-    padding: 28px 40px 24px 22px; min-height: 0; overflow: hidden;
-    border-left: 1px solid rgba(255, 255, 255, 0.07);
-    background: rgba(0, 0, 0, 0.26);
-  }
-  /* O rotulo e a contagem nao cabem lado a lado nos 254px uteis do painel; sem
-     o wrap no CONTAINER quem quebrava era o rotulo, no meio da palavra. */
-  .lv-b-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; flex: none; }
-  .lv-b-lbl {
-    flex: 1 0 auto; white-space: nowrap;
-    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.2em;
-    text-transform: uppercase; color: #7c6f92;
-  }
-  .lv-b-count { white-space: nowrap; font-family: var(--mono); font-size: 11.5px; color: #5b4d72; }
-  .lv-b-list { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
-  .lv-b-more { flex: none; font-family: var(--mono); font-size: 11.5px; color: #6a5d80; padding: 2px 8px; }
-
-  .lv-sp {
-    flex: none; border: 1px solid rgba(255, 255, 255, 0.07);
-    background: rgba(255, 255, 255, 0.03);
-    transition: background 0.18s, border-color 0.18s;
-  }
-  .lv-sp.full { border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
-  .lv-sp.slim { border-radius: 9px; padding: 5px 8px; display: flex; align-items: center; gap: 8px; }
-  .lv-sp-top { display: flex; align-items: center; gap: 9px; min-width: 0; }
-  .lv-sp-ic {
-    width: 28px; height: 28px; flex: none; border-radius: 8px;
-    display: grid; place-items: center; font-size: 14px; border: 1px solid var(--acc-dim);
-  }
-  .lv-sp.slim .lv-sp-ic { width: 24px; height: 24px; border-radius: 7px; font-size: 12.5px; }
-  .lv-sp-txt { display: flex; flex-direction: column; min-width: 0; }
-  .lv-sp-name {
-    font-size: 14.5px; font-weight: 600; color: #e6dff5;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .lv-sp.slim .lv-sp-name { flex: 1; min-width: 0; font-size: 13.5px; }
-  .lv-sp-meta { font-size: 12px; color: #8b7fa3; }
-  .lv-sp-path { display: flex; align-items: center; gap: 8px; }
-  .lv-sp-path > span { flex: 1; min-width: 0; font-size: 12.5px; color: #9b8fb0; }
-  .lv-sp.slim .lv-pips { flex: none; gap: 2px; }
-  .lv-sp.slim .lv-pips i { width: 10px; height: 4px; }
-  .lv-sp-hint { font-size: 12px; font-weight: 600; color: var(--acc); }
-  .lv-sp-tag { flex: none; font-size: 11px; font-weight: 600; color: var(--acc); }
-
-  .lv-b-sec { display: flex; flex-direction: column; gap: 7px; flex: none; }
-  .lv-b-chips { display: flex; flex-wrap: wrap; gap: 5px; }
-  /* Passiva nunca vira card: ela nao tem tier, so existencia. */
-  .lv-chip {
-    display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #cfc4e2;
-    padding: 3px 8px 3px 5px; border-radius: 999px;
-    border: 1px solid var(--acc-dim); background: var(--acc-wash);
-  }
-  .lv-chip i { font-style: normal; font-size: 11px; }
-  .lv-chip.more {
-    padding: 3px 9px; font-family: var(--mono); color: #8b7fa3;
-    border-color: rgba(255, 255, 255, 0.12); background: none;
-  }
-  .lv-b-div { height: 1px; flex: none; background: rgba(255, 255, 255, 0.07); }
-
-  .lv-b-axes { display: flex; flex-direction: column; gap: 9px; flex: none; }
+  /* --- barras de eixo -------------------------------------------------------
+     Vivem aqui desde o painel lateral do level-up, que nao existe mais: hoje
+     quem as desenha e o rodape da tela de ETAPA, via `UI.axesHtml`. O prefixo
+     `lv-` ficou porque renomear classe usada em duas telas so troca o nome do
+     lugar onde a duvida mora. */
   .lv-ax { display: flex; flex-direction: column; gap: 4px; }
   .lv-ax-head { display: flex; align-items: baseline; gap: 7px; }
   .lv-ax-ic { font-size: 12px; }
@@ -962,35 +927,22 @@
   /* Previa: a barra fantasma mostra onde o eixo PARA se a oferta sob o mouse
      for comprada. E o unico jeito de ver o custo antes de pagar. */
   .lv-ax-track > i.ghost { opacity: 0.45; transition: width 0.2s; }
-  .lv-cap {
-    flex: none; border-radius: 10px; padding: 9px 11px;
-    border: 1px dashed rgba(127, 220, 74, 0.32);
-    font-size: 12.5px; line-height: 1.4; color: #9fb08f; text-wrap: pretty;
-  }
-
-  /* A tela foi desenhada em 1440x810. Abaixo disso as colunas fixas apertam
-     antes do texto: encolhem os dois lados e, no fim, o painel sai — melhor
-     perder o contexto do que espremer a decisao. */
+  /* A tela foi desenhada em 1440x810. Abaixo disso as cartas apertam antes do
+     texto: encolhe a manchete e o tile e, no fim, as tres viram uma coluna so
+     (`.lv-cards` na media query de 860px). A tira de build nao some — ela e uma
+     linha, entao ela quebra em vez de disputar espaco. */
   @media (max-width: 1200px) {
-    .lv { --lv-cols: 204px minmax(0, 1fr) 180px; }
-    .lv-grid { grid-template-columns: minmax(0, 1fr) 274px; }
-    .lv-main { padding: 24px 22px 20px 28px; }
     .lv-title { font-size: 34px; }
     .lv-kind { letter-spacing: 0.07em; padding: 3px 7px 3px 6px; }
-    .lv-build { padding: 22px 24px 20px 18px; }
     .lv-plain { font-size: 18px; }
   }
-  @media (max-width: 920px) {
-    .lv-grid { grid-template-columns: minmax(0, 1fr); }
-    .lv-build { display: none; }
-  }
   @media (max-height: 700px) {
-    .lv-main { gap: 10px; padding: 18px 22px 16px 26px; }
+    .lv-wrap { gap: 13px; }
     .lv-title { font-size: 30px; }
     .lv-tile { width: 40px; height: 40px; font-size: 18px; border-radius: 10px; }
     .lv-name { font-size: 14.5px; }
     .lv-plain { font-size: 17px; }
-    .lv-build { padding: 18px 22px 16px 18px; gap: 9px; }
+    .lv-card { gap: 9px; padding: 14px 14px 13px; }
   }
 
   /* ---------- painel de pausa: caminhos ---------- */
@@ -1050,21 +1002,14 @@
   <!-- Level up -->
   <div id="levelup" class="screen lv hidden">
     <div class="lv-glow"></div>
-    <div class="lv-grid">
-      <div class="lv-main">
-        <div class="lv-head">
-          <div class="lv-head-txt">
-            <div class="lv-eyebrow" id="lvEyebrow">Nível 1 → 2</div>
-            <div class="lv-title">Aprofunde uma</div>
-          </div>
-        </div>
-        <div class="lv-colhead">
-          <span>O que é</span><span>O que muda no jogo</span><span>Onde chega</span>
-        </div>
-        <div id="lvRows" class="lv-rows"></div>
-        <div class="lv-foot">Nada aqui custa ponto de eixo — isso é assunto das etapas. Uma escolha e a partida continua.</div>
+    <div class="lv-wrap">
+      <div class="lv-head">
+        <div class="lv-eyebrow" id="lvEyebrow">Nível 1 → 2</div>
+        <div class="lv-title">Aprofunde uma</div>
       </div>
-      <div id="lvBuild" class="lv-build"></div>
+      <div id="lvRows" class="lv-cards"></div>
+      <div id="lvBuild" class="lv-strip"></div>
+      <div class="lv-foot">Nada aqui custa ponto de eixo — isso é assunto das etapas.</div>
     </div>
   </div>
 

@@ -392,9 +392,10 @@ class BuildSystem {
      bolo, e as duas melhoram o que a build JA tem:
 
        - tier de caminho de uma peca possuida;
-       - passiva global, que nao e uma spell a mais — ela nao tem tier, nao
-         tem eixo e nao pede investimento nenhum depois: ela so multiplica o
-         que ja esta la (`pieceMods` sobre um `match`).
+       - passiva global A PARTIR do nivel `passiveFrom` — ela nao e uma spell a
+         mais: nao tem tier, nao tem eixo e nao pede investimento depois. Ela so
+         multiplica o que ja esta la (`pieceMods` sobre um `match`), e por isso
+         cedo demais ela nao tem o que multiplicar.
 
      Peca nova SAIU daqui e mora nas etapas (`getMilestoneOffers`). Medido
      antes da separacao, numa run de 16 min: 17 escolhas no total, 13 spells na
@@ -427,9 +428,14 @@ class BuildSystem {
       }
     }
 
-    for (const id in PASSIVES) {
-      if (this.passives.has(id) || this.passiveBlocked(id)) continue;
-      pool.push({ kind: "passive", id, def: PASSIVES[id] });
+    /* Passiva so entra a partir de `passiveFrom`. Ela multiplica o que a build
+       ja tem, entao cedo demais ela multiplica quase nada — e ocupa uma das
+       tres cartas disputando com o tier que faria diferenca agora. */
+    if (this.game.player.level >= BALANCE.levelup.passiveFrom) {
+      for (const id in PASSIVES) {
+        if (this.passives.has(id) || this.passiveBlocked(id)) continue;
+        pool.push({ kind: "passive", id, def: PASSIVES[id] });
+      }
     }
 
     shuffle(pool);

@@ -1,12 +1,13 @@
-// Tela de level-up: as tres linhas e o painel de build.
+// Tela de level-up: as tres CARTAS e a tira de build.
 //
 // A BATIDA RAPIDA. Depois da separacao das duas telas ela nao gasta mais nada:
 // so aprofunda o que a build ja tem (tier de caminho) ou multiplica (passiva
 // global). Ponto de eixo e assunto da etapa, e `driver_milestone` cobra aquela.
 //
 // O que este driver cobra e o que sobrou de mentira possivel: tipo legivel sem
-// depender de cor, pips iguais ao tier real, progresso dito em toda linha, e um
-// painel que RESUME em vez de estourar — overlay de jogo nao tem rolagem.
+// depender de cor, pips iguais ao tier real, progresso dito em toda carta, uma
+// tira que RESUME em vez de estourar (overlay de jogo nao tem rolagem), e a
+// trava de nivel das passivas.
 //
 // E cobra tambem que peca nova NAO volte para ca por acidente: o defeito que a
 // separacao existe para consertar era exatamente uma tela em que largura e
@@ -16,6 +17,17 @@ window.game = g;
 let s = 7;
 Math.random = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
 g.start();
+// A run comeca no nivel 1 e passiva so entra a partir de `passiveFrom`: sem
+// subir o nivel, metade do bolo nunca apareceria e o driver nao mediria nada
+// sobre ela. A trava em si e verificada logo abaixo, no nivel 1.
+const semPassiva = g.build.getOffers(9);
+for (const o of semPassiva) {
+  if (o.kind === "passive") {
+    bad(`passiva "${o.def.name}" oferecida no nivel ${g.player.level}, ` +
+        `trava e ${BALANCE.levelup.passiveFrom}`);
+  }
+}
+g.player.level = BALANCE.levelup.passiveFrom;
 
 let problems = 0;
 const bad = (m) => { problems++; console.log("X   " + m); };
@@ -52,12 +64,12 @@ for (let round = 0; round < 400; round++) {
     }
     seen[o.kind]++;
     let html;
-    try { html = g.ui.rowHtml(v); }
-    catch (e) { bad(`${o.kind}: rowHtml explodiu — ${e.message}`); continue; }
-    if (html.includes("undefined")) bad(`${o.kind} (${o.def.name}): linha com "undefined"`);
+    try { html = g.ui.cardHtml(v); }
+    catch (e) { bad(`${o.kind}: cardHtml explodiu — ${e.message}`); continue; }
+    if (html.includes("undefined")) bad(`${o.kind} (${o.def.name}): carta com "undefined"`);
     const kind = o.isEvo && o.evo ? "Evolução" : KIND[o.kind];
     const glyph = o.isEvo && o.evo ? "⭐" : GLYPH[o.kind];
-    if (!html.includes(kind)) bad(`${o.kind} (${o.def.name}): linha sem o tipo da oferta`);
+    if (!html.includes(kind)) bad(`${o.kind} (${o.def.name}): carta sem o tipo da oferta`);
     if (!html.includes(`<i>${glyph}</i>`)) bad(`${o.kind} (${o.def.name}): etiqueta sem glifo`);
     if ((o.kind === "passive") !== html.includes("lv-tile round")) {
       bad(`${o.kind} (${o.def.name}): forma do tile nao casa com o tipo`);
@@ -66,15 +78,19 @@ for (let round = 0; round < 400; round++) {
        mais nada, e uma coluna dizendo "não gasta ponto" tres vezes seria um
        terco da tela em silencio. Ela continua obrigatoria: sem ela a linha nao
        diz onde a compra deixa a trilha, que e a pergunta desta tela. */
-    if (!v.progHead || !v.progTail) bad(`${o.kind} (${o.def.name}): linha sem progresso`);
+    if (!v.progHead) bad(`${o.kind} (${o.def.name}): carta sem veredito de progresso`);
     if (v.cost != null || v.gain != null) {
       bad(`${o.kind} (${o.def.name}): view ainda carrega custo de eixo`);
     }
+    /* A MANCHETE tem que ser o efeito, nao o nome. Numa carta o nome vem antes
+       no espaco, entao a unica coisa que segura a hierarquia e o tamanho: se
+       `.lv-plain` sumir do HTML, a carta passa a ser lida pelo rotulo. */
+    if (!html.includes('class="lv-plain"')) bad(`${o.kind} (${o.def.name}): carta sem manchete`);
     if (v.delta.length) seen.delta++;
     if (v.rec) seen.rec++;
 
     if (o.kind === "path") {
-      if (!html.includes(o.def.name)) bad(`path ${o.def.name}: linha nao diz qual peca melhora`);
+      if (!html.includes(o.def.name)) bad(`path ${o.def.name}: carta nao diz qual peca melhora`);
       const on = (html.match(/<i class="on"/g) || []).length;
       if (on !== o.tierIndex + 1) bad(`path ${o.def.name}: ${on} pips acesos, esperado ${o.tierIndex + 1}`);
       if (!html.includes(`<b>${o.tierIndex + 1}</b>`)) {
@@ -83,7 +99,7 @@ for (let round = 0; round < 400; round++) {
       if (o.isEvo) { seen.evo++; if (!html.includes("Evolução")) bad("evolucao sem etiqueta propria"); }
     }
     if (o.kind === "passive" && !html.includes("não dispara")) {
-      bad(`passiva ${o.def.name}: linha nao diz que nao dispara`);
+      bad(`passiva ${o.def.name}: carta nao diz que nao dispara`);
     }
   }
 
@@ -93,26 +109,35 @@ for (let round = 0; round < 400; round++) {
      que nada na tela dissesse isso ao jogador. */
   const poolAntes = g.build.axisTotal;
 
-  // O painel tem que aguentar a build inteira sem estourar: o teto de linhas
-  // e de chips e o que substitui a rolagem, que overlay de jogo nao tem.
+  /* A tira tem que aguentar a build inteira sem estourar: ela e uma linha so, e
+     o que passa do teto vira contador — overlay de jogo nao tem rolagem. */
   g.ui.lvOffers = offers;
   for (let h = -1; h < offers.length; h++) {
-    let panel;
-    try { panel = g.ui.buildPanelHtml(h); }
-    catch (e) { bad(`buildPanelHtml(${h}) explodiu — ${e.message}`); break; }
-    if (panel.includes("undefined")) bad(`painel (hover ${h}) com "undefined"`);
+    let tira;
+    try { tira = g.ui.buildStripHtml(h); }
+    catch (e) { bad(`buildStripHtml(${h}) explodiu — ${e.message}`); break; }
+    if (tira.includes("undefined")) bad(`tira (hover ${h}) com "undefined"`);
     const n = g.build.pieces.size;
-    const rows = (panel.match(/class="lv-sp /g) || []).length;
-    const teto = n > PANEL.fullRows ? PANEL.slimRows : PANEL.fullRows;
-    if (rows !== Math.min(n, teto)) bad(`painel: ${rows} linhas de spell com ${n} pecas (teto ${teto})`);
-    if (n > teto && !panel.includes("abra a pausa")) bad("painel: excedente de spells sem contador");
-    const chips = (panel.match(/class="lv-chip"/g) || []).length;
-    if (chips > PANEL.chips) bad(`painel: ${chips} chips de passiva, teto ${PANEL.chips}`);
-    if (g.build.passives.size > PANEL.chips && !panel.includes("lv-chip more")) {
-      bad("painel: excedente de passivas sem chip +N");
+    const chips = (tira.match(/class="lv-sp[ "]/g) || []).length;
+    if (chips !== Math.min(n, STRIP.spells)) {
+      bad(`tira: ${chips} spells com ${n} pecas (teto ${STRIP.spells})`);
     }
-    // Eixos e capstone sao a informacao que decide a compra: nunca somem.
-    if ((panel.match(/class="lv-ax"/g) || []).length !== 3) bad("painel sem os tres eixos");
+    if (n > STRIP.spells && !tira.includes("lv-sp more")) {
+      bad("tira: excedente de spells sem contador");
+    }
+    const pc = (tira.match(/class="lv-chip"/g) || []).length;
+    if (pc > STRIP.chips) bad(`tira: ${pc} chips de passiva, teto ${STRIP.chips}`);
+    if (g.build.passives.size > STRIP.chips && !tira.includes("lv-chip more")) {
+      bad("tira: excedente de passivas sem chip +N");
+    }
+    /* Eixo e capstone NAO moram mais aqui: nenhuma oferta desta tela os move, e
+       a tela de etapa ja os mostra com previa ao vivo. Numero parado ao lado de
+       tres cartas que nao o tocam e ruido. */
+    if (tira.includes("lv-ax")) bad("tira: eixo voltou para a tela de level-up");
+    // E a spell afetada pela carta sob o mouse nunca pode cair no contador.
+    if (h >= 0 && offers[h].kind === "path" && !tira.includes("lv-sp hit")) {
+      bad(`tira (hover ${h}): a spell melhorada nao esta destacada`);
+    }
   }
 
   const escolha = offers[Math.floor(Math.random() * offers.length)];
