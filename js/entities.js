@@ -642,14 +642,23 @@ class DotInstance {
   }
 }
 
+const ORB_BIRTH = 0.42, ORB_RISE = 13;
+
 class XPOrb {
   constructor() {}
   reset(obj, x, y, value) {
     this.x = x; this.y = y; this.value = value;
     this.magnet = false; // ativado pelo item Ímã de Almas
+    /* A alma SAI do corpo. Antes o orbe simplesmente existia no chao no quadro
+       seguinte a morte, e a unica recompensa que o jogo entrega em todo abate
+       chegava sem ninguem ver de onde. O arco dura menos de meio segundo e nao
+       muda a coleta: `birth` so desloca o DESENHO, entao o raio de ima
+       continua medido no ponto em que o orbe realmente esta. */
+    this.birth = ORB_BIRTH;
   }
   // ímã: acelera em direção ao player quando dentro do pickupRange (ou sempre, se magnet)
   update(dt, player) {
+    if (this.birth > 0) this.birth -= dt;
     const dx = player.x - this.x, dy = player.y - this.y;
     const d = Math.hypot(dx, dy) || 1;
     if (this.magnet || d < player.pickupRange) {
@@ -667,10 +676,17 @@ class XPOrb {
   // Corruption build the XP on the floor dissolved into the player's own
   // spells. Blue is the one hue no axis owns.
   draw(ctx, cam) {
-    const sx = this.x - cam.left, sy = this.y - cam.top;
+    // sobe rapido e cai devagar: parabola, nao rampa
+    let rise = 0, k = 1;
+    if (this.birth > 0) {
+      const u = 1 - this.birth / ORB_BIRTH;
+      rise = Math.sin(u * Math.PI) * ORB_RISE;
+      k = 0.4 + u * 0.6;
+    }
+    const sx = this.x - cam.left, sy = this.y - cam.top - rise;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.34;
+    ctx.globalAlpha = 0.34 * k;
     ctx.drawImage(glowBlob(UI_PAL.xp), sx - 7, sy - 7, 14, 14);
     ctx.restore();
     ctx.fillStyle = UI_PAL.xpNucleo;
@@ -723,22 +739,81 @@ class Pickup {
   }
 }
 
+/* Duas especies, e a diferenca nao e cosmetica.
+
+   `blob` e a faisca redonda de sempre: ela pertence aos eventos de UI (subir
+   de nivel, evolucao, capstone), que sao raros, grandes e acontecem sobre uma
+   tela que parou.
+
+   `shard` e um PEDACO DE CORPO. Ele e quadrado, preso ao grid de pixel e nao
+   encolhe — encolher um pixel e a operacao que o grid nao sabe fazer, e uma
+   bolinha suavizada em cima de arte em grade inteira e o mixel que o resto do
+   jogo passou uma fase tirando. Ele tambem CAI: estilhaco que desacelera no ar
+   e some le como fumaca, e o que se quer aqui e materia indo ao chao. */
+const PART_BLOB = 0, PART_SHARD = 1;
+const SHARD_GRAV = 620;
+const SHARD_BURST = 5.2;    // velocidade radial por unidade de deslocamento
+const SHARD_LIFT = 120;     // empurrao para cima, para o pedaco descrever arco
+
+/* A geometria do desfazimento, separada de quem GUARDA as particulas: o jogo
+   entrega um Pool e a galeria entrega um array, e os dois precisam sair
+   exatamente iguais — card que redesenha "parecido" e card que mente.
+
+   `emit` recebe os mesmos argumentos de `Particle.reset` menos a especie, que
+   e sempre `shard` aqui. Devolve quantos pedacos sairam: zero significa sprite
+   sem grade, e ai quem chamou decide o que fazer no lugar. */
+function shardBurst(spriteId, cx, cy, drawH, heft, max, emit) {
+  const set = spriteShards(spriteId);
+  if (!set.length || max <= 0) return 0;
+  // o numero sai do porte do corpo, nao do gosto: um ghoul se desfaz em oito
+  // pedacos e um Aniquilador em vinte e quatro
+  const n = Math.min(set.length, Math.round(8 + heft * 16), max);
+  const px = Math.max(1, PIXEL_GRID) * (heft > 0.55 ? 2 : 1);
+  const step = set.length / n;
+  for (let i = 0; i < n; i++) {
+    const c = set[Math.floor(i * step)];
+    const ox = c.nx * drawH, oy = c.ny * drawH;
+    // velocidade radial a partir do centro: o pedaco sai de onde ele estava
+    emit(cx + ox, cy + oy,
+         ox * SHARD_BURST + (Math.random() - 0.5) * 60,
+         oy * SHARD_BURST - SHARD_LIFT * (0.6 + Math.random() * 0.8),
+         0.34 + heft * 0.3 + Math.random() * 0.18, c.color, px);
+  }
+  return n;
+}
+
 class Particle {
   constructor() {}
-  reset(obj, x, y, vx, vy, life, color, size) {
+  reset(obj, x, y, vx, vy, life, color, size, kind) {
     this.x = x; this.y = y; this.vx = vx; this.vy = vy;
     this.life = life; this.maxLife = life;
     this.color = color; this.size = size;
+    this.kind = kind || PART_BLOB;
   }
   update(dt) {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
-    this.vx *= 0.9; this.vy *= 0.9;
+    if (this.kind === PART_SHARD) {
+      this.vx *= 0.965; this.vy *= 0.965;
+      this.vy += SHARD_GRAV * dt;
+    } else {
+      this.vx *= 0.9; this.vy *= 0.9;
+    }
     this.life -= dt;
     return this.life <= 0;
   }
   draw(ctx, cam) {
     const a = this.life / this.maxLife;
+    if (this.kind === PART_SHARD) {
+      // opaco quase ate o fim: o pedaco existe, e entao nao existe mais. Alpha
+      // caindo desde o primeiro quadro faz o corpo evaporar em vez de quebrar.
+      ctx.globalAlpha = a > 0.34 ? 1 : a / 0.34;
+      ctx.fillStyle = this.color;
+      ctx.fillRect(snapUnit(this.x - cam.left), snapUnit(this.y - cam.top),
+                   this.size, this.size);
+      ctx.globalAlpha = 1;
+      return;
+    }
     ctx.globalAlpha = a;
     ctx.fillStyle = this.color;
     ctx.beginPath();

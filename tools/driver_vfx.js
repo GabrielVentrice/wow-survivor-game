@@ -334,6 +334,77 @@ if (!semVoz.length && !vozOrfa.length) {
               ` + ${SEM_EVENTO.length} vozes sem evento (${SEM_EVENTO.join(", ")})`);
 }
 
+/* =========================================================================
+   4. A MORTE
+
+   E o evento mais frequente do jogo e o unico que acontece em leva. As quatro
+   perguntas abaixo sao as que separam "o corpo se desfez" de "o corpo sumiu".
+   ========================================================================= */
+
+// 4a. todo inimigo se desfaz nas cores DELE
+const assinaturas = new Map();
+for (const id in ENEMIES) {
+  if (!SPRITE_DATA[id]) continue;
+  const set = spriteShards(id);
+  if (!set.length) { bad(`inimigo "${id}" nao tem estilhaco: a morte dele cai no punhado generico`); continue; }
+  const pal = SPRITE_DATA[id].pal;
+  const fora = set.filter((c) => !Object.keys(pal).some((k) => pal[k] === c.color));
+  if (fora.length) bad(`estilhaco de "${id}" com cor fora da paleta do sprite`);
+  const sig = [...new Set(set.map((c) => c.color))].sort().join(",");
+  if (!assinaturas.has(sig)) assinaturas.set(sig, []);
+  assinaturas.get(sig).push(id);
+}
+const gemeos = [...assinaturas.values()].filter((ids) => ids.length > 1);
+if (gemeos.length) {
+  bad("inimigos que se desfazem na MESMA paleta: " + gemeos.map((g) => g.join("=")).join(" · "));
+} else {
+  console.log(`ok  morte: ${assinaturas.size} paletas de estilhaco distintas, uma por inimigo`);
+}
+
+/* 4b. o orcamento. A morte e o unico evento que pode acontecer cinquenta vezes
+   no mesmo frame, entao ele e o unico que precisa de um teto duro. */
+g.start();
+g.particles.clear();
+const alvoOrc = alvos(1)[0];
+for (let i = 0; i < SHARD_BUDGET - 4; i++) g.particles.spawn(0, 0, 0, 0, 9, "#ffffff", 1, 0);
+const antesOrc = g.particles.active.length;
+g.shatterEnemy(alvoOrc, 1);
+const excedeu = g.particles.active.length - SHARD_BUDGET;
+if (excedeu > 4) bad(`morte estourou o orcamento em ${excedeu} particulas (teto ${SHARD_BUDGET})`);
+else console.log(`ok  orcamento: com ${antesOrc}/${SHARD_BUDGET} vivas, a morte so acrescentou ` +
+                 (g.particles.active.length - antesOrc));
+
+/* 4c. a ceifa acende numa leva — e UMA vez por degrau, nao uma por corpo. */
+function ceifar(n, dtEntre) {
+  g.start();
+  g.reapHeat = 0; g.reapTier = 0;
+  g.spawner.interval = 1e9;
+  const vistos = [];
+  const real = g.emitVfx.bind(g);
+  g.emitVfx = (kind, x, y, r, color) => { if (kind === "reap") vistos.push(r); return real(kind, x, y, r, color); };
+  for (let i = 0; i < n; i++) {
+    const e = g.enemies.spawn(ENEMIES.ghoul, g.player.x + 40 + i, g.player.y, g.spawner.scale);
+    e.hp = 0;
+    g.killDeadEnemies();
+    if (dtEntre > 0) { g.clock += dtEntre; g.tickReap(dtEntre); }
+  }
+  g.emitVfx = real;
+  return vistos;
+}
+
+const leva = ceifar(60, 0.02);
+if (!leva.length) bad("60 abates em ~1,2s nao acenderam a ceifa");
+else if (leva.length > BALANCE.reap.tiers.length) {
+  bad(`a ceifa anunciou ${leva.length} vezes numa leva so (teto ${BALANCE.reap.tiers.length} degraus)`);
+} else {
+  console.log(`ok  ceifa: 60 abates em leva -> ${leva.length} anuncio(s), raios ` + leva.join(", "));
+}
+
+// 4d. e morte esparsa NAO ceifa: um abate a cada meio segundo e o jogo normal
+const esparso = ceifar(14, 0.5);
+if (esparso.length) bad(`abate esparso (1 a cada 0,5s) acendeu a ceifa ${esparso.length} vez(es)`);
+else console.log("ok  ceifa: abate esparso nao acende — ela mede abates por SEGUNDO");
+
 /* --- placar -------------------------------------------------------------- */
 const total = Object.keys(PIECES).length;
 const distintas = porAssinatura.size;

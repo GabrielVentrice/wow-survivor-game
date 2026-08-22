@@ -69,7 +69,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `vfx.html` | galeria de tudo que se mexe: uma cena viva por mecânica, com o que não anima marcado |
 | `js/util.js` | helpers puros (`xpForLevel`, `fmtNum`, `hexRgb`, `deepClone`, `setPath`) |
 | `js/balance.js` | `BALANCE`, `ENEMIES`, `AXES`, `AXIS_RULES`, `PATH_RULES`, `CLASSES`, `ITEMS` |
-| `js/sprites.js` | `SPRITE_DATA` + geração de pixel-art e do tile de chão em runtime |
+| `js/sprites.js` | `SPRITE_DATA` + geração de pixel-art, tile de chão e estilhaços de morte |
 | `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
 | `js/voices.js` | `VOICES` — o que cada evento visual SOA (o irmão de `js/render/vfx.js`) |
 | `js/music.js` | `MUSIC` + `Music` — trilha procedural (a **reserva**) |
@@ -497,6 +497,75 @@ quando ele ainda está dizendo o que importa.
 `driver_feel` guarda as três. O que ele **não** mede é se o hitstop lê como
 impacto ou como engasgo — isso é uma passada de dez segundos no browser, e as
 alavancas são `hitstop.big`/`hitstop.cooldown` e `shake.max`.
+
+### A morte: o corpo se desfaz, e a leva se anuncia
+
+Matar é a coisa que o jogador mais faz, e era a que o jogo menos comentava:
+**seis bolinhas redondas em `type.color`**, iguais para os dezoito inimigos,
+redondas em cima de arte em grade inteira, e o orbe de XP simplesmente
+existindo no chão no quadro seguinte. Três peças consertam isso.
+
+**1. O corpo se desfaz nas cores DELE.** `spriteShards(id)` (`js/sprites.js`)
+lê a mesma grade que já desenha a criatura e guarda até 24 células como
+estilhaço — então um ghoul morre verde-podre, um esqueleto morre osso e um Fel
+Lord morre em brasa, **sem arte nova e sem um campo a mais no dado**.
+`driver_vfx` cobra que as paletas de estilhaço sejam distintas uma por inimigo:
+dois bichos que se desfazem igual são dois bichos que morrem igual.
+
+- **Contorno não vira estilhaço.** `o` é uma das tintas quase-pretas; estilhaço
+  nessa cor num chão de obsidiana é um pixel invisível voando.
+- **A amostragem é por passada larga, não sorteio.** Sorteio agrupa, e um
+  punhado de pixels saindo todos do mesmo ombro lê como respingo em vez de
+  desmanche.
+- **Os dois eixos normalizam pela ALTURA.** `drawSprite` deriva a largura do
+  degrau que a altura escolheu; com cada eixo normalizado pelo próprio tamanho,
+  `0.5` significaria coisas diferentes em x e em y e sprite largo não
+  espalharia.
+- **`shardBurst` mora fora do `Game`**, e recebe um `emit`: o jogo entrega um
+  `Pool` e a galeria entrega um array, e os dois precisam sair idênticos — card
+  que redesenha "parecido" é card que mente.
+
+O estilhaço é uma **segunda espécie de partícula** (`PART_SHARD`), e a
+diferença não é cosmética: ele é quadrado, preso ao grid (`snapUnit`), **não
+encolhe** — encolher um pixel é a operação que o grid não sabe fazer — e
+**cai**, porque estilhaço que desacelera no ar e some lê como fumaça. O `blob`
+redondo continua existindo para os eventos de UI (nível, evolução, capstone),
+que são raros e acontecem sobre uma tela parada.
+
+**Existe orçamento** (`SHARD_BUDGET`). A morte é o único evento que acontece
+cinquenta vezes no mesmo frame; o que passa do teto volta ao punhado de
+faíscas — pouca coisa, mas nunca nada, porque corpo que some sem nada lê como
+bug de pool.
+
+**2. A alma sai do corpo.** O orbe de XP nasce com um arco de 0,42s
+(`ORB_BIRTH`). `birth` desloca só o **desenho**: o raio de ímã continua medido
+onde o orbe realmente está, então a coleta não muda.
+
+**3. A ceifa (`BALANCE.reap`).** Vinte corpos caindo no mesmo pulso é a dopamina
+que o gênero existe para entregar, e o jogo não dizia nada sobre isso — vinte
+mortes juntas eram vinte eventos isolados no mesmo frame.
+
+`heat` sobe um por abate e esfria a `cool` por segundo, então mede abates **por
+tempo** e não abates totais: é a diferença entre "a run está indo bem" e "isto
+acabou de acontecer". Consequências:
+
+- **Três degraus, não um.** Limiar único ou dispara o tempo todo no fim da run
+  (quando matar em leva é o normal) ou nunca dispara no começo.
+- **O degrau só rearma quando o calor cai abaixo de `reset`** — senão uma leva
+  grande anuncia o mesmo degrau a cada corpo. `driver_vfx` mede as duas pontas:
+  60 abates em leva dão **três** anúncios (um por degrau), e abate esparso
+  (um a cada 0,5s) não acende nenhum.
+- **A ceifa é desenhada NO CHÃO**, elipse achatada como a luz aos pés do
+  warlock — círculo neste raio leria como uma cúpula em cima da cena. Dois
+  anéis com curvas diferentes (`outQuint` fora, `outCubic` dentro), porque um
+  anel só leria como a onda de choque de uma explosão grande, que é o evento
+  com que ela mais poderia ser confundida.
+- **A cor é a do eixo em que a build mais investiu** (`Game.buildColor`). A
+  ceifa não pertence a uma peça, mas também não pode inventar matiz: o que ela
+  diz é "a SUA build acabou de fazer isso".
+- A voz dela é **o único som do jogo que sobe** em altura e brilho ao mesmo
+  tempo. Todo o resto do combate cai (explosão, morte, execução, choque), e
+  subir é o que faz o ouvido ler recompensa em vez de dano.
 
 ### Balanceamento: mais corpos, menos vida cada
 

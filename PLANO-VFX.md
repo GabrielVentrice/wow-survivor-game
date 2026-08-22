@@ -193,10 +193,10 @@ está ocupada.
 Ordenadas por dopamina-por-hora, não por elegância. Cada uma fecha sozinha,
 roda a bateria e commita.
 
-> **Estado:** fases 0 e 1 entregues (`feat/vfx-impacto`). Placar do
-> `driver_vfx` no fechamento da fase 1: **43 peças · 14 assinaturas distintas ·
-> 8 mudas · 15 cores fora da paleta · 14 vozes**. É esse placar que as fases
-> seguintes movem.
+> **Estado:** fases 0, 1 e 2 entregues (`feat/vfx-impacto`). Placar do
+> `driver_vfx` no fechamento da fase 2: **43 peças · 14 assinaturas distintas ·
+> 8 mudas · 13 cores fora da paleta · 15 vozes · 9 paletas de estilhaço**.
+> É esse placar que as fases seguintes movem.
 
 ### ~~Fase 0 — Instrumentação~~ ✅
 Sem isso as fases seguintes não têm como provar nada.
@@ -262,15 +262,33 @@ criada, o mudo silencia, e **90s de jogo de verdade usam 4 vozes diferentes**
 (`cast`, `hit`, `summon`, `burst`). Esse último é o que pega o caso que motivou
 a fase: grafo perfeito, registry completo, e nenhuma chamada partindo do jogo.
 
-### Fase 2 — A morte (1 sessão) ⚡
-- Dissolução do sprite em estilhaços de pixel usando `spr.white`, que já existe
-  para o flash de dano — zero arte nova.
-- Orbe de alma saindo do corpo em vez de aparecer do nada no chão.
-- **Combo de abate**: N mortes na mesma janela acendem um pulso e sobem o som
-  um grau. É a dopamina do gênero, e hoje ela não existe.
-- Escala com `heft` (o dado que o som de morte já usa).
-**Verificação:** `driver_perf` com a horda no teto — a morte é o evento mais
-frequente do jogo e é onde custo vira travamento.
+### ~~Fase 2 — A morte~~ ✅
+Três peças, e a que mais importa não é a mais vistosa:
+
+**O corpo se desfaz nas cores DELE.** `spriteShards` lê a mesma grade que
+desenha a criatura — o plano falava em usar `spr.white`, mas a silhueta branca
+dá o formato e joga fora a informação que interessa. Lendo `SPRITE_DATA.rows`
++ `pal` direto, cada inimigo morre na própria paleta: ghoul verde-podre,
+esqueleto osso, Fel Lord brasa. **Zero arte nova.** E funciona headless, que a
+amostragem do canvas não faria.
+
+Estilhaço virou uma **segunda espécie de partícula**: quadrada, presa ao grid,
+que não encolhe e que **cai**. A bolinha redonda suavizada ficou só para os
+eventos de UI. `shardBurst` mora fora do `Game` e recebe um `emit`, então a
+galeria monta o mesmo estilhaço com um array no lugar do `Pool`.
+
+**A alma sai do corpo**: arco de 0,42s no orbe de XP, deslocando só o desenho —
+o raio de ímã continua medido onde o orbe está.
+
+**A ceifa** (`BALANCE.reap`): calor que sobe um por abate e esfria por segundo,
+três degraus, e o degrau só rearma quando o calor cai. Anel duplo no chão na
+cor do eixo dominante + a única voz do jogo que **sobe**.
+
+**Verificação:** `driver_vfx` ganhou quatro checagens — 9 paletas de estilhaço
+distintas (uma por inimigo), o orçamento respeitado com o pool a 416/420, 60
+abates em leva dando **três** anúncios (um por degrau, nunca um por corpo) e
+abate esparso não acendendo nenhum. `driver_perf`: 0,7ms de 16,7ms no pior
+bucket com a horda no teto.
 
 ### Fase 3 — As 25 mudas (1–2 sessões) ⚡
 Cobertura de V2, na ordem em que a galeria já lista. Prioridade para as que

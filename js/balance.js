@@ -13,6 +13,28 @@ const BALANCE = {
     tile: 126,           // lado da laje de basalto — MULTIPLO de PIXEL_UNIT
                          // (ver js/render/scenery.js e o grid em js/game.js)
   },
+  /* A CEIFA. Vinte corpos caindo no mesmo pulso e a dopamina que o genero
+     inteiro existe para entregar, e ate aqui o jogo nao dizia nada sobre isso:
+     cada morte era um evento isolado, e vinte delas juntas eram vinte eventos
+     isolados no mesmo frame.
+
+     `heat` sobe um por abate e esfria a `cool` por segundo, entao ele mede
+     abates POR TEMPO e nao abates totais — o que e a diferenca entre "a run
+     esta indo bem" e "isto aqui acabou de acontecer".
+
+     Tres degraus e nao um: um limiar unico ou dispara o tempo todo no fim da
+     run (quando matar em leva e o normal) ou nunca dispara no comeco. O
+     degrau que solta e sempre o MAIOR que a leva alcancou, e ele so pode
+     repetir depois que o calor cair abaixo de `reset` daquele degrau — senao
+     uma leva grande anuncia o mesmo degrau a cada corpo. */
+  reap: {
+    cool: 7,                    // abates/s que o calor perde
+    tiers: [9, 20, 38],         // calor que acende cada degrau
+    reset: 0.55,                // fracao do limiar em que o degrau rearma
+    radius: [150, 230, 330],    // raio do anel, por degrau
+    shake: [6, 11, 17],
+  },
+
   camera: {
     lerp: 0.12,          // suavização do follow (0 = travado, 1 = instantâneo)
 

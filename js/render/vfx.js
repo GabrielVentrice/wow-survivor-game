@@ -232,7 +232,7 @@ const inCubic = (k) => k * k * k;
 const VFX_LIFE = {
   burst: 0.46, shock: 0.3, spread: 0.6, jump: 0.25, summon: 0.4,
   unsummon: 0.3, execute: 0.4, echo: 0.5, blink: 0.35, heal: 0.6,
-  portal: 0.9,
+  portal: 0.9, reap: 0.55,
 };
 
 // Which variant of a multi-variant vfx this instance gets. A counter, not
@@ -362,6 +362,36 @@ class VfxLayer {
           // the gate radius, same scale drawMinions uses for the standing one.
           const o = Math.min(1, k / 0.18, (1 - k) / 0.26);
           drawPortal(ctx, x, y, v.r, v.t * 4, v.color, o);
+          break;
+        }
+        case "reap": {
+          /* A ceifa. Ela e o unico evento do jogo desenhado NO CHAO em volta
+             do jogador, e por isso e uma elipse achatada e nao um circulo: a
+             mesma leitura da luz aos pes do warlock e do anel de podridao.
+             Circulo neste raio leria como uma cupula em cima da cena.
+
+             Dois aneis com curvas diferentes, e a distancia entre eles e a
+             ceifa: o de fora dispara (outQuint) e o de dentro persegue
+             (outCubic). Um anel so, por mais grosso que fosse, leria como a
+             onda de choque de uma explosao grande — que e o evento com que ela
+             mais poderia ser confundida. */
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.scale(1, 0.45);
+          const fl = 1 - Math.min(1, k * 4);
+          if (fl > 0) {
+            const fr = v.r * 0.4 * (0.5 + (1 - fl));
+            ctx.globalAlpha = fl * fl * 0.5;
+            ctx.drawImage(glowBlob(v.color), -fr, -fr, fr * 2, fr * 2);
+            ctx.globalAlpha = 1;
+          }
+          ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.85).toFixed(2)})`;
+          ctx.lineWidth = 2 + a * 6;
+          ctx.beginPath(); ctx.arc(0, 0, v.r * (0.2 + outQuint(k) * 0.85), 0, Math.PI * 2); ctx.stroke();
+          ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.5).toFixed(2)})`;
+          ctx.lineWidth = 1 + a * 3;
+          ctx.beginPath(); ctx.arc(0, 0, v.r * (0.08 + e * 0.5), 0, Math.PI * 2); ctx.stroke();
+          ctx.restore();
           break;
         }
         case "heal": {

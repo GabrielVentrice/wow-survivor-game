@@ -28,6 +28,12 @@ const MAX_FX_DEPTH = 8;   // teto de aninhamento de efeitos (backstop anti-loop)
    stay a multiple of it, or the floor slab falls off the grid. */
 const PIXEL_UNIT = 3;
 
+/* Estilhacos da morte. `BUDGET` e o teto de particulas vivas acima do qual a
+   morte volta a ser o punhado de faiscas antigo: numa leva de cinquenta
+   corpos no mesmo frame, estilhacar todos custaria o frame exatamente quando
+   o jogo mais precisa nao engasgar. */
+const SHARD_BUDGET = 420;
+
 class Game {
   constructor() {
     this.canvas = document.getElementById("canvas");
@@ -59,6 +65,10 @@ class Game {
     this.orbs = new Pool(() => new XPOrb(), (o, ...a) => o.reset(o, ...a));
     this.areas = new Pool(() => new AreaEffect(), (o, ...a) => o.reset(o, ...a));
     this.particles = new Pool(() => new Particle(), (o, ...a) => o.reset(o, ...a));
+    // ligado uma vez: a morte e o evento mais frequente do jogo e nao pode
+    // alocar um closure por corpo
+    this._emitShard = (x, y, vx, vy, life, color, size) =>
+      this.particles.spawn(x, y, vx, vy, life, color, size, PART_SHARD);
     this.pickups = new Pool(() => new Pickup(), (o, ...a) => o.reset(o, ...a));
 
     this.spawner = new SpawnManager();
@@ -355,6 +365,8 @@ class Game {
     this._fxDepth = 0;
     this._hitstop = 0;
     this._hitstopCd = 0;
+    this.reapHeat = 0;
+    this.reapTier = 0;
     this.camera.resetShake();
     this.lastBigHit = null;
     this.build.reset();
@@ -426,6 +438,66 @@ class Game {
     if (this._hitstopCd > 0 && !force) return;
     this._hitstop = Math.max(this._hitstop, d);
     this._hitstopCd = BALANCE.camera.hitstop.cooldown;
+  }
+
+  /* O corpo se DESFAZ, e nas cores dele. Ate aqui a morte eram seis bolinhas
+     redondas em `type.color` — iguais para os dezoito inimigos, e redondas em
+     cima de arte em grade inteira.
+
+     Duas travas, e as duas sao a regra "escala com a quantidade":
+
+     - O numero de estilhacos sai do porte do corpo, nao do gosto: um ghoul se
+       desfaz em oito pedacos e um Aniquilador em vinte e quatro.
+     - Existe ORCAMENTO. A morte e o evento mais frequente do jogo — numa leva
+       de cinquenta corpos no mesmo frame, estilhacar todos custaria o frame
+       inteiro, e justamente no momento em que o jogo precisa nao engasgar. O
+       que passa do teto morre como antes: pouca coisa, mas nao nada. */
+  shatterEnemy(e, heft) {
+    const room = SHARD_BUDGET - this.particles.active.length;
+    const n = room > 0
+      ? shardBurst(e.type.id, e.x, e.y, e.radius * (e.type.art || 2.7), heft, room, this._emitShard)
+      : 0;
+    // sprite sem grade, ou orcamento estourado: o punhado de faiscas antigo.
+    // Pouca coisa, mas nao nada — corpo que some sem nada le como bug de pool.
+    if (!n) this.spawnParticles(e.x, e.y, e.type.color, room > 3 ? 4 : 1);
+  }
+
+  /* A ceifa: o jogo dizendo que ISSO acabou de acontecer. Ver BALANCE.reap. */
+  tickReap(dt) {
+    const R = BALANCE.reap;
+    if (this.reapHeat <= 0) return;
+    this.reapHeat = Math.max(0, this.reapHeat - R.cool * dt);
+    // rearma quando a leva esfria: sem isso um massacre longo anuncia o mesmo
+    // degrau a cada corpo que cai
+    while (this.reapTier > 0 && this.reapHeat < R.tiers[this.reapTier - 1] * R.reset) {
+      this.reapTier--;
+    }
+  }
+
+  onReapKill() {
+    const R = BALANCE.reap;
+    this.reapHeat++;
+    let t = 0;
+    for (let i = R.tiers.length - 1; i >= 0; i--) {
+      if (this.reapHeat >= R.tiers[i]) { t = i + 1; break; }
+    }
+    if (t <= this.reapTier) return;
+    this.reapTier = t;
+    const p = this.player;
+    this.emitVfx("reap", p.x, p.y, R.radius[t - 1], this.buildColor());
+    this.addShake(R.shake[t - 1]);
+  }
+
+  /* A cor do eixo em que a build mais investiu. A ceifa nao pertence a uma
+     peca, mas tambem nao pode inventar matiz: cor continua sendo predicado de
+     eixo, e o que ela diz e "a SUA build acabou de fazer isso". */
+  buildColor() {
+    let best = null, top = -1;
+    for (const a in this.build.axis) {
+      if (this.build.axis[a] > top) { top = this.build.axis[a]; best = a; }
+    }
+    const pal = best && AXIS_PALETTE[best];
+    return pal ? pal.light : CLASSES[this.selectedClass].color;
   }
 
   spawnParticles(x, y, color, count) {
@@ -509,6 +581,7 @@ class Game {
     this.updateOrbs(dt);
     this.updatePickups(dt);
     this.updateParticles(dt);
+    this.tickReap(dt);
 
     this.camera.follow(this.player, dt);
     // o mundo apodrece junto com a run: veios mais vivos, mais brasa no ar
@@ -826,10 +899,11 @@ class Game {
 
       if (!e.noReward) {
         this.orbs.spawn(e.x, e.y, e.type.xp);
-        this.spawnParticles(e.x, e.y, e.type.color, e.type.boss ? 24 : 6);
         // corpo maior = som mais grave; o timbre vem do dado do inimigo
         const heft = e.type.boss ? 1 : clamp((e.radius - 12) / 26, 0, 1);
+        this.shatterEnemy(e, heft);
         this.sfx.death(heft, e.type.deathSfx);
+        this.onReapKill();
         if (e.type.boss) this.bossAlive = Math.max(0, this.bossAlive - 1);
         if (e.type.boss) {
           this.addShake(13, e.x - this.player.x, e.y - this.player.y);

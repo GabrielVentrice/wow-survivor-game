@@ -614,6 +614,12 @@ function stepWorld(w, dt) {
 
   for (let i = w.parts.length - 1; i >= 0; i--) if (w.parts[i].update(dt)) w.parts.splice(i, 1);
 
+  // O arco de nascimento do orbe é apresentação pura — ele anda mesmo num card
+  // que não simula ímã nem coleta, que é o que estes mundinhos fazem.
+  for (let i = 0; i < w.drops.length; i++) {
+    if (w.drops[i].birth > 0) w.drops[i].birth -= dt;
+  }
+
   if (w.echoes) {
     for (let i = w.echoes.length - 1; i >= 0; i--) {
       if (w.t >= w.echoes[i].at) {
@@ -669,15 +675,17 @@ const VFX_EMITTER = {
   blink: "hook blink (Demonic Circle) — sai e chega",
   heal: "hooks soulstone e healthstone",
   portal: 'efeito vfx com kind:"portal" (Nether Portal)',
+  reap: "Game.onReapKill — abates por SEGUNDO cruzando um degrau de BALANCE.reap",
 };
 const VFX_RADIUS = {
   burst: 70, shock: 100, spread: 85, jump: 18, summon: 44,
   unsummon: 26, execute: 34, echo: 70, blink: 40, heal: 40, portal: 46,
+  reap: 150,
 };
 const VFX_NAME = {
   burst: "explosão", shock: "onda de choque", spread: "propagação", jump: "salto de DoT",
   summon: "invocação", unsummon: "desinvocação", execute: "execução", echo: "eco",
-  blink: "teleporte", heal: "cura", portal: "portal rasgando",
+  blink: "teleporte", heal: "cura", portal: "portal rasgando", reap: "a ceifa",
 };
 
 function eventItems() {
@@ -1084,6 +1092,46 @@ function stateItems() {
       "sem animação própria",
       (w) => { w.showPlayer = false; w.enemies.push(dummyEnemy("skeleton", 0, 0)); },
       (w) => { w.enemies[0].weakUntil = w.t + 1; }),
+    mk("morte", "o corpo se desfaz",
+      "estilhaços nas cores DO SPRITE: um ghoul morre verde-podre, um esqueleto morre osso",
+      null,
+      (w) => { w.showPlayer = false; w.enemies.push(dummyEnemy("ghoul", 0, 0)); },
+      (w) => every(w, "a", 1.5, () => {
+        const e = w.enemies[0];
+        // o MESMO shardBurst do jogo: o card entrega um array no lugar do Pool
+        shardBurst("ghoul", e.x, e.y, e.radius * (ENEMIES.ghoul.art || 2.7), 0.2, 99,
+          (x, y, vx, vy, life, color, size) => {
+            const pt = new Particle();
+            pt.reset(null, x, y, vx, vy, life, color, size, PART_SHARD);
+            w.parts.push(pt);
+          });
+      }),
+      220),
+    mk("morteChefe", "o chefe se desfaz",
+      "mesmo desmanche, vinte e quatro pedaços e o dobro de pixel: porte se lê no estilhaço",
+      null,
+      (w) => { w.showPlayer = false; w.enemies.push(dummyEnemy("dreadlord", 0, 0)); },
+      (w) => every(w, "a", 2.2, () => {
+        const e = w.enemies[0];
+        shardBurst("dreadlord", e.x, e.y, e.radius * (ENEMIES.dreadlord.art || 2.7), 1, 99,
+          (x, y, vx, vy, life, color, size) => {
+            const pt = new Particle();
+            pt.reset(null, x, y, vx, vy, life, color, size, PART_SHARD);
+            w.parts.push(pt);
+          });
+      }),
+      260),
+    mk("orbeNasce", "a alma sai do corpo",
+      "o orbe de XP sobe e assenta em 0,42s — antes ele simplesmente existia no chão",
+      null,
+      (w) => { w.showPlayer = false; },
+      (w) => every(w, "a", 1.2, () => {
+        const o = new XPOrb();
+        o.reset(null, 0, 0, 1);
+        w.drops.push(o);
+        while (w.drops.length > 3) w.drops.shift();
+      }),
+      160),
     mk("boss", "barra de chefe", "só o chefe tem barra de vida — é o que separa ameaça de horda",
       null,
       (w) => { w.showPlayer = false; const e = dummyEnemy("dreadlord", 0, 6); w.enemies.push(e); },

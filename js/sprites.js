@@ -28,6 +28,72 @@ function makeSprite(rows, pal) {
   return { canvas: build(false), white: build(true) };
 }
 
+/* --- Estilhacos da morte ---------------------------------------------------
+   O corpo se desfaz nas cores DELE. Um ghoul morre verde-podre, um esqueleto
+   morre osso, um Fel Lord morre em brasa — e isso nao custa arte nova nem um
+   campo a mais no dado: sai da mesma grade que ja desenha a criatura.
+
+   Antes disto a morte eram seis bolinhas redondas em `type.color`, iguais para
+   os dezoito inimigos, e redondas em cima de arte em grade inteira: o mixel
+   que o resto do jogo passou uma fase inteira tirando.
+
+   Duas escolhas que valem explicar:
+
+   - **O contorno nao vira estilhaco.** `o` e uma das tres tintas quase-pretas;
+     estilhaco nessa cor num chao de obsidiana e um pixel invisivel voando.
+     Quem estilhaca e o corpo e a energia, que sao o que se le.
+   - **A amostragem e por passada larga, nao aleatoria.** Percorrer as celulas
+     solidas e pegar uma a cada N espalha os estilhacos pelo corpo inteiro;
+     sorteio agrupa, e um punhado de pixels saindo todos do mesmo ombro le como
+     respingo em vez de desmanche.
+
+   Os DOIS eixos sao normalizados pela ALTURA, e nao cada um pelo seu lado:
+   `drawSprite` deriva a largura do degrau que a altura escolheu, entao um
+   sprite largo tem que espalhar estilhaco mais longe na horizontal — com cada
+   eixo normalizado pelo proprio tamanho, 0.5 significaria coisas diferentes
+   em x e em y.
+
+   Cada conjunto e gerado UMA vez por sprite e guardado em coordenada
+   normalizada, entao serve qualquer tamanho de desenho e nao aloca nada por
+   morte. */
+const SHARD_MAX = 24;
+const SHARDS = new Map();
+
+function spriteShards(id) {
+  let set = SHARDS.get(id);
+  if (set) return set;
+  set = [];
+  const d = SPRITE_DATA[id];
+  if (!d) { SHARDS.set(id, set); return set; }
+
+  const rows = d.rows, h = rows.length;
+  let w = 0;
+  for (let r = 0; r < h; r++) if (rows[r].length > w) w = rows[r].length;
+
+  const cells = [];
+  for (let r = 0; r < h; r++) {
+    const row = rows[r];
+    for (let c = 0; c < row.length; c++) {
+      const ch = row[c];
+      if (ch === "." || ch === " " || ch === "o") continue;
+      const color = d.pal[ch];
+      if (color) cells.push(c, r, color);
+    }
+  }
+  const n = cells.length / 3;
+  const stride = Math.max(1, Math.floor(n / SHARD_MAX));
+  for (let i = 0; i < n; i += stride) {
+    set.push({
+      nx: (cells[i * 3] + 0.5 - w / 2) / h,
+      ny: (cells[i * 3 + 1] + 0.5 - h / 2) / h,
+      color: cells[i * 3 + 2],
+    });
+    if (set.length >= SHARD_MAX) break;
+  }
+  SHARDS.set(id, set);
+  return set;
+}
+
 /* --- Walk frames, generated from the same grid ------------------------------
    The grid cannot represent a squash of 1.05 of a pixel, so faking motion with
    a transform is out (see walkAnim). What replaces it is what pixel art has

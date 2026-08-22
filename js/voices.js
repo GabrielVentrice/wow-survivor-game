@@ -170,6 +170,22 @@ const VOICES = {
     },
   },
 
+  /* A ceifa. E o unico som do jogo que SOBE em altura e em brilho ao mesmo
+     tempo, e e de proposito: todo o resto do combate cai (explosao, morte,
+     execucao, choque). Subir e o que faz o ouvido ler recompensa em vez de
+     dano, sem precisar da nota afinada que a cura usa. `size` cresce com o
+     degrau, entao o terceiro degrau soa mais alto E mais largo que o primeiro. */
+  reap: {
+    gap: 0.35,
+    play(s, t, o) {
+      const g = 1 + o.size;
+      s._sweep(t, 150 * g, 430 * g, 0.24, "sawtooth", 0.05 * o.v, 2200);
+      s._wash(t, 0.3 + o.size * 0.2, 500, 3000, 1.1, 0.05 * o.v, 1.1);
+      s._bell(t + 0.05, 294 * g, 0.3, 0.036 * o.v, "triangle");
+      s._sweep(t, 78, 40, 0.4, "sine", 0.07 * o.v);
+    },
+  },
+
   // O portao rasgando. O evento mais raro do jogo e o unico com cauda longa.
   portal: {
     gap: 0.5,
