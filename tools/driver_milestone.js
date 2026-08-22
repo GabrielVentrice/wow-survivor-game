@@ -110,8 +110,8 @@ function simular(seed, alvo, sempreSpell) {
       }
       // a carta tem que montar, nas duas formas
       let html;
-      try { html = g.ui.msCardHtml(o); }
-      catch (e) { bad(`etapa ${i}: msCardHtml explodiu — ${e.message}`); continue; }
+      try { html = g.ui.msRowHtml(o); }
+      catch (e) { bad(`etapa ${i}: msRowHtml explodiu — ${e.message}`); continue; }
       if (html.includes("undefined")) bad(`etapa ${i} ${o.axisId}: carta com "undefined"`);
       const botoes = (html.match(/<button class="ms-take/g) || []).length;
       const esperado = (o.dry ? 1 : 0) + (o.wet ? 1 : 0);

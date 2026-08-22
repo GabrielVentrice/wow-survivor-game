@@ -487,7 +487,7 @@ não podem voltar a ser uma só.
 | **O que oferece** | tier de caminho; passiva global a partir do nível 10 | spell nova (+1 no eixo dela) e, no eixo aberto, +2 secos |
 | **Custa** | nada | é a **única** fonte de ponto de eixo |
 | **Desfaz?** | a próxima escolha corrige | **nunca** |
-| **Forma** | três cartas + tira da build | três cartas + rodapé de eixos |
+| **Forma** | três cartas + tira da build | três linhas + rodapé de eixos |
 
 **Por que foram separadas.** Antes as duas moedas dividiam a mesma escolha:
 comprar peça nova custava 2 pontos de eixo, tier acima do 2 custava 1. Com
@@ -541,9 +541,9 @@ painel que o jogo nunca entregava.
 
 #### Fase fechada: três spells sorteadas
 
-Antes de qualquer eixo chegar a `unlockAt`, as três cartas são **spells
+Antes de qualquer eixo chegar a `unlockAt`, as três linhas são **spells
 sorteadas do catálogo inteiro** — podem cair três do mesmo eixo. Não existe
-carta seca: a única maneira de ganhar eixo é escolhendo uma spell, e cada uma
+oferta seca: a única maneira de ganhar eixo é escolhendo uma spell, e cada uma
 carrega `spellPoints` para o eixo **dela**.
 
 Isso faz o começo da run ser **descoberta e não mira**. O jogador ainda não sabe
@@ -562,7 +562,7 @@ desenho de uma loteria. O eixo em que o jogador já investiu cinco pontos nunca
 mais some da mesa, então o capstone deixa de depender de o sorteio colaborar.
 Antes disso ele não tem eixo para proteger.
 
-Cai daí que largura não **gasta** o pool, ela o **desacelera**: a carta seca
+Cai daí que largura não **gasta** o pool, ela o **desacelera**: a oferta seca
 anda `axisPoints` e a com spell anda `spellPoints`, então cada spell levada num
 eixo aberto custa um marco a mais. `driver_milestone` reprova
 `axisPoints <= spellPoints` — sem essa diferença, arsenal deixaria de custar.
@@ -570,7 +570,7 @@ eixo aberto custa um marco a mais. `driver_milestone` reprova
 #### Cadência: sai da conta, não do gosto
 
 Pool 20; quem abre um eixo cedo gasta ~5 marcos a 1 ponto e o resto a 2, e as
-cartas sorteadas nem sempre oferecem o eixo alvo — na prática **~15 marcos**. A
+linhas sorteadas nem sempre oferecem o eixo alvo — na prática **~15 marcos**. A
 `every` 40s isso fecha em **10:00**, logo antes de onde uma run competente
 acaba. `driver_milestone` refaz essa conta em vez de confiar no número: se a
 pool só fechasse depois dos 11 min, ele reprova, porque **marco entregue depois
@@ -578,26 +578,36 @@ da morte não entrega nada**.
 
 #### Apresentação
 
-- **Duas formas de carta, e o cabeçalho é onde elas se separam.** Na carta
+- **Três linhas com as mesmas três colunas** (que eixo · que spell · quanto
+  anda). Aqui as três ofertas têm a MESMA estrutura preenchida com eixos
+  diferentes, e estrutura repetida é o caso da linha: o número cai sempre na
+  terceira coluna, então comparar é correr o olho por uma coluna só, em vez de
+  reencontrar o mesmo campo dentro de três blocos.
+- **A forma é o que separa as duas telas, e ela já trocou de dono.** Enquanto o
+  level-up era linhas, a etapa era cartas; quando o level-up virou cartas, a
+  etapa virou linhas. O que decide a forma não é a tela, é o que ela compara —
+  o level-up compara três coisas que hoje são o mesmo tipo de degrau, a etapa
+  compara três preenchimentos da mesma estrutura. E as duas não podem *parecer*
+  a mesma tela: o jogador precisa perceber que a pergunta mudou, e a desta é a
+  única que ele não desfaz. Junto da forma, a diferença mora no rodapé (barras
+  de eixo e capstone aqui, tira de spells lá), no selo `aberto`, nos **dois
+  botões** por linha e na cor do eyebrow — âmbar aqui, verde lá.
+- **Duas formas de linha, e a primeira coluna é onde elas se separam.** Na linha
   **aberta** a manchete é o EIXO — a pergunta é quanto investir nele, e a spell
   é uma das duas maneiras de levar. Na **sorteada** a manchete é a SPELL, porque
-  é ela que está sendo escolhida; o eixo vira etiqueta ao lado, na cor dele. Pôr
-  o eixo no topo de uma carta sorteada seria anunciar como título algo que o
+  é ela que está sendo escolhida; o eixo vira etiqueta abaixo, na cor dele. Pôr
+  o eixo na manchete de uma linha sorteada seria anunciar como título algo que o
   jogador não escolheu — o sorteio é que pôs aquele eixo ali.
 - **`aberto` é o único selo da tela**, e marca a regra que mais importa: este
   eixo não depende mais do sorteio para reaparecer.
-- **As duas telas são cartas, então o que as separa é outra coisa.** Enquanto o
-  level-up era linhas a diferença se via de longe; hoje ela mora no rodapé (a
-  etapa tem barras de eixo e a linha do capstone, o level-up tem a tira de
-  spells), no selo `aberto`, nos **dois botões** por carta, e na cor do eyebrow
-  — âmbar aqui, verde lá. Isso importa: o jogador precisa perceber que a
-  pergunta mudou, e a desta é a única que ele não desfaz.
-- **O alvo é o botão, não a carta.** Carta inteira clicável exigiria escolher
-  por ele qual das duas maneiras é o padrão, e é justamente a metade
-  irreversível da decisão.
+- **O alvo é o botão, não a linha** — e por isso a linha nem carrega `cursor:
+  pointer`. Linha inteira clicável exigiria escolher por ele qual das duas
+  maneiras é o padrão, e é justamente a metade irreversível da decisão. Os dois
+  botões ficam empilhados na terceira coluna, não lado a lado: os números
+  precisam ser lidos um SOBRE o outro para a diferença aparecer.
 - **O número anunciado é o creditado.** Com o eixo no teto ou o pool no fim,
   `addAxis` entrega menos; `getMilestoneOffers` devolve `gain` real ao lado do
-  `want` de tabela, e o driver compara os dois em toda carta de toda etapa.
+  `want` de tabela, e o driver compara os dois em toda linha de toda etapa.
 - **E carta que credita +0 não é oferta, é botão morto.** O sorteio pula spell
   cujo eixo não anda mais, e se ainda assim a mesa inteira ficar em zero — todo
   eixo com espaço já teve o catálogo esgotado — o fallback seco entra no lugar
@@ -605,7 +615,7 @@ da morte não entrega nada**.
   teórica: com o eixo comprometido no teto de 15 e o catálogo dele cheio de
   spells, três cartas mortas na mesma etapa paravam a pool com ponto por gastar,
   e como quem para as etapas é a POOL, o jogo devolvia uma tela por marco até o
-  fim da run sem nunca entregar o ponto. Medido: 3 em 60 runs de quem mira.
+  fim da run sem nunca entregar o ponto. Media: 3 em 60 runs de quem mira.
 - **O rodapé é o que transforma "+2" num destino**: as três barras de eixo com
   prévia (`UI.axesHtml`, compartilhada com o painel do level-up) e o capstone
   mais próximo. Sem ele, alocar é uma decisão de rota longa com feedback só no

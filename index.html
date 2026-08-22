@@ -774,17 +774,24 @@
   }
 
   /* --- ETAPA: a batida lenta ------------------------------------------------
-     Deliberadamente o oposto da tela de level up. La sao LINHAS porque a
-     pergunta e "qual destas tres coisas diferentes eu quero", e o olho precisa
-     correr na vertical comparando campos. Aqui a pergunta e uma so — para onde
-     a run vai — e as tres respostas tem a MESMA forma preenchida com eixos
-     diferentes. Isso pede CARTAS lado a lado: o numero de cada eixo cai na
-     mesma altura nas tres, e comparar vira um movimento de olho horizontal em
-     vez de tres leituras.
+     Deliberadamente o oposto da tela de level up — e as duas ja trocaram de
+     forma uma vez, porque o que decide a forma nao e a tela, e o que ela
+     compara.
 
-     As duas telas tambem nao podem PARECER a mesma tela, senao o jogador nao
-     percebe que a pergunta mudou — e a desta e a unica que ele nao desfaz. */
-  .ms { align-items: center; justify-content: center; }
+     Aqui as tres ofertas tem a MESMA estrutura preenchida com eixos diferentes:
+     um rotulo, uma spell e um numero (ou dois). Estrutura repetida e o caso da
+     LINHA com colunas fixas: o rotulo cai sempre na primeira coluna, a spell
+     sempre na segunda e o numero sempre na terceira, entao comparar e correr o
+     olho por UMA coluna em vez de reencontrar o campo dentro de tres blocos.
+
+     E as duas telas nao podem PARECER a mesma tela, senao o jogador nao percebe
+     que a pergunta mudou — e a desta e a unica que ele nao desfaz. Desde que o
+     level up virou cartas, a diferenca de forma voltou a ser a primeira coisa
+     que ele ve. */
+  .ms {
+    align-items: center; justify-content: center;
+    --ms-cols: 250px minmax(0, 1fr) 316px;
+  }
   .ms-wrap {
     position: relative; z-index: 1; pointer-events: auto;
     display: flex; flex-direction: column; gap: 22px;
@@ -801,31 +808,40 @@
   }
   .ms-sub { font-size: 14px; color: #8b7fa3; text-wrap: pretty; }
 
-  .ms-rows { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; min-height: 0; }
-  .ms-card {
-    cursor: pointer; pointer-events: auto;
-    display: flex; flex-direction: column; gap: 13px;
-    padding: 18px 18px 16px; border-radius: 15px;
-    background: linear-gradient(165deg, var(--acc-wash), rgba(255, 255, 255, 0.015));
+  /* `grid-auto-rows: 1fr` iguala a altura das tres: numa grade de altura
+     indefinida a faixa flexivel resolve pelo maior conteudo, entao a linha
+     aberta (duas linhas de botao) puxa as sorteadas para a altura dela sem
+     numero magico nenhum — e quando as tres sao sorteadas, as tres encolhem
+     juntas. Altura desigual dizia que uma das ofertas era maior que as outras,
+     que e exatamente o que esta tela NAO esta perguntando. */
+  .ms-rows { display: grid; grid-auto-rows: 1fr; gap: 12px; min-height: 0; }
+  /* A linha NAO e clicavel (`cursor: default`): o alvo e o botao, e sao dois.
+     O acento migrou do topo para a esquerda junto com a forma — barra no topo
+     de uma linha larga vira sublinhado do nada. */
+  .ms-row {
+    pointer-events: auto;
+    display: grid; grid-template-columns: var(--ms-cols); gap: 18px; align-items: center;
+    padding: 15px 18px; border-radius: 13px;
+    background: linear-gradient(90deg, var(--acc-wash), rgba(255, 255, 255, 0.015));
     border: 1.5px solid var(--acc-dim);
-    border-top: 5px solid var(--acc);
-    transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s;
+    border-left: 5px solid var(--acc);
+    transition: box-shadow 0.16s, border-color 0.16s;
   }
-  .ms-card:hover { border-color: var(--acc); box-shadow: 0 20px 46px rgba(0, 0, 0, 0.5); }
+  .ms-row:hover { border-color: var(--acc); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5); }
 
-  /* Duas formas de carta, e o cabecalho e onde elas se separam.
+  /* Duas formas de linha, e o cabecalho e onde elas se separam.
 
      ABERTA: a manchete e o EIXO — a pergunta e quanto investir nele, e a spell
      e uma das duas maneiras de levar. SOLTA (`.loose`): a manchete e a SPELL,
      porque e ela que esta sendo escolhida; o eixo vira consequencia e sai como
-     etiqueta ao lado, na cor dele. Por o eixo no topo de uma carta sorteada
-     seria anunciar como titulo algo que o jogador nao escolheu. */
+     etiqueta abaixo, na cor dele. Por o eixo na primeira coluna de uma linha
+     sorteada seria anunciar como titulo algo que o jogador nao escolheu. */
   .ms-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
   .ms-ic { font-size: 22px; line-height: 1; }
   .ms-axis { font-size: 19px; font-weight: 700; color: var(--acc); }
   .ms-head.loose .ms-axis { color: #efe9fa; }
   .ms-tag { flex-basis: 100%; font-size: 12px; color: #8b7fa3; }
-  .ms-head.loose .ms-tag { flex-basis: auto; font-weight: 600; }
+  .ms-head.loose .ms-tag { font-weight: 600; }
   /* "aberto" e o unico selo desta tela, e ele marca a regra que mais importa:
      este eixo nao depende mais do sorteio para reaparecer. */
   .ms-open {
@@ -834,11 +850,11 @@
     background: var(--acc); color: #14091f; font-weight: 700;
   }
   .ms-spell.bare {
-    background: none; border: none; padding: 4px 0;
+    background: none; border: none; padding: 0;
   }
 
   .ms-spell {
-    display: flex; align-items: flex-start; gap: 11px; flex: 1;
+    display: flex; align-items: flex-start; gap: 11px; min-width: 0;
     padding: 12px; border-radius: 11px;
     background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.07);
   }
@@ -855,14 +871,18 @@
   .ms-spell-name { font-size: 15.5px; font-weight: 600; color: #efe9fa; }
   .ms-spell-desc { font-size: 12.5px; line-height: 1.35; color: #8b7fa3; text-wrap: pretty; }
 
-  /* Os DOIS botoes sao o alvo, nao a carta. A carta e um eixo; o eixo tem duas
+  /* Os DOIS botoes sao o alvo, nao a linha. A linha e um eixo; o eixo tem duas
      maneiras de ser levado, e a diferenca entre os dois numeros e a economia
      inteira do jogo dita em um lugar so.
 
+     Eles ficam empilhados na terceira coluna em vez de lado a lado: os dois
+     numeros precisam ser lidos um SOBRE o outro para a diferenca aparecer, e
+     um ao lado do outro eles viram duas ofertas independentes.
+
      Aqui, ao contrario do `.lv-pick`, os botoes sao solidos em repouso: eles
-     nao sao lembrete de que a linha e clicavel — eles SAO a decisao, e cada um
-     carrega um numero diferente que o jogador precisa comparar antes de mirar
-     o mouse em qualquer lugar. */
+     nao sao lembrete de que a linha e clicavel (ela nao e) — eles SAO a
+     decisao, e cada um carrega um numero diferente que o jogador precisa
+     comparar antes de mirar o mouse em qualquer lugar. */
   .ms-takes { display: flex; flex-direction: column; gap: 8px; }
   .ms-take {
     cursor: pointer; pointer-events: auto; text-align: left; font: inherit;
@@ -904,8 +924,20 @@
   .ms-cap.open { color: #ffd24a; font-weight: 600; }
   .ms-cap.none { color: #7c6f92; }
 
-  @media (max-width: 860px) {
-    .ms-rows, .ms-pool { grid-template-columns: 1fr; }
+  @media (max-width: 980px) {
+    .ms-row, .ms-pool { grid-template-columns: 1fr; }
+    .ms-row { gap: 12px; }
+  }
+  /* Tres linhas com dois botoes cada sao mais altas do que tres cartas eram, e
+     overlay de jogo nao rola. Em tela baixa a linha aperta o proprio padding e
+     o numero desce um degrau — nada some, porque tudo aqui e a decisao. */
+  @media (max-height: 700px) {
+    .ms-wrap { gap: 14px; }
+    .ms-title { font-size: 30px; }
+    .ms-row { padding: 11px 16px; }
+    .ms-spell { padding: 9px 11px; }
+    .ms-take { padding: 8px 12px; }
+    .ms-take-n { font-size: 22px; }
   }
 
   /* --- barras de eixo -------------------------------------------------------
@@ -1013,9 +1045,10 @@
     </div>
   </div>
 
-  <!-- Etapa: a batida lenta. Tres cartas, sempre uma por eixo — o ponto de
-       eixo e a unica decisao irreversivel da run, entao ela nunca e sorteada.
-       O que o sorteio decide e o CONTEUDO de cada carta. -->
+  <!-- Etapa: a batida lenta. Tres LINHAS com as mesmas tres colunas (que eixo /
+       que spell / quanto anda) — a estrutura se repete nas tres, entao comparar
+       e correr uma coluna. O eixo aberto nunca e sorteado; o que o sorteio
+       decide e o CONTEUDO das linhas que sobram. -->
   <div id="milestone" class="screen ms hidden">
     <div class="lv-glow"></div>
     <div class="ms-wrap">
