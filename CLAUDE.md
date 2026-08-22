@@ -77,6 +77,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
 | `js/content/*.js` | o catálogo: 31 peças, passivas, capstones, demônios |
 | `js/render/tiles.js` | `TILE_ROWS` — as 8 lajes do chão, desenhadas em grade de 42x42 |
+| `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
 | `js/ui.js` | `UI` — HUD, tela de level-up, tela de etapa, pausa, baú, game over |
@@ -938,9 +939,27 @@ O mundo é infinito e gerado em runtime. Duas regras:
   desenhar. Voltar andando para o mesmo lugar tem que mostrar os mesmos
   destroços; senão o mundo "reembaralha" nas costas do jogador e a leitura de
   espaço vai junto.
-- **Nada de gradiente por frame em código quente.** Props sem animação
-  (`STATIC_PROPS`) são renderizados uma vez num canvas e depois só copiados —
-  `createLinearGradient` dentro do laço de desenho é alocação a 60fps.
+- **Nada de gradiente por frame em código quente.** Os props eram desenho
+  vetorial e criavam `CanvasGradient` dentro do laço — sessenta alocações por
+  segundo por pedra. Hoje são grade (`PROP_ART`, `js/render/debris.js`) e o
+  canvas de cada um é feito uma vez.
+
+Os destroços seguem a mesma virada das lajes, e cobram duas regras a mais
+porque prop é objeto e não fundo:
+
+- **Um tamanho só, e ele é 1 célula = 1 pixel de buffer.** O desenho vetorial
+  aceitava `s` contínuo entre 0,7 e 1,45; grade aceita degrau, e o único degrau
+  que não briga com o resto do elenco é o 1:1 — prop em `step 2` é o mixel
+  silencioso. A escala saiu do sorteio do chunk junto com a rotação: girar
+  grade fora de 90° é reamostrar.
+- **Variação é o espelho**, dois lados por tipo, e o cache passa a ser finito
+  por construção (tipo × espelho), sem `PROP_BUCKETS`.
+- **Sprite não carrega brilho nem sombra.** `PROP_SHADOW` diz quem projeta
+  elipse (só quem fica em pé) e `PROP_GLOW` diz o que acende por cima, com a
+  cor vindo de `AXIS_PALETTE`. Desenhados na arte, halo e sombra vazam para
+  fora da silhueta e apagam onde o objeto termina.
+- **Paleta declarada é contrato**: `driver_render` reprova char sem cor e cor
+  sem char, que é a mesma regra de "cor de matéria sem uso é peso morto".
 
 O chão usa 8 variantes de laje escolhidas por hash da célula: um tile único
 repetido é o que mais denuncia cenário procedural barato. As oito são **dado**

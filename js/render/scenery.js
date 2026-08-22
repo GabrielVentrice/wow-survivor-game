@@ -102,40 +102,53 @@ function makeFelTile(variant, flip) {
    mesma paisagem. */
 const PROP_KINDS = ["crystal", "bones", "pillar", "brazier", "sigil", "fissure", "spike"];
 
-/* Props sem animação são renderizados UMA vez num canvas e depois só
-   copiados. Sem isso, cada coluna na tela criaria um CanvasGradient por
-   frame — sessenta alocações por segundo por pedra, em código quente. */
-const STATIC_PROPS = { bones: 1, pillar: 1, spike: 1 };
+/* Cada tipo tem UM canvas por espelho, feito uma vez. Não há mais degrau de
+   tamanho: a grade é desenhada 1 célula = 1 pixel de buffer e ponto, que é o
+   mesmo degrau de todo o resto do elenco. O `s` contínuo do chunk deixou de
+   escalar arte — ele agora só existe para quem não tem grade. */
 const PROP_CACHE = new Map();
-const PROP_W = 112, PROP_AX = 56, PROP_AY = 84;
 
-/* Size steps for a prop. The chunk rolls a continuous `s`, but a pre-rendered
-   prop can only exist at sizes that land on the grid — stretching the canvas
-   by 1.07 is the same sin as the sprite's fractional scales. Instead of
-   stretching, the size goes into the GENERATION: each step is its own canvas,
-   drawn at its final size. Three static kinds x 4 variants x 4 steps, built on
-   demand. */
-const PROP_BUCKETS = 4;
-const propBucket = (s) => Math.max(1, Math.min(PROP_BUCKETS * 2, Math.round(s * PROP_BUCKETS)));
-
-function propSprite(kind, variant, bucket) {
-  const b = bucket || PROP_BUCKETS;
-  const key = kind + variant + "_" + b;
+function propSprite(kind, flip) {
+  const key = kind + (flip & 1);
   let sp = PROP_CACHE.get(key);
   if (sp) return sp;
-  const s = b / PROP_BUCKETS;
+  const art = PROP_ART[kind];
+  const rows = art.rows, h = rows.length, w = rows[0].length;
   const cv = document.createElement("canvas");
-  const px = Math.max(1, Math.ceil((PROP_W * s) / PIXEL_GRID));
-  cv.width = cv.height = px;
+  cv.width = w; cv.height = h;
   const x = cv.getContext("2d");
-  x.setTransform(1 / PIXEL_GRID, 0, 0, 1 / PIXEL_GRID, 0, 0);
-  PROPS[kind](x, PROP_AX * s, PROP_AY * s, { s, a: variant * 1.7, seed: variant / 4 }, 0, 0);
-  // `w` is the whole canvas in world units (rounding leftover included);
-  // `ax/ay` are where the prop's foot sits inside it.
-  sp = { canvas: cv, w: px * PIXEL_GRID, ax: PROP_AX * s, ay: PROP_AY * s };
+  for (let cy = 0; cy < h; cy++) {
+    const row = rows[cy];
+    for (let cx = 0; cx < w; cx++) {
+      const col = art.pal[row[flip & 1 ? w - 1 - cx : cx]];
+      if (!col) continue;
+      x.fillStyle = col;
+      x.fillRect(cx, cy, 1, 1);
+    }
+  }
+  // `ax/ay` sao onde o objeto TOCA o chao dentro do canvas, em unidades de
+  // mundo: o pe de quem fica em pe, o centro de quem esta deitado
+  sp = { canvas: cv, w: w * PIXEL_GRID, h: h * PIXEL_GRID,
+         ax: (w / 2) * PIXEL_GRID,
+         ay: (art.foot === "mid" ? h / 2 : h) * PIXEL_GRID };
   PROP_CACHE.set(key, sp);
   return sp;
 }
+
+/* O que ACENDE em cima do sprite, e só isso. A grade não carrega brilho: glow
+   desenhado na arte vaza para fora da silhueta e apaga onde o objeto termina.
+   `r` é o raio do halo em unidades de mundo, `y` sobe o centro dele, `sp` é a
+   velocidade do pulso e `a` a alpha no pico. */
+const PROP_GLOW = {
+  crystal: { color: AXIS_PALETTE.corruption.base, r: 26, y: 14, sp: 1.4, a: 0.11 },
+  brazier: { color: AXIS_PALETTE.corruption.base, r: 24, y: 30, sp: 3.0, a: 0.13 },
+  fissure: { color: AXIS_PALETTE.corruption.base, r: 22, y: 0, sp: 1.6, a: 0.09 },
+  sigil:   { color: AXIS_PALETTE.dominion.base,   r: 30, y: 0, sp: 0.8, a: 0.07 },
+};
+
+/* Quem projeta sombra é quem fica EM PÉ. Marca deitada no chão não tem por que
+   ter sombra — ela é o chão. */
+const PROP_SHADOW = { pillar: 1, spike: 1, brazier: 1, crystal: 1 };
 
 class Scenery {
   constructor() {
@@ -183,10 +196,9 @@ class Scenery {
         kind,
         x: cx * C + 24 + rnd() * (C - 48),
         y: cy * C + 24 + rnd() * (C - 48),
-        s: 0.7 + rnd() * 0.75,       // escala
-        a: rnd() * Math.PI * 2,      // rotação
+        // a grade não escala nem gira: o que varia é o lado
         seed: rnd(),
-        variant: Math.floor(rnd() * 4),
+        variant: rnd() < 0.5 ? 0 : 1,
       });
     }
     this.chunks.set(key, props);
@@ -221,11 +233,18 @@ class Scenery {
           const p = props[i];
           const sx = p.x - left, sy = p.y - top;
           if (sx < -90 || sy < -110 || sx > cam.w + 90 || sy > cam.h + 90) continue;
-          if (STATIC_PROPS[p.kind]) {
-            const sp = propSprite(p.kind, p.variant, propBucket(p.s));
-            ctx.drawImage(sp.canvas, snapUnit(sx - sp.ax), snapUnit(sy - sp.ay), sp.w, sp.w);
-          } else {
-            PROPS[p.kind](ctx, sx, sy, p, t, this.corruption);
+          const sp = propSprite(p.kind, p.variant);
+          if (PROP_SHADOW[p.kind]) drawShadow(ctx, sx, sy, sp.w * 0.34);
+          ctx.drawImage(sp.canvas, snapUnit(sx - sp.ax), snapUnit(sy - sp.ay), sp.w, sp.h);
+          const gl = PROP_GLOW[p.kind];
+          if (gl) {
+            const k = 0.55 + Math.sin(t * gl.sp + p.seed * 11) * 0.45;
+            const r = gl.r * (1 + this.corruption * 0.25);
+            ctx.save();
+            ctx.globalCompositeOperation = "lighter";
+            ctx.globalAlpha = gl.a * (0.5 + k * 0.5);
+            ctx.drawImage(glowBlob(gl.color), sx - r, sy - gl.y - r, r * 2, r * 2);
+            ctx.restore();
           }
         }
       }
@@ -296,208 +315,4 @@ class Scenery {
   }
 }
 
-/* --- desenho de cada prop -------------------------------------------------
-   Assinatura: (ctx, sx, sy, p, t, corruption). Nada guarda estado: a animação
-   sai de `t` e de `p.seed`, então dois braseiros nunca piscam em sincronia. */
-const PROPS = {
 
-  // aglomerado de cristais fel espetados no chão
-  crystal(ctx, sx, sy, p, t) {
-    const s = p.s, k = 0.6 + Math.sin(t * 1.4 + p.seed * 9) * 0.4;
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.06 + k * 0.05;
-    const w = 26 * s;
-    ctx.drawImage(glowBlob("#7fdc4a"), sx - w, sy - w * 0.8, w * 2, w * 1.6);
-    ctx.restore();
-
-    for (let i = 0; i < 3; i++) {
-      const a = p.a + i * 2.1;
-      const bx = sx + Math.cos(a) * 7 * s, by = sy + Math.sin(a) * 3 * s;
-      const hgt = (16 + i * 6) * s;
-      const wid = 4 * s;
-      ctx.beginPath();
-      ctx.moveTo(bx, by - hgt);
-      ctx.lineTo(bx + wid, by);
-      ctx.lineTo(bx, by + 3 * s);
-      ctx.lineTo(bx - wid, by);
-      ctx.closePath();
-      const g = ctx.createLinearGradient(bx, by - hgt, bx, by);
-      g.addColorStop(0, "#d8ff9e");
-      g.addColorStop(0.5, "#6fdc4a");
-      g.addColorStop(1, "#1d3d14");
-      ctx.fillStyle = g;
-      ctx.fill();
-      ctx.strokeStyle = "rgba(216,255,158,0.5)";
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-    }
-  },
-
-  // ossada: crânio e costelas do que sobrou de alguém
-  bones(ctx, sx, sy, p) {
-    const s = p.s;
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.rotate(p.a * 0.3);
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.beginPath(); ctx.ellipse(0, 3 * s, 16 * s, 5 * s, 0, 0, Math.PI * 2); ctx.fill();
-
-    ctx.strokeStyle = "#cfc8b0";
-    ctx.lineWidth = 1.6 * s;
-    ctx.lineCap = "round";
-    for (let i = 0; i < 4; i++) {
-      const rx = (-10 + i * 6) * s;
-      ctx.beginPath();
-      ctx.arc(rx, 0, 6 * s, Math.PI * 0.15, Math.PI * 0.85);
-      ctx.stroke();
-    }
-    // crânio
-    ctx.fillStyle = "#ded7c0";
-    ctx.beginPath(); ctx.ellipse(-16 * s, -1 * s, 5.5 * s, 4.6 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#2a1f14";
-    ctx.beginPath();
-    ctx.arc(-17.6 * s, -1.6 * s, 1.5 * s, 0, Math.PI * 2);
-    ctx.arc(-14.2 * s, -1.6 * s, 1.5 * s, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  },
-
-  // coluna partida, com o fel escorrendo pela fratura
-  pillar(ctx, sx, sy, p) {
-    const s = p.s, w = 13 * s, h = 40 * s;
-    drawShadow(ctx, sx, sy, w * 1.1);
-    const g = ctx.createLinearGradient(sx - w, 0, sx + w, 0);
-    g.addColorStop(0, "#0b0812");
-    g.addColorStop(0.45, "#2a2338");
-    g.addColorStop(1, "#0e0a16");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(sx - w, sy);
-    ctx.lineTo(sx - w * 0.8, sy - h);
-    ctx.lineTo(sx - w * 0.1, sy - h * (0.82 + p.seed * 0.16));   // topo quebrado
-    ctx.lineTo(sx + w * 0.75, sy - h * 0.92);
-    ctx.lineTo(sx + w, sy);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = "rgba(150,255,110,0.3)";
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(sx - w * 0.3, sy - h * 0.85);
-    ctx.lineTo(sx + w * 0.15, sy - h * 0.5);
-    ctx.lineTo(sx - w * 0.2, sy - h * 0.15);
-    ctx.stroke();
-  },
-
-  // braseiro de fogo fel, a chama lambendo em tempo real
-  brazier(ctx, sx, sy, p, t) {
-    const s = p.s;
-    drawShadow(ctx, sx, sy, 11 * s);
-    ctx.fillStyle = "#241c33";
-    ctx.beginPath();
-    ctx.moveTo(sx - 9 * s, sy);
-    ctx.lineTo(sx - 6 * s, sy - 12 * s);
-    ctx.lineTo(sx + 6 * s, sy - 12 * s);
-    ctx.lineTo(sx + 9 * s, sy);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#3a2f52";
-    ctx.fillRect(sx - 10 * s, sy - 14 * s, 20 * s, 3 * s);
-
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    const ph = t * 3 + p.seed * 10;
-    for (let i = 0; i < 4; i++) {
-      const k = (ph + i * 0.55) % 1;
-      const fy = sy - 15 * s - k * 22 * s;
-      const fw = (5.5 - k * 4) * s;
-      ctx.globalAlpha = (1 - k) * 0.5;
-      ctx.fillStyle = i % 2 ? "#d8ff9e" : "#6fdc4a";
-      ctx.beginPath();
-      ctx.ellipse(sx + Math.sin(ph * 2 + i) * 2.5 * s, fy, fw, fw * 1.7, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 0.09;
-    const w = 24 * s;
-    ctx.drawImage(glowBlob("#7fdc4a"), sx - w, sy - 22 * s - w, w * 2, w * 2);
-    ctx.restore();
-  },
-
-  // sigilo gravado no chão, girando devagar
-  sigil(ctx, sx, sy, p, t, corr) {
-    const s = p.s, r = 26 * s;
-    const k = 0.5 + Math.sin(t * 0.8 + p.seed * 6) * 0.5;
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.scale(1, 0.42);
-    ctx.rotate(p.a + t * 0.12);
-    ctx.strokeStyle = `rgba(122,60,255,${(0.07 + k * 0.06 + corr * 0.05).toFixed(3)})`;
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.arc(0, 0, r * 0.62, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = `rgba(160,255,120,${(0.05 + k * 0.06).toFixed(3)})`;
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62);
-      ctx.lineTo(Math.cos(a + 1.25) * r, Math.sin(a + 1.25) * r);
-      ctx.stroke();
-    }
-    ctx.restore();
-  },
-
-  // fenda no basalto com fel correndo por dentro
-  fissure(ctx, sx, sy, p, t, corr) {
-    const s = p.s;
-    const k = 0.55 + Math.sin(t * 1.6 + p.seed * 12) * 0.45;
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.rotate(p.a);
-    const len = 54 * s;
-    ctx.strokeStyle = "rgba(0,0,0,0.55)";
-    ctx.lineWidth = 7 * s;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(-len / 2, 0);
-    ctx.lineTo(-len * 0.15, -5 * s);
-    ctx.lineTo(len * 0.2, 4 * s);
-    ctx.lineTo(len / 2, -2 * s);
-    ctx.stroke();
-    ctx.strokeStyle = `rgba(170,255,110,${(0.12 + k * 0.12 + corr * 0.1).toFixed(3)})`;
-    ctx.lineWidth = 2.2 * s;
-    ctx.stroke();
-    ctx.restore();
-
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.04 + k * 0.045;
-    const w = 30 * s;
-    ctx.drawImage(glowBlob("#7fdc4a"), sx - w, sy - w * 0.45, w * 2, w * 0.9);
-    ctx.restore();
-  },
-
-  // lasca de obsidiana saindo do chão
-  spike(ctx, sx, sy, p) {
-    const s = p.s, h = 26 * s, w = 7 * s;
-    drawShadow(ctx, sx, sy, w * 1.3);
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.rotate((p.seed - 0.5) * 0.4);
-    const g = ctx.createLinearGradient(-w, 0, w, 0);
-    g.addColorStop(0, "#080610");
-    g.addColorStop(0.5, "#241d33");
-    g.addColorStop(1, "#0c0914");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(0, -h);
-    ctx.lineTo(w, 2 * s);
-    ctx.lineTo(-w, 2 * s);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "rgba(140,120,190,0.22)";
-    ctx.lineWidth = 0.9;
-    ctx.beginPath(); ctx.moveTo(0, -h); ctx.lineTo(-w * 0.3, 2 * s); ctx.stroke();
-    ctx.restore();
-  },
-};

@@ -132,6 +132,7 @@
 <script src="js/sprites.js"></script>
 <script src="js/content/minions.js"></script>
 <script src="js/render/tiles.js"></script>
+<script src="js/render/debris.js"></script>
 <script src="js/render/scenery.js"></script>
 <script src="js/render/vfx.js"></script>
 
@@ -140,7 +141,7 @@
 /* =========================================================================
    VIEWER — a galeria de arte do jogo. Carrega os mesmos arquivos que o
    index.html carrega e desenha cada sprite com as MESMAS funções de render
-   (drawSprite, drawShadow, drawPortal, drawExplosion, PROPS), para o que
+   (drawSprite, drawShadow, drawPortal, drawExplosion, propSprite), para o que
    aparece aqui ser exatamente o que aparece em jogo — nada é redesenhado
    "parecido" só para a galeria.
 
@@ -495,20 +496,24 @@ function propItems() {
     const weight = (PROP_WEIGHTS.find((p) => p[0] === kind) || [kind, 0])[1];
     return {
       id: kind,
-      name: STATIC_PROPS[kind] ? "prop estático (cacheado)" : "prop animado",
+      name: PROP_GLOW[kind] ? "destroço + halo do motor" : "destroço",
       meta: "peso " + weight + "/" + PROP_WEIGHT_TOTAL + " no sorteio do chunk",
-      size: 76,   // o prop e desenhado a partir da base, entao a arte ocupa menos que o canvas
+      size: 120,  // cabe a fenda, que e a grade mais larga (34 celulas)
       swatches: [],
-      refs: [{ label: "desenho", text: "PROPS." + kind + " (js/render/scenery.js)" },
+      refs: [{ label: "grade", text: "PROP_ART." + kind + " (js/render/debris.js)" },
              { label: "peso", text: "PROP_WEIGHTS (js/render/scenery.js)" }],
       draw(ctx, t) {
-        const p = { s: 1, a: 1.7, seed: 0.25 };
-        if (STATIC_PROPS[kind]) {
-          const sp = propSprite(kind, 1);
-          ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(sp.canvas, -sp.ax, -sp.ay + 30, sp.w, sp.w);
-        } else {
-          PROPS[kind](ctx, 0, 30, p, S.anim ? t : 0, S.corruption);
+        const sp = propSprite(kind, 0);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(sp.canvas, -sp.ax, -sp.ay + 30, sp.w, sp.h);
+        const gl = PROP_GLOW[kind];
+        if (gl) {
+          const k = 0.55 + Math.sin((S.anim ? t : 0) * gl.sp) * 0.45;
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.globalAlpha = gl.a * (0.5 + k * 0.5);
+          ctx.drawImage(glowBlob(gl.color), -gl.r, 30 - gl.y - gl.r, gl.r * 2, gl.r * 2);
+          ctx.restore();
         }
       },
     };
