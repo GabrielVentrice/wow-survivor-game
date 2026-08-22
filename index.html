@@ -202,39 +202,6 @@
   .class-name { font-size: 18px; font-weight: bold; }
   .class-tag { font-size: 11px; color: #9a8ab0; margin-top: 4px; }
 
-  .speed-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 28px;
-  }
-  .speed-label {
-    font-size: 12px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #9a8ab0;
-    margin-right: 4px;
-  }
-  .speed-btn {
-    pointer-events: auto;
-    cursor: pointer;
-    width: 48px;
-    padding: 8px 0;
-    font-size: 15px;
-    font-weight: bold;
-    color: var(--text);
-    background: var(--panel);
-    border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 8px;
-    transition: transform 0.1s, border-color 0.1s, color 0.1s;
-  }
-  .speed-btn:hover { transform: translateY(-2px); }
-  .speed-btn.active {
-    color: #fff;
-    border-color: var(--fel);
-    box-shadow: 0 0 14px rgba(111,220,74,0.4);
-  }
-
   .btn {
     pointer-events: auto;
     cursor: pointer;
@@ -945,12 +912,6 @@
     <div class="title">WoW Survivors</div>
     <div class="subtitle">Corrupção · Domínio · Cataclismo</div>
     <div class="class-grid" id="classGrid"></div>
-    <div class="speed-row" id="speedRow">
-      <span class="speed-label">Velocidade</span>
-      <button class="speed-btn active" data-spd="1">1x</button>
-      <button class="speed-btn" data-spd="2">2x</button>
-      <button class="speed-btn" data-spd="3">3x</button>
-    </div>
     <button class="btn" id="startBtn">Iniciar</button>
     <div class="hint">Mover: WASD / Setas &nbsp;·&nbsp; Pausa: ESC &nbsp;·&nbsp; Som: M &nbsp;·&nbsp; Música: N</div>
     <div class="hint">Você só se move — tudo dispara sozinho. A build decide o resto.</div>
