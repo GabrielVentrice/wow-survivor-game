@@ -127,12 +127,20 @@ class SpatialGrid {
 
 // --- Som procedural via WebAudio (sem assets). Toggle com M. ---
 class Sfx {
-  constructor() { this.ctx = null; this.muted = false; this._lastDeath = 0; }
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+    this._lastDeath = 0;
+    this._deathBurst = 0;   // quantas mortes recentes: abaixa o volume em leva
+    this._noiseBuf = null;
+  }
   init() {
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (AC) this.ctx = new AC();
     }
+    // browsers suspendem o contexto ate um gesto do usuario
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
   }
   // toca um tom simples com envelope de decaimento
   tone(freq, dur, type = "sine", vol = 0.08, delay = 0) {
@@ -146,12 +154,118 @@ class Sfx {
     o.connect(g); g.connect(this.ctx.destination);
     o.start(t); o.stop(t + dur);
   }
-  death() {
-    if (!this.ctx) return;
-    if (this.ctx.currentTime - this._lastDeath < 0.05) return; // throttle anti-buzz
-    this._lastDeath = this.ctx.currentTime;
-    this.tone(180 + Math.random() * 60, 0.09, "square", 0.04);
+
+  /* --- blocos de som procedural -----------------------------------------
+     Ruido branco de meio segundo, gerado uma vez e reaproveitado. E a
+     materia-prima de tudo que e percussivo: estalo de osso, esmagamento,
+     baque de corpo. */
+  _noise() {
+    if (this._noiseBuf) return this._noiseBuf;
+    const len = Math.floor(this.ctx.sampleRate * 0.5);
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this._noiseBuf = buf;
+    return buf;
   }
+
+  // rajada de ruido filtrada — o timbre vem do filtro, o "peso" vem do decay
+  _burst(t, dur, filter, freq, q, vol, rate) {
+    const ctx = this.ctx;
+    if (vol < 0.0005) return;   // rampa exponencial precisa partir de valor > 0
+    const src = ctx.createBufferSource();
+    src.buffer = this._noise();
+    src.playbackRate.value = rate || 1;
+    const f = ctx.createBiquadFilter();
+    f.type = filter; f.frequency.value = freq; f.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(ctx.destination);
+    src.start(t); src.stop(t + dur);
+  }
+
+  // tom com a frequencia caindo — baque de corpo e grunhido saem daqui
+  _sweep(t, f0, f1, dur, type, vol, lowpass) {
+    const ctx = this.ctx;
+    if (vol < 0.0005) return;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    let node = o;
+    if (lowpass) {
+      const f = ctx.createBiquadFilter();
+      f.type = "lowpass"; f.frequency.value = lowpass; f.Q.value = 0.7;
+      o.connect(f); node = f;
+    }
+    node.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + dur);
+  }
+
+  /* Morte de um soldado da Legiao: nao e um bipe, sao quatro camadas.
+       1. dois ou tres estalos secos          -> osso quebrando
+       2. rajada grave e curta                -> carne/armadura cedendo
+       3. queda de frequencia no grave        -> o corpo batendo no chao
+       4. grunhido descendente                -> o ultimo som que ele faz
+
+     `size` 0..1 escala tudo para o grave (ghoul e leve, Dreadlord e pesado) e
+     `kind` troca a proporcao entre osso e carne — esqueleto estala mais e
+     esmaga menos. Ambos vem do dado em ENEMIES, nao de `if` aqui. */
+  death(size, kind) {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    if (now - this._lastDeath < 0.04) return;   // throttle anti-buzz
+
+    /* Leva inteira morrendo junto vira lama sonora. O contador sobe a cada
+       morte e cai com o tempo; o teto existe porque numa chacina o decaimento
+       nunca alcanca o acumulo, e sem ele o volume iria a zero e as mortes
+       ficariam mudas justamente quando ha mais coisa acontecendo. */
+    this._deathBurst = Math.min(8, Math.max(0, this._deathBurst - (now - this._lastDeath) * 6) + 1);
+    this._lastDeath = now;
+    const duck = 1 / (1 + this._deathBurst * 0.22);
+
+    const s = size > 1 ? 1 : size < 0 ? 0 : (size || 0);
+    const bony = kind === "bone";
+    const rot = kind === "rot";
+    const vol = duck * (0.75 + s * 0.55);
+
+    // 1. estalos de osso: bandpass estreito e decay curtissimo
+    const cracks = bony ? 3 + (Math.random() < 0.5 ? 1 : 0) : 2 + (Math.random() < 0.4 ? 1 : 0);
+    for (let i = 0; i < cracks; i++) {
+      const t = now + i * (0.011 + Math.random() * 0.022);
+      const f = (bony ? 3100 : 2500) - s * 900 + Math.random() * 800;
+      this._burst(t, 0.038 + Math.random() * 0.02, "bandpass", f, 11,
+                  (bony ? 0.075 : 0.055) * vol, 0.85 + Math.random() * 0.5);
+    }
+
+    // 2. esmagamento: grave, largo, curto
+    this._burst(now + 0.008, 0.11 + s * 0.1, "lowpass",
+                (rot ? 480 : 720) - s * 260, 1, (bony ? 0.03 : 0.055) * vol,
+                0.7 + Math.random() * 0.3);
+
+    // 3. baque do corpo no chao
+    this._sweep(now + 0.02, 125 - s * 48, 36 - s * 12, 0.17 + s * 0.14,
+                "sine", 0.085 * vol);
+
+    // 4. grunhido — so nos maiores, ou de vez em quando nos pequenos, para
+    //    nao virar coro quando a horda inteira cai junto
+    if (s > 0.3 || Math.random() < 0.28) {
+      this._sweep(now + 0.005, 235 - s * 95 + Math.random() * 40, 68 - s * 24,
+                  0.15 + s * 0.13, "sawtooth", 0.04 * vol, 780 - s * 200);
+    }
+
+    // 5. so o chefe: a armadura cedendo depois que o corpo ja caiu
+    if (s >= 0.95) {
+      this._burst(now + 0.13, 0.09, "bandpass", 1500 + Math.random() * 600, 8, 0.07);
+      this._burst(now + 0.19, 0.26, "lowpass", 320, 1, 0.07, 0.6);
+      this._sweep(now + 0.16, 70, 28, 0.42, "sine", 0.1);
+    }
+  }
+
   hurt() { this.tone(120, 0.18, "sawtooth", 0.1); }
   levelUp() { this.tone(523, 0.12, "triangle", 0.12); this.tone(784, 0.16, "triangle", 0.1, 0.1); }
   combo() {
@@ -163,6 +277,7 @@ class Sfx {
   item() { this.tone(700, 0.09, "sine", 0.12); this.tone(1050, 0.12, "sine", 0.1, 0.08); }
   gameOver() { this.tone(330, 0.3, "triangle", 0.12); this.tone(196, 0.5, "triangle", 0.12, 0.18); }
 }
+
 
 // --- Input ---
 class InputManager {

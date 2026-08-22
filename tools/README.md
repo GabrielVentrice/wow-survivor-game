@@ -12,7 +12,12 @@ node tools/harness.js . 3 15               # seed 3, 15 min de jogo
 DRIVER=driver_evo.js   node tools/harness.js .   # as 7 evoluções + regras de eixo/caminho
 DRIVER=driver_hooks.js node tools/harness.js .   # todo hook de capstone/passiva dispara?
 DRIVER=driver_dot.js   node tools/harness.js .   # cadência, stacking e expiração de DoT
+DRIVER=driver_audio.js node tools/harness.js .   # som de morte: grafo, throttle, mudo
 ```
+
+O stub de `AudioContext` monta o grafo de verdade e explode em rampa
+exponencial com alvo <= 0, então erro de WebAudio aparece aqui e não só no
+browser.
 
 O driver padrão também valida o registry antes de simular: tiers faltando,
 efeito ou hook inexistente, `key` que muda na evolução, mod em stat que não

@@ -61,8 +61,42 @@ const sandbox = {
   addEventListener: () => {},
   requestAnimationFrame: () => 1,
   setTimeout: () => 0,
-  AudioContext: undefined, webkitAudioContext: undefined,
+  // AudioContext falso: o codigo de som constroi o grafo de verdade, entao
+  // erro de API (createBuffer, rampa exponencial partindo de zero) aparece aqui
+  // em vez de so no browser.
+  AudioContext: function () {
+    const param = (v) => ({ value: v, setValueAtTime: () => {},
+      exponentialRampToValueAtTime: (target) => {
+        if (!(target > 0)) throw new Error("exponentialRamp com alvo <= 0");
+      },
+      linearRampToValueAtTime: () => {} });
+    const node = () => ({ connect: () => {} });
+    const ctx = {
+      state: "running", sampleRate: 44100,
+      // segue o relogio da simulacao, senao o throttle de morte acha que
+      // nenhum tempo passou e o som nunca toca duas vezes
+      get currentTime() { return sandbox.game ? sandbox.game.clock : 0; },
+      destination: node(), resume: () => {},
+      createBuffer: (ch, len, rate) => {
+        if (!(len > 0)) throw new Error("createBuffer com length invalido");
+        return { getChannelData: () => new Float32Array(len) };
+      },
+      createBufferSource: () => Object.assign(node(), {
+        buffer: null, playbackRate: param(1),
+        start: () => { __audio.nodes++; }, stop: () => {} }),
+      createBiquadFilter: () => Object.assign(node(), {
+        type: "", frequency: param(0), Q: param(0) }),
+      createGain: () => Object.assign(node(), { gain: param(0) }),
+      createOscillator: () => Object.assign(node(), {
+        type: "", frequency: param(0),
+        start: () => { __audio.nodes++; }, stop: () => {} }),
+    };
+    return ctx;
+  },
+  webkitAudioContext: undefined,
 };
+const __audio = { nodes: 0 };
+sandbox.__audio = __audio;
 sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);

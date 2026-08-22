@@ -564,7 +564,9 @@ class Game {
       if (!e.noReward) {
         this.orbs.spawn(e.x, e.y, e.type.xp);
         this.spawnParticles(e.x, e.y, e.type.color, e.type.boss ? 24 : 6);
-        this.sfx.death();
+        // corpo maior = som mais grave; o timbre vem do dado do inimigo
+        const heft = e.type.boss ? 1 : clamp((e.radius - 12) / 26, 0, 1);
+        this.sfx.death(heft, e.type.deathSfx);
         if (e.type.boss) this.addShake(8);
         this.player.kills++;
         this.dropLoot(e);

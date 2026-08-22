@@ -63,21 +63,25 @@ const ENEMIES = {
     id: "ghoul", name: "Ghoul",
     radius: 13, hp: 10, speed: 130, touchDps: 8, xp: 1,
     color: "#7fae5a", weight: 6, lateWeight: 4, minTime: 0,
+    deathSfx: "flesh",
   },
   skeleton: {
     id: "skeleton", name: "Skeleton Warrior",
     radius: 15, hp: 26, speed: 92, touchDps: 12, xp: 3,
     color: "#cfc8b0", weight: 3, lateWeight: 4, minTime: 45,
+    deathSfx: "bone",       // esqueleto estala mais e esmaga menos
   },
   abomination: {
     id: "abomination", name: "Abomination",
     radius: 26, hp: 120, speed: 56, touchDps: 22, xp: 12,
     color: "#9a6b4f", weight: 1, lateWeight: 2, minTime: 180,
+    deathSfx: "rot",        // massa de carne: grave e molhado
   },
   dreadlord: {
     id: "dreadlord", name: "Dreadlord",
     radius: 38, hp: 1400, speed: 48, touchDps: 30, xp: 120,
     color: "#b23cff", weight: 0, minTime: 300,
+    deathSfx: "flesh",
     boss: true, ranged: true,
     shootInterval: 2.2, shootDamage: 14, shootSpeed: 240, shootRange: 540,
   },
