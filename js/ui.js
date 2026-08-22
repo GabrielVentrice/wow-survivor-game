@@ -194,6 +194,13 @@ class UI {
     for (const o of offers) {
       const card = document.createElement("div");
       card.className = "card card-" + o.kind + (o.isEvo ? " card-evo" : "");
+      // The card body wears the axis color (which build it feeds); only the top
+      // ribbon wears the offer-kind color.
+      const acc = o.axis ? o.axis.color : o.def.color;
+      card.style.setProperty("--acc", acc);
+      card.style.setProperty("--acc-dim", acc + "66");
+      card.style.setProperty("--acc-wash", acc + "1c");
+      card.style.setProperty("--acc-glow", acc + "7a");
       card.innerHTML = this.cardHtml(o);
       card.onclick = () => this.applyOffer(o);
       this.el.cards.appendChild(card);
@@ -205,35 +212,55 @@ class UI {
     if (o.kind === "piece") {
       const cost = o.def.axisPoints != null ? o.def.axisPoints : 2;
       return `
-        <div class="card-kind" style="background:${o.axis.color}22;color:${o.axis.color}">
-          ${o.axis.icon} ${o.axis.name} +${cost}</div>
+        <div class="card-type card-type-piece">◈ Nova spell</div>
         <div class="card-icon" style="color:${o.def.color}">${o.def.icon}</div>
         <div class="card-name">${o.def.name}</div>
-        <div class="card-level">NOVA PEÇA · ${TRIGGER_LABEL[o.def.trigger.type] || ""}</div>
-        <div class="card-desc">${o.def.desc}</div>`;
+        <div class="card-level">${TRIGGER_LABEL[o.def.trigger.type] || "Automática"}</div>
+        <div class="card-sub">Entra na build e dispara sozinha</div>
+        <div class="card-desc">${o.def.desc}</div>
+        <div class="card-meta">
+          ${this.chip(o.axis.color, `${o.axis.icon} ${o.axis.name} +${cost}`)}
+        </div>`;
     }
     if (o.kind === "passive") {
       return `
-        <div class="card-kind card-kind-passive">Passiva global</div>
+        <div class="card-type card-type-passive">✦ Passiva</div>
         <div class="card-icon" style="color:${o.def.color}">${o.def.icon}</div>
         <div class="card-name">${o.def.name}</div>
-        <div class="card-level">AFETA A BUILD INTEIRA</div>
+        <div class="card-level">Bônus permanente</div>
+        <div class="card-sub">Não dispara — afeta a build inteira</div>
         <div class="card-desc">${o.def.desc}</div>
-        ${o.def.exclusive ? `<div class="card-warn">Bloqueia ${PASSIVES[o.def.exclusive].name}</div>` : ""}`;
+        ${o.def.exclusive ? `<div class="card-warn">Bloqueia ${PASSIVES[o.def.exclusive].name}</div>` : ""}
+        <div class="card-meta">
+          ${this.chip("#6fdc4a", "Custa 0 ponto de eixo")}
+        </div>`;
     }
-    // tier de caminho
+    // path tier: upgrades a spell already in the build
     const deep = o.tierIndex + 1 > PATH_RULES.freeTier;
     const evo = o.isEvo && o.evo;
+    let pips = "";
+    for (let i = 0; i < PATH_RULES.tiers; i++) {
+      pips += `<i class="${i < o.tierIndex ? "on" : i === o.tierIndex ? "nxt" : ""}"></i>`;
+    }
     return `
-      <div class="card-kind" style="background:${o.axis.color}22;color:${o.axis.color}">
-        ${o.def.icon} ${o.def.name}</div>
+      <div class="card-type card-type-path">▲ Melhoria${evo ? " · evolução" : ""}</div>
       <div class="card-icon" style="color:${o.def.color}">${evo ? o.evo.icon : o.def.icon}</div>
       <div class="card-name">${o.tier.name}</div>
       <div class="card-level">${o.path.name} · tier ${o.tierIndex + 1}/${PATH_RULES.tiers}</div>
+      <div class="card-sub">Melhora a spell <b>${o.def.name}</b></div>
       <div class="card-desc">${o.tier.desc}</div>
       ${evo ? `<div class="card-evo-tag" style="color:${o.evo.color};border-color:${o.evo.color}">
                  ⭐ Evolui para ${o.evo.name}</div>` : ""}
-      ${deep && !evo ? `<div class="card-warn">Caminho profundo · +1 ${o.axis.name}</div>` : ""}`;
+      ${deep && !evo ? `<div class="card-warn">Caminho profundo · +1 ${o.axis.name}</div>` : ""}
+      <div class="card-meta">
+        ${this.chip(o.def.color, `${o.def.icon} <span class="card-pips">${pips}</span>`)}
+        ${this.chip(o.axis.color, `${o.axis.icon} ${o.axis.name}${deep ? " +1" : ""}`)}
+      </div>`;
+  }
+
+  // Colored chip at the card footer: axis cost, source spell, path progress.
+  chip(color, inner) {
+    return `<span class="card-chip" style="color:${color};border-color:${color}55;background:${color}18">${inner}</span>`;
   }
 
   applyOffer(o) {

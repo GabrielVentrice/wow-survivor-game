@@ -465,36 +465,31 @@
     justify-content: center;
     max-width: 92vw;
   }
+  /* A cor da carta e a do EIXO (o tipo de build); so a faixa do topo carrega a
+     cor do tipo de oferta. `--acc` e escrito inline por carta em js/ui.js. */
   .card {
+    position: relative;
     pointer-events: auto;
     cursor: pointer;
-    width: 200px;
-    padding: 22px 18px;
-    border: 1px solid rgba(255,255,255,0.14);
+    width: 208px;
+    padding: 42px 18px 22px;
+    border: 1px solid var(--acc-dim, rgba(255,255,255,0.14));
     border-radius: 14px;
-    background: var(--panel);
+    background:
+      linear-gradient(180deg, var(--acc-wash, transparent), rgba(0,0,0,0) 62%),
+      var(--panel);
     text-align: center;
     transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
   }
   .card:hover {
     transform: translateY(-6px);
-    border-color: var(--shadow);
-    box-shadow: 0 0 28px rgba(122,60,255,0.5);
+    border-color: var(--acc, var(--shadow));
+    box-shadow: 0 0 28px var(--acc-glow, rgba(122,60,255,0.5));
   }
-  .card { position: relative; }
-  .card-spell:hover { border-color: var(--shadow); box-shadow: 0 0 28px rgba(122,60,255,0.5); }
-  .card-buff:hover { border-color: var(--fel); box-shadow: 0 0 28px rgba(111,220,74,0.4); }
-  .card-kind {
-    position: absolute; top: 10px; right: 10px;
-    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
-    padding: 2px 7px; border-radius: 6px; font-weight: bold;
-  }
-  .card-spell .card-kind { background: rgba(122,60,255,0.25); color: #c9aaff; }
-  .card-buff .card-kind { background: rgba(111,220,74,0.2); color: #a6e88a; }
   .card-icon { font-size: 40px; margin-bottom: 8px; }
   .card-name { font-size: 19px; font-weight: bold; color: #fff; }
   .card-level {
-    font-size: 12px; letter-spacing: 1px; color: var(--fel);
+    font-size: 12px; letter-spacing: 1px; color: var(--acc, var(--fel));
     margin: 4px 0 12px; text-transform: uppercase;
   }
   .card-desc { font-size: 13px; color: #b8a8d0; line-height: 1.4; }
@@ -616,12 +611,54 @@
     border-radius: 10px; transition: width 0.15s linear;
   }
 
-  /* ---------- cartas: peça / caminho / passiva ---------- */
-  .card-piece:hover { border-color: var(--shadow); box-shadow: 0 0 28px rgba(122,60,255,0.5); }
-  .card-path:hover { border-color: #ffd24a; box-shadow: 0 0 28px rgba(255,210,74,0.4); }
-  .card-passive:hover { border-color: var(--fel); box-shadow: 0 0 28px rgba(111,220,74,0.4); }
-  .card-evo { border-color: #ffd24a; box-shadow: 0 0 22px rgba(255,210,74,0.35); }
-  .card-kind-passive { background: rgba(111,220,74,0.2); color: #a6e88a; }
+  /* ---------- cartas: peça / caminho / passiva ----------
+     The top ribbon states WHICH KIND of offer the card is before anything else
+     is read: a new spell that fires on its own, a tier upgrade to a spell
+     already in the build, or a passive that never fires. Without it the three
+     cards look alike and the only real choice in the game becomes a coin flip. */
+  .card-evo {
+    border-width: 2px; border-color: var(--acc);
+    box-shadow: 0 0 24px var(--acc-glow);
+  }
+  .card-type {
+    position: absolute; left: 0; right: 0; top: 0;
+    overflow: hidden;
+    padding: 7px 8px; border-radius: 13px 13px 0 0;
+    font-size: 10.5px; font-weight: bold; letter-spacing: 1.6px;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .card-type-piece {
+    background: rgba(122,60,255,0.3); color: #cbb0ff;
+    border-bottom: 1px solid rgba(122,60,255,0.55);
+  }
+  .card-type-path {
+    background: rgba(255,210,74,0.2); color: #ffd98a;
+    border-bottom: 1px solid rgba(255,210,74,0.5);
+  }
+  .card-type-passive {
+    background: rgba(111,220,74,0.2); color: #a6e88a;
+    border-bottom: 1px solid rgba(111,220,74,0.5);
+  }
+  .card-sub { font-size: 11px; color: #8f80a6; margin: -8px 0 10px; line-height: 1.35; }
+  .card-sub b { color: #d8cce8; }
+  .card-meta {
+    display: flex; flex-wrap: wrap; gap: 5px;
+    justify-content: center; margin-top: 10px;
+  }
+  .card-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: bold; letter-spacing: 0.4px;
+    padding: 3px 8px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.05); color: #cbbcdd;
+  }
+  .card-pips { display: inline-flex; gap: 2px; }
+  .card-pips i {
+    width: 6px; height: 6px; border-radius: 2px;
+    background: rgba(255,255,255,0.18);
+  }
+  .card-pips i.on { background: currentColor; }
+  .card-pips i.nxt { background: transparent; box-shadow: inset 0 0 0 1px currentColor; }
   .card-evo-tag {
     margin-top: 8px; font-size: 11.5px; font-weight: bold;
     border: 1px solid; border-radius: 8px; padding: 4px 6px;
@@ -630,6 +667,22 @@
     margin-top: 8px; font-size: 11px; color: #ffb84a;
     border: 1px solid rgba(255,184,74,0.35); border-radius: 8px; padding: 3px 6px;
   }
+
+  /* level-up legend: decodes the three colors once, at the top */
+  .lv-legend {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    justify-content: center; margin: 2px 0 16px; max-width: 92vw;
+  }
+  .lv-lg {
+    font-size: 11px; letter-spacing: 0.4px;
+    padding: 4px 10px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04); color: #9a8ab0;
+  }
+  .lv-lg b { letter-spacing: 1px; text-transform: uppercase; font-size: 10.5px; }
+  .lv-lg-piece b { color: #cbb0ff; }
+  .lv-lg-path b { color: #ffd98a; }
+  .lv-lg-passive b { color: #a6e88a; }
 
   /* ---------- painel de pausa: caminhos ---------- */
   .pp-row {
@@ -694,6 +747,11 @@
   <div id="levelup" class="screen hidden">
     <div class="title" style="font-size:clamp(28px,5vw,48px)">Subiu de Nível!</div>
     <div class="subtitle" id="lvSub">Escolha um poder</div>
+    <div class="lv-legend">
+      <span class="lv-lg lv-lg-piece"><b>◈ Nova spell</b> — entra na build e dispara sozinha</span>
+      <span class="lv-lg lv-lg-path"><b>▲ Melhoria</b> — sobe um tier de uma spell que você já tem</span>
+      <span class="lv-lg lv-lg-passive"><b>✦ Passiva</b> — não dispara, afeta a build inteira</span>
+    </div>
     <div id="cards" class="cards"></div>
   </div>
 
