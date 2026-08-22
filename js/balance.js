@@ -51,8 +51,8 @@ const BALANCE = {
      extra width is only width. */
   projectile: { fanDelay: 0.1 },
   spawn: {
-    /* Densidade QUADRUPLICADA em relação ao tuning original (dobrada duas
-       vezes: uma no tuning de rampagem, outra por pedido depois dele).
+    /* Densidade OCTUPLICADA em relação ao tuning original (dobrada três
+       vezes: uma no tuning de rampagem, duas por pedido depois dele).
 
        A sensação de rampagem vem de ceifar leva, não de duelar. Intervalo
        dividido, teto de vivos e tamanho de wave multiplicados, e o HP por ramp
@@ -62,8 +62,8 @@ const BALANCE = {
        O teto de vivos anda JUNTO com o intervalo. Sem isso, dobrar o fluxo de
        spawn só faz a fila bater no teto mais cedo e a densidade em tela fica
        exatamente a mesma da versão anterior — o dobro vira no-op. */
-    baseInterval: 0.275,  // s entre spawns no início
-    minInterval: 0.045,   // piso do intervalo
+    baseInterval: 0.1375, // s entre spawns no início
+    minInterval: 0.0225,  // piso do intervalo
     rampEvery: 30,       // a cada Xs aperta o spawn e o HP
     intervalDecay: 0.86, // multiplicador do intervalo a cada ramp
     /* HP por ramp caiu de 0.18 para 0.11, e o teto de vivos subiu.
@@ -76,11 +76,11 @@ const BALANCE = {
     hpGrowth: 0.11,      // +11% HP base por ramp
     dmgGrowth: 0,        // touch damage does not scale before the hard phase
     speedGrowth: 0,      // same for enemy speed
-    maxAlive: 2200,      // teto de inimigos vivos (perf)
+    maxAlive: 4400,      // teto de inimigos vivos (perf)
     margin: 80,          // distância fora da tela onde nascem
     abominationAt: 180,  // s até Abomination entrar no pool
     waveEvery: 120,      // a cada Xs, wave densa em círculo
-    waveBase: 72,        // inimigos por wave (cresce com ramps)
+    waveBase: 144,       // inimigos por wave (cresce com ramps)
     bossAt: 300,         // 1º Dreadlord aos 5 min
     bossEvery: 150,      // novos Dreadlords a cada Xs depois disso
     /* HP de chefe usa hpMul elevado a este expoente.
@@ -97,11 +97,11 @@ const BALANCE = {
     hardAt: 300,             // second gear kicks in here (5 min)
     hardRampEvery: 15,       // ramps twice as often
     hardIntervalDecay: 0.84, // spawn interval tightens faster
-    hardMinInterval: 0.0175,  // new floor for the interval
+    hardMinInterval: 0.00875, // new floor for the interval
     hardHpGrowth: 0.105,     // +10.5% HP per ramp (every 15s)
     hardDmgGrowth: 0.085,    // +8.5% touch damage per ramp
     hardSpeedGrowth: 0.032,  // +3.2% enemy speed per ramp
-    hardMaxAlive: 3000,      // alive cap rises alongside
+    hardMaxAlive: 6000,      // alive cap rises alongside
     hardWaveEvery: 50,       // dense waves nearly twice as frequent
     hardBossEvery: 68,       // Dreadlords every 68s
     hardBossStack: 110,      // every Xs past hardAt, +1 Dreadlord per summon
@@ -176,12 +176,18 @@ BALANCE.milestones = {
 
 /* Baú: quantos tiers grátis ele entrega. Peso relativo, não porcentagem;
    `lateWeight` substitui `weight` depois de BALANCE.spawn.hardAt — no fim da run
-   um tier avulso não muda mais nada, um pacote de 5 sim. */
+   um tier avulso não muda mais nada, um pacote de 5 sim.
+
+   The multi-tier package is the chest's payoff, and a payoff that lands in two
+   of every three chests stops being one: with today's cadence (a loose chest
+   every 55s plus one per Dreadlord) the player opens dozens per run, and the
+   single tier had become the exception. The common roll is the majority again;
+   the 5-pack still exists, just rarer. */
 BALANCE.chest = {
   rarity: [
-    { count: 1, label: "Comum",    color: "#cfd2dc", shake: 6,  weight: 34, lateWeight: 12 },
-    { count: 3, label: "Raro",     color: "#5acfff", shake: 10, weight: 44, lateWeight: 46 },
-    { count: 5, label: "Lendário", color: "#ffd24a", shake: 16, weight: 22, lateWeight: 42 },
+    { count: 1, label: "Comum",    color: "#cfd2dc", shake: 6,  weight: 58, lateWeight: 34 },
+    { count: 3, label: "Raro",     color: "#5acfff", shake: 10, weight: 33, lateWeight: 45 },
+    { count: 5, label: "Lendário", color: "#ffd24a", shake: 16, weight:  9, lateWeight: 21 },
   ],
 };
 
@@ -370,8 +376,10 @@ const CLASSES = {
    onPickup(game) aplica o efeito imediato ao coletar. */
 const ITEMS = {
   magnet: {
+    // Per kill, and a run kills thousands: at 1.2% the magnet showed up so often
+    // that walking to the orbs stopped being a decision.
     id: "magnet", name: "Ímã de Almas", icon: "🧲", color: "#5acfff",
-    dropChance: 0.012,
+    dropChance: 0.004,
     desc: "Atrai todo o XP do chão para você.",
     onPickup(game) { for (const o of game.orbs.active) o.magnet = true; },
   },
