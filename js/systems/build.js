@@ -392,7 +392,7 @@ class BuildSystem {
      bolo, e as duas melhoram o que a build JA tem:
 
        - tier de caminho de uma peca possuida;
-       - passiva global A PARTIR do nivel `passiveFrom` — ela nao e uma spell a
+       - passiva global A PARTIR do nivel `passiveAt` — ela nao e uma spell a
          mais: nao tem tier, nao tem eixo e nao pede investimento depois. Ela so
          multiplica o que ja esta la (`pieceMods` sobre um `match`), e por isso
          cedo demais ela nao tem o que multiplicar.
@@ -428,10 +428,19 @@ class BuildSystem {
       }
     }
 
-    /* Passiva so entra a partir de `passiveFrom`. Ela multiplica o que a build
-       ja tem, entao cedo demais ela multiplica quase nada — e ocupa uma das
-       tres cartas disputando com o tier que faria diferenca agora. */
-    if (this.game.player.level >= BALANCE.levelup.passiveFrom) {
+    /* Passiva so entra no bolo a partir de `BALANCE.levelup.passiveAt`. Ela nao
+       constroi nada sozinha: multiplica o que a build ja tem, entao nos
+       primeiros niveis e um multiplicador de quase nada ocupando o lugar do
+       tier que abriria a trilha.
+
+       `pendingLevels` SAI DA CONTA porque o nivel que importa e o que ESTA
+       escolha paga, nao o topo da fila. Com tres niveis enfileirados de uma vez,
+       contar so `level` deixaria passiva aparecer na carta que paga o nivel 8 —
+       e a trava seria de dois niveis em vez de dez. E a mesma leitura que o
+       rotulo da tela ja faz (`UI.openLevelUp`). */
+    const lv = this.game.player
+      ? this.game.player.level - this.game.player.pendingLevels : 1;
+    if (lv >= BALANCE.levelup.passiveAt) {
       for (const id in PASSIVES) {
         if (this.passives.has(id) || this.passiveBlocked(id)) continue;
         pool.push({ kind: "passive", id, def: PASSIVES[id] });

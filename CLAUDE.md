@@ -504,7 +504,7 @@ Consequências que valem para qualquer coisa nova:
 - **Passiva fica no level-up, e não é exceção.** Ela não tem tier, não tem eixo
   e não pede investimento depois: só multiplica o que a build já tem
   (`pieceMods` sobre um `match`). Isso é aprofundar, não alargar — e é a mesma
-  razão pela qual ela só entra a partir do nível `passiveFrom`: cedo demais não
+  razão pela qual ela só entra a partir do nível `passiveAt`: cedo demais não
   há o que multiplicar.
 - **Peça nova só entra por etapa**, e como `free` — o eixo dela já foi pago pelo
   ponto que a carta deixou de dar.
@@ -672,14 +672,19 @@ Regras que continuam valendo:
   há informação nova: passiva **exclusiva** (fecha uma porta) e **evolução** (a
   peça troca de identidade inteira).
 
-**Passiva só entra a partir do nível `BALANCE.levelup.passiveFrom`** (10). Uma
-passiva não adiciona nada — ela **multiplica** o que já está lá (`pieceMods`
-sobre um `match`). Oferecida no nível 2, com duas spells no tier 0, ela
-multiplica quase nada, e pior: ocupa uma das três cartas disputando com o tier
-que faria diferença agora. São oito passivas para uma run de dezenas de níveis,
+**Passiva só entra a partir do nível `BALANCE.levelup.passiveAt`** (10). Uma
+passiva não constrói nada sozinha — ela **multiplica** o que já está lá
+(`pieceMods` sobre um `match`). Oferecida no nível 2, com duas spells no tier 0,
+ela multiplica quase nada, e pior: ocupa uma das três cartas disputando com o
+tier que abriria a trilha. São oito passivas para uma run de dezenas de níveis,
 então adiar não custa variedade — custa só o começo, que é onde a spell precisa
-de tier e não de multiplicador. `driver_cards` confere a trava no nível 1 antes
-de subir o nível para medir o resto.
+de tier e não de multiplicador.
+
+**E `pendingLevels` sai da conta.** O nível que importa é o que *esta* escolha
+paga, não o topo da fila — é a mesma leitura que o rótulo da tela já faz. Sem
+descontar, chegar ao nível 10 de uma vez faria a primeira carta (a que paga o
+nível 8) oferecer passiva, e a trava de dez viraria uma de oito. `driver_cards`
+cobra as duas pontas: nível 1 sem passiva, e nível 10 com fila de 3 também sem.
 
 **Nenhum texto novo por tier.** São 645 tiers no catálogo — escrever "antes →
 depois" à mão em cada um seria conteúdo que envelhece no primeiro

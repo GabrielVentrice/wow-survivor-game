@@ -17,17 +17,31 @@ window.game = g;
 let s = 7;
 Math.random = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
 g.start();
-// A run comeca no nivel 1 e passiva so entra a partir de `passiveFrom`: sem
-// subir o nivel, metade do bolo nunca apareceria e o driver nao mediria nada
-// sobre ela. A trava em si e verificada logo abaixo, no nivel 1.
+/* A trava de passiva, nas duas pontas, antes de o resto do driver rodar.
+
+   A run comeca no nivel 1, entao sem subir o nivel metade do bolo nunca
+   apareceria e nada seria medido sobre passiva. Mas a trava em si so vale se
+   for conferida ANTES: por isso as duas checagens abaixo. */
 const semPassiva = g.build.getOffers(9);
 for (const o of semPassiva) {
   if (o.kind === "passive") {
     bad(`passiva "${o.def.name}" oferecida no nivel ${g.player.level}, ` +
-        `trava e ${BALANCE.levelup.passiveFrom}`);
+        `trava e ${BALANCE.levelup.passiveAt}`);
   }
 }
-g.player.level = BALANCE.levelup.passiveFrom;
+/* E a parte que engana: com varios niveis na fila, o nivel que conta e o que
+   ESTA escolha paga, nao o topo da fila. Sem descontar `pendingLevels`, chegar
+   ao nivel 10 de uma vez faria a primeira carta — a que paga o nivel 8 —
+   oferecer passiva, e a trava de dez viraria uma trava de oito. */
+g.player.level = BALANCE.levelup.passiveAt;
+g.player.pendingLevels = 3;
+for (const o of g.build.getOffers(9)) {
+  if (o.kind === "passive") {
+    bad(`passiva no nivel efetivo ${g.player.level - g.player.pendingLevels} ` +
+        `(fila de ${g.player.pendingLevels}): pendingLevels nao esta saindo da conta`);
+  }
+}
+g.player.pendingLevels = 0;
 
 let problems = 0;
 const bad = (m) => { problems++; console.log("X   " + m); };
