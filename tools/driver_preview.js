@@ -6,14 +6,14 @@
    segundos, em estados que dependem de sorteio, nao se revisa jogando. O level
    up aparece com a build pequena, media e grande — a ultima e onde a tira passa
    do teto e o contador aparece; a etapa aparece nas duas fases, fechada e
-   aberta, que e onde as cartas dela trocam de forma.
+   aberta, que e onde as colunas dela trocam de forma.
 
    A etapa merece revisao ainda mais que o level up: ela e a unica decisao
-   irreversivel da run, aparece so sete vezes, e as tres cartas precisam ser
-   comparaveis de relance. Se os dois numeros de uma carta nao contarem a troca
-   sozinhos, o jogador escolhe no escuro e nao tem como voltar.
+   irreversivel da run, aparece so sete vezes, e as tres colunas precisam ser
+   comparaveis de relance. Se o buff e os dois numeros de uma coluna nao
+   contarem a troca sozinhos, o jogador escolhe no escuro e nao tem como voltar.
 
-   O HTML sai dos mesmos `UI.cardHtml` / `UI.buildStripHtml` / `UI.msCardHtml` do
+   O HTML sai dos mesmos `UI.cardHtml` / `UI.buildStripHtml` / `UI.msRowHtml` do
    jogo e o CSS e lido do proprio `index.html`: previa que diverge do jogo nao
    serve. */
 const g = new Game();
@@ -42,13 +42,13 @@ const take = (id, label, offers, hoverIdx) => {
   took[id] = true;
   g.ui.lvOffers = offers;
   g.ui.lvViews = offers.map((o) => g.ui.offerView(o));
-  let rows = "";
+  let cards = "";
   for (const v of g.ui.lvViews) {
-    rows += `<div class="lv-card" style="--acc:${v.color};--acc-dim:${v.color}55;` +
+    cards += `<div class="lv-card" style="--acc:${v.color};--acc-dim:${v.color}55;` +
             `--acc-wash:${v.color}1c">${g.ui.cardHtml(v)}</div>`;
   }
   shots.push({
-    lv: g.player.level, rows,
+    lv: g.player.level, cards,
     panel: g.ui.buildStripHtml(hoverIdx),
     label: `${label} — ${plural(g.build.pieces.size, "spell")} · ` +
            `${plural(g.build.passives.size, "passiva")} · hover na linha ${hoverIdx + 1}`,
@@ -62,10 +62,10 @@ const msShots = [];
 const takeMs = (idx, label) => {
   const offers = g.build.getMilestoneOffers();
   if (!offers.length) return;
-  let cards = "";
+  let rows = "";
   for (const o of offers) {
-    cards += `<div class="ms-card" style="--acc:${o.axis.color};--acc-dim:${o.axis.color}55;` +
-             `--acc-wash:${o.axis.color}1c">${g.ui.msCardHtml(o)}</div>`;
+    rows += `<div class="ms-row" style="--acc:${o.axis.color};--acc-dim:${o.axis.color}55;` +
+             `--acc-wash:${o.axis.color}1c">${g.ui.msRowHtml(o)}</div>`;
   }
   // O rodape com previa: a carta sob o mouse e a do eixo mais investido, que e
   // onde a linha do capstone tem algo a dizer.
@@ -74,7 +74,7 @@ const takeMs = (idx, label) => {
   const step = hov.dry || hov.wet;
   const falta = g.build.axisLeft;
   msShots.push({
-    cards, label,
+    rows, label,
     eyebrow: `Etapa ${idx + 1} · ${mmss(g.milestoneTimeAt(idx))} · ` +
              `${falta} ponto${falta === 1 ? "" : "s"} de eixo por gastar`,
     pool: g.ui.axesHtml(hov.axisId, step.gain),
@@ -82,7 +82,7 @@ const takeMs = (idx, label) => {
   });
 };
 
-// Fase FECHADA: nenhum eixo em `unlockAt`, entao as tres cartas sao spells
+// Fase FECHADA: nenhum eixo em `unlockAt`, entao as tres linhas sao spells
 // sorteadas do catalogo inteiro e nao ha lado seco em lugar nenhum.
 takeMs(0, "fase fechada — três spells sorteadas, nenhum eixo aberto ainda");
 
@@ -127,7 +127,7 @@ for (const sh of shots) {
         <div class="lv-eyebrow">Nível ${sh.lv} → ${sh.lv + 1}</div>
         <div class="lv-title">Aprofunde uma</div>
       </div>
-      <div class="lv-cards">${sh.rows}</div>
+      <div class="lv-cards">${sh.cards}</div>
       <div class="lv-strip">${sh.panel}</div>
       <div class="lv-foot">Nada aqui custa ponto de eixo — isso é assunto das etapas.</div>
     </div></div></div>`;
@@ -143,7 +143,7 @@ for (const sh of msShots) {
         <div class="ms-title">Para onde esta run vai?</div>
         <div class="ms-sub">O único ponto que não volta. Escolha o eixo — a spell vem junto, cobrando um ponto.</div>
       </div>
-      <div class="ms-rows">${sh.cards}</div>
+      <div class="ms-rows">${sh.rows}</div>
       <div class="ms-foot">
         <div class="ms-pool">${sh.pool}</div>
         <div class="ms-capwrap">${sh.cap}</div>

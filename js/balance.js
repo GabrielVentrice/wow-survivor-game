@@ -260,9 +260,16 @@ const CLASSES = {
     color: "#7a3cff",
     available: true,
     base: { maxHp: 100, speed: 240 },
-    // Kit inicial: uma peca de identidade (DoT) e uma de dano imediato. Entram
-    // de graca — o pool de 20 pontos fica inteiro para as escolhas do jogador.
-    starting: ["corruption", "incinerate"],
+    // Kit inicial: UMA peca so, e a mais neutra do catalogo — o tiro que
+    // persegue e nao pede nada do jogador. Entra de graca: o pool de 20 pontos
+    // fica inteiro para as escolhas do jogador.
+    //
+    // Comecar com duas ja entregava meia identidade de graca: quem nascia com
+    // Corruption nascia com o eixo escolhido, e a primeira etapa deixava de ser
+    // descoberta para virar confirmacao. Com uma peca so, a fase fechada da
+    // etapa volta a fazer o trabalho dela — as tres spells sorteadas sao a
+    // primeira coisa que diz para onde a run vai.
+    starting: ["incinerate"],
     /* Metamorfose: `caps` = nº de capstones fechados para assumir a forma. A
        última forma cujo `caps` for atingido vence.
 

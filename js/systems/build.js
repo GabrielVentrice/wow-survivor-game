@@ -512,8 +512,11 @@ class BuildSystem {
     shuffle(todas);
 
     const out = [], usadas = new Set();
-    const pegar = (lista) => {
-      for (const def of lista) if (!usadas.has(def.id)) { usadas.add(def.id); return def; }
+    const pegar = (lista, ok) => {
+      for (const def of lista) {
+        if (usadas.has(def.id) || (ok && !ok(def))) continue;
+        usadas.add(def.id); return def;
+      }
       return null;
     };
 
@@ -530,10 +533,16 @@ class BuildSystem {
       });
     }
 
-    // 2. o resto: spell sorteada do catalogo INTEIRO. Sem carta seca — antes de
-    //    abrir um eixo, ganhar ponto e escolher spell.
+    /* 2. o resto: spell sorteada do catalogo INTEIRO. Sem carta seca — antes de
+          abrir um eixo, ganhar ponto e escolher spell.
+
+          O sorteio ignora spell cujo eixo nao credita mais nada. Carta que
+          anuncia +0 nao e oferta, e um botao morto numa tela cujo assunto
+          INTEIRO e o ponto de eixo — e com o eixo comprometido no teto de 15 e
+          o catalogo dele cheio de spells, tres cartas mortas na mesma etapa
+          deixam de ser azar: elas travam a pool com ponto por gastar. */
     while (out.length < M.cards) {
-      const piece = pegar(todas);
+      const piece = pegar(todas, (def) => real(def.axis, M.spellPoints) > 0);
       if (!piece) break;
       out.push({
         kind: "milestone", axisId: piece.axis, axis: AXES[piece.axis], piece, locked: false,
@@ -542,21 +551,29 @@ class BuildSystem {
       });
     }
 
-    /* Fim do catalogo com nenhum eixo aberto: sem este fallback a etapa abriria
-       vazia e a pool ficaria sem como ser gasta. Entrega o eixo seco de quem
-       tem mais espaco — nao ha spell para oferecer, entao nao ha troca a fazer. */
-    if (!out.length) {
+    /* Mesa que nao anda: sem este fallback a etapa abriria vazia (fim do
+       catalogo antes de abrir eixo) ou com tres cartas de +0 (todo eixo com
+       espaco ja teve o catalogo esgotado). Nos dois casos a pool ficaria sem
+       como ser gasta, e quem para as etapas e a POOL — o jogo devolveria uma
+       tela por marco ate o fim da run sem nunca entregar o ponto.
+
+       Entrega o eixo seco de quem tem mais espaco: nao ha spell para oferecer,
+       entao nao ha troca a fazer. Se a mesa ja esta cheia, ele toma o lugar da
+       ultima carta em vez de estourar o teto de `cards`. */
+    if (!out.some((o) => (o.dry && o.dry.gain > 0) || (o.wet && o.wet.gain > 0))) {
       let melhor = null;
       for (const axisId in AXES) {
         const g = real(axisId, M.axisPoints);
         if (!melhor || g > melhor.g) melhor = { axisId, g };
       }
       if (melhor && melhor.g > 0) {
-        out.push({
+        const carta = {
           kind: "milestone", axisId: melhor.axisId, axis: AXES[melhor.axisId],
           piece: null, locked: true,
           dry: { want: M.axisPoints, gain: melhor.g }, wet: null,
-        });
+        };
+        if (out.length >= M.cards) out[out.length - 1] = carta;
+        else out.push(carta);
       }
     }
     return out;

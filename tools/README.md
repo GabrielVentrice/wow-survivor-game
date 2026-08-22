@@ -85,6 +85,17 @@ pedido ao modelo vaza para fora da silhueta e apaga a única informação que a
 imagem tinha para dar. Voo, esse sim, é pose: a forma que flutua não tem perna
 no chão, e `findLegs` cai sozinho no balanço em vez do passo.
 
+O chão tem o seu próprio par, porque o defeito dele é outro — laje boa sozinha
+e treliça óbvia quando ladrilhada:
+
+```bash
+python3 tools/sheet2tiles.py folha.png /tmp/rows.js /tmp/zoom.png /tmp/campo.png
+```
+
+`/tmp/campo.png` é o que decide: ele ladrilha as oito com peso e espelho, do
+mesmo jeito que `Scenery.draw`. As grades saem prontas para `TILE_ROWS`
+(`js/render/tiles.js`).
+
 ```bash
 # 3. conferir com os olhos: o novo sozinho, e o novo no meio do elenco
 python3 tools/spritesheet.py --zoom 14 --cols 2 --only <novo> ghoul --out /tmp/zoom.png
@@ -141,8 +152,8 @@ de rodada: build crua, build média, tira no teto com contador e **evolução na
 mesa** — esse último é o mais raro de encontrar jogando e o que tem etiqueta
 própria. A etapa sai nos dois extremos: primeiro marco (2 pontos, build crua,
 capstone longe) e marco final (5 pontos, eixo carregado, capstone ao alcance),
-que é onde os números da carta mudam de peso.
-O HTML sai dos mesmos `UI.cardHtml`/`UI.buildStripHtml`/`UI.msCardHtml` do jogo e
+que é onde os números da linha mudam de peso.
+O HTML sai dos mesmos `UI.cardHtml`/`UI.buildStripHtml`/`UI.msRowHtml` do jogo e
 o CSS é lido do `index.html`, então prévia que diverge do jogo não existe. Mesmo
 argumento do `sprites.html`: tela que só aparece por segundos, em estados
 sorteados, não se revisa jogando — e a etapa aparece **sete vezes por run** e

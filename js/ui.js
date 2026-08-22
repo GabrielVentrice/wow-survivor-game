@@ -613,19 +613,19 @@ class UI {
   }
 
   /* --- etapa ---------------------------------------------------------------
-     A BATIDA LENTA. Tres cartas, sempre uma por eixo, e a unica fonte de ponto
-     de eixo do jogo.
+     A BATIDA LENTA. Tres linhas, o eixo aberto sempre entre elas, e a unica
+     fonte de ponto de eixo do jogo.
 
-     Ela e o oposto da tela de level up de proposito. Level up compara LINHAS
-     porque a pergunta la e "qual destas tres coisas diferentes eu quero"; aqui
-     a pergunta e uma so — para onde a run vai — e as tres respostas sao a
-     mesma forma preenchida com eixos diferentes. Isso pede CARTAS lado a lado,
-     que e a leitura horizontal: o olho corre os tres numeros na mesma altura e
-     compara a mesma coisa tres vezes.
+     Ela e o oposto da tela de level up de proposito, e as duas ja trocaram de
+     forma uma vez: o que decide a forma nao e a tela, e o que ela compara. As
+     tres ofertas daqui tem a MESMA estrutura preenchida com eixos diferentes —
+     um rotulo, uma spell, um numero (ou dois) —, e estrutura repetida e o caso
+     da LINHA com colunas fixas: o numero de cada oferta cai sempre na terceira
+     coluna, entao comparar e correr o olho por uma coluna so.
 
-     Aqui o custo volta, e ele e o unico do jogo: uma carta que traz spell nova
-     entrega um ponto a MENOS que a carta seca do mesmo eixo. Largura nao gasta
-     o pool, ela desacelera o pool — e essa e a unica decisao da run que nao se
+     Aqui o custo volta, e ele e o unico do jogo: a oferta que traz spell nova
+     entrega um ponto a MENOS que a seca do mesmo eixo. Largura nao gasta o
+     pool, ela desacelera o pool — e essa e a unica decisao da run que nao se
      desfaz depois. */
 
   openMilestone() {
@@ -662,24 +662,24 @@ class UI {
     this.el.msRows.innerHTML = "";
     for (let i = 0; i < offers.length; i++) {
       const o = offers[i];
-      const card = document.createElement("div");
-      card.className = "ms-card";
-      card.style.setProperty("--acc", o.axis.color);
-      card.style.setProperty("--acc-dim", o.axis.color + "55");
-      card.style.setProperty("--acc-wash", o.axis.color + "1c");
-      card.innerHTML = this.msCardHtml(o);
-      /* O ALVO e o botao, nao a carta: a carta e um eixo e o eixo tem duas
-         maneiras de ser levado. Carta inteira clicavel precisaria de um padrao
+      const row = document.createElement("div");
+      row.className = "ms-row";
+      row.style.setProperty("--acc", o.axis.color);
+      row.style.setProperty("--acc-dim", o.axis.color + "55");
+      row.style.setProperty("--acc-wash", o.axis.color + "1c");
+      row.innerHTML = this.msRowHtml(o);
+      /* O ALVO e o botao, nao o bloco: o bloco e um eixo e o eixo tem duas
+         maneiras de ser levado. Bloco inteiro clicavel precisaria de um padrao
          escolhido por nos, e escolher pelo jogador a metade irreversivel da
          decisao e o oposto do que esta tela existe para fazer. */
-      const btns = card.querySelectorAll(".ms-take");
+      const btns = row.querySelectorAll(".ms-take");
       for (const btn of btns) {
         const wet = btn.dataset.wet === "1";
         btn.onclick = (ev) => { ev.stopPropagation(); this.applyMilestone(o, wet); };
         btn.onmouseenter = () => this.msHoverTo(o, wet);
         btn.onmouseleave = () => this.msHoverTo(null, false);
       }
-      this.el.msRows.appendChild(card);
+      this.el.msRows.appendChild(row);
     }
     this.msRender(null, false);
     this.el.milestone.classList.remove("hidden");
@@ -692,9 +692,8 @@ class UI {
     this.msRender(o, wet);
   }
 
-  /* Como no level up, o hover re-renderiza so o RODAPE: mexer nas cartas
-     mataria a transicao de `transform` que o CSS esta rodando naquele
-     instante. */
+  /* Como no level up, o hover re-renderiza so o RODAPE: mexer nas colunas
+     mataria a transicao que o CSS esta rodando naquele instante. */
   msRender(o, wet) {
     const step = !o ? null : ((wet ? o.wet : o.dry) || o.wet || o.dry);
     this.el.msPool.innerHTML = this.axesHtml(o ? o.axisId : null, step ? step.gain : 0);
@@ -720,10 +719,10 @@ class UI {
     const closer = before && after.missing < before.missing;
     return `<div class="ms-cap${closer ? " closer" : ""}">${after.cap.icon}
       <b style="color:${after.cap.color}">${after.cap.name}</b> a ${falta}${
-      closer ? ` <i>— ${before.missing} antes desta carta</i>` : ""}</div>`;
+      closer ? ` <i>— ${before.missing} antes desta linha</i>` : ""}</div>`;
   }
 
-  msCardHtml(o) {
+  msRowHtml(o) {
     const b = this.game.build, cur = b.axis[o.axisId];
     const M = BALANCE.milestones;
 
@@ -757,7 +756,7 @@ class UI {
             <span class="ms-spell-desc">Todas as spells de ${o.axis.name} já estão na build.</span>
           </span></div>`;
 
-    /* Duas formas de carta, e a diferenca e o que cada uma esta perguntando.
+    /* Duas formas de bloco, e a diferenca e o que cada uma esta perguntando.
 
        ABERTA (eixo em `unlockAt`+): a manchete e o EIXO, porque a pergunta e
        quanto investir nele — a spell e uma das duas maneiras de levar, nao o
@@ -766,7 +765,11 @@ class UI {
        SORTEADA: a manchete e a SPELL, porque e ela que esta sendo escolhida; o
        eixo aparece no botao como consequencia (+1 em Corrupcao). Por o eixo no
        topo aqui seria anunciar como titulo algo que o jogador nao escolheu — o
-       sorteio e que pos aquele eixo ali. */
+       sorteio e que pos aquele eixo ali.
+
+       Nas duas, o meio do bloco e o BUFF: a mesma caixa acesa, porque o que a
+       spell FAZ e a coisa que a tela existe para o jogador ler antes de gastar
+       o unico ponto que nao volta. */
     if (!o.locked) {
       return `
         <div class="ms-head loose">
@@ -774,7 +777,7 @@ class UI {
           <span class="ms-axis">${o.piece.name}</span>
           <span class="ms-tag" style="color:${o.axis.color}">${o.axis.icon} ${o.axis.name}</span>
         </div>
-        <div class="ms-spell bare"><span class="ms-spell-txt">
+        <div class="ms-spell"><span class="ms-spell-txt">
           <span class="ms-spell-desc">${o.piece.desc}</span></span></div>
         <div class="ms-takes">
           ${take(o.wet, true, "Levar esta spell", "")}

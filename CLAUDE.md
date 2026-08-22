@@ -76,6 +76,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
 | `js/content/*.js` | o catálogo: 31 peças, passivas, capstones, demônios |
+| `js/render/tiles.js` | `TILE_ROWS` — as 8 lajes do chão, desenhadas em grade de 42x42 |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
 | `js/ui.js` | `UI` — HUD, tela de level-up, tela de etapa, pausa, baú, game over |
@@ -266,8 +267,9 @@ As regras que caem daí:
   são exatos: quem escolhe o degrau é o autor, não o `Math.round`. Se um bicho
   não cabe em degrau nenhum, o conserto é **redesenhar a grade** no tamanho em
   que ele aparece — fração não encolhe desenho, ela apaga pedaço dele.
-- **Canvas procedural nasce em pixel de buffer.** A laje (`makeFelTile`) e os
-  props estáticos (`propSprite`) são gerados já na resolução final; gerados
+- **Canvas nasce em pixel de buffer.** A laje (`makeFelTile`, hoje pintada de
+  `TILE_ROWS`) e os props estáticos (`propSprite`) são feitos já na resolução
+  final — 42x42 no caso da laje, que é `tile` sobre `PIXEL_UNIT`; gerados
   grandes e reduzidos no blit, perderiam dois de cada três pixels e o granulado
   viraria chiado. É também por isso que `propSprite` cacheia por **degrau de
   tamanho**: o `s` contínuo do chunk vira um dos `PROP_BUCKETS`.
@@ -487,10 +489,16 @@ inércia.
 - No máximo **2** caminhos por peça passam do tier 2 → impossível maximizar três.
 - Passivas podem declarar `exclusive` → `Fúria Contida` e `Pés de Cinza` nunca coexistem.
 - Peça com `requires` só é oferecida depois que a habilitadora está na build.
-- O kit inicial da classe entra **de graça** (`acquirePiece(id, true)`), para o
-  pool de 20 ficar inteiro para as escolhas do jogador — e a spell que vem numa
-  etapa também, porque o eixo dela já foi pago pelo ponto que a carta deixou de
-  dar.
+- **O kit inicial é UMA peça só**, e ela entra **de graça**
+  (`acquirePiece(id, true)`), para o pool de 20 ficar inteiro para as escolhas
+  do jogador — e a spell que vem numa etapa também, porque o eixo dela já foi
+  pago pelo ponto que a carta deixou de dar. No warlock é `incinerate`: o tiro
+  que persegue sozinho e não pede nada do jogador, que é o que uma peça
+  entregue antes de qualquer escolha tem que ser.
+  Duas peças davam meia identidade de graça — quem nascia com Corruption
+  nascia com o eixo escolhido, e a primeira etapa deixava de ser descoberta
+  para virar confirmação. Com uma só, as três spells sorteadas da fase fechada
+  voltam a ser a primeira coisa que diz para onde a run vai.
 - **Baú é a única fonte de tiers grátis**, e por isso é dado: `BALANCE.spawn`
   diz com que frequência ele nasce (avulso pelo spawner a partir dos 45s, e de
   todo Dreadlord morto) e `BALANCE.chest.rarity` diz quantos tiers ele entrega —
@@ -510,7 +518,7 @@ não podem voltar a ser uma só.
 | **O que oferece** | tier de caminho; passiva global a partir do nível 10 | spell nova (+1 no eixo dela) e, no eixo aberto, +2 secos |
 | **Custa** | nada | é a **única** fonte de ponto de eixo |
 | **Desfaz?** | a próxima escolha corrige | **nunca** |
-| **Forma** | três cartas + tira da build | três cartas + rodapé de eixos |
+| **Forma** | três cartas + tira da build | três colunas + rodapé de eixos |
 
 **Por que foram separadas.** Antes as duas moedas dividiam a mesma escolha:
 comprar peça nova custava 2 pontos de eixo, tier acima do 2 custava 1. Com
@@ -564,9 +572,9 @@ painel que o jogo nunca entregava.
 
 #### Fase fechada: três spells sorteadas
 
-Antes de qualquer eixo chegar a `unlockAt`, as três cartas são **spells
+Antes de qualquer eixo chegar a `unlockAt`, as três colunas são **spells
 sorteadas do catálogo inteiro** — podem cair três do mesmo eixo. Não existe
-carta seca: a única maneira de ganhar eixo é escolhendo uma spell, e cada uma
+oferta seca: a única maneira de ganhar eixo é escolhendo uma spell, e cada uma
 carrega `spellPoints` para o eixo **dela**.
 
 Isso faz o começo da run ser **descoberta e não mira**. O jogador ainda não sabe
@@ -585,7 +593,7 @@ desenho de uma loteria. O eixo em que o jogador já investiu cinco pontos nunca
 mais some da mesa, então o capstone deixa de depender de o sorteio colaborar.
 Antes disso ele não tem eixo para proteger.
 
-Cai daí que largura não **gasta** o pool, ela o **desacelera**: a carta seca
+Cai daí que largura não **gasta** o pool, ela o **desacelera**: a oferta seca
 anda `axisPoints` e a com spell anda `spellPoints`, então cada spell levada num
 eixo aberto custa um marco a mais. `driver_milestone` reprova
 `axisPoints <= spellPoints` — sem essa diferença, arsenal deixaria de custar.
@@ -593,7 +601,7 @@ eixo aberto custa um marco a mais. `driver_milestone` reprova
 #### Cadência: sai da conta, não do gosto
 
 Pool 20; quem abre um eixo cedo gasta ~5 marcos a 1 ponto e o resto a 2, e as
-cartas sorteadas nem sempre oferecem o eixo alvo — na prática **~15 marcos**. A
+linhas sorteadas nem sempre oferecem o eixo alvo — na prática **~15 marcos**. A
 `every` 40s isso fecha em **10:00**, logo antes de onde uma run competente
 acaba. `driver_milestone` refaz essa conta em vez de confiar no número: se a
 pool só fechasse depois dos 11 min, ele reprova, porque **marco entregue depois
@@ -601,26 +609,59 @@ da morte não entrega nada**.
 
 #### Apresentação
 
-- **Duas formas de carta, e o cabeçalho é onde elas se separam.** Na carta
-  **aberta** a manchete é o EIXO — a pergunta é quanto investir nele, e a spell
-  é uma das duas maneiras de levar. Na **sorteada** a manchete é a SPELL, porque
-  é ela que está sendo escolhida; o eixo vira etiqueta ao lado, na cor dele. Pôr
-  o eixo no topo de uma carta sorteada seria anunciar como título algo que o
+- **Três colunas, cada uma lida de cima para baixo na ordem da decisão**: de
+  que eixo é · **o que faz** · quanto anda. Ela já foi três linhas com colunas
+  fixas, e o argumento era alinhamento — mesma estrutura em três eixos, então
+  comparar era correr uma coluna só. Só que a estrutura deixou de ser a mesma
+  quando a fase fechada entrou: oferta sorteada tem manchete de spell e um
+  botão, oferta aberta tem manchete de eixo e dois. Alinhar campo que não
+  existe nas três não alinha nada, e quem pagava a conta era o buff.
+- **O BUFF é a manchete do bloco.** É a única parte da tela que diz o que a run
+  vai *ganhar*, e na linha ele era texto cinza de 12.5px espremido na faixa do
+  meio — o jogador comparava dois números sem ler o que estava comprando. Hoje
+  é caixa acesa na cor do eixo, com o texto na altura de leitura que o
+  `.lv-plain` tem na outra tela, e o nome da spell perde de propósito para o
+  efeito. A caixa **não estica** para preencher a coluna: quem alinha os
+  números das três é o `margin-top: auto` dos botões — esticada, a oferta de
+  frase curta virava um retângulo aceso meio vazio, que lê como conteúdo
+  faltando e não como respiro.
+- **A forma é o que separa as duas telas, e ela já trocou de dono duas vezes.**
+  O que decide a forma não é a tela, é o que ela compara. E as duas não podem
+  *parecer* a mesma tela: o jogador precisa perceber que a pergunta mudou, e a
+  desta é a única que ele não desfaz. Com as duas em coluna, a diferença mora
+  no acento (barra **vertical à esquerda** aqui, de topo lá), no bloco que não
+  levanta nem é clicável, no rodapé (barras de eixo e capstone aqui, tira de
+  spells lá), no selo `aberto`, nos **dois botões** por oferta e na cor do
+  eyebrow — âmbar aqui, verde lá.
+- **Duas formas de bloco, e o cabeçalho é onde elas se separam.** No bloco
+  **aberto** a manchete é o EIXO — a pergunta é quanto investir nele, e a spell
+  é uma das duas maneiras de levar. No **sorteado** a manchete é a SPELL, porque
+  é ela que está sendo escolhida; o eixo vira etiqueta abaixo, na cor dele. Pôr
+  o eixo no topo de um bloco sorteado seria anunciar como título algo que o
   jogador não escolheu — o sorteio é que pôs aquele eixo ali.
 - **`aberto` é o único selo da tela**, e marca a regra que mais importa: este
   eixo não depende mais do sorteio para reaparecer.
-- **As duas telas são cartas, então o que as separa é outra coisa.** Enquanto o
-  level-up era linhas a diferença se via de longe; hoje ela mora no rodapé (a
-  etapa tem barras de eixo e a linha do capstone, o level-up tem a tira de
-  spells), no selo `aberto`, nos **dois botões** por carta, e na cor do eyebrow
-  — âmbar aqui, verde lá. Isso importa: o jogador precisa perceber que a
-  pergunta mudou, e a desta é a única que ele não desfaz.
-- **O alvo é o botão, não a carta.** Carta inteira clicável exigiria escolher
-  por ele qual das duas maneiras é o padrão, e é justamente a metade
-  irreversível da decisão.
+- **O alvo é o botão, não o bloco** — e por isso ele nem carrega `cursor:
+  pointer` nem levanta no hover como a carta do level-up. Bloco inteiro clicável
+  exigiria escolher por ele qual das duas maneiras é o padrão, e é justamente a
+  metade irreversível da decisão. Os dois botões ficam empilhados no pé, não
+  lado a lado: os números precisam ser lidos um SOBRE o outro para a diferença
+  aparecer.
+- **A mesa nem sempre tem três.** No fim da run o catálogo esgota e sobram duas
+  ofertas, ou uma. Por isso as colunas são flex centrado e não grade de três:
+  numa grade fixa a sobrevivente ficaria encolhida no canto esquerdo com dois
+  buracos ao lado.
 - **O número anunciado é o creditado.** Com o eixo no teto ou o pool no fim,
   `addAxis` entrega menos; `getMilestoneOffers` devolve `gain` real ao lado do
-  `want` de tabela, e o driver compara os dois em toda carta de toda etapa.
+  `want` de tabela, e o driver compara os dois em toda oferta de toda etapa.
+- **E carta que credita +0 não é oferta, é botão morto.** O sorteio pula spell
+  cujo eixo não anda mais, e se ainda assim a mesa inteira ficar em zero — todo
+  eixo com espaço já teve o catálogo esgotado — o fallback seco entra no lugar
+  da última carta em vez de estourar o teto de `cards`. A trava é real e não
+  teórica: com o eixo comprometido no teto de 15 e o catálogo dele cheio de
+  spells, três cartas mortas na mesma etapa paravam a pool com ponto por gastar,
+  e como quem para as etapas é a POOL, o jogo devolvia uma tela por marco até o
+  fim da run sem nunca entregar o ponto. Media: 3 em 60 runs de quem mira.
 - **O rodapé é o que transforma "+2" num destino**: as três barras de eixo com
   prévia (`UI.axesHtml`, compartilhada com o painel do level-up) e o capstone
   mais próximo. Sem ele, alocar é uma decisão de rota longa com feedback só no
@@ -931,7 +972,25 @@ O mundo é infinito e gerado em runtime. Duas regras:
   `createLinearGradient` dentro do laço de desenho é alocação a 60fps.
 
 O chão usa 8 variantes de laje escolhidas por hash da célula: um tile único
-repetido é o que mais denuncia cenário procedural barato.
+repetido é o que mais denuncia cenário procedural barato. As oito são **dado**
+(`TILE_ROWS`, grade de 42x42 em tokens da PAL) e não mais ruído gerado, e três
+regras vieram junto — todas visíveis no instante em que são quebradas:
+
+- **Estrutura sim, mancha não.** Uma laje é vista quarenta vezes na mesma tela.
+  Junta, fenda e grão repetem sem incomodar; uma face mais clara que as outras
+  vira pastilha acesa carimbada pelo chão inteiro. Foi o que a referência
+  entregou, e o conserto foi passar um high-pass em cada laje antes de
+  quantizar: o que sobrevive é o que tem borda, o que morre é o nível.
+- **Laje com marca é rara.** Veio de fel e runa são a coisa mais reconhecível do
+  chão; sorteadas uniformemente, saem numa célula a cada oito e o olho acha a
+  treliça na hora. `TILE_BAG` pesa cinco de pedra lisa para uma marcada, e a
+  lista de marcadas sai do próprio dado (`TILE_MARKED`), não de uma lista à mão.
+- **Oito ainda são oito carimbos.** O espelho (bit 0 horizontal, bit 1 vertical)
+  é inteiro — não reamostra, então não sai do grid — e devolve 32 leituras a
+  partir de 8. É o que quebra a repetição do grão caindo sempre no mesmo ponto.
+
+`driver_render` cobra as três, mais o teto de 3% de energia no chão: se a laje
+brilhar tanto quanto uma spell, a spell para de significar alguma coisa.
 
 `Scenery.corruption` (0..1) vem de `elapsed / hardAt` e faz o mundo apodrecer
 junto com a run — veios mais vivos, mais brasa no ar, vinheta mais fechada.

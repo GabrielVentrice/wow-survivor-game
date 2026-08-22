@@ -13,10 +13,38 @@ g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; }
 let fails = 0;
 const fail = (m) => { console.error("  X " + m); fails++; };
 
-// tiles gerados
+// tiles: uma grade por variante, quatro espelhos cada
 if (!g.scenery.tiles || g.scenery.tiles.length !== SCENERY.tileVariants) {
   fail(`esperava ${SCENERY.tileVariants} variantes de laje`);
-} else console.log(`  ok ${g.scenery.tiles.length} variantes de laje de ${BALANCE.world.tile}px`);
+} else {
+  const side = BALANCE.world.tile / PIXEL_UNIT;
+  if (TILE_SIZE !== side) {
+    fail(`a grade da laje e ${TILE_SIZE} mas tile/${PIXEL_UNIT} da ${side} — o chao seria reescalado`);
+  }
+  const bad = g.scenery.tiles.find((forms) => !forms || forms.length !== 4 ||
+                                   forms.some((c) => c.width !== TILE_SIZE || c.height !== TILE_SIZE));
+  if (bad) fail("cada variante precisa dos 4 espelhos, todos em " + TILE_SIZE + "px");
+  // grade que nao carrega marca nenhuma nao pode ser rara, e a marcada nao pode
+  // ser comum: laje com veio ou runa e a coisa mais reconhecivel do chao
+  const marked = TILE_ROWS.filter((rows) => rows.some((r) => /[eEf]/.test(r))).length;
+  if (marked !== TILE_MARKED.length) fail("TILE_MARKED nao casa com o que as grades tem");
+  const share = TILE_BAG.filter((i) => TILE_MARKED.indexOf(i) >= 0).length / TILE_BAG.length;
+  if (share > 0.12) fail(`laje marcada sai em ${(share * 100).toFixed(0)}% do bolo — vira carimbo`);
+  else console.log(`  ok ${g.scenery.tiles.length} lajes de ${TILE_SIZE}px x4 espelhos`
+                   + `, ${TILE_MARKED.length} marcadas em ${(share * 100).toFixed(0)}% do bolo`);
+}
+
+// energia no chao: cenario vive abaixo do que o jogador conjura
+{
+  let lit = 0, all = 0;
+  for (const rows of TILE_ROWS) for (const r of rows) {
+    all += r.length;
+    lit += (r.match(/[eEf]/g) || []).length;
+  }
+  const pct = (100 * lit) / all;
+  if (pct > 3) fail(`${pct.toFixed(1)}% do chao e energia (teto 3%) — o chao competiria com a spell`);
+  else console.log(`  ok energia no chao em ${pct.toFixed(1)}% dos pixels (teto 3%)`);
+}
 
 // determinismo: o mesmo chunk tem sempre os mesmos destrocos
 const a = g.scenery._chunk(3, -7).map((p) => `${p.kind}@${p.x.toFixed(1)},${p.y.toFixed(1)}`).join("|");
