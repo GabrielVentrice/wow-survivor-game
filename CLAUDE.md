@@ -458,10 +458,16 @@ inércia.
 - No máximo **2** caminhos por peça passam do tier 2 → impossível maximizar três.
 - Passivas podem declarar `exclusive` → `Fúria Contida` e `Pés de Cinza` nunca coexistem.
 - Peça com `requires` só é oferecida depois que a habilitadora está na build.
-- O kit inicial da classe entra **de graça** (`acquirePiece(id, true)`), para o
-  pool de 20 ficar inteiro para as escolhas do jogador — e a spell que vem numa
-  etapa também, porque o eixo dela já foi pago pelo ponto que a carta deixou de
-  dar.
+- **O kit inicial é UMA peça só**, e ela entra **de graça**
+  (`acquirePiece(id, true)`), para o pool de 20 ficar inteiro para as escolhas
+  do jogador — e a spell que vem numa etapa também, porque o eixo dela já foi
+  pago pelo ponto que a carta deixou de dar. No warlock é `incinerate`: o tiro
+  que persegue sozinho e não pede nada do jogador, que é o que uma peça
+  entregue antes de qualquer escolha tem que ser.
+  Duas peças davam meia identidade de graça — quem nascia com Corruption
+  nascia com o eixo escolhido, e a primeira etapa deixava de ser descoberta
+  para virar confirmação. Com uma só, as três spells sorteadas da fase fechada
+  voltam a ser a primeira coisa que diz para onde a run vai.
 - **Baú é a única fonte de tiers grátis**, e por isso é dado: `BALANCE.spawn`
   diz com que frequência ele nasce (avulso pelo spawner a partir dos 45s, e de
   todo Dreadlord morto) e `BALANCE.chest.rarity` diz quantos tiers ele entrega —
@@ -592,6 +598,14 @@ da morte não entrega nada**.
 - **O número anunciado é o creditado.** Com o eixo no teto ou o pool no fim,
   `addAxis` entrega menos; `getMilestoneOffers` devolve `gain` real ao lado do
   `want` de tabela, e o driver compara os dois em toda carta de toda etapa.
+- **E carta que credita +0 não é oferta, é botão morto.** O sorteio pula spell
+  cujo eixo não anda mais, e se ainda assim a mesa inteira ficar em zero — todo
+  eixo com espaço já teve o catálogo esgotado — o fallback seco entra no lugar
+  da última carta em vez de estourar o teto de `cards`. A trava é real e não
+  teórica: com o eixo comprometido no teto de 15 e o catálogo dele cheio de
+  spells, três cartas mortas na mesma etapa paravam a pool com ponto por gastar,
+  e como quem para as etapas é a POOL, o jogo devolvia uma tela por marco até o
+  fim da run sem nunca entregar o ponto. Medido: 3 em 60 runs de quem mira.
 - **O rodapé é o que transforma "+2" num destino**: as três barras de eixo com
   prévia (`UI.axesHtml`, compartilhada com o painel do level-up) e o capstone
   mais próximo. Sem ele, alocar é uma decisão de rota longa com feedback só no
