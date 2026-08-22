@@ -39,7 +39,19 @@ Se o resultado saiu esburacado ou gordo demais, mexa aqui antes de mexer à mão
 
 ## 3. Conserte à mão — é aqui que o sprite acontece
 
-O que o script imprime é **ponto de partida para discussão**. Percorra:
+O que o script imprime é **ponto de partida para discussão**, e às vezes o
+ponto de partida é "descarta os pixels e usa a composição". Isso é normal e
+não é falha do fluxo: contorno fino e acento de 2px somem no voto por célula,
+então é comum receber um primeiro passe sem contorno, sem olhos e com a rampa
+esmagada em dois tons. Quando os três acontecem juntos, **redesenhe a grade à
+mão** usando a imagem para o que ela de fato entregou — silhueta, proporção,
+onde ficam capuz, mãos, adereço e pés.
+
+Desenhar 16 linhas contando char na cabeça erra. Monte a grade num script com
+`assert len(linha) == W` e deixe o erro aparecer — cada linha errada custa uma
+rodada de render se passar batido.
+
+Percorra:
 
 - **Olhos**: 1px cada, separados por pelo menos 1px escuro, no token de
   energia. Órbita de morto-vivo é **buraco** (`o`) com a chama dentro, nunca
@@ -57,6 +69,8 @@ O que o script imprime é **ponto de partida para discussão**. Percorra:
 - **Luz do topo-esquerda**: borda que toca o vazio por cima ou pela esquerda
   sobe um passo.
 - **Largura uniforme**: toda linha do grid com o mesmo número de chars.
+- **Proporção**: personagem é **vertical** (aspecto ~0.65, cabeça/capuz em 1/3
+  da altura); bicho é cabeçudo e largo. As duas famílias não se misturam.
 
 ## 4. Entre no jogo
 

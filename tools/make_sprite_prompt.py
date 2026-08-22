@@ -27,6 +27,10 @@ MATERIAL = {
     "void": "cold blue void-flesh",
 }
 INK = {"cold": "inkCold", "deep": "inkDeep", "warm": "inkWarm"}
+# The same ramp is a corpse on an abomination and a face on the apprentice. The
+# hexes do not change; the words handed to the model do, and "pale dead flesh"
+# on a living human is the model being told to draw the wrong thing.
+LIVING = {"meat": "living human skin", "bone": "horn and tooth"}
 
 
 def palette():
@@ -51,6 +55,10 @@ def main():
     ap.add_argument("--ink", default="deep", choices=sorted(INK))
     ap.add_argument("--accent", nargs="*", default=[], help="energy PAL tokens for eyes/runes/fire")
     ap.add_argument("--materials", type=int, default=4, help="distinct materials allowed")
+    ap.add_argument("--living", action="store_true",
+                    help="a criatura esta VIVA: renomeia os materiais que descrevem cadaver")
+    ap.add_argument("--vary", default=None,
+                    help="o que deve variar entre as silhuetas (default: contorno generico)")
     ap.add_argument("--silhouette", action="store_true", help="emit the step-0 silhouette prompt")
     a = ap.parse_args()
 
@@ -93,7 +101,7 @@ between the six.
 VIEW: orthographic {a.view} view, {sym}.
 No perspective, no tilt.
 PROPORTION: chunky and exaggerated. It has to stay recognisable at {H} pixels tall.
-Vary the reading: horns, hunch, limb count, wings, mass distribution, weapon.
+Vary the reading: {a.vary or "outer contour, mass distribution, stance and proportion"}.
 FRAMING: full body, feet on a common baseline, even spacing, generous margin.
 
 FORBIDDEN: colour, shading, texture, outline, glow, shadow on the ground, text,
@@ -103,11 +111,12 @@ labels, numbers, borders, frames, watermark, cropped limbs.""")
     fam, steps = slice3(a.ramp, "--ramp")
     LABEL = ["shadow", "base", "light"]
     ink = INK[a.ink]
-    ramp_txt = "\n".join(f"  {t:<8} {pal[t]}   {LABEL[i]} of the {MATERIAL[fam]}"
+    name_of = lambda f: (LIVING.get(f, MATERIAL[f]) if a.living else MATERIAL[f])
+    ramp_txt = "\n".join(f"  {t:<8} {pal[t]}   {LABEL[i]} of the {name_of(fam)}"
                          for i, t in enumerate(steps))
     if a.second:
         fam2, steps2 = slice3(a.second, "--second")
-        ramp_txt += "\n" + "\n".join(f"  {t:<8} {pal[t]}   {LABEL[i]} of the {MATERIAL[fam2]}"
+        ramp_txt += "\n" + "\n".join(f"  {t:<8} {pal[t]}   {LABEL[i]} of the {name_of(fam2)}"
                                       for i, t in enumerate(steps2))
     acc_txt = "\n".join(f"  {t:<8} {pal[t]}   accent — eyes / runes / fire ONLY, never a body surface"
                         for t in a.accent) or "  (none — this creature has no glowing part)"
@@ -133,7 +142,10 @@ RENDERING — this is the part that matters most:
 - Hard edges between the three values. No gradient, no airbrush, no soft
   blending, no noise, no texture, no cross-hatching.
 - One single light source, from the TOP-LEFT, consistent across the whole figure.
-- A uniform dark outline around the whole silhouette and around each major part.
+- A THICK uniform dark outline around the whole silhouette and around each
+  major part — thick enough to still be there after the drawing is reduced to
+  a few dozen pixels. A hairline outline disappears in the downscale, and a
+  figure with no outline dissolves into the background.
 - At most {a.materials} distinct materials in the whole figure.
 - Large unbroken shapes. No filigree, no small repeated ornament, no engraved
   detail smaller than one tenth of the body height.
@@ -142,8 +154,10 @@ PALETTE — use these colours and no others:
   {ink:<8} {pal[ink]}   outline, and only the outline
 {ramp_txt}
 {acc_txt}
-The accent colours must stay TINY — eyes, a rune, a flame. If more than a
-seventh of the figure glows, it is wrong.
+The accent colours must stay TINY in AREA but drawn LARGE and simple — an eye
+ends up as a single pixel, so it has to be a bold clear shape here or it
+vanishes entirely when the drawing is reduced. If more than a seventh of the
+figure glows, it is wrong.
 
 BACKGROUND: flat solid #FF00FF and nothing else. No floor, no ground shadow, no
 horizon, no vignette, no scenery, no props the character is not holding.
