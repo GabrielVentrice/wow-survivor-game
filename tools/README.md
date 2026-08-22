@@ -30,6 +30,33 @@ DRIVER=driver_balance.js node tools/harness.js . 5 16   # balanceamento (5 runs 
 DRIVER=driver_perf.js node tools/harness.js . 12        # custo de frame com a horda no teto
 ```
 
+## Sprite novo a partir de imagem gerada
+
+Dois scripts, e eles são as duas metades do mesmo fluxo. Nenhum dos dois entra
+na verificação — são ferramenta de autoria, não driver.
+
+```bash
+# 1. o prompt, já com a PAL de verdade dentro dele
+python3 tools/make_sprite_prompt.py --silhouette --name "a plague-bloated ghoul" --grid 14x16
+python3 tools/make_sprite_prompt.py --name "a plague-bloated ghoul" --grid 14x16 \
+    --view front --ramp rot0 --ink warm --second bone0 --accent blood1
+
+# 2. a volta: imagem gerada -> primeiro passe de grid, preso à PAL
+python3 tools/image2grid.py ghoul.png --grid 14x16 --ramp rot0 --ink warm \
+    --second bone0 --accent blood1
+```
+
+`--ramp`/`--second` recebem o **primeiro passo** de uma rampa e usam três
+consecutivos: a fatia é a identidade (ver CLAUDE.md). `--accent` só aceita cor
+de energia — passar `bone1` ali é erro, e o script diz para usar `--second`.
+
+`image2grid` é **primeiro passe, não conversor**. Ele resolve a parte mecânica
+(fundo fora, caixa delimitadora, uma cor dominante por célula, presa ao punhado
+de tokens que aquela criatura pode usar) para o trabalho à mão começar de uma
+forma em vez de um grid vazio. Olho no lugar errado, membro fino que quebra e
+simetria fora por um pixel são o que sobra para você — e são exatamente o que
+uma média não resolve.
+
 ## Balanceamento
 
 `driver_balance` põe um bot no controle e roda muitas runs sob quatro políticas

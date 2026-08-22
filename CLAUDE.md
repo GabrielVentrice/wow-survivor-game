@@ -632,6 +632,45 @@ tamanho e silhueta antes de se ler como cor: ele foi redesenhado em 22×19, com
 asas abertas, e o `art` dele subiu de `2.21` para `3.0` — o degrau exato para
 19 linhas, pela mesma regra de `ENEMIES.art`.
 
+### Sprite novo: a imagem gerada é referência, nunca o asset
+
+O fluxo é gerar uma imagem num modelo, ler dela, e desenhar a grade. Duas
+ferramentas em `tools/` seguram as duas pontas — `make_sprite_prompt.py` emite
+o prompt **com a `PAL` viva dentro dele**, e `image2grid.py` traz a imagem de
+volta como primeiro passe de grade. Detalhe de uso em `tools/README.md`.
+
+O que importa aqui é *por que* o prompt é como é:
+
+- **Nunca peça "pixel art".** Modelo de imagem devolve pixel art falsa —
+  suavizada, fora de grade, com centenas de cores e célula de tamanho
+  irregular. Como referência isso é pior que uma ilustração limpa em alta
+  resolução, porque convida a copiar pixel que mente. O prompt pede o oposto:
+  desenho grande e limpo, e diz explicitamente para não pixelizar.
+- **Peça cel shading de exatamente três valores por material.** É o pedido de
+  maior retorno da lista inteira: três valores com borda dura mapeiam 1:1 na
+  rampa `d`/`m`/`l`, então ler a imagem vira classificar região em vez de
+  julgar gradiente.
+- **Luz do topo-esquerda, sempre**, porque é a regra do jogo e `driver_palette`
+  a mede.
+- **Fundo `#FF00FF` chapado.** Nada na `PAL` chega perto de magenta, então o
+  recorte é exato. Sombra no chão, vinheta e cenário voltam como pixel de corpo.
+- **Proibir brilho é tão importante quanto pedir a pose.** Glow, bloom, faísca e
+  sombra projetada vazam para fora da silhueta e destroem justamente a
+  informação que se foi buscar ali — onde a criatura termina.
+- **Proporção exagerada, não realista.** Cabeça a um terço da altura, mãos e
+  arma grandes. Anatomia correta vira mingau a 16px.
+- **A fatia da rampa entra no prompt.** Pedir "verde" devolve um verde qualquer;
+  pedir `rot0/rot1/rot2` com os hexes devolve algo que já nasce dentro da
+  família — e o script lê os hexes da `PAL` em vez de guardar cópia, porque
+  prompt com paleta velha é pior que prompt nenhum: ele pede em silêncio uma
+  cor que o jogo não tem.
+
+E a regra que não muda: **a imagem é referência, o asset é a grade.** A 16
+pixels de altura cada pixel é uma decisão, e média é o contrário de decidir —
+por isso `image2grid` vota num token por célula em vez de tirar a média (média
+de dois passos de rampa é uma cor que a paleta não contém), e por isso o que
+ele imprime é ponto de partida para discussão, não resultado.
+
 ### Uma build, uma família de cor
 
 Cada eixo é uma família de cor, e as três ficam longe uma da outra em matiz:
