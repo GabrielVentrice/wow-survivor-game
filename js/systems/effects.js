@@ -191,6 +191,11 @@ const EFFECTS = {
     }
     const minSep = spread * 0.9;
 
+    /* Separating the spawn angle is not enough once the shot homes: homing
+       re-aims every frame and closes the fan in two. Only the FAN gets the
+       delay — a lone bolt stays stubborn from frame one. */
+    const fanDelay = n > 1 && e.homing ? BALANCE.projectile.fanDelay : 0;
+
     for (let i = 0; i < n; i++) {
       const a = claimAngle(base + (i - (n - 1) / 2) * spread, minSep);
       game.projectiles.spawn({
@@ -207,6 +212,10 @@ const EFFECTS = {
         homing: !!e.homing,
         turnRate: e.turnRate || 0,
         trail: e.trail || 0,
+        // This shot's own target, not "whoever is nearest right now": it is
+        // what makes `targets > 1` hit N enemies instead of one enemy N times.
+        target: c.target || null,
+        fanDelay: fanDelay,
       });
     }
   },

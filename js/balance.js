@@ -32,6 +32,24 @@ const BALANCE = {
        impede que uma tela cheia de explosão vire apresentação de slides. */
     hitstop: { big: 0.034, boss: 0.11, hurt: 0.067, cooldown: 0.26 },
   },
+
+  /* Homing projectiles. `fanDelay` is the only number here and it exists for
+     one reason: homing and spread cancel each other out. `updateProjectiles`
+     re-aims every frame, so at turnRate 9 the 0.21rad fan that "Salva" opens is
+     gone in two frames — measured, the 4 shots never get more than 1.1 units
+     apart against a radius of 6, and read as ONE fat projectile all run.
+
+     The delay only applies to a shot born in a fan; a lone bolt stays stubborn
+     from frame one, which is Incinerate's identity.
+
+     0.1 is the knee of the curve, and the curve was measured on both sides.
+     Against a target 400 units out the fan peaks at 5.1 radii for 2 shots, 11.1
+     for 4 and 22.7 for 7 — unambiguous — while every shot still connects, the
+     first at ~0.7s. Going to 0.15 buys roughly half again as much spread and
+     costs about twice the damage on the piercing tier-5, which is not a trade
+     worth making: past ~5 radii the fan already reads as separate shots and the
+     extra width is only width. */
+  projectile: { fanDelay: 0.1 },
   spawn: {
     /* Densidade QUADRUPLICADA em relação ao tuning original (dobrada duas
        vezes: uma no tuning de rampagem, outra por pedido depois dele).
