@@ -205,7 +205,7 @@ function drawRotOrbit(ctx, p, front) {
 // passes in front of the warlock (drawn after the sprite) from the one behind.
 function drawPactChain(ctx, p, front) {
   const links = 10;
-  ctx.strokeStyle = front ? "rgba(255,170,90,0.95)" : "rgba(255,138,60,0.5)";
+  ctx.strokeStyle = front ? `rgba(${p.rgb},0.95)` : `rgba(${p.rgb},0.5)`;
   ctx.lineWidth = 1.6;
   for (let i = 0; i < links; i++) {
     const a = p.t * 1.6 + (i / links) * Math.PI * 2;
@@ -372,6 +372,265 @@ const SPRITE_DATA = {
       "....oDDDDDDo....",
       "....oDdDDdDo....",
       "....ooo..ooo....",
+    ],
+  },
+
+  /* ---- demonios invocados -------------------------------------------------
+     Bipedes de frente, bestas de perfil (essas viram com `facing`). O que
+     precisa ler a 30px de altura e a silhueta: chifres e asinhas nos imps,
+     quatro patas nos caes, nada de pernas no que flutua. */
+
+  // Imp: cabecao, chifres curtos, asinhas de morcego. O menor bipede.
+  imp: {
+    pal: { o: "#2a0d04", I: "#ff8a3c", i: "#c2551b", e: "#ffe14a", m: "#4a1206", w: "#a34418" },
+    rows: [
+      "..o.......o..",
+      "..oo.....oo..",
+      "...ooIIIoo...",
+      "..oIIIIIIIo..",
+      ".oIIIIIIIIIo.",
+      ".oIeeIIIeeIo.",
+      ".oIIIIIIIIIo.",
+      ".oIImmmmmIIo.",
+      "..oIIIIIIIo..",
+      "w..oIIIIIo..w",
+      "ww.oIIIIIo.ww",
+      ".wwoIiIiIoww.",
+      "...oI...Io...",
+      "...oo...oo...",
+    ],
+  },
+
+  // Wild Imp: menor, mais claro, boca escancarada e bracos pro alto.
+  wildImp: {
+    pal: { o: "#3a1505", I: "#ffb04a", i: "#c97a1e", e: "#fff3a0", m: "#4a1206" },
+    rows: [
+      "..o.....o..",
+      "..oo...oo..",
+      "...oIIIo...",
+      "..oIIIIIo..",
+      ".oIeIIIeIo.",
+      ".oIImmmIIo.",
+      ".oIIIIIIIo.",
+      ".oIIIIIIIo.",
+      "ioIIIIIIIoi",
+      "i.oIiIiIo.i",
+      "...oI.Io...",
+      "...oo.oo...",
+    ],
+  },
+
+  // Dreadstalker: cao alado de focinho comprido, correndo de perfil.
+  dreadstalker: {
+    pal: { o: "#14061f", D: "#8a4cff", d: "#4a1d7e", e: "#ff3030", W: "#6a2da0", B: "#f0e0ff", t: "#5a2390" },
+    rows: [
+      "....W......W........",
+      "...WWW....WWW.......",
+      "..WWWWW..WWWWW......",
+      "..WWWWWWWWWWWW..oo..",
+      "...WWWWWWWWWW..oDDo.",
+      "....WWWWWWWW..oDDeDD",
+      "t....ooooooooooDDDDD",
+      "tt..oDDDDDDDDDDDDBBB",
+      "..ttoDDDDDDDDDDDDoo.",
+      "....oDDdDDDdDDDDDo..",
+      "....oDDDDDDDDDDDo...",
+      "....oDDDo..oDDDo....",
+      ".....oDo....oDo.....",
+      ".....oDo....oDo.....",
+      ".....oDo....oDo.....",
+      ".....ooo....ooo.....",
+    ],
+  },
+
+  // Felguard: ombreiras, presas e machado plantado ao lado. O tanque.
+  felguard: {
+    pal: { o: "#2a0806", F: "#ff5a3c", f: "#a32a18", A: "#9aa0b0", a: "#4a5060", e: "#ffd24a", B: "#f0e0c0", H: "#c8b070", X: "#d8e0f0" },
+    rows: [
+      "..o.........o..H...",
+      "..oo.......oo..HXX.",
+      "...ooFFFFFoo...HXXX",
+      "...oFFFFFFFo...HXXX",
+      "..oFFeFFFeFFo..HXX.",
+      "..oFFFFFFFFFo..H...",
+      "..oFBBBBBBBFo..H...",
+      ".oAAoFFFFFoAAo.H...",
+      "oAAAAoFFFoAAAAoH...",
+      "oAaAAFFFFFAAaAoH...",
+      ".oFFFFFFFFFFFo.H...",
+      "..oFfffffffFo..H...",
+      "..oFFfffffFFo..H...",
+      "..oFFFFFFFFFo..H...",
+      "..oFFFoooFFFo..H...",
+      ".oFFFo...oFFFo.H...",
+      ".ooo.......ooo.H...",
+    ],
+  },
+
+  // Voidwalker: massa flutuante, ombros enormes, sem pernas — desmancha em fumaca.
+  voidwalker: {
+    pal: { o: "#080e28", V: "#5a7cff", v: "#2a3f9e", e: "#eaffff" },
+    rows: [
+      ".....oVVVVo.....",
+      "....oVVVVVVo....",
+      "....oVooooVo....",
+      "....oVeeeeVo....",
+      "....oVVVVVVo....",
+      "..ooVVVVVVVVoo..",
+      ".oVVVVVVVVVVVVo.",
+      "oVVVVVVVVVVVVVVo",
+      "oVvVVVVVVVVVVvVo",
+      "oVvVVVVVVVVVVvVo",
+      "oVvVVVVVVVVVVvVo",
+      ".oVVVVVVVVVVVVo.",
+      "..oVVVVVVVVVVo..",
+      "...oVVVVVVVVo...",
+      "....oVVVVVVo....",
+      ".....ovVVvo.....",
+      "......ovvo......",
+    ],
+  },
+
+  // Felhunter: cao de perfil com as duas antenas curvando das costas.
+  felhunter: {
+    pal: { o: "#04202c", F: "#4ad2ff", f: "#1a7ea3", e: "#eaffff", t: "#2f9fc8", B: "#eaffff" },
+    rows: [
+      "...tt..........tt...",
+      "...tt..........tt...",
+      "....tt........tt....",
+      ".....tt......tt.....",
+      "......tt....tt......",
+      ".......tt..tt...oo..",
+      "..ooooottoottoooFFo.",
+      ".oFFFFFFFFFFFFFFeFFo",
+      ".oFFFFFFFFFFFFFFFFFo",
+      ".oFFffFFFFffFFFFBBo.",
+      ".oFFFFFFFFFFFFFoooo.",
+      "..oFFFFFFFFFFFo.....",
+      "..oFo......oFFo.....",
+      "..oFo.......oFo.....",
+      "..ooo.......ooo.....",
+    ],
+  },
+
+  // Vilefiend: cao espinhado, baixo e rapido.
+  vilefiend: {
+    pal: { o: "#0e2205", V: "#9fdc4a", v: "#4e7a1a", e: "#ff5a3c", B: "#eaffc0", s: "#c8f06a" },
+    rows: [
+      "..s...s...s......",
+      ".sss.sss.sss.....",
+      "..ooooooooooooooo",
+      ".oVVVVVVVVVVVVeVo",
+      "voVVVVVVVVVVVVVVo",
+      "voVVvvVVVVVVVBBo.",
+      ".oVVVVVVVVVVVooo.",
+      "..oVVVVVVVVVo....",
+      "..oVo...oVVo.....",
+      "..oVo....oVo.....",
+      "..ooo....ooo.....",
+    ],
+  },
+
+  // Infernal: bloco de pedra com veios de fel e a cabeca em brasa.
+  infernal: {
+    pal: { o: "#160805", R: "#5c463d", r: "#33241f", e: "#ffe14a", F: "#ff4020", f: "#ff9a3c" },
+    rows: [
+      ".......f...f.......",
+      "......fFf.fFf......",
+      "......FFF.FFF......",
+      ".....oRRRRRRRo.....",
+      ".....oReRRReRo.....",
+      ".....oRRFFFRRo.....",
+      "...ooRRRRRRRRRoo...",
+      ".ooRRRRRRRRRRRRRoo.",
+      "oRRRRFRRRRRRRFRRRRo",
+      "oRRRrRRFFFFFRRrRRRo",
+      "oRRRRRRRFFFRRRRRRRo",
+      ".oRRRRRRRFRRRRRRRo.",
+      "..oRRRrRRRRRrRRRo..",
+      "..oRRRRRRRRRRRRRo..",
+      "..oRRRRRRRRRRRRRo..",
+      "..oRRRRo...oRRRRo..",
+      "..oRRRRo...oRRRRo..",
+      "..oRRRRo...oRRRRo..",
+      "..oooooo...oooooo..",
+    ],
+  },
+
+  // Nether Portal: portico de pedra fria com a fenda acesa no vao. Nao anda.
+  // Pedra cinza de proposito: roxo em tudo confundia com o Darkglare.
+  portal: {
+    pal: { o: "#141018", A: "#6e6478", a: "#3a3442", P: "#8e2ce0", p: "#c96bff", e: "#ffffff" },
+    rows: [
+      ".......oooo.......",
+      ".....ooAAAAoo.....",
+      "....oAAAAAAAAo....",
+      "..ooAAAAAAAAAAoo..",
+      "oAAAAaaPPPPaaAAAAo",
+      "oAAAAaPPppPPaAAAAo",
+      "oAAAAPPpppppPAAAAo",
+      "oAAAAPppeeppPAAAAo",
+      "oAAAAPppeeppPAAAAo",
+      "oAAAAPppeeppPAAAAo",
+      "oAAAAPPpppppPAAAAo",
+      "oAAAAaPPppPPaAAAAo",
+      "oAAAAaaPPPPaaAAAAo",
+      "oAAAAaaaPPaaaAAAAo",
+      "..ooAAAAAAAAAAoo..",
+      "...oAAAAAAAAAAo...",
+      "...oAAo....oAAo...",
+      "...oAAo....oAAo...",
+      "..oAAAAo..oAAAAo..",
+      "..oooooo..oooooo..",
+    ],
+  },
+
+  // Demonic Tyrant: chifres de coroa, manto de asa, o maior de todos.
+  tyrant: {
+    pal: { o: "#241601", T: "#ffd24a", t: "#b8791e", e: "#ff3010", B: "#fff0c0", W: "#8a5a10", f: "#ff8a3c" },
+    rows: [
+      "..B................B..",
+      "..BB..............BB..",
+      "...BB............BB...",
+      "....BBB........BBB....",
+      "W....BBBooooooBBB....W",
+      "WW....ooTTTTTToo....WW",
+      "WWW..oTTTTTTTTTTo..WWW",
+      "WWWW.oTTeTTTTeTTo.WWWW",
+      "WWWWWoTTTTTTTTTToWWWWW",
+      "WWWWWoTTffffffTToWWWWW",
+      ".WWWWoTTTTTTTTTToWWWW.",
+      ".WWWW.oTTTTTTTTo.WWWW.",
+      "..WWW.oTTtTTtTTo.WWW..",
+      "..WW.oTTTTTTTTTTo.WW..",
+      "...W.oTTTTTTTTTTo.W...",
+      ".....oTTTTTTTTTTo.....",
+      "......oTTToooTTTo.....",
+      ".....oTTTo...oTTTo....",
+      ".....oTTTo...oTTTo....",
+      ".....ooooo...ooooo....",
+    ],
+  },
+
+  // Darkglare: olho unico flutuante com tentaculos pendurados.
+  darkglare: {
+    pal: { o: "#180420", D: "#c850ff", d: "#6a1a8f", e: "#ffffff", i: "#2a0533", p: "#ff9aff" },
+    rows: [
+      "....oooooo....",
+      "..ooDDDDDDoo..",
+      ".oDDDDDDDDDDo.",
+      "oDDDeeeeeeDDDo",
+      "oDDeeeeeeeeDDo",
+      "oDeeeeiieeeeDo",
+      "oDeeeeiieeeeDo",
+      "oDDeeeeeeeeDDo",
+      ".oDDDeeeeDDDo.",
+      "..oDDDDDDDDo..",
+      "...oDDDDDDo...",
+      "..oDDo..oDDo..",
+      "..oDo....oDo..",
+      ".oDo......oDo.",
+      ".oo........oo.",
     ],
   },
 };

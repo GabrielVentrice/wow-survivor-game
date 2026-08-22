@@ -78,6 +78,14 @@ Schema de uma peça:
 }
 ```
 
+Demônio é a mesma ideia: a entrada em `MINIONS` (`js/content/minions.js`)
+carrega o tuning **e** o visual — `sprite` aponta para uma grade em
+`SPRITE_DATA`, `scale` é a altura desenhada em raios e `gait` diz como ele se
+mexe (`walk` pisa, `float` paira, `static` fica plantado). Sem `sprite` o
+render cai no orbe genérico, que é fallback e não padrão: `driver_render`
+reprova tipo de demônio sem sprite próprio. Com uma dúzia deles em campo, a
+silhueta é a única coisa que diz o que está ali.
+
 ### `key` é a identidade estável, `id` é a aparência
 
 `id`, `name`, `icon`, `trigger` e `effects` mudam na evolução. **`key` nunca.**

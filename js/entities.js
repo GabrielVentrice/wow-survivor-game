@@ -498,6 +498,7 @@ class Minion {
     this.speed = o.speed || 200;
     this.orbitRadius = o.orbitRadius || 72;
     this.angle = o.angle || 0;
+    this.spawnedAt = o.spawnedAt || 0;   // abertura do portal / entrada em cena
     this.expiresAt = o.expiresAt;        // Infinity = permanente (Tirania)
     this.source = o.source;              // `key` da peca dona
     this.payload = o.payload || null;    // efeitos no acerto

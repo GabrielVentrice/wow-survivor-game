@@ -144,6 +144,7 @@ class MinionSystem {
         orbitRadius: e.orbitRadius || def.orbitRadius || 72,
         orbitSpeed: e.orbitSpeed || def.orbitSpeed,
         angle: a,
+        spawnedAt: c.now,
         expiresAt: expires,
         source: c.key,
         payload: e.onHit || null,

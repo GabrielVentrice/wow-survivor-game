@@ -327,6 +327,13 @@ class VfxLayer {
           ctx.stroke();
           break;
         }
+        case "portal": {
+          // A gate torn open by a spell: rips open, holds, collapses. `v.r` is
+          // the gate radius, same scale drawMinions uses for the standing one.
+          const o = Math.min(1, k / 0.18, (1 - k) / 0.26);
+          drawPortal(ctx, x, y, v.r, v.t * 4, v.color, o);
+          break;
+        }
         case "heal": {
           ctx.fillStyle = `rgba(${v.rgb},${(a * 0.8).toFixed(2)})`;
           const hy = y - k * 34;
@@ -340,50 +347,217 @@ class VfxLayer {
   }
 }
 
+/* --- Explosao -------------------------------------------------------------
+   Three layers, and each one is there for a reason:
+
+   1. the flash — a cached glowBlob, brightest at ignition, gone by a third of
+      the life. It is what lights the ground and sells the moment of the hit;
+   2. the pixel frames from sprites.js, blitted with smoothing off so the cells
+      stay square like every other sprite in the game;
+   3. the shockwave ring, which is the only part drawn at the real damage
+      radius. The fireball is art and lies about its size; the ring does not,
+      and that is what the player reads to learn where the blast reached.
+
+   The whole thing is one blob + one blit + one stroke. No allocation, no
+   gradient, nothing that scales with how many explosions are on screen. */
+function drawExplosion(ctx, x, y, r, k, color, seed) {
+  const set = explosionFrames(color);
+  const frames = set[(seed >> 1) % set.length];
+  const fi = Math.min(frames.length - 1, Math.floor(k * frames.length));
+  const size = r * 2.6;                     // grid half = 1.3r, fireball tops near 0.9r
+
+  ctx.save();
+  const flash = Math.max(0, 1 - k * 3);
+  if (flash > 0) {
+    const fr = r * (1.05 + (1 - flash) * 0.7);
+    ctx.globalAlpha = flash * 0.6;
+    ctx.drawImage(glowBlob(color), x - fr, y - fr, fr * 2, fr * 2);
+  }
+
+  ctx.globalAlpha = 1;
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(x, y);
+  if (seed & 1) ctx.scale(-1, 1);           // mirroring doubles the variants for free
+  ctx.drawImage(frames[fi], -size / 2, -size / 2, size, size);
+  ctx.restore();
+
+  const rk = Math.min(1, k * 2.4);
+  if (rk < 1) {
+    const fade = 1 - rk;
+    ctx.strokeStyle = `rgba(255,255,255,${(fade * 0.55).toFixed(2)})`;
+    ctx.lineWidth = 1 + fade * 3;
+    ctx.beginPath(); ctx.arc(x, y, r * (0.3 + rk * 0.78), 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+/* --- Portal ---------------------------------------------------------------
+   A gate any portal spell can open. The frame is the pixel sprite from
+   sprites.js; the mouth is drawn here because it has to spin. `open` (0..1)
+   is the whole animation: the gate is scaled from a slit around its own
+   mouth, so opening, standing and closing are one code path.
+
+   Nothing here allocates a gradient — the glows are the cached glowBlob, so
+   a portal costs the same at frame 1 and at frame 10000. */
+function drawPortal(ctx, x, y, r, t, color, open) {
+  const k = open == null ? 1 : clamp(open, 0, 1);
+  if (k <= 0.02) return;
+  const spr = portalSprite(color);
+  const A = PORTAL_ART;
+  const s = (r * 2.9) / spr.canvas.height;      // sprite pixel -> world pixel
+  const w = spr.canvas.width * s, h = spr.canvas.height * s;
+  const vx = A.rx * s, vy = A.ry * s;           // the mouth inside the arch
+  const rgb = hexRgb(color);
+  const blob = glowBlob(color);
+
+  ctx.save();
+  ctx.translate(x, y - r * 0.6);                // origin = center of the mouth
+  ctx.scale(0.2 + k * 0.8, 0.35 + k * 0.65);    // tears open as a slit, widens
+
+  // scorched ground where the gate is planted
+  const fy = A.feet * s, gw = w * 0.5;
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = 0.4;
+  ctx.drawImage(blob, -gw, fy - gw * 0.3, gw * 2, gw * 0.6);
+
+  // the mouth is opaque: the horde behind the gate must not show through it
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "rgba(8,3,14,0.95)";
+  ctx.beginPath(); ctx.ellipse(0, 0, vx, vy, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(0, 0, vx, vy, 0, 0, Math.PI * 2); ctx.clip();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = 0.45;
+  ctx.drawImage(blob, -vx, -vy, vx * 2, vy * 2);          // depth
+  ctx.strokeStyle = `rgba(${rgb},0.7)`;
+  ctx.lineWidth = Math.max(1, r * 0.1);
+  ctx.globalAlpha = 0.8;
+  for (let arm = 0; arm < 4; arm++) {                     // arms spiral inward
+    ctx.beginPath();
+    for (let i = 0; i <= 10; i++) {
+      const f = 0.12 + (i / 10) * 0.88;
+      const a = t * 1.7 + arm * (Math.PI / 2) + f * 3.6;
+      const px = Math.cos(a) * vx * f, py = Math.sin(a) * vy * f;
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.stroke();
+  }
+  const cw = vx * (0.5 + Math.sin(t * 5) * 0.12);         // core
+  ctx.globalAlpha = 0.9;
+  ctx.drawImage(blob, -cw, -cw, cw * 2, cw * 2);
+  ctx.restore();
+
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(spr.canvas, -A.cx * s, -A.cy * s, w, h);
+
+  ctx.globalCompositeOperation = "lighter";
+  const breathe = 0.4 + Math.sin(t * 3) * 0.22;
+  const rw = r * 0.45;
+  for (let i = 0; i < A.runes.length; i++) {              // runes breathing
+    ctx.globalAlpha = breathe;
+    ctx.drawImage(blob, A.runes[i][0] * s - rw, A.runes[i][1] * s - rw, rw * 2, rw * 2);
+  }
+  ctx.fillStyle = `rgb(${rgb})`;
+  for (let i = 0; i < 5; i++) {                           // motes pulled in
+    const f = 1 - ((t * 0.5 + vfxRand(i * 13)) % 1);
+    const a = vfxRand(i * 7) * Math.PI * 2 + t * 1.2;
+    ctx.globalAlpha = 0.25 + (1 - f) * 0.6;
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * vx * f * 1.35, Math.sin(a) * vy * f * 1.35, 1.2 + f, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 /* --- Demonios -------------------------------------------------------------
    Sem sprite dedicado: corpo em gradiente + olhos, escalado pelo raio. O
-   "grande" ganha um halo pulsante para se ler no meio da horda. */
+   "grande" ganha um halo pulsante para se ler no meio da horda. A excecao e
+   o portal, que tem sprite proprio (drawPortal). */
+const MINION_FADE = 0.9;   // segundos de fade antes do demonio expirar
+
+/* Um objeto so, reaproveitado — animar 20 demonios nao pode alocar por frame. */
+const MINION_ANIM = { bob: 0, sclX: 1, sclY: 1, rot: 0 };
+
+/* `gait` separa quem pisa no chao de quem paira e de quem esta plantado.
+   `animTime` anda 4/s para todos, entao a frequencia sai daqui. */
+function minionAnim(gait, t, r) {
+  const a = MINION_ANIM;
+  if (gait === "float") {
+    const b = Math.sin(t * 0.35);
+    a.bob = b * r * 0.24; a.sclX = 1 - b * 0.02; a.sclY = 1 + b * 0.03; a.rot = 0;
+    return a;
+  }
+  if (gait === "static") {
+    const b = Math.sin(t * 0.5);
+    a.bob = 0; a.sclX = 1 - b * 0.02; a.sclY = 1 + b * 0.035; a.rot = 0;
+    return a;
+  }
+  const ph = t * 1.6;
+  const hop = Math.abs(Math.sin(ph));
+  a.bob = -hop * r * 0.22;
+  a.sclX = 1 - hop * 0.06; a.sclY = 1 + hop * 0.08;
+  a.rot = Math.sin(ph) * 0.06;
+  return a;
+}
+
+/* --- Demonios -------------------------------------------------------------
+   Cada `kind` tem sprite proprio: com uma duzia deles em campo a silhueta e a
+   unica coisa que diz o que esta ali — quatro patas e cacador, sem pernas e
+   voidwalker, arco de pedra e portal. Kind sem sprite cai no orbe generico. */
 function drawMinions(ctx, list, cam, now) {
   for (let i = 0; i < list.length; i++) {
     const m = list[i];
     const sx = m.x - cam.left, sy = m.y - cam.top, r = m.radius;
-    const bob = Math.sin(m.animTime) * r * 0.12;
+    const def = m.defKind || MINIONS[m.kind] || null;
+    const spr = def && def.sprite ? SPRITES[def.sprite] : null;
+    const gait = (def && def.gait) || "walk";
+    const floats = gait === "float";
+    const anim = minionAnim(gait, m.animTime, r);
 
-    drawShadow(ctx, sx, sy + r * 0.6, r * 0.8);
+    drawShadow(ctx, sx, sy + r * (floats ? 0.85 : 0.55), r * (floats ? 0.6 : 0.8));
 
     if (m.big) {
       const k = (Math.sin(now * 3 + i) + 1) * 0.5;
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      ctx.globalAlpha = 0.28 + k * 0.18;
+      ctx.globalAlpha = 0.16 + k * 0.1;
       const w = r * 2.4;
-      ctx.drawImage(glowBlob(m.color), sx - w, sy - w + bob, w * 2, w * 2);
+      ctx.drawImage(glowBlob(m.color), sx - w, sy - w + anim.bob, w * 2, w * 2);
       ctx.restore();
     }
 
-    const g = ctx.createRadialGradient(sx - r * 0.3, sy - r * 0.4 + bob, r * 0.15, sx, sy + bob, r);
-    g.addColorStop(0, "#ffe6b0");
-    g.addColorStop(0.55, m.color);
-    g.addColorStop(1, "rgba(20,6,10,0.9)");
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(sx, sy + bob, r, 0, Math.PI * 2); ctx.fill();
-
-    // chifres nos grandes
-    if (m.big) {
-      ctx.strokeStyle = m.color;
-      ctx.lineWidth = Math.max(1.5, r * 0.16);
+    if (!spr) {
+      const bob = anim.bob;
+      const g = ctx.createRadialGradient(sx - r * 0.3, sy - r * 0.4 + bob, r * 0.15, sx, sy + bob, r);
+      g.addColorStop(0, "#ffe6b0");
+      g.addColorStop(0.55, m.color);
+      g.addColorStop(1, "rgba(20,6,10,0.9)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(sx, sy + bob, r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ffd24a";
+      const ex = r * 0.32 * m.facing;
       ctx.beginPath();
-      ctx.moveTo(sx - r * 0.6, sy - r * 0.7 + bob); ctx.lineTo(sx - r * 0.95, sy - r * 1.35 + bob);
-      ctx.moveTo(sx + r * 0.6, sy - r * 0.7 + bob); ctx.lineTo(sx + r * 0.95, sy - r * 1.35 + bob);
-      ctx.stroke();
+      ctx.arc(sx - r * 0.3 + ex * 0.2, sy - r * 0.15 + bob, r * 0.16, 0, Math.PI * 2);
+      ctx.arc(sx + r * 0.3 + ex * 0.2, sy - r * 0.15 + bob, r * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
     }
 
-    ctx.fillStyle = "#ffd24a";
-    const ex = r * 0.32 * m.facing;
-    ctx.beginPath();
-    ctx.arc(sx - r * 0.3 + ex * 0.2, sy - r * 0.15 + bob, r * 0.16, 0, Math.PI * 2);
-    ctx.arc(sx + r * 0.3 + ex * 0.2, sy - r * 0.15 + bob, r * 0.16, 0, Math.PI * 2);
-    ctx.fill();
+    // O ultimo segundo some por alpha: demonio que evapora no meio do nada
+    // parece bug de pool. Invocacao permanente (Tirania) nunca entra aqui.
+    const left = m.expiresAt - now;
+    const fade = left < MINION_FADE ? Math.max(0, left / MINION_FADE) : 1;
+    const drawH = r * ((def && def.scale) || 2.8);
+    const flip = m.facing < 0;
+
+    if (fade < 1) ctx.globalAlpha = fade;
+    drawSprite(ctx, spr, sx, sy, drawH, flip, 0, anim);
+    const k = (Math.sin(m.animTime * 0.6) + 1) * 0.5;
+    drawSpriteGlow(ctx, spr, sx, sy, drawH, flip, anim, m.color, (m.big ? 0.1 : 0.05) * (0.6 + k * 0.4) * fade);
+    if (fade < 1) ctx.globalAlpha = 1;
   }
 }
 

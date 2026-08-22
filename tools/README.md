@@ -14,7 +14,7 @@ DRIVER=driver_hooks.js node tools/harness.js .   # todo hook de capstone/passiva
 DRIVER=driver_dot.js   node tools/harness.js .   # cadência, stacking e expiração de DoT
 DRIVER=driver_audio.js node tools/harness.js .   # som de morte: grafo, throttle, mudo
 DRIVER=driver_music.js node tools/harness.js .   # trilha: andamento, camadas, estados
-DRIVER=driver_render.js node tools/harness.js .  # cenário: render, determinismo, caches
+DRIVER=driver_render.js node tools/harness.js .  # cenário, demônios e explosão: render e caches
 DRIVER=driver_track.js node tools/harness.js .   # trilha em arquivo: loop, fallback, estados
 ```
 

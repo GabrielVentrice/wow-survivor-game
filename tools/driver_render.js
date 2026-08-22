@@ -28,6 +28,71 @@ for (const k of PROP_KINDS) {
 }
 console.log(`  ok ${PROP_KINDS.length} tipos de prop com desenho (${Object.keys(STATIC_PROPS).length} cacheados)`);
 
+// todo demonio precisa de sprite proprio — o orbe generico e fallback, nao padrao
+for (const kind in MINIONS) {
+  const d = MINIONS[kind];
+  if (!d.sprite) fail(`demonio "${kind}" sem sprite`);
+  else if (!SPRITES[d.sprite]) fail(`demonio "${kind}" aponta para sprite inexistente "${d.sprite}"`);
+  else if (!d.scale) fail(`demonio "${kind}" sem escala de desenho`);
+}
+// e todos precisam desenhar: um de cada, cobrindo flip, `big` e o fade final
+const demos = Object.keys(MINIONS).map((kind, i) => ({
+  kind, defKind: MINIONS[kind], x: i * 40, y: 0,
+  radius: MINIONS[kind].radius, color: MINIONS[kind].color,
+  facing: i % 2 ? 1 : -1, animTime: i * 0.7, big: i % 3 === 0,
+  expiresAt: i % 4 === 0 ? 1.5 : Infinity, dead: false,
+}));
+try {
+  drawMinions(g.ctx, demos, g.camera, 1);
+  console.log(`  ok ${demos.length} tipos de demonio desenham com sprite proprio`);
+} catch (e) { fail("drawMinions: " + e.message); console.error(e.stack); }
+
+// explosao: os quadros sao gerados uma vez por cor e a animacao precisa ter
+// forma — acender, abrir, esvaziar. Contar celulas pintadas e o jeito de ver
+// isso sem olho: e o unico teste que pega o campo virando bolha ou sumindo.
+const cells = [];
+for (let f = 0; f < EXPLO.FRAMES; f++) {
+  __draw.reset();
+  buildExplosionFrame(0, f, "#ff8a3c");
+  cells.push(__draw.calls.fillRect || 0);
+}
+if (cells.some((n) => n < 20)) fail(`quadro de explosao quase vazio: ${cells.join("/")}`);
+const peak = cells.indexOf(Math.max(...cells));
+if (peak === 0 || peak === EXPLO.FRAMES - 1) {
+  fail(`explosao sem pico no meio da animacao: ${cells.join("/")}`);
+} else if (cells[EXPLO.FRAMES - 1] >= cells[peak]) {
+  fail(`explosao nao se desfaz no fim: ${cells.join("/")}`);
+} else console.log(`  ok explosao acende, abre e se desfaz (${cells.join("/")} celulas, pico no ${peak})`);
+
+// mesma cor = mesmos canvases; variantes diferentes = desenhos diferentes
+const setA = explosionFrames("#ff8a3c");
+if (explosionFrames("#ff8a3c") !== setA) fail("frames de explosao remontados a cada uso");
+if (setA.length !== EXPLO.VARIANTS || setA[0].length !== EXPLO.FRAMES) {
+  fail(`esperava ${EXPLO.VARIANTS}x${EXPLO.FRAMES} quadros de explosao`);
+}
+const shape = (v) => { __draw.reset(); buildExplosionFrame(v, 3, "#ff8a3c"); return __draw.calls.fillRect; };
+if (EXPLO.VARIANTS > 1 && shape(0) === shape(1)) fail("variantes de explosao com a mesma silhueta");
+explosionFrames("#c850ff");
+if (EXPLOSION_SPRITES.size !== 2) fail(`cache de explosao com ${EXPLOSION_SPRITES.size} entradas, esperava 2`);
+console.log(`  ok ${setA.length} variantes cacheadas por cor (${EXPLOSION_SPRITES.size} cores)`);
+
+// e o desenho: toda fase da vida da explosao passa pelo stub de canvas
+try {
+  for (let i = 0; i < EXPLO.FRAMES * 3; i++) {
+    drawExplosion(g.ctx, 100, 100, 70, i / (EXPLO.FRAMES * 3), "#ff8a3c", i);
+  }
+  console.log("  ok explosao desenha em toda a faixa de vida");
+} catch (e) { fail("drawExplosion: " + e.message); console.error(e.stack); }
+
+// contorno do personagem: dilatado em 1 pixel de arte e cacheado por cor
+const rim = spriteRim(SPRITES.warlock, "#05020a");
+if (rim.width !== SPRITES.warlock.white.width + 2) fail("contorno nao dilatou o sprite");
+if (spriteRim(SPRITES.warlock, "#05020a") !== rim) fail("contorno remontado a cada frame");
+try {
+  drawSpriteRim(g.ctx, SPRITES.warlock, 80, 80, 40, true, null, "#05020a", 0.9);
+  console.log("  ok contorno do warlock desenha e fica cacheado");
+} catch (e) { fail("drawSpriteRim: " + e.message); }
+
 // menu desenha sem erro
 g.state = STATE.MENU;
 try { for (let i = 0; i < 120; i++) { g._frameDt = 1/60; g.render(); } }
