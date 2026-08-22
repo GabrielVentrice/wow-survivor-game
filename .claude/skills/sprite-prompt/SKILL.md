@@ -86,6 +86,16 @@ cabeçudo**. São duas famílias de proporção e elas não se misturam:
 
 Personagem (forma do jogador, humano, conjurador) segue a proporção de um
 corpo em pé: alto e estreito, com o capuz/cabeça em torno de **1/3** da altura.
+
+**Mas o que é vertical é o CORPO, não a grade.** Forma com asa aberta, capa
+estendida ou braço para fora ganha coluna a mais dos dois lados e continua na
+família de personagem. Como largura não entra na conta do degrau, alargar é de
+graça — e é obrigatório: **asa que lê precisa de tantas colunas quanto o
+corpo**. Em 4 ou 5 colunas ela sai como tábua vertical por melhor que esteja
+sombreada. A 3ª forma do warlock só passou a ter asa quando foi de 18 para 22
+colunas, com as mesmas 20 linhas e zero mudança de tuning. Se não houver
+largura para isso, a decisão certa é asa **dobrada** nos ombros, não asa aberta
+espremida.
 Bicho segue o oposto — cabeça enorme, corpo curto, silhueta larga. Misturar as
 duas faz o elenco parecer de dois jogos.
 
