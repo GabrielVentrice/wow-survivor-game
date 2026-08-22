@@ -50,6 +50,21 @@ python3 tools/image2grid.py ghoul.png --grid 14x16 --ramp rot0 --ink warm \
 consecutivos: a fatia é a identidade (ver CLAUDE.md). `--accent` só aceita cor
 de energia — passar `bone1` ali é erro, e o script diz para usar `--second`.
 
+```bash
+# 3. conferir com os olhos: o novo sozinho, e o novo no meio do elenco
+python3 tools/spritesheet.py --zoom 14 --cols 2 --only <novo> ghoul --out /tmp/zoom.png
+python3 tools/spritesheet.py --out /tmp/sheet.png
+```
+
+`spritesheet.py` é o que o `sprites.html` faz, em PNG: serve para quem não pode
+abrir um browser, e responde a pergunta que ninguém faz sozinho ao acrescentar
+um sprite — não "isso está bom?", e sim "isso pertence a este jogo?".
+
+As duas pontas também existem como skill (`.claude/skills/`), para descrever a
+criatura em português e receber o prompt pronto: `sprite-prompt` decide rampa,
+fatia, tinta, acento, vista e tamanho; `sprite-from-image` faz a volta inteira
+até o sprite entrar no jogo verificado.
+
 `image2grid` é **primeiro passe, não conversor**. Ele resolve a parte mecânica
 (fundo fora, caixa delimitadora, uma cor dominante por célula, presa ao punhado
 de tokens que aquela criatura pode usar) para o trabalho à mão começar de uma

@@ -2,3 +2,4 @@
 
 # saida do driver_preview: regerada por `DRIVER=driver_preview.js node tools/harness.js .`
 tools/levelup-preview.html
+tools/spritesheet.png

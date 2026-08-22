@@ -90,7 +90,8 @@ SUBJECT: {a.name}.
 Each study is a SOLID BLACK shape on a flat #FF00FF background — no interior
 detail, no outline, no grey, no gradient. Only the outer contour differs
 between the six.
-VIEW: orthographic {a.view}, {sym}, no perspective, no tilt.
+VIEW: orthographic {a.view} view, {sym}.
+No perspective, no tilt.
 PROPORTION: chunky and exaggerated. It has to stay recognisable at {H} pixels tall.
 Vary the reading: horns, hunch, limb count, wings, mass distribution, weapon.
 FRAMING: full body, feet on a common baseline, even spacing, generous margin.
@@ -117,8 +118,8 @@ a pixel grid, do not pixelate or posterize the image. Draw it cleanly and large.
 
 SUBJECT: {a.name}.
 
-VIEW: orthographic {a.view} view, {sym}. No perspective, no foreshortening, no
-tilt, no dynamic angle. One single figure.
+VIEW: orthographic {a.view} view, {sym}.
+No perspective, no foreshortening, no tilt, no dynamic angle. One single figure.
 
 POSE: neutral idle, standing, weight even, arms readable and clear of the torso
 so the silhouette does not merge. Feet flat on an implied ground line.
