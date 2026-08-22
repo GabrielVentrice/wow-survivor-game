@@ -33,14 +33,19 @@ const BALANCE = {
     hitstop: { big: 0.034, boss: 0.11, hurt: 0.067, cooldown: 0.26 },
   },
   spawn: {
-    /* Densidade DOBRADA em relação ao tuning original.
+    /* Densidade QUADRUPLICADA em relação ao tuning original (dobrada duas
+       vezes: uma no tuning de rampagem, outra por pedido depois dele).
 
-       A sensação de rampagem vem de ceifar leva, não de duelar. Intervalo pela
-       metade, teto de vivos e tamanho de wave dobrados, e o HP por ramp
+       A sensação de rampagem vem de ceifar leva, não de duelar. Intervalo
+       dividido, teto de vivos e tamanho de wave multiplicados, e o HP por ramp
        reduzido para compensar: mais corpos, menos vida cada. Um inimigo que
-       exige três tiros não dá dopamina; vinte que caem no mesmo pulso, sim. */
-    baseInterval: 0.55,  // s entre spawns no início
-    minInterval: 0.09,   // piso do intervalo
+       exige três tiros não dá dopamina; vinte que caem no mesmo pulso, sim.
+
+       O teto de vivos anda JUNTO com o intervalo. Sem isso, dobrar o fluxo de
+       spawn só faz a fila bater no teto mais cedo e a densidade em tela fica
+       exatamente a mesma da versão anterior — o dobro vira no-op. */
+    baseInterval: 0.275,  // s entre spawns no início
+    minInterval: 0.045,   // piso do intervalo
     rampEvery: 30,       // a cada Xs aperta o spawn e o HP
     intervalDecay: 0.86, // multiplicador do intervalo a cada ramp
     /* HP por ramp caiu de 0.18 para 0.11, e o teto de vivos subiu.
@@ -53,11 +58,11 @@ const BALANCE = {
     hpGrowth: 0.11,      // +11% HP base por ramp
     dmgGrowth: 0,        // touch damage does not scale before the hard phase
     speedGrowth: 0,      // same for enemy speed
-    maxAlive: 1100,      // teto de inimigos vivos (perf)
+    maxAlive: 2200,      // teto de inimigos vivos (perf)
     margin: 80,          // distância fora da tela onde nascem
     abominationAt: 180,  // s até Abomination entrar no pool
     waveEvery: 120,      // a cada Xs, wave densa em círculo
-    waveBase: 36,        // inimigos por wave (cresce com ramps)
+    waveBase: 72,        // inimigos por wave (cresce com ramps)
     bossAt: 300,         // 1º Dreadlord aos 5 min
     bossEvery: 150,      // novos Dreadlords a cada Xs depois disso
     /* HP de chefe usa hpMul elevado a este expoente.
@@ -74,11 +79,11 @@ const BALANCE = {
     hardAt: 300,             // second gear kicks in here (5 min)
     hardRampEvery: 15,       // ramps twice as often
     hardIntervalDecay: 0.84, // spawn interval tightens faster
-    hardMinInterval: 0.035,  // new floor for the interval
+    hardMinInterval: 0.0175,  // new floor for the interval
     hardHpGrowth: 0.105,     // +10.5% HP per ramp (every 15s)
     hardDmgGrowth: 0.085,    // +8.5% touch damage per ramp
     hardSpeedGrowth: 0.032,  // +3.2% enemy speed per ramp
-    hardMaxAlive: 1500,      // alive cap rises alongside
+    hardMaxAlive: 3000,      // alive cap rises alongside
     hardWaveEvery: 50,       // dense waves nearly twice as frequent
     hardBossEvery: 68,       // Dreadlords every 68s
     hardBossStack: 110,      // every Xs past hardAt, +1 Dreadlord per summon
