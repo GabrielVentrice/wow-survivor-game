@@ -59,19 +59,31 @@ outro desenho**, e nenhum deslocamento de linha produz um. A folha volta pelo
 `split_sheet.py` e cada painel vira uma grade.
 
 ```bash
-bash tools/warlock-forms.sh              # as dez formas do warlock, prompt pronto
-bash tools/warlock-forms.sh colheita     # só uma
-bash tools/warlock-forms.sh --silhouette # a rodada de silhueta, que vem antes
+python3 tools/warlock_forms.py                  # UM prompt, as dez formas
+python3 tools/warlock_forms.py --form colheita  # uma só, prompt avulso
+python3 tools/warlock_forms.py --silhouette     # a rodada de silhueta, que vem antes
 ```
 
-`warlock-forms.sh` guarda os **argumentos** das dez formas (aprendiz,
-experiente e uma por capstone), não o texto: um .md de prompts colados
-envelheceria calado, pedindo cores que a `PAL` não tem mais. Ele também é onde
-está escrito que a **aura não entra na referência** — fogo em volta, alma verde
-e rastro de voo são `VfxLayer` na cor da forma, e brilho pedido ao modelo vaza
-para fora da silhueta e apaga a única informação que a imagem tinha para dar.
-Voo, esse sim, é pose: a forma que flutua não tem perna no chão, e `findLegs`
-cai sozinho no balanço em vez do passo.
+`warlock_forms.py` guarda os **argumentos** das dez formas do warlock
+(aprendiz, experiente e uma por capstone), não o texto: um .md de prompts
+colados envelheceria calado, pedindo cores que a `PAL` não tem mais.
+
+**O modo padrão é UM prompt só, e essa é a decisão que importa aqui.** Dez
+colagens são dez conversas, e o modelo não tem como saber que a quarta pertence
+ao mesmo elenco da primeira: volta com outro peso de contorno, outra proporção
+de cabeça, outro jeito de fechar o manto. O defeito não aparece olhando um
+sprite por vez — aparece com os dez lado a lado, que é exatamente como o jogador
+vê a progressão do próprio personagem. O contrato de estilo é escrito uma vez e
+vale para as dez; só o corpo e a fatia da rampa mudam. Não cabe uma imagem só
+com todas: são 26 painéis, e cada figura sairia pequena demais para ter detalhe
+que sobreviva ao downscale — então é um prompt, uma imagem por forma, na mesma
+conversa.
+
+É lá também que está escrito que a **aura não entra na referência** — fogo em
+volta, alma verde e rastro de voo são `VfxLayer` na cor da forma, e brilho
+pedido ao modelo vaza para fora da silhueta e apaga a única informação que a
+imagem tinha para dar. Voo, esse sim, é pose: a forma que flutua não tem perna
+no chão, e `findLegs` cai sozinho no balanço em vez do passo.
 
 ```bash
 # 3. conferir com os olhos: o novo sozinho, e o novo no meio do elenco

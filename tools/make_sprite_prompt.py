@@ -43,6 +43,23 @@ def palette():
     return pal
 
 
+def ramp_slice(pal, tok, what):
+    """Three consecutive steps of one ramp. The slice IS the identity: two
+    creatures of the same material differ by which three they take."""
+    m = re.match(r"^([a-z]+)(\d)$", tok or "")
+    if not m or m.group(1) not in MATERIAL:
+        sys.exit(f"{what}: '{tok}' nao e um passo de rampa de materia ({', '.join(sorted(MATERIAL))})")
+    fam, i = m.group(1), int(m.group(2))
+    steps = [f"{fam}{i + k}" for k in range(3)]
+    if any(t not in pal for t in steps):
+        top = max(int(t[-1]) for t in pal if re.match(rf"^{fam}\d$", t))
+        sys.exit(f"{what}: a rampa {fam} vai ate {fam}{top}, entao a fatia so comeca ate {fam}{top - 2}")
+    return fam, steps
+
+
+LABEL = ["shadow", "base", "light"]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", required=True, help="what the creature IS, in a few words")
@@ -83,19 +100,7 @@ def main():
     else:
         prop_txt = ("\nThe character holds NOTHING: no weapon, no tool, no staff, no banner, no\n"
                     "chain, no lantern. Empty hands, clearly drawn.")
-    def slice3(tok, what):
-        """Three consecutive steps of one ramp. The slice IS the identity: two
-        creatures of the same material differ by which three they take."""
-        m = re.match(r"^([a-z]+)(\d)$", tok or "")
-        if not m or m.group(1) not in MATERIAL:
-            sys.exit(f"{what}: '{tok}' nao e um passo de rampa de materia ({', '.join(sorted(MATERIAL))})")
-        fam, i = m.group(1), int(m.group(2))
-        steps = [f"{fam}{i + k}" for k in range(3)]
-        missing = [t for t in steps if t not in pal]
-        if missing:
-            top = max(int(re.search(r"(\d)$", t).group(1)) for t in pal if t.startswith(fam) and re.match(rf"^{fam}\d$", t))
-            sys.exit(f"{what}: a rampa {fam} vai ate {fam}{top}, entao a fatia so comeca ate {fam}{top - 2}")
-        return fam, steps
+    slice3 = lambda tok, what: ramp_slice(pal, tok, what)
 
     ENERGY = re.compile(r"^(fel|arc|pyr|blood|azure)\d$|^white$")
     bad = [t for t in a.accent if t not in pal]
@@ -158,7 +163,6 @@ labels, numbers, borders, frames, watermark, cropped limbs.""")
         return
 
     fam, steps = slice3(a.ramp, "--ramp")
-    LABEL = ["shadow", "base", "light"]
     ink = INK[a.ink]
     name_of = lambda f: (LIVING.get(f, MATERIAL[f]) if a.living else MATERIAL[f])
     ramp_txt = "\n".join(f"  {t:<8} {pal[t]}   {LABEL[i]} of the {name_of(fam)}"
