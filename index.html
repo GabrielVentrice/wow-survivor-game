@@ -1,0 +1,3813 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>WoW Survivors — Warlock</title>
+<style>
+  :root {
+    --fel: #6fdc4a;
+    --fel-dim: #3a7a26;
+    --shadow: #7a3cff;
+    --shadow-dim: #2a1147;
+    --bg: #0a0710;
+    --panel: rgba(18, 10, 30, 0.92);
+    --text: #d8cce8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    user-select: none;
+    cursor: default;
+  }
+
+  #game {
+    position: fixed;
+    inset: 0;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ---------- HUD overlay ---------- */
+  #hud {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .hud-top {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+
+  #timer {
+    font-size: 30px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #fff;
+    text-shadow: 0 0 12px var(--shadow), 0 2px 4px #000;
+  }
+
+  /* hard phase (5 min+): the clock turns into a warning */
+  #timer.hard {
+    color: #ff6b8a;
+    text-shadow: 0 0 14px #ff3b6b, 0 2px 4px #000;
+    animation: timer-pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes timer-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.62; }
+  }
+
+  #kills {
+    font-size: 14px;
+    color: var(--fel);
+    text-shadow: 0 0 8px var(--fel-dim), 0 1px 2px #000;
+    margin-top: 2px;
+  }
+
+  /* bottom bars */
+  .bars {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    width: min(520px, 90vw);
+  }
+
+  .bar {
+    height: 16px;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 8px;
+    background: rgba(0,0,0,0.5);
+    overflow: hidden;
+    position: relative;
+    margin-top: 6px;
+  }
+
+  .bar > .fill {
+    height: 100%;
+    width: 100%;
+    transition: width 0.12s linear;
+  }
+
+  #hpFill { background: linear-gradient(90deg, #c1272d, #ff5a5f); }
+  #xpFill { background: linear-gradient(90deg, var(--shadow-dim), var(--shadow)); }
+
+  .bar > .label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    text-shadow: 0 1px 2px #000;
+  }
+
+  /* ---------- Screens ---------- */
+  .screen {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, rgba(42,17,71,0.65), rgba(10,7,16,0.97));
+    backdrop-filter: blur(2px);
+  }
+
+  .screen.hidden { display: none; }
+
+  .title {
+    font-size: clamp(38px, 7vw, 76px);
+    font-weight: bold;
+    letter-spacing: 3px;
+    background: linear-gradient(180deg, #fff, var(--shadow));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 40px rgba(122,60,255,0.5);
+  }
+
+  .subtitle {
+    color: var(--fel);
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    font-size: 14px;
+    margin-top: 4px;
+    margin-bottom: 36px;
+    text-shadow: 0 0 10px var(--fel-dim);
+  }
+
+  .class-grid {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 36px;
+  }
+
+  .class-card {
+    width: 150px;
+    padding: 18px 14px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    background: var(--panel);
+    text-align: center;
+    transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+  }
+
+  .class-card.available { cursor: pointer; pointer-events: auto; }
+  .class-card.available:hover { transform: translateY(-4px); }
+  .class-card.selected {
+    border-color: var(--shadow);
+    box-shadow: 0 0 24px rgba(122,60,255,0.5);
+  }
+  .class-card.locked { opacity: 0.4; }
+
+  .class-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+  }
+
+  .class-name { font-size: 18px; font-weight: bold; }
+  .class-tag { font-size: 11px; color: #9a8ab0; margin-top: 4px; }
+
+  .speed-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+  .speed-label {
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #9a8ab0;
+    margin-right: 4px;
+  }
+  .speed-btn {
+    pointer-events: auto;
+    cursor: pointer;
+    width: 48px;
+    padding: 8px 0;
+    font-size: 15px;
+    font-weight: bold;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px;
+    transition: transform 0.1s, border-color 0.1s, color 0.1s;
+  }
+  .speed-btn:hover { transform: translateY(-2px); }
+  .speed-btn.active {
+    color: #fff;
+    border-color: var(--fel);
+    box-shadow: 0 0 14px rgba(111,220,74,0.4);
+  }
+
+  .combo-block {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+  .combo-preview {
+    width: 132px;
+    height: 132px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: #0d0a16;
+  }
+  .combo-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+  }
+  .combo-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: 268px;
+  }
+  .combo-btn {
+    pointer-events: auto;
+    cursor: pointer;
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px;
+    transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s;
+  }
+  .combo-btn:hover { transform: translateY(-2px); }
+  .combo-btn.wide {
+    width: auto;
+    padding: 0 12px;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .combo-hint { font-size: 11px; color: #9a8ab0; }
+
+  .btn {
+    pointer-events: auto;
+    cursor: pointer;
+    padding: 14px 44px;
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #fff;
+    background: linear-gradient(180deg, var(--shadow), var(--shadow-dim));
+    border: 1px solid var(--shadow);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(122,60,255,0.4);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 0 32px rgba(122,60,255,0.7); }
+  .btn:active { transform: translateY(0); }
+
+  .hint {
+    margin-top: 22px;
+    font-size: 13px;
+    color: #7a6a90;
+    letter-spacing: 1px;
+  }
+
+  .btn-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 220px;
+  }
+  .btn-col .btn { width: 100%; }
+
+  .chest-list {
+    width: min(340px, 86vw);
+    margin-bottom: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .chest-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 9px;
+    animation: toastIn 0.3s ease;
+  }
+  .chest-ic { font-size: 20px; width: 24px; text-align: center; }
+  .chest-name { flex: 1; font-weight: bold; color: #fff; }
+  .chest-lv { font-size: 13px; color: var(--fel); font-weight: bold; }
+  .chest-empty { text-align: center; color: var(--fel); font-size: 16px; padding: 12px; }
+
+  .stats-box {
+    width: min(320px, 80vw);
+    margin-bottom: 32px;
+  }
+  .stats-box .stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-size: 15px;
+  }
+  .stats-box .stat span { color: #9a8ab0; }
+  .stats-box .stat b { color: #fff; }
+  .stats-box .stat-head {
+    margin-top: 14px; padding: 6px 14px 2px;
+    font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--fel);
+  }
+
+  /* ---------- Pause: grimório de poderes ---------- */
+  #pause {
+    justify-content: flex-start;
+    padding: 22px 16px 24px;
+    overflow-y: auto;
+  }
+  #pause .subtitle { margin-bottom: 18px; }
+
+  .pause-panel {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: min(1000px, 96vw);
+    pointer-events: auto;
+  }
+
+  .pause-col {
+    flex: 1 1 320px;
+    min-width: 290px;
+    max-width: 480px;
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(122,60,255,0.6) transparent;
+  }
+  .pause-col::-webkit-scrollbar { width: 6px; }
+  .pause-col::-webkit-scrollbar-thumb {
+    background: rgba(122,60,255,0.6);
+    border-radius: 3px;
+  }
+
+  .pause-head {
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--fel);
+    text-shadow: 0 0 10px var(--fel-dim);
+    margin: 0 0 8px 2px;
+  }
+  .pause-head + .pause-head, .pause-col > .pause-head ~ .pause-head { margin-top: 16px; }
+  .pause-empty {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #7a6a90;
+    border: 1px dashed rgba(255,255,255,0.12);
+    border-radius: 9px;
+  }
+
+  /* linha de poder (spell ou buff) */
+  .pw-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 8px 11px;
+    margin-bottom: 6px;
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 9px;
+  }
+  .pw-ic {
+    width: 30px; height: 30px;
+    flex: 0 0 30px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    border: 1px solid;
+    border-radius: 7px;
+    background: rgba(0,0,0,0.45);
+  }
+  .pw-body { flex: 1; min-width: 0; }
+  .pw-top { display: flex; align-items: baseline; gap: 8px; }
+  .pw-name { font-weight: bold; color: #fff; font-size: 14px; }
+  .pw-lv {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #9a8ab0;
+  }
+  .pw-lv.max { color: var(--fel); text-shadow: 0 0 8px var(--fel-dim); }
+  .pw-bar {
+    height: 5px;
+    margin: 5px 0 4px;
+    border-radius: 3px;
+    background: rgba(0,0,0,0.55);
+    overflow: hidden;
+  }
+  .pw-fill { height: 100%; border-radius: 3px; }
+  .pw-next { font-size: 11.5px; color: #b8a8d0; line-height: 1.35; }
+  .pw-next b { color: #fff; }
+
+  /* combos */
+  .cb-row {
+    padding: 9px 11px;
+    margin-bottom: 7px;
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 9px;
+  }
+  .cb-row.done { background: rgba(24, 14, 40, 0.95); }
+  .cb-row.far { opacity: 0.55; }
+  .cb-head { display: flex; align-items: center; gap: 7px; }
+  .cb-ic { font-size: 16px; }
+  .cb-name { font-weight: bold; color: #fff; font-size: 14px; }
+  .cb-status {
+    margin-left: auto;
+    font-size: 10.5px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #9a8ab0;
+    white-space: nowrap;
+  }
+  .cb-status.on { color: var(--fel); text-shadow: 0 0 8px var(--fel-dim); }
+  .cb-status.close { color: #ffd24a; }
+  .cb-desc { font-size: 11.5px; color: #b8a8d0; line-height: 1.35; margin-top: 3px; }
+  .cb-bar {
+    height: 5px;
+    margin: 6px 0 6px;
+    border-radius: 3px;
+    background: rgba(0,0,0,0.55);
+    overflow: hidden;
+  }
+  .cb-fill { height: 100%; border-radius: 3px; }
+  .cb-req { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cb-req-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 7px;
+    font-size: 11px;
+    color: #9a8ab0;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+  }
+  .cb-req-row b { color: #fff; font-size: 11px; }
+  .cb-req-row.ok { color: var(--fel); border-color: rgba(111,220,74,0.45); }
+  .cb-req-row.ok b { color: var(--fel); }
+
+  @media (max-width: 760px) {
+    .pause-col { max-height: none; overflow-y: visible; }
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  .btn-sm { padding: 11px 26px; font-size: 14px; }
+
+  /* ability bars (HUD) — spells em cima, buffs embaixo */
+  #abilityBar, #buffBar {
+    position: absolute;
+    left: 14px;
+    display: flex;
+    gap: 6px;
+  }
+  #abilityBar { top: 14px; }
+  #buffBar { top: 60px; }
+  #buffBar .ab-icon { width: 30px; height: 30px; font-size: 15px; }
+  .ab-icon {
+    width: 38px; height: 38px;
+    border: 1.5px solid #555;
+    border-radius: 8px;
+    background: rgba(10,7,16,0.8);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    font-size: 20px;
+  }
+  .ab-icon b {
+    position: absolute;
+    right: -4px; bottom: -6px;
+    font-size: 11px;
+    background: var(--shadow-dim);
+    color: #fff;
+    border-radius: 6px;
+    padding: 0 4px;
+    border: 1px solid var(--shadow);
+  }
+
+  /* level-up cards */
+  .cards {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 92vw;
+  }
+  .card {
+    pointer-events: auto;
+    cursor: pointer;
+    width: 200px;
+    padding: 22px 18px;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 14px;
+    background: var(--panel);
+    text-align: center;
+    transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+  }
+  .card:hover {
+    transform: translateY(-6px);
+    border-color: var(--shadow);
+    box-shadow: 0 0 28px rgba(122,60,255,0.5);
+  }
+  .card { position: relative; }
+  .card-spell:hover { border-color: var(--shadow); box-shadow: 0 0 28px rgba(122,60,255,0.5); }
+  .card-buff:hover { border-color: var(--fel); box-shadow: 0 0 28px rgba(111,220,74,0.4); }
+  .card-kind {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 6px; font-weight: bold;
+  }
+  .card-spell .card-kind { background: rgba(122,60,255,0.25); color: #c9aaff; }
+  .card-buff .card-kind { background: rgba(111,220,74,0.2); color: #a6e88a; }
+  .card-icon { font-size: 40px; margin-bottom: 8px; }
+  .card-name { font-size: 19px; font-weight: bold; color: #fff; }
+  .card-level {
+    font-size: 12px; letter-spacing: 1px; color: var(--fel);
+    margin: 4px 0 12px; text-transform: uppercase;
+  }
+  .card-desc { font-size: 13px; color: #b8a8d0; line-height: 1.4; }
+  .card-combo {
+    margin-top: 10px;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    padding: 5px 8px;
+    border: 1px solid;
+    border-radius: 7px;
+    background: rgba(0,0,0,0.3);
+  }
+  .card-combo.ready {
+    background: rgba(255,255,255,0.06);
+    animation: comboPulse 1s ease-in-out infinite;
+  }
+  @keyframes comboPulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(255,255,255,0); }
+    50% { box-shadow: 0 0 14px currentColor; }
+  }
+
+  /* damage meter (HUD) */
+  #dmgHud {
+    position: absolute;
+    left: 14px;
+    bottom: 16px;
+    width: 168px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .dmg-row { display: flex; align-items: center; gap: 6px; }
+  .dmg-ic { font-size: 15px; width: 18px; text-align: center; flex: none; }
+  .dmg-bar {
+    position: relative;
+    flex: 1;
+    height: 15px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .dmg-fill { position: absolute; inset: 0; opacity: 0.45; border-radius: 5px; transition: width 0.2s linear; }
+  .dmg-val {
+    position: absolute; right: 5px; top: 0; line-height: 15px;
+    font-size: 10px; font-weight: bold; color: #fff; text-shadow: 0 1px 2px #000;
+  }
+
+  /* combo toasts */
+  #toasts {
+    position: absolute;
+    top: 70px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .toast {
+    width: 260px;
+    padding: 12px 14px;
+    border: 1px solid #555;
+    border-left-width: 4px;
+    border-radius: 10px;
+    background: var(--panel);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    animation: toastIn 0.35s ease, toastOut 0.5s ease 4.7s forwards;
+  }
+  .toast-head {
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    color: #9a8ab0;
+  }
+  .toast-name { font-size: 17px; font-weight: bold; color: #fff; margin: 2px 0 4px; }
+  .toast-desc { font-size: 12px; color: #b8a8d0; line-height: 1.35; }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes toastOut {
+    to { opacity: 0; transform: translateX(40px); }
+  }
+</style>
+</head>
+<body>
+  <div id="game">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <!-- HUD overlay (HTML over canvas) -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div id="timer">00:00</div>
+      <div id="kills">☠ 0</div>
+    </div>
+    <div id="abilityBar"></div>
+    <div id="buffBar"></div>
+    <div id="toasts"></div>
+    <div id="dmgHud"></div>
+    <div class="bars">
+      <div class="bar"><div id="hpFill" class="fill"></div><div class="label" id="hpLabel">100 / 100</div></div>
+      <div class="bar"><div id="xpFill" class="fill"></div><div class="label" id="xpLabel">Nível 1</div></div>
+    </div>
+  </div>
+
+  <!-- Start menu -->
+  <div id="menu" class="screen">
+    <div class="title">WoW Survivors</div>
+    <div class="subtitle">Affliction</div>
+    <div class="class-grid" id="classGrid"></div>
+    <div class="speed-row" id="speedRow">
+      <span class="speed-label">Velocidade</span>
+      <button class="speed-btn active" data-spd="1">1x</button>
+      <button class="speed-btn" data-spd="2">2x</button>
+      <button class="speed-btn" data-spd="3">3x</button>
+    </div>
+    <div class="combo-block" id="comboBlock">
+      <canvas id="comboPreview" class="combo-preview"></canvas>
+      <div class="combo-side">
+        <span class="speed-label">Combos — visual</span>
+        <div class="combo-toggles" id="comboToggles"></div>
+        <span class="combo-hint">Liga só o efeito visual, sem mudar o jogo.</span>
+      </div>
+    </div>
+    <button class="btn" id="startBtn">Iniciar</button>
+    <div class="hint">Mover: WASD / Setas &nbsp;·&nbsp; Som: M</div>
+  </div>
+
+  <!-- Level up -->
+  <div id="levelup" class="screen hidden">
+    <div class="title" style="font-size:clamp(28px,5vw,48px)">Subiu de Nível!</div>
+    <div class="subtitle">Escolha um poder</div>
+    <div id="cards" class="cards"></div>
+  </div>
+
+  <!-- Pause -->
+  <div id="pause" class="screen hidden">
+    <div class="title" style="font-size:clamp(28px,5vw,48px)">Pausado</div>
+    <div class="subtitle">ESC para voltar</div>
+    <div id="pausePanel" class="pause-panel"></div>
+    <div class="btn-row">
+      <button class="btn btn-sm" id="resumeBtn">Continuar</button>
+      <button class="btn btn-sm" id="pauseRestartBtn">Reiniciar</button>
+      <button class="btn btn-sm" id="quitBtn">Sair</button>
+    </div>
+  </div>
+
+  <!-- Chest (boss) -->
+  <div id="chest" class="screen hidden">
+    <div class="title" style="font-size:clamp(28px,5vw,46px)">📦 Baú do Dreadlord</div>
+    <div class="subtitle" id="chestRarity">Poderes amplificados</div>
+    <div id="chestList" class="chest-list"></div>
+    <button class="btn" id="chestBtn">Continuar</button>
+  </div>
+
+  <!-- Game over -->
+  <div id="gameover" class="screen hidden">
+    <div class="title" style="background:linear-gradient(180deg,#fff,#c1272d);-webkit-background-clip:text;background-clip:text;">Você Tombou</div>
+    <div class="subtitle" style="color:#ff5a5f;">A Legião prevaleceu</div>
+    <div id="stats" class="stats-box"></div>
+    <button class="btn" id="restartBtn">Tentar de novo</button>
+  </div>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   CONFIG — data, não lógica. Tudo tunável vive aqui no topo.
+   ========================================================================= */
+
+const BALANCE = {
+  player: {
+    radius: 16,
+    speed: 240,          // px/s
+    maxHp: 100,
+  },
+  world: {
+    tile: 96,            // tamanho do tile do chão procedural
+  },
+  camera: {
+    lerp: 0.12,          // suavização do follow (0 = travado, 1 = instantâneo)
+  },
+  spawn: {
+    baseInterval: 1.1,   // s entre spawns no início
+    minInterval: 0.18,   // piso do intervalo
+    rampEvery: 30,       // a cada Xs aperta o spawn e o HP
+    intervalDecay: 0.88, // multiplicador do intervalo a cada ramp
+    hpGrowth: 0.18,      // +18% HP base por ramp
+    dmgGrowth: 0,        // touch damage does not scale before the hard phase
+    speedGrowth: 0,      // same for enemy speed
+    maxAlive: 400,       // teto de inimigos vivos (perf)
+    margin: 80,          // distância fora da tela onde nascem
+    abominationAt: 180,  // s até Abomination entrar no pool
+    waveEvery: 120,      // a cada Xs, wave densa em círculo
+    waveBase: 14,        // inimigos por wave (cresce com ramps)
+    bossAt: 300,         // 1º Dreadlord aos 5 min
+    bossEvery: 150,      // novos Dreadlords a cada Xs depois disso
+    // Boss HP uses hpMul raised to this exponent: without it a Dreadlord at
+    // 10 min becomes an unbreakable wall instead of a mini-boss.
+    bossHpExp: 0.6,
+
+    // --- Hard phase: past hardAt the whole curve shifts gear. Target is for a
+    // competent run to end somewhere around the 10 minute mark.
+    hardAt: 300,             // second gear kicks in here (5 min)
+    hardRampEvery: 15,       // ramps twice as often
+    hardIntervalDecay: 0.86, // spawn interval tightens faster
+    hardMinInterval: 0.09,   // new floor for the interval
+    hardHpGrowth: 0.19,      // +19% HP per ramp (every 15s)
+    hardDmgGrowth: 0.06,     // +6% touch damage per ramp
+    hardSpeedGrowth: 0.02,   // +2% enemy speed per ramp
+    hardMaxAlive: 480,       // alive cap rises alongside
+    hardWaveEvery: 50,       // dense waves nearly twice as frequent
+    hardBossEvery: 75,       // Dreadlords every 75s
+    hardBossStack: 150,      // every Xs past hardAt, +1 Dreadlord per summon
+    maxBossStack: 3,         // cap on Dreadlords per summon
+    bossChestCooldown: 60,   // min seconds between boss chests (anti-snowball)
+    // No enemy may exceed this fraction of the player's speed: the pressure
+    // comes from density, not from taking kiting off the table.
+    speedCap: 0.9,
+  },
+};
+
+// Inimigos como data. radius, hp, speed, touchDps, color, weight (peso de spawn).
+// `lateWeight` replaces `weight` past BALANCE.spawn.hardAt: the late horde
+// trades ghouls for heavier bodies.
+const ENEMIES = {
+  ghoul: {
+    id: "ghoul", name: "Ghoul",
+    radius: 13, hp: 10, speed: 130, touchDps: 8, xp: 1,
+    color: "#7fae5a", weight: 6, lateWeight: 4, minTime: 0,
+  },
+  skeleton: {
+    id: "skeleton", name: "Skeleton Warrior",
+    radius: 15, hp: 26, speed: 92, touchDps: 12, xp: 3,
+    color: "#cfc8b0", weight: 3, lateWeight: 4, minTime: 45,
+  },
+  abomination: {
+    id: "abomination", name: "Abomination",
+    radius: 26, hp: 120, speed: 56, touchDps: 22, xp: 12,
+    color: "#9a6b4f", weight: 1, lateWeight: 2, minTime: 180,
+  },
+  dreadlord: {
+    id: "dreadlord", name: "Dreadlord",
+    radius: 38, hp: 1400, speed: 48, touchDps: 30, xp: 120,
+    color: "#b23cff", weight: 0, minTime: 300,
+    boss: true, ranged: true,
+    shootInterval: 2.2, shootDamage: 14, shootSpeed: 240, shootRange: 540,
+  },
+};
+
+// Classes como data. Só Warlock jogável no MVP; resto é placeholder de UI.
+const CLASSES = {
+  warlock: {
+    id: "warlock",
+    name: "Warlock",
+    tag: "Sombra · Fogo Fel · DoT",
+    color: "#7a3cff",
+    available: true,
+    base: { maxHp: 100, speed: 240 },
+    starting: ["shadowBolt"],   // spell inicial garantida
+    spellPool: ["shadowBolt", "corruption", "rainOfFire", "drainLife",
+                "summonImp", "curseOfAgony"],
+    comboPool: ["seedOfCorruption", "chaosBolt", "demonicPact", "unstableAffliction"],
+    // Evolução visual: `at` = nº mínimo de combos ativos para assumir a forma.
+    // A última forma cujo `at` for atingido vence.
+    forms: [
+      { sprite: "warlock", at: 0, scale: 2.9 },
+      { sprite: "warlockFel", at: 2, scale: 3.55, dy: -0.33, color: "#aaff5a",
+        icon: "👹", name: "Corrompido",
+        desc: "O fel toma o warlock: chifres despontam e a mandíbula acende." },
+      { sprite: "warlockDemon", at: 4, scale: 3.85, dy: -0.48, aura: true, color: "#ff8a3c",
+        icon: "😈", name: "Metamorfose Demoníaca",
+        desc: "Asas se abrem e os olhos viram brasa — pouco resta do humano." },
+    ],
+  },
+  mage: {
+    id: "mage", name: "Mage", tag: "Em breve",
+    color: "#3fa9f5", available: false,
+  },
+  hunter: {
+    id: "hunter", name: "Hunter", tag: "Em breve",
+    color: "#6fdc4a", available: false,
+  },
+};
+
+/* SPELLS (linha 1: armas/feitiços ativos). Cada uma:
+   id, name, tags, icon, color, maxLevel
+   stats(level)  -> números BASE daquele nível
+   desc(level)   -> texto do efeito ao ADQUIRIR/SUBIR para `level`
+   tick(dt, api, inst) -> auto-cast (inst = {level, timer})
+   Use api.stats(this, level) no tick p/ obter os stats JÁ com os buffs globais.
+   Campos de dano padronizados em `damage`/`dps` p/ os buffs pegarem. */
+const SPELLS = {
+  shadowBolt: {
+    id: "shadowBolt", name: "Shadow Bolt", tags: ["shadow"],
+    icon: "✦", color: "#a06bff", maxLevel: 5,
+    stats(l) {
+      return {
+        damage: 8 + l * 6,
+        count: 1 + Math.floor(l / 2),       // L1:1  L2:2  L4:3  ...
+        cooldown: Math.max(0.28, 0.95 - (l - 1) * 0.11),
+        speed: 540,
+        range: 560,
+        radius: 6,
+      };
+    },
+    desc(l) {
+      if (l === 1) return "Dispara um projétil sombrio no inimigo mais próximo.";
+      const prev = this.stats(l - 1), s = this.stats(l);
+      const bits = [];
+      if (s.damage !== prev.damage) bits.push(`dano ${prev.damage}→${s.damage}`);
+      if (s.count !== prev.count) bits.push(`+1 projétil (${s.count})`);
+      if (s.cooldown !== prev.cooldown) bits.push("cast mais rápido");
+      return bits.join(", ") + ".";
+    },
+    tick(dt, api, inst) {
+      inst.timer -= dt;
+      if (inst.timer > 0) return;
+      const s = api.stats(this, inst.level);
+      const target = api.nearestEnemy(api.player.x, api.player.y, s.range);
+      if (!target) return;
+      inst.timer = s.cooldown;
+      const base = Math.atan2(target.y - api.player.y, target.x - api.player.x);
+
+      // COMBO: vira um único Chaos Bolt massivo e perfurante
+      // (s.damage já vem empoderado pelo combo via api.stats)
+      if (api.hasCombo("chaosBolt")) {
+        api.fireProjectile({
+          x: api.player.x, y: api.player.y,
+          vx: Math.cos(base) * s.speed * 0.9, vy: Math.sin(base) * s.speed * 0.9,
+          damage: s.damage * 2, radius: s.radius * 2, color: "#ff4040",
+          source: this.id, life: 1.8, pierce: 20, trail: 210,
+        });
+        return;
+      }
+
+      for (let i = 0; i < s.count; i++) {
+        const spread = (i - (s.count - 1) / 2) * 0.14;
+        const a = base + spread;
+        api.fireProjectile({
+          x: api.player.x, y: api.player.y,
+          vx: Math.cos(a) * s.speed, vy: Math.sin(a) * s.speed,
+          damage: s.damage, radius: s.radius,
+          color: this.color, source: this.id, life: 2.6, pierce: 0,
+          homing: true, speed: s.speed, turnRate: 10, trail: 150,
+        });
+      }
+    },
+  },
+
+  // DoT aplicado quando QUALQUER ataque acerta (via Game.damageEnemy). Sem auto-cast.
+  corruption: {
+    id: "corruption", name: "Corruption", tags: ["shadow", "dot"],
+    icon: "☠", color: "#7fdc4a", maxLevel: 5,
+    stats(l) {
+      return {
+        damage: Math.round(2 + l * 1.6),
+        duration: 3 + l * 0.6,
+        tickInterval: 0.5,
+        spreadChance: l >= 3 ? 0.1 + (l - 3) * 0.1 : 0,
+      };
+    },
+    desc(l) {
+      if (l === 1) return "Ataques aplicam um DoT sombrio nos inimigos.";
+      const s = this.stats(l), p = this.stats(l - 1), b = [];
+      if (s.damage !== p.damage) b.push(`dano/tick ${p.damage}→${s.damage}`);
+      if (s.duration !== p.duration) b.push("duração maior");
+      if (s.spreadChance > p.spreadChance) b.push(`${Math.round(s.spreadChance * 100)}% espalhar ao morrer`);
+      return b.join(", ") + ".";
+    },
+    tick() {},
+    // Rot clinging to the warlock: corrupted ground, rot orbs on a tilted orbit
+    // and a sickly green pulse on the sprite. Density follows the spell level.
+    vfx: {
+      under(ctx, p) {
+        // flare curto a cada 0.5s: mesma cadência do tick do DoT
+        const flare = Math.pow(1 - ((p.t % 0.5) / 0.5), 3);
+        const k = 0.9 + Math.sin(p.t * 2.2) * 0.1 + flare * 0.12;
+        const cy = p.y + p.r * 0.9, R = p.r * 1.9 * k;
+        const g = ctx.createRadialGradient(p.x, cy, 0, p.x, cy, R);
+        g.addColorStop(0, `rgba(127,220,74,${(0.3 + flare * 0.22).toFixed(2)})`);
+        g.addColorStop(0.5, "rgba(96,180,52,0.14)");
+        g.addColorStop(1, "rgba(60,140,40,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.ellipse(p.x, cy, R, R * 0.42, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // anel apodrecido girando no chão
+        ctx.save();
+        ctx.translate(p.x, cy);
+        ctx.scale(1, 0.4);
+        ctx.rotate(-p.t * 0.6);
+        ctx.strokeStyle = `rgba(127,220,74,${(0.48 + flare * 0.35).toFixed(2)})`;
+        ctx.lineWidth = 1.6 + flare;
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, R * 0.95, a, a + 0.32);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        drawRotOrbit(ctx, p, false);
+      },
+      over(ctx, p) {
+        const lvl = p.lvl || 1;
+
+        // o próprio personagem apodrece, respirando no ritmo do DoT
+        const breathe = (Math.sin(p.t * 2.6) + 1) * 0.5;
+        drawSpriteGlow(ctx, p.spr, p.x, p.y, p.drawH, p.flip, p.anim,
+          "#7fdc4a", 0.08 + breathe * 0.12 + lvl * 0.01);
+
+        drawRotOrbit(ctx, p, true);
+
+        // esporos se soltando do corpo
+        ctx.fillStyle = "#9ff05c";
+        for (let i = 0; i < 3 + lvl; i++) {
+          const seed = vfxRand(i * 11 + 7);
+          const ph = (p.t * (0.5 + seed * 0.4) + seed) % 1;
+          const px = p.x + (seed - 0.5) * p.r * 2.1;
+          const py = p.y - p.r * 0.4 + ph * p.r * 1.9;
+          ctx.globalAlpha = Math.sin(ph * Math.PI) * 0.6;
+          ctx.beginPath();
+          ctx.ellipse(px, py, 1.3, 2.2, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      },
+    },
+  },
+
+  rainOfFire: {
+    id: "rainOfFire", name: "Rain of Fire", tags: ["fire"],
+    icon: "🔥", color: "#ff7a2c", maxLevel: 5,
+    stats(l) {
+      return {
+        radius: 55 + l * 9,
+        dps: 12 + l * 7,
+        life: 3,
+        cooldown: Math.max(1.2, 4 - (l - 1) * 0.45),
+        tickInterval: Math.max(0.18, 0.4 - (l - 1) * 0.04),
+      };
+    },
+    desc(l) {
+      if (l === 1) return "Faz chover fogo numa área próxima.";
+      const s = this.stats(l), p = this.stats(l - 1), b = [];
+      if (s.dps !== p.dps) b.push(`dano ${p.dps}→${s.dps}`);
+      if (s.radius !== p.radius) b.push("raio maior");
+      if (s.cooldown !== p.cooldown) b.push("mais frequente");
+      return b.join(", ") + ".";
+    },
+    tick(dt, api, inst) {
+      inst.timer -= dt;
+      if (inst.timer > 0) return;
+      const s = api.stats(this, inst.level);
+      inst.timer = s.cooldown;
+      const drops = api.hasCombo("cataclysm") ? 2 : 1; // COMBO: chuva dupla
+      for (let k = 0; k < drops; k++) {
+        const a = Math.random() * Math.PI * 2, d = Math.random() * 120;
+        api.spawnArea({
+          x: api.player.x + Math.cos(a) * d, y: api.player.y + Math.sin(a) * d,
+          radius: s.radius, dps: s.dps, life: s.life,
+          tickInterval: s.tickInterval, color: this.color, source: this.id,
+        });
+      }
+    },
+  },
+
+  drainLife: {
+    id: "drainLife", name: "Drain Life", tags: ["shadow"],
+    icon: "⚕", color: "#c850ff", maxLevel: 5,
+    stats(l) {
+      return {
+        dps: 20 + l * 10,
+        healFrac: 0.22 + l * 0.02,
+        range: 180 + l * 16,
+        targets: 1 + Math.floor((l - 1) / 2),
+      };
+    },
+    desc(l) {
+      if (l === 1) return "Canaliza dano num inimigo próximo e se cura.";
+      const s = this.stats(l), p = this.stats(l - 1), b = [];
+      if (s.dps !== p.dps) b.push(`dano ${p.dps}→${s.dps}`);
+      if (s.targets !== p.targets) b.push(`+1 alvo (${s.targets})`);
+      if (s.range !== p.range) b.push("alcance maior");
+      return b.join(", ") + ".";
+    },
+    tick(dt, api, inst) {
+      const s = api.stats(this, inst.level);
+      const targets = api.nearestEnemies(api.player.x, api.player.y, s.range, s.targets);
+      inst.beams = targets;
+      const healMul = api.hasCombo("soulLeech") ? 3 : 1; // COMBO: cura amplificada
+      for (const e of targets) {
+        const dmg = s.dps * dt;
+        api.damageEnemy(e, dmg, this.id);
+        api.heal(dmg * s.healFrac * healMul);
+      }
+    },
+    draw(ctx, api, inst, cam) {
+      if (!inst.beams) return;
+      const px = api.player.x - cam.left, py = api.player.y - cam.top;
+      for (const e of inst.beams) {
+        if (e.hp <= 0) continue;
+        const ex = e.x - cam.left, ey = e.y - cam.top;
+        ctx.strokeStyle = "rgba(200,80,255,0.65)";
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ex, ey); ctx.stroke();
+      }
+    },
+  },
+
+  summonImp: {
+    id: "summonImp", name: "Summon Imp", tags: ["summon", "fire"],
+    icon: "👹", color: "#ff5a3c", maxLevel: 5,
+    stats(l) {
+      return {
+        impCount: 1 + Math.floor((l - 1) / 2),
+        damage: 5 + l * 3,
+        cooldown: Math.max(0.5, 1.3 - (l - 1) * 0.14),
+        range: 280, speed: 380, radius: 5,
+      };
+    },
+    desc(l) {
+      if (l === 1) return "Invoca um imp que ataca inimigos com bolas de fogo.";
+      const s = this.stats(l), p = this.stats(l - 1), b = [];
+      if (s.impCount !== p.impCount) b.push(`+1 imp (${s.impCount})`);
+      if (s.damage !== p.damage) b.push(`dano ${p.damage}→${s.damage}`);
+      if (s.cooldown !== p.cooldown) b.push("ataca mais rápido");
+      return b.join(", ") + ".";
+    },
+    onChange(inst, api) {
+      const s = this.stats(inst.level);
+      inst.imps = inst.imps || [];
+      const sep = (Math.PI * 2) / s.impCount;
+      while (inst.imps.length < s.impCount) {
+        inst.imps.push({ angle: sep * inst.imps.length, x: api.player.x, y: api.player.y, cd: 0 });
+      }
+    },
+    tick(dt, api, inst) {
+      if (!inst.imps) return;
+      const s = api.stats(this, inst.level), R = 72;
+      for (const imp of inst.imps) {
+        imp.angle += dt * 1.4;
+        const tx = api.player.x + Math.cos(imp.angle) * R;
+        const ty = api.player.y + Math.sin(imp.angle) * R;
+        const k = Math.min(1, dt * 8);
+        imp.x += (tx - imp.x) * k; imp.y += (ty - imp.y) * k;
+        imp.cd -= dt;
+        if (imp.cd <= 0) {
+          const target = api.nearestEnemy(imp.x, imp.y, s.range);
+          if (target) {
+            imp.cd = s.cooldown;
+            const a = Math.atan2(target.y - imp.y, target.x - imp.x);
+            api.fireProjectile({
+              x: imp.x, y: imp.y,
+              vx: Math.cos(a) * s.speed, vy: Math.sin(a) * s.speed,
+              damage: s.damage, radius: s.radius, color: "#ff8a3c",
+              source: this.id, life: 1.6, pierce: 0,
+            });
+          }
+        }
+      }
+    },
+    draw(ctx, api, inst, cam) {
+      if (!inst.imps) return;
+      for (const imp of inst.imps) {
+        const sx = imp.x - cam.left, sy = imp.y - cam.top;
+        const g = ctx.createRadialGradient(sx - 2, sy - 2, 1, sx, sy, 8);
+        g.addColorStop(0, "#ffce8a"); g.addColorStop(1, "#a52a14");
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(sx, sy, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#ffd24a";
+        ctx.beginPath();
+        ctx.arc(sx - 2.5, sy - 1, 1.5, 0, Math.PI * 2);
+        ctx.arc(sx + 2.5, sy - 1, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+  },
+
+  curseOfAgony: {
+    id: "curseOfAgony", name: "Curse of Agony", tags: ["shadow"],
+    icon: "◎", color: "#9a4cff", maxLevel: 5,
+    stats(l) {
+      return { radius: 78 + l * 12, dps: 7 + l * 3, ramp: 0.12 + l * 0.03 };
+    },
+    desc(l) {
+      if (l === 1) return "Aura que causa dano crescente em quem fica perto.";
+      const s = this.stats(l), p = this.stats(l - 1), b = [];
+      if (s.radius !== p.radius) b.push("raio maior");
+      if (s.dps !== p.dps || s.ramp !== p.ramp) b.push("dano/ramp maior");
+      return b.join(", ") + ".";
+    },
+    tick(dt, api, inst) {
+      const s = api.stats(this, inst.level), px = api.player.x, py = api.player.y;
+      const ramp = s.ramp * (api.hasCombo("pandemic") ? 2.5 : 1); // COMBO: ramp acelerado
+      api.forEnemiesInRadius(px, py, s.radius, (e) => {
+        if (e.hp <= 0) return;
+        const dx = e.x - px, dy = e.y - py, rr = s.radius + e.radius;
+        if (dx * dx + dy * dy > rr * rr) return;
+        e.curseTime += dt;
+        api.damageEnemy(e, s.dps * (1 + e.curseTime * ramp) * dt, this.id);
+      });
+    },
+    draw(ctx, api, inst, cam) {
+      const s = api.stats(this, inst.level); // buffado: aura visual acompanha a área
+      const sx = api.player.x - cam.left, sy = api.player.y - cam.top;
+      const g = ctx.createRadialGradient(sx, sy, s.radius * 0.3, sx, sy, s.radius);
+      g.addColorStop(0, "rgba(154,76,255,0)");
+      g.addColorStop(0.8, "rgba(154,76,255,0.05)");
+      g.addColorStop(1, "rgba(154,76,255,0.14)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(sx, sy, s.radius, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "rgba(154,76,255,0.35)"; ctx.lineWidth = 2; ctx.stroke();
+    },
+  },
+
+};
+
+/* BUFFS (linha 2: modificadores globais, valem para TODAS as spells/player).
+   apply(m, level) muta o objeto de modifiers agregado;
+   desc(level) descreve o valor acumulado naquele nível. */
+const BUFFS = {
+  empower: {
+    id: "empower", name: "Fel Empowerment", icon: "⚔", color: "#ff6b6b", maxLevel: 5,
+    apply(m, l) { m.damage *= 1 + 0.12 * l; },
+    desc(l) { return `+${Math.round(0.12 * l * 100)}% de dano em tudo.`; },
+  },
+  haste: {
+    id: "haste", name: "Unholy Haste", icon: "⚡", color: "#ffd24a", maxLevel: 5,
+    apply(m, l) { m.cooldown *= 1 - 0.07 * l; },
+    desc(l) { return `+${Math.round(0.07 * l * 100)}% velocidade de ataque (e frequência de DoT).`; },
+  },
+  multicast: {
+    id: "multicast", name: "Soul Splinter", icon: "⁂", color: "#a06bff", maxLevel: 5,
+    apply(m, l) { m.projectiles += Math.ceil(l / 2); },
+    desc(l) { return `+${Math.ceil(l / 2)} projétil em spells de projétil.`; },
+  },
+  expansion: {
+    id: "expansion", name: "Demonic Reach", icon: "⊕", color: "#5acfff", maxLevel: 5,
+    apply(m, l) { m.area *= 1 + 0.13 * l; },
+    desc(l) { return `+${Math.round(0.13 * l * 100)}% de área.`; },
+  },
+  affliction: {
+    id: "affliction", name: "Lingering Affliction", icon: "⌛", color: "#7fdc4a", maxLevel: 5,
+    apply(m, l) { m.duration *= 1 + 0.16 * l; },
+    desc(l) { return `+${Math.round(0.16 * l * 100)}% de duração de DoT/áreas.`; },
+  },
+  swiftness: {
+    id: "swiftness", name: "Demonic Swiftness", icon: "➤", color: "#9fe6ff", maxLevel: 5,
+    apply(m, l) { m.moveSpeed *= 1 + 0.07 * l; },
+    desc(l) { return `+${Math.round(0.07 * l * 100)}% de velocidade de movimento.`; },
+  },
+  demonArmor: {
+    id: "demonArmor", name: "Demon Armor", icon: "🛡", color: "#b0b0c0", maxLevel: 5,
+    apply(m, l) { m.armor = Math.min(0.6, m.armor + 0.06 * l); m.regen += 0.4 * l; },
+    desc(l) { return `${Math.round(0.06 * l * 100)}% redução de dano + regen.`; },
+  },
+  harvest: {
+    id: "harvest", name: "Soul Harvest", icon: "◆", color: "#6fdc4a", maxLevel: 5,
+    apply(m, l) { m.xp *= 1 + 0.15 * l; m.pickup *= 1 + 0.10 * l; },
+    desc(l) { return `+${Math.round(0.15 * l * 100)}% XP e +${Math.round(0.10 * l * 100)}% coleta.`; },
+  },
+};
+
+/* ITEMS: drops raros dos inimigos. dropChance por abate (x10 em bosses).
+   onPickup(game) aplica o efeito imediato ao coletar. */
+const ITEMS = {
+  magnet: {
+    id: "magnet", name: "Ímã de Almas", icon: "🧲", color: "#5acfff",
+    dropChance: 0.012,
+    desc: "Atrai todo o XP do chão para você.",
+    onPickup(game) {
+      for (const o of game.orbs.active) o.magnet = true;
+    },
+  },
+  chest: {
+    id: "chest", name: "Baú do Dreadlord", icon: "📦", color: "#ffd24a",
+    dropChance: 0,        // só dropa de boss (garantido)
+    silent: true,         // abre tela própria em vez de toast
+    onPickup(game) { game.openChest(); },
+  },
+};
+
+/* Combos: SPELL + BUFF. `requires` = [{kind:'spell'|'buff', id, level}].
+   O efeito é aplicado por flags checadas em runtime (ComboSystem.has). */
+const COMBOS = [
+  {
+    id: "chaosBolt", name: "Chaos Bolt", icon: "☄", color: "#ff4040",
+    requires: [{ kind: "spell", id: "shadowBolt", level: 2 }, { kind: "buff", id: "empower", level: 1 }],
+    desc: "Shadow Bolt vira Chaos Bolt: dano massivo que atravessa inimigos.",
+    empower: { spell: "shadowBolt", damage: 8, area: 1.6 },
+    // Scorched ground + embers rising off the warlock.
+    vfx: {
+      under(ctx, p) {
+        const k = 0.85 + Math.sin(p.t * 5) * 0.15;
+        const cy = p.y + p.r * 0.85;
+        const g = ctx.createRadialGradient(p.x, cy, 0, p.x, cy, p.r * 2 * k);
+        g.addColorStop(0, "rgba(255,110,40,0.35)");
+        g.addColorStop(1, "rgba(255,60,20,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.ellipse(p.x, cy, p.r * 2 * k, p.r * 0.8 * k, 0, 0, Math.PI * 2);
+        ctx.fill();
+      },
+      over(ctx, p) {
+        for (let i = 0; i < 7; i++) {
+          const ph = (p.t * (0.6 + vfxRand(i) * 0.5) + vfxRand(i + 11)) % 1;
+          const ex = p.x + Math.sin(ph * 6.2 + i) * p.r * 0.6 + (vfxRand(i + 5) - 0.5) * p.r * 1.6;
+          const ey = p.y + p.r * 0.9 - ph * p.r * 3.4;
+          ctx.globalAlpha = (1 - ph) * 0.95;
+          ctx.fillStyle = i % 2 ? "#ffd24a" : "#ff4a20";
+          ctx.beginPath();
+          ctx.arc(ex, ey, 1.2 + (1 - ph) * 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      },
+    },
+  },
+  {
+    id: "seedOfCorruption", name: "Seed of Corruption", icon: "🌑", color: "#7fdc4a",
+    requires: [{ kind: "spell", id: "corruption", level: 2 }, { kind: "buff", id: "expansion", level: 1 }],
+    desc: "Inimigos com Corruption explodem ao morrer, espalhando-a em área.",
+    empower: { spell: "corruption", damage: 8 },
+    // Thorn ring crawling on the ground + spores drifting upward.
+    vfx: {
+      under(ctx, p) {
+        ctx.save();
+        ctx.translate(p.x, p.y + p.r * 0.9);
+        ctx.scale(1, 0.38);
+        ctx.rotate(p.t * 0.7);
+        const R = p.r * 1.7;
+        ctx.strokeStyle = "rgba(127,220,74,0.45)";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = "rgba(127,220,74,0.55)";
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          const tx = Math.cos(a) * R, ty = Math.sin(a) * R;
+          ctx.beginPath();
+          ctx.moveTo(tx, ty - 5); ctx.lineTo(tx + 7, ty); ctx.lineTo(tx, ty + 5);
+          ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+      },
+      over(ctx, p) {
+        for (let i = 0; i < 6; i++) {
+          const ph = (p.t * 0.35 + vfxRand(i * 3)) % 1;
+          const px = p.x + Math.sin(p.t * 1.2 + i * 2.1) * p.r * 1.3;
+          const py = p.y + p.r * 0.8 - ph * p.r * 3;
+          ctx.globalAlpha = Math.sin(ph * Math.PI) * 0.8;
+          ctx.fillStyle = "#7fdc4a";
+          ctx.beginPath(); ctx.arc(px, py, 1.7, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      },
+    },
+  },
+  {
+    id: "demonicPact", name: "Demonic Pact", icon: "🔗", color: "#ff8a3c",
+    requires: [{ kind: "spell", id: "summonImp", level: 2 }, { kind: "buff", id: "harvest", level: 1 }],
+    desc: "Seus imps te curam com uma fração do dano causado.",
+    empower: { spell: "summonImp", damage: 8, cooldown: 0.45 },
+    // Demonic chain orbiting the warlock — half of it passes behind him.
+    vfx: {
+      under(ctx, p) { drawPactChain(ctx, p, false); },
+      over(ctx, p) { drawPactChain(ctx, p, true); },
+    },
+  },
+  {
+    id: "unstableAffliction", name: "Unstable Affliction", icon: "💥", color: "#c850ff",
+    requires: [{ kind: "spell", id: "corruption", level: 2 }, { kind: "buff", id: "affliction", level: 1 }],
+    desc: "Seus DoTs causam dano em área ao redor do alvo.",
+    empower: { spell: "corruption", damage: 8 },
+    // Unstable magic: a breathing ring plus arcs that snap out at random.
+    vfx: {
+      under(ctx, p) {
+        const pulse = (Math.sin(p.t * 4) + 1) * 0.5;
+        ctx.strokeStyle = `rgba(200,80,255,${(0.36 - pulse * 0.22).toFixed(2)})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y + p.r * 0.85, p.r * (1.2 + pulse * 1.1),
+          p.r * (0.45 + pulse * 0.4), 0, 0, Math.PI * 2);
+        ctx.stroke();
+      },
+      over(ctx, p) {
+        const bucket = Math.floor(p.t * 3);
+        const k = p.t * 3 - bucket;
+        if (k >= 0.5) return;
+        ctx.strokeStyle = `rgba(210,110,255,${(1 - k / 0.5).toFixed(2)})`;
+        ctx.lineWidth = 1.6;
+        for (let b = 0; b < 3; b++) {
+          const base = vfxRand(bucket * 7 + b) * Math.PI * 2;
+          ctx.beginPath();
+          for (let seg = 0; seg <= 4; seg++) {
+            const rad = p.r * (0.4 + seg * 0.42);
+            const ang = base + (vfxRand(bucket * 13 + b * 5 + seg) - 0.5) * 0.9;
+            const px = p.x + Math.cos(ang) * rad;
+            const py = p.y + Math.sin(ang) * rad * 0.85;
+            if (seg === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+        }
+      },
+    },
+  },
+  {
+    id: "cataclysm", name: "Cataclysm", icon: "🌋", color: "#ff7a2c",
+    requires: [{ kind: "spell", id: "rainOfFire", level: 2 }, { kind: "buff", id: "multicast", level: 1 }],
+    desc: "Rain of Fire cai em dobro a cada conjuração.",
+    empower: { spell: "rainOfFire", damage: 8 },
+    // Stray meteors keep raining around the warlock and cracking the floor.
+    vfx: {
+      over(ctx, p) {
+        for (let i = 0; i < 3; i++) {
+          const cyc = p.t * 0.7 + vfxRand(i * 17);
+          const n = Math.floor(cyc), k = cyc - n;
+          const seed = n * 5 + i;
+          const ang = vfxRand(seed) * Math.PI * 2;
+          const dist = p.r * (1.3 + vfxRand(seed + 2) * 1.5);
+          const gx = p.x + Math.cos(ang) * dist;
+          const gy = p.y + p.r * 0.85 + Math.sin(ang) * dist * 0.4;
+          if (k < 0.7) {
+            const fy = gy - (1 - k / 0.7) * p.r * 6;
+            ctx.strokeStyle = "rgba(255,122,44,0.5)";
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(gx, fy); ctx.lineTo(gx, fy + p.r * 0.9); ctx.stroke();
+            ctx.fillStyle = "#ffcf5a";
+            ctx.beginPath(); ctx.arc(gx, fy, 2.4, 0, Math.PI * 2); ctx.fill();
+          } else {
+            const k2 = (k - 0.7) / 0.3;
+            const rr = p.r * (0.3 + k2 * 0.8);
+            ctx.strokeStyle = `rgba(255,122,44,${(1 - k2).toFixed(2)})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(gx, gy, rr, rr * 0.4, 0, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+      },
+    },
+  },
+  {
+    id: "soulLeech", name: "Soul Leech", icon: "🩸", color: "#c850ff",
+    requires: [{ kind: "spell", id: "drainLife", level: 2 }, { kind: "buff", id: "demonArmor", level: 1 }],
+    desc: "Drain Life cura muito mais com o dano causado.",
+    empower: { spell: "drainLife", damage: 8 },
+    // Blood pool at the feet, droplets spiralling inward into the warlock.
+    vfx: {
+      under(ctx, p) {
+        const k = 0.8 + Math.sin(p.t * 3) * 0.2;
+        const cy = p.y + p.r * 0.9;
+        const g = ctx.createRadialGradient(p.x, cy, 0, p.x, cy, p.r * 1.8 * k);
+        g.addColorStop(0, "rgba(200,32,60,0.30)");
+        g.addColorStop(1, "rgba(200,32,60,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.ellipse(p.x, cy, p.r * 1.8 * k, p.r * 0.7 * k, 0, 0, Math.PI * 2);
+        ctx.fill();
+      },
+      over(ctx, p) {
+        for (let i = 0; i < 6; i++) {
+          const ph = (p.t * 0.8 + vfxRand(i * 9)) % 1;
+          const ang = vfxRand(i * 4) * Math.PI * 2 + p.t * 0.6;
+          const d = p.r * 2.4 * (1 - ph);
+          const dx = p.x + Math.cos(ang) * d;
+          const dy = p.y + p.r * 0.7 + Math.sin(ang) * d * 0.45 - ph * p.r * 1.3;
+          ctx.globalAlpha = Math.sin(ph * Math.PI) * 0.9;
+          ctx.fillStyle = "#c8203c";
+          ctx.beginPath(); ctx.ellipse(dx, dy, 1.8, 2.9, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      },
+    },
+  },
+  {
+    id: "pandemic", name: "Pandemic", icon: "☣", color: "#9a4cff",
+    requires: [{ kind: "spell", id: "curseOfAgony", level: 2 }, { kind: "buff", id: "swiftness", level: 1 }],
+    desc: "Curse of Agony acumula dano muito mais rápido.",
+    empower: { spell: "curseOfAgony", damage: 8 },
+    // Plague sigil spinning at the feet under a sickly haze.
+    vfx: {
+      under(ctx, p) {
+        ctx.save();
+        ctx.translate(p.x, p.y + p.r * 0.9);
+        ctx.scale(1, 0.4);
+        ctx.rotate(-p.t * 1.1);
+        ctx.strokeStyle = "rgba(154,76,255,0.55)";
+        ctx.lineWidth = 3;
+        const R = p.r * 1.5 + Math.sin(p.t * 2) * p.r * 0.15;
+        for (let i = 0; i < 3; i++) {
+          const a0 = (i / 3) * Math.PI * 2;
+          ctx.beginPath(); ctx.arc(0, 0, R, a0, a0 + 1.35); ctx.stroke();
+        }
+        ctx.restore();
+      },
+      over(ctx, p) {
+        const pulse = (Math.sin(p.t * 2) + 1) * 0.5;
+        ctx.globalAlpha = 0.1 + pulse * 0.1;
+        ctx.fillStyle = "#9a4cff";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * (1.5 + pulse * 0.4), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      },
+    },
+  },
+];
+
+// XP necessária para sair do nível `l` (lvl 1 = 1 orbe; ramp suave depois)
+function xpForLevel(l) {
+  return Math.floor(1 + (l - 1) * 2 + (l - 1) * (l - 1) * 0.4);
+}
+
+// número compacto: 1234 -> "1.2k", 2.5e6 -> "2.5M"
+function fmtNum(n) {
+  n = Math.round(n);
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + "k";
+  return "" + n;
+}
+
+// "#rrggbb" -> "r,g,b" (para montar rgba com alpha variável)
+function hexRgb(h) {
+  const n = parseInt(h.replace("#", ""), 16);
+  return ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255);
+}
+
+/* =========================================================================
+   ASSETS — pixel-art e textura gerados em runtime (sem arquivos externos)
+   ========================================================================= */
+
+let SPRITES = {}; // id -> { canvas, white }  (white = silhueta p/ flash de dano)
+
+// Renderiza um grid de pixels (linhas de texto) em um canvas. '.'/' ' = transparente.
+function makeSprite(rows, pal) {
+  const w = Math.max(...rows.map((r) => r.length)), h = rows.length;
+  const build = (whiteOnly) => {
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const x = c.getContext("2d");
+    for (let r = 0; r < h; r++) {
+      const row = rows[r];
+      for (let col = 0; col < row.length; col++) {
+        const ch = row[col];
+        if (ch === "." || ch === " ") continue;
+        const color = whiteOnly ? "#ffffff" : pal[ch];
+        if (!color) continue;
+        x.fillStyle = color;
+        x.fillRect(col, r, 1, 1);
+      }
+    }
+    return c;
+  };
+  return { canvas: build(false), white: build(true) };
+}
+
+// Blob radial suave (cacheado por cor) usado nos rastros — evita recriar gradient por frame.
+const GLOW_BLOBS = new Map();
+function glowBlob(color) {
+  let c = GLOW_BLOBS.get(color);
+  if (c) return c;
+  const size = 64, h = size / 2;
+  c = document.createElement("canvas");
+  c.width = c.height = size;
+  const x = c.getContext("2d");
+  const rgb = hexRgb(color);
+  const g = x.createRadialGradient(h, h, 0, h, h, h);
+  g.addColorStop(0, `rgba(${rgb},1)`);
+  g.addColorStop(0.35, `rgba(${rgb},0.45)`);
+  g.addColorStop(0.7, `rgba(${rgb},0.12)`);
+  g.addColorStop(1, `rgba(${rgb},0)`);
+  x.fillStyle = g;
+  x.fillRect(0, 0, size, size);
+  GLOW_BLOBS.set(color, c);
+  return c;
+}
+
+// transform de caminhada (hop + squash/stretch + gingado). `anim` é aplicado no draw.
+function walkAnim(t, moving) {
+  if (!moving) {
+    const b = Math.sin(t * 2);          // respiração idle
+    return { bob: 0, sclX: 1 - b * 0.015, sclY: 1 + b * 0.025, rot: 0 };
+  }
+  const ph = t * 9;
+  const hop = Math.abs(Math.sin(ph));   // 0..1 — pico = pé no chão
+  return {
+    bob: -hop * 2.5,                    // sobe ao pisar
+    sclX: 1 - hop * 0.05,
+    sclY: 1 + hop * 0.07,
+    rot: Math.sin(ph) * 0.05,           // gingado leve
+  };
+}
+
+// sombra elíptica no chão (não acompanha o hop → reforça profundidade)
+function drawShadow(ctx, cx, cy, r) {
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.28)";
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + r * 0.85, r * 0.8, r * 0.32, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// desenha um sprite centrado em (cx,cy), altura drawH, com flip/flash/animação
+function drawSprite(ctx, spr, cx, cy, drawH, flip, flashAlpha, anim) {
+  const s = drawH / spr.canvas.height;
+  const w = spr.canvas.width * s, h = drawH;
+  const a = anim || NO_ANIM;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(cx, cy + a.bob);
+  if (a.rot) ctx.rotate(a.rot);
+  ctx.scale((flip ? -1 : 1) * a.sclX, a.sclY);
+  ctx.drawImage(spr.canvas, -w / 2, -h / 2, w, h);
+  if (flashAlpha > 0) {
+    ctx.globalAlpha = flashAlpha;
+    ctx.drawImage(spr.white, -w / 2, -h / 2, w, h);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+const NO_ANIM = { bob: 0, sclX: 1, sclY: 1, rot: 0 };
+
+/* ---- VFX de combo: adornos desenhados sob/sobre o personagem ---- */
+
+// Deterministic 0..1 noise per index, so the vfx stays stable and allocates nothing.
+function vfxRand(i) {
+  const s = Math.sin(i * 127.1 + 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+// Sprite silhouette painted in a solid color, cached per sprite+color.
+function tintedSprite(spr, color) {
+  const cache = spr.tints || (spr.tints = {});
+  if (cache[color]) return cache[color];
+  const c = document.createElement("canvas");
+  c.width = spr.white.width; c.height = spr.white.height;
+  const x = c.getContext("2d");
+  x.drawImage(spr.white, 0, 0);
+  x.globalCompositeOperation = "source-in";
+  x.fillStyle = color;
+  x.fillRect(0, 0, c.width, c.height);
+  cache[color] = c;
+  return c;
+}
+
+// Additive colored glow over the sprite, sharing drawSprite's transform.
+function drawSpriteGlow(ctx, spr, cx, cy, drawH, flip, anim, color, alpha) {
+  const tint = tintedSprite(spr, color);
+  const s = drawH / spr.canvas.height;
+  const w = spr.canvas.width * s, h = drawH;
+  const a = anim || NO_ANIM;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = alpha;
+  ctx.translate(cx, cy + a.bob);
+  if (a.rot) ctx.rotate(a.rot);
+  ctx.scale((flip ? -1 : 1) * a.sclX, a.sclY);
+  ctx.drawImage(tint, -w / 2, -h / 2, w, h);
+  ctx.restore();
+}
+
+// Corruption's rot orbs ride a tilted orbit around the warlock; `front` picks
+// the half that passes in front of him (drawn after the sprite).
+function drawRotOrbit(ctx, p, front) {
+  const n = 3 + Math.floor((p.lvl || 1) / 2);
+  const blob = glowBlob("#7fdc4a");
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < n; i++) {
+    const a = p.t * 1.5 + (i / n) * Math.PI * 2;
+    const sn = Math.sin(a);
+    if ((sn > 0) !== front) continue;
+    const depth = 0.72 + sn * 0.28;                 // à frente = maior e mais forte
+    const bob = Math.sin(p.t * 3 + i * 1.7) * p.r * 0.12;
+    const x = p.x + Math.cos(a) * p.r * 1.45;
+    const y = p.y + p.r * 0.15 + sn * p.r * 0.5 + bob;
+    const w = p.r * 0.42 * depth;
+    ctx.globalAlpha = 0.5 * depth;
+    ctx.drawImage(blob, x - w, y - w, w * 2, w * 2);
+    ctx.globalAlpha = 0.7 * depth;
+    ctx.fillStyle = "#b6ff7c";
+    ctx.beginPath(); ctx.arc(x, y, 1.5 * depth, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// Demonic Pact chain links on a tilted orbit; `front` picks the half that
+// passes in front of the warlock (drawn after the sprite) from the one behind.
+function drawPactChain(ctx, p, front) {
+  const links = 10;
+  ctx.strokeStyle = front ? "rgba(255,170,90,0.95)" : "rgba(255,138,60,0.5)";
+  ctx.lineWidth = 1.6;
+  for (let i = 0; i < links; i++) {
+    const a = p.t * 1.6 + (i / links) * Math.PI * 2;
+    const sn = Math.sin(a);
+    if ((sn > 0) !== front) continue;
+    const sc = 0.75 + sn * 0.25;
+    ctx.save();
+    ctx.translate(p.x + Math.cos(a) * p.r * 1.7, p.y + p.r * 0.15 + sn * p.r * 0.55);
+    ctx.rotate(a);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 3.6 * sc, 2.2 * sc, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+const NO_COMBOS = [];
+const COMBO_PULSE_LIFE = 0.9;   // duração da onda de choque ao desbloquear
+const COMBO_PREVIEW_SIZE = 132; // lado do canvas de amostra do menu
+// `?mode=dev` na URL libera o painel de preview de combos no menu
+const DEV_MODE = new URLSearchParams(location.search).get("mode") === "dev";
+const DEFAULT_FORMS = [{ sprite: "warlock", at: 0, scale: 2.9 }]; // classes sem evolução
+
+// tile de chão tileável (pedra fel). Cantos com runa → grade de pontos roxos.
+function makeGroundTile() {
+  const T = BALANCE.world.tile;
+  const c = document.createElement("canvas");
+  c.width = T; c.height = T;
+  const x = c.getContext("2d");
+  x.fillStyle = "#0d0a16";
+  x.fillRect(0, 0, T, T);
+  for (let i = 0; i < 70; i++) {
+    const px = 4 + Math.random() * (T - 8), py = 4 + Math.random() * (T - 8);
+    const sz = 1 + Math.random() * 2;
+    x.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.28)";
+    x.fillRect(px, py, sz, sz);
+  }
+  x.strokeStyle = "rgba(111,220,74,0.05)";
+  x.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    let cx = 12 + Math.random() * (T - 24), cy = 12 + Math.random() * (T - 24);
+    x.beginPath(); x.moveTo(cx, cy);
+    for (let j = 0; j < 4; j++) { cx += -7 + Math.random() * 14; cy += -7 + Math.random() * 14; x.lineTo(cx, cy); }
+    x.stroke();
+  }
+  x.strokeStyle = "rgba(0,0,0,0.35)";
+  x.lineWidth = 2;
+  x.strokeRect(0.5, 0.5, T - 1, T - 1);
+  x.fillStyle = "rgba(122,60,255,0.14)";
+  for (const [dx, dy] of [[0, 0], [T, 0], [0, T], [T, T]]) {
+    x.beginPath(); x.arc(dx, dy, 3.5, 0, Math.PI * 2); x.fill();
+  }
+  return c;
+}
+
+// definições dos sprites (grids de pixels + paleta por char)
+const SPRITE_DATA = {
+  warlock: {
+    pal: { o: "#160a24", H: "#3a1d6e", h: "#5a2d8f", L: "#9a5cff", f: "#241634", e: "#7fff5a", w: "#caa6e0" },
+    rows: [
+      "......oooo......",
+      "....ooHHHHoo....",
+      "...oHHHHHHHHo...",
+      "..oHHHHHHHHHHo..",
+      "..oHHffffffHHo..",
+      "..oHffeffeffHo..",
+      "..oHffffffffHo..",
+      "..oHHffffffHHo..",
+      "...oHHhhhhHHo...",
+      "..oHhhhLLhhhHo..",
+      ".oHhhhhLLhhhhHo.",
+      ".oHhhhhLLhhhhHo.",
+      ".wHhhhhhhhhhhHw.",
+      ".oHhhhhhhhhhhHo.",
+      "..oHhhhhhhhhHo..",
+      "..oooHHHHHHooo..",
+    ],
+  },
+  // 2ª forma: chifres despontando, mandíbula fel acesa, runas e garras
+  warlockFel: {
+    pal: { o: "#12071e", H: "#3a1d6e", h: "#5a2d8f", L: "#9a5cff", f: "#241634", e: "#aaff5a",
+           g: "#6fdc4a", B: "#d9c9a0", b: "#8a7a58", c: "#e0ff8a" },
+    rows: [
+      ".Bb..........bB.",
+      "..Bb........bB..",
+      "...Bb......bB...",
+      "....BboooobB....",
+      "....ooHHHHoo....",
+      "...oHHHHHHHHo...",
+      "..oHHHHHHHHHHo..",
+      "..oHHffffffHHo..",
+      "..oHffeffeffHo..",
+      "..oHffffffffHo..",
+      "..oHHfggggfHHo..",
+      "...oHHhhhhHHo...",
+      "..oHhhhLLhhhHo..",
+      ".oHhhgeLLeghhHo.",
+      ".oHhhhhLLhhhhHo.",
+      ".cHhhhhhhhhhhHc.",
+      ".oHhhhhhhhhhhHo.",
+      "..oHhhhhhhhhHo..",
+      "..oooHHHHHHooo..",
+    ],
+  },
+  // 3ª forma: chifres grandes, asas membranosas e olhos em brasa
+  warlockDemon: {
+    pal: { o: "#0d0416", H: "#4a1d7e", h: "#6a2da0", L: "#c86bff", f: "#160a20", e: "#ff3a10",
+           g: "#ff8a3c", B: "#ffe0a0", b: "#b8791e", c: "#ffd24a", M: "#4a1a6e", V: "#b25cff" },
+    rows: [
+      ".....BBb..........bBB.....",
+      ".....BBb..........bBB.....",
+      "......BBb........bBB......",
+      ".......BBb......bBB.......",
+      "........BBboooobBB........",
+      ".........ooHHHHoo.........",
+      "........oHHHHHHHHo........",
+      ".......oHHHHHHHHHHo.......",
+      ".......oHHffffffHHo.......",
+      ".......oHffeffeffHo.......",
+      ".V.....oHffffffffHo.....V.",
+      ".VM....oHHfggggfHHo....MV.",
+      ".VMM....oHHhhhhHHo....MMV.",
+      "..VMM..oHhhhLLhhhHo..MMV..",
+      "..VMMMoHhhgeLLeghhHoMMMV..",
+      "...VMMoHhhhhLLhhhhHoMMV...",
+      "....VMcHhhhhhhhhhhHcMV....",
+      "....VMoHhhhhhhhhhhHoMV....",
+      ".....VMoHhhhhhhhhHoMV.....",
+      ".....V.oooHHHHHHooo.V.....",
+    ],
+  },
+  ghoul: {
+    pal: { o: "#0a1a08", G: "#6f9e4a", g: "#3f5e2a", e: "#ff3838", m: "#140a0a", c: "#cdbfa0" },
+    rows: [
+      "...oooooo.....",
+      "..oGGGGGGo....",
+      ".oGGGGGGGGo...",
+      ".oGeGGGGeGo...",
+      ".oGGGGGGGGo...",
+      ".oGGmmmmGGo...",
+      "oGGGGGGGGGGo..",
+      "cGGGgggggGGGc.",
+      "cGGgggggggGGc.",
+      ".oGGgggggGGo..",
+      "..oGGggGGo....",
+      "..oGg..gGo....",
+      "..oo...oo.....",
+    ],
+  },
+  skeleton: {
+    pal: { o: "#161410", B: "#e8e0c8", b: "#9a927a", e: "#7fff5a", s: "#6a7080", S: "#aab0c0" },
+    rows: [
+      "...oooo.....",
+      "..oBBBBo....",
+      ".oBBBBBBo...",
+      ".oBeBBeBo...",
+      ".oBBBBBBo...",
+      ".oBbBBbBo...",
+      ".oBBbbBBo...",
+      "..sBBBBs....",
+      ".sSBBBBSs...",
+      "sSBBBBBBSs..",
+      ".sBBbbbbBs..",
+      ".oBB..BBo...",
+      ".oB....Bo...",
+      ".ooo..ooo...",
+    ],
+  },
+  abomination: {
+    pal: { o: "#1a0f0a", A: "#9a6b4f", a: "#5f3d28", t: "#d8c8a0", e: "#ffd000" },
+    rows: [
+      "....oooooo......",
+      "..ooAAAAAAoo....",
+      ".oAAAAAAAAAAo...",
+      ".oAAeAAAAeAAo...",
+      ".oAAAAAAAAAAo...",
+      ".oAAttttttAAo...",
+      "oAAAAAAAAAAAAo..",
+      "oAAaaAAAAaaAAo..",
+      "oAAAAAAAAAAAAo..",
+      "oAAttAAAAttAAo..",
+      ".oAAAAAAAAAAo...",
+      ".oAAaa..aaAAo...",
+      "..oAA....AAo....",
+      "..ooo....ooo....",
+    ],
+  },
+  dreadlord: {
+    pal: { o: "#14081f", D: "#8a3cff", d: "#4a1d7e", e: "#ff3030", H: "#e0d0f0", w: "#2a0f47" },
+    rows: [
+      "....H......H....",
+      "...HoDDDDDDoH...",
+      "...oDDDDDDDDo...",
+      "...oDDeDDeDDo...",
+      "...oDDDDDDDDo...",
+      "...oDDddddDDo...",
+      "w..oDDDDDDDDo..w",
+      "ww.oDDDDDDDDo.ww",
+      ".w.oDDDDDDDDo.w.",
+      "...oDDddddDDo...",
+      "...oDDDDDDDDo...",
+      "....oDDDDDDo....",
+      "....oDdDDdDo....",
+      "....ooo..ooo....",
+    ],
+  },
+};
+
+function buildSprites() {
+  for (const id in SPRITE_DATA) {
+    SPRITES[id] = makeSprite(SPRITE_DATA[id].rows, SPRITE_DATA[id].pal);
+  }
+}
+
+/* =========================================================================
+   ENGINE
+   ========================================================================= */
+
+// --- Pool genérico de objetos (evita GC no loop). Usado a partir da Etapa 2. ---
+class Pool {
+  constructor(factory, reset) {
+    this.factory = factory;
+    this.reset = reset;
+    this.active = [];
+    this.free = [];
+  }
+  spawn(...args) {
+    const obj = this.free.pop() || this.factory();
+    this.reset(obj, ...args);
+    this.active.push(obj);
+    return obj;
+  }
+  release(i) {
+    const obj = this.active[i];
+    const last = this.active.length - 1;
+    this.active[i] = this.active[last];
+    this.active.pop();
+    this.free.push(obj);
+  }
+  clear() {
+    while (this.active.length) this.release(this.active.length - 1);
+  }
+}
+
+// --- Grid espacial: indexa inimigos por célula p/ buscas vizinhas baratas ---
+class SpatialGrid {
+  constructor(cell) { this.cell = cell; this.map = new Map(); }
+  clear() { this.map.clear(); }
+  _key(cx, cy) { return cx + "," + cy; }
+  insert(e) {
+    const k = this._key(Math.floor(e.x / this.cell), Math.floor(e.y / this.cell));
+    let b = this.map.get(k);
+    if (!b) { b = []; this.map.set(k, b); }
+    b.push(e);
+  }
+  // chama fn(e) para cada inimigo nas 9 células ao redor de (x,y)
+  forNear(x, y, fn) {
+    const cx = Math.floor(x / this.cell), cy = Math.floor(y / this.cell);
+    for (let ox = -1; ox <= 1; ox++)
+      for (let oy = -1; oy <= 1; oy++) {
+        const b = this.map.get(this._key(cx + ox, cy + oy));
+        if (b) for (let i = 0; i < b.length; i++) fn(b[i]);
+      }
+  }
+  // fn(e) para inimigos nas células que cobrem o círculo (x,y,r) — caller checa distância
+  forRadius(x, y, r, fn) {
+    const c = this.cell;
+    const x0 = Math.floor((x - r) / c), x1 = Math.floor((x + r) / c);
+    const y0 = Math.floor((y - r) / c), y1 = Math.floor((y + r) / c);
+    for (let cx = x0; cx <= x1; cx++)
+      for (let cy = y0; cy <= y1; cy++) {
+        const b = this.map.get(this._key(cx, cy));
+        if (b) for (let i = 0; i < b.length; i++) fn(b[i]);
+      }
+  }
+}
+
+// --- Som procedural via WebAudio (sem assets). Toggle com M. ---
+class Sfx {
+  constructor() { this.ctx = null; this.muted = false; this._lastDeath = 0; }
+  init() {
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) this.ctx = new AC();
+    }
+  }
+  // toca um tom simples com envelope de decaimento
+  tone(freq, dur, type = "sine", vol = 0.08, delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + delay;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.ctx.destination);
+    o.start(t); o.stop(t + dur);
+  }
+  death() {
+    if (!this.ctx) return;
+    if (this.ctx.currentTime - this._lastDeath < 0.05) return; // throttle anti-buzz
+    this._lastDeath = this.ctx.currentTime;
+    this.tone(180 + Math.random() * 60, 0.09, "square", 0.04);
+  }
+  hurt() { this.tone(120, 0.18, "sawtooth", 0.1); }
+  levelUp() { this.tone(523, 0.12, "triangle", 0.12); this.tone(784, 0.16, "triangle", 0.1, 0.1); }
+  combo() {
+    this.tone(440, 0.1, "triangle", 0.12);
+    this.tone(660, 0.1, "triangle", 0.12, 0.09);
+    this.tone(880, 0.18, "triangle", 0.12, 0.18);
+  }
+  boss() { this.tone(80, 0.5, "sawtooth", 0.14); this.tone(60, 0.6, "sawtooth", 0.12, 0.05); }
+  item() { this.tone(700, 0.09, "sine", 0.12); this.tone(1050, 0.12, "sine", 0.1, 0.08); }
+  gameOver() { this.tone(330, 0.3, "triangle", 0.12); this.tone(196, 0.5, "triangle", 0.12, 0.18); }
+}
+
+// --- Input ---
+class InputManager {
+  constructor() {
+    this.keys = new Set();
+    const norm = (e) => {
+      const k = e.key.toLowerCase();
+      return ({ arrowup: "w", arrowdown: "s", arrowleft: "a", arrowright: "d" })[k] || k;
+    };
+    addEventListener("keydown", (e) => {
+      const k = norm(e);
+      if ("wasd".includes(k)) e.preventDefault();
+      this.keys.add(k);
+    });
+    addEventListener("keyup", (e) => this.keys.delete(norm(e)));
+    addEventListener("blur", () => this.keys.clear());
+  }
+  // vetor de direção normalizado a partir do WASD
+  moveVector(out) {
+    let x = (this.keys.has("d") ? 1 : 0) - (this.keys.has("a") ? 1 : 0);
+    let y = (this.keys.has("s") ? 1 : 0) - (this.keys.has("w") ? 1 : 0);
+    if (x && y) { const inv = Math.SQRT1_2; x *= inv; y *= inv; }
+    out.x = x; out.y = y;
+    return out;
+  }
+}
+
+// --- Camera: segue o player, converte mundo→tela, desenha chão infinito ---
+class Camera {
+  constructor() {
+    this.x = 0;
+    this.y = 0;
+    this.w = 0;
+    this.h = 0;
+    this.shake = 0;
+    this.ox = 0;
+    this.oy = 0;
+    this.pattern = null; // textura do chão (CanvasPattern), setada pelo Game
+  }
+  resize(w, h) { this.w = w; this.h = h; }
+  follow(target, dt, instant = false) {
+    const t = instant ? 1 : 1 - Math.pow(1 - BALANCE.camera.lerp, dt * 60);
+    this.x += (target.x - this.x) * t;
+    this.y += (target.y - this.y) * t;
+  }
+  updateShake(dt) {
+    if (this.shake > 0) {
+      this.ox = (Math.random() * 2 - 1) * this.shake;
+      this.oy = (Math.random() * 2 - 1) * this.shake;
+      this.shake = Math.max(0, this.shake - dt * 30);
+    } else { this.ox = 0; this.oy = 0; }
+  }
+  // canto superior-esquerdo do viewport em coords de mundo (com shake)
+  get left() { return this.x - this.w / 2 + this.ox; }
+  get top() { return this.y - this.h / 2 + this.oy; }
+
+  // chão procedural: tile texturizado repetido, deslocado pela posição da câmera
+  drawGround(ctx) {
+    const t = BALANCE.world.tile;
+    const left = this.left, top = this.top;
+    const offX = left - Math.floor(left / t) * t;
+    const offY = top - Math.floor(top / t) * t;
+    ctx.save();
+    ctx.translate(-offX, -offY);
+    ctx.fillStyle = this.pattern;
+    ctx.fillRect(0, 0, this.w + t, this.h + t);
+    ctx.restore();
+  }
+}
+
+/* =========================================================================
+   ENTIDADES
+   ========================================================================= */
+
+class Player {
+  constructor() {
+    this.x = 0;
+    this.y = 0;
+    this._mv = { x: 0, y: 0 };
+    this.facing = 1; // 1 = direita, -1 = esquerda
+    this.pulses = [];                            // ondas de combo recém-desbloqueado
+    this._vp = { x: 0, y: 0, r: 0, t: 0 };       // param reaproveitado pelos vfx
+  }
+  reset(cls) {
+    this.x = 0; this.y = 0;
+    this.radius = BALANCE.player.radius;
+    this.baseSpeed = cls.base.speed;
+    this.speed = this.baseSpeed;
+    this.maxHp = cls.base.maxHp;
+    this.hp = this.maxHp;
+    this.level = 1;
+    this.xp = 0;
+    this.xpToNext = xpForLevel(1);
+    this.basePickup = 95;
+    this.pickupRange = 95;
+    this.pendingLevels = 0;
+    this.dmgReduction = 0;
+    this.kills = 0;
+    this.animTime = 0;
+    this.moving = false;
+    this.forms = cls.forms || DEFAULT_FORMS;
+    this.formIdx = 0;
+    this.vfxTime = 0;
+    this.pulses.length = 0;
+  }
+  gainXp(v) {
+    this.xp += v;
+    while (this.xp >= this.xpToNext) {
+      this.xp -= this.xpToNext;
+      this.level++;
+      this.xpToNext = xpForLevel(this.level);
+      this.pendingLevels++;
+    }
+  }
+  update(dt, input) {
+    const mv = input.moveVector(this._mv);
+    if (mv.x !== 0) this.facing = mv.x > 0 ? 1 : -1;
+    this.x += mv.x * this.speed * dt;
+    this.y += mv.y * this.speed * dt;
+    this.moving = mv.x !== 0 || mv.y !== 0;
+    this.animTime += dt * (this.moving ? 1 : 0.25);
+    this.vfxTime += dt;
+    for (let i = this.pulses.length - 1; i >= 0; i--) {
+      this.pulses[i].t += dt;
+      if (this.pulses[i].t >= COMBO_PULSE_LIFE) this.pulses.splice(i, 1);
+    }
+  }
+  // forma atual pelo nº de combos ativos: vence a última cujo `at` foi atingido
+  formIndex(comboCount) {
+    let idx = 0;
+    for (let i = 0; i < this.forms.length; i++) {
+      if (comboCount >= this.forms[i].at) idx = i;
+    }
+    return idx;
+  }
+  // onda de choque disparada quando um combo é desbloqueado
+  comboPulse(color) {
+    this.pulses.push({ t: 0, rgb: hexRgb(color) });
+  }
+  draw(ctx, cam, combos, abilities) {
+    const sx = this.x - cam.left;
+    const sy = this.y - cam.top;
+    const r = this.radius;
+    const active = combos ? combos.active : NO_COMBOS;
+    const spellFx = abilities ? abilities.vfx : NO_COMBOS;
+    const t = this.vfxTime;
+
+    const form = this.forms[this.formIndex(active.length)];
+    const spr = SPRITES[form.sprite];
+    const drawH = r * form.scale;
+    const anim = walkAnim(this.animTime, this.moving);
+    if (form.dy) anim.bob += form.dy * r; // formas mais altas: mantém os pés no chão
+
+    const p = this._vp;
+    p.x = sx; p.y = sy; p.r = r; p.t = t;
+    p.spr = spr; p.drawH = drawH; p.anim = anim; p.flip = this.facing < 0;
+
+    // aura de combo (halo colorido + fel reforçada + brilho no sprite) fica
+    // reservada para a forma máxima; antes dela, só a aura fel original
+    const auraOn = !!form.aura;
+    const boost = auraOn ? active.length : 0;
+
+    const auraR = r * (2.2 + boost * 0.12);
+    const aura = ctx.createRadialGradient(sx, sy, r * 0.4, sx, sy, auraR);
+    aura.addColorStop(0, `rgba(122,60,255,${0.3 + boost * 0.04})`);
+    aura.addColorStop(1, "rgba(122,60,255,0)");
+    ctx.fillStyle = aura;
+    ctx.beginPath(); ctx.arc(sx, sy, auraR, 0, Math.PI * 2); ctx.fill();
+
+    // halo aditivo na cor de cada combo, respirando fora de fase
+    if (auraOn && active.length) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = 0; i < active.length; i++) {
+        const c = active[i];
+        const k = 0.5 + Math.sin(t * 2 + i * 1.7) * 0.5;
+        const hr = r * (1.7 + i * 0.16 + k * 0.25);
+        const g = ctx.createRadialGradient(sx, sy, r * 0.5, sx, sy, hr);
+        g.addColorStop(0, `rgba(${c.rgb},${(0.05 + k * 0.07).toFixed(3)})`);
+        g.addColorStop(1, `rgba(${c.rgb},0)`);
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(sx, sy, hr, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // ondas do desbloqueio
+    for (let i = 0; i < this.pulses.length; i++) {
+      const pu = this.pulses[i], k = pu.t / COMBO_PULSE_LIFE;
+      const rr = r * (1 + k * 5);
+      ctx.strokeStyle = `rgba(${pu.rgb},${((1 - k) * 0.8).toFixed(2)})`;
+      ctx.lineWidth = 1 + 3 * (1 - k);
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + r * 0.6, rr, rr * 0.45, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < spellFx.length; i++) {
+      p.lvl = spellFx[i].inst.level;
+      spellFx[i].def.vfx.under?.(ctx, p);
+    }
+    for (let i = 0; i < active.length; i++) {
+      const v = active[i].vfx;
+      if (v && v.under) v.under(ctx, p);
+    }
+
+    drawShadow(ctx, sx, sy, r);
+    drawSprite(ctx, spr, sx, sy, drawH, this.facing < 0, 0, anim);
+
+    // o próprio warlock brilha na cor do combo (alterna quando há vários)
+    if (auraOn && active.length) {
+      const c = active[Math.floor(t / 2.4) % active.length];
+      const k = (Math.sin(t * 3) + 1) * 0.5;
+      drawSpriteGlow(ctx, spr, sx, sy, drawH, this.facing < 0, anim,
+        c.color, 0.16 + k * 0.2);
+    }
+
+    for (let i = 0; i < spellFx.length; i++) {
+      p.lvl = spellFx[i].inst.level;
+      spellFx[i].def.vfx.over?.(ctx, p);
+    }
+    for (let i = 0; i < active.length; i++) {
+      const v = active[i].vfx;
+      if (v && v.over) v.over(ctx, p);
+    }
+  }
+}
+
+class Enemy {
+  constructor() {
+    this.x = 0; this.y = 0;
+    this.vx = 0; this.vy = 0;
+  }
+  // chamado pelo Pool.spawn — recebe o tipo, a posição inicial e o `scale`
+  // of the current difficulty phase ({ hp, dmg, speed }, see SpawnManager)
+  reset(obj, type, x, y, scale) {
+    this.type = type;
+    this.x = x; this.y = y;
+    this.radius = type.radius;
+    this.speed = Math.min(type.speed * scale.speed,
+      BALANCE.player.speed * BALANCE.spawn.speedCap);
+    this.maxHp = type.hp * (type.boss ? Math.pow(scale.hp, BALANCE.spawn.bossHpExp) : scale.hp);
+    this.hp = this.maxHp;
+    this.touchDps = type.touchDps * scale.dmg;
+    this.shootDamage = (type.shootDamage || 0) * scale.dmg;
+    this.hitFlash = 0;
+    this.facing = 1;
+    this.animTime = Math.random() * 6; // fase aleatória p/ não andarem em sincronia
+    // estados de feitiço
+    this.corrTime = 0; this.corrTickTimer = 0; this.corrDmg = 0;
+    this.corrTick = 0.5; this.corrupted = false;
+    this.corrPulse = 0;                 // flash a cada tick do DoT
+    this.corrAnim = Math.random() * 6;  // fase própria da névoa
+    this.curseTime = 0;
+    this.shootTimer = type.shootInterval || 0;
+  }
+  update(dt, player) {
+    let dx = player.x - this.x;
+    let dy = player.y - this.y;
+    const d = Math.hypot(dx, dy) || 1;
+    this.x += (dx / d) * this.speed * dt;
+    this.y += (dy / d) * this.speed * dt;
+    this.facing = dx < 0 ? -1 : 1;
+    this.animTime += dt * (this.speed / 90);
+    if (this.hitFlash > 0) this.hitFlash -= dt;
+    if (this.corrTime > 0) this.corrAnim += dt;
+    if (this.corrPulse > 0) this.corrPulse = Math.max(0, this.corrPulse - dt * 3.2);
+  }
+  draw(ctx, cam) {
+    const sx = this.x - cam.left;
+    const sy = this.y - cam.top;
+    const r = this.radius;
+
+    const spr = SPRITES[this.type.id];
+    const flash = this.hitFlash > 0 ? Math.min(0.85, this.hitFlash / 0.1 * 0.85) : 0;
+    const anim = walkAnim(this.animTime, true);
+    if (this.corrTime > 0) this.drawCorrUnder(ctx, sx, sy, r);
+    if (spr) {
+      drawShadow(ctx, sx, sy, r);
+      drawSprite(ctx, spr, sx, sy, r * 2.7, this.facing < 0, flash, anim);
+    } else {
+      ctx.fillStyle = this.type.color;
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+    }
+    if (this.corrTime > 0) this.drawCorrOver(ctx, sx, sy, r, spr, anim);
+
+    // barra de HP para bosses
+    if (this.type.boss) {
+      const bw = r * 2, bh = 5, by = sy - r - 12;
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(sx - r, by, bw, bh);
+      ctx.fillStyle = "#ff3b6b";
+      ctx.fillRect(sx - r, by, bw * Math.max(0, this.hp / this.maxHp), bh);
+    }
+  }
+  // névoa da Corruption no chão, sob o inimigo
+  drawCorrUnder(ctx, sx, sy, r) {
+    const fade = Math.min(1, this.corrTime / 0.5);
+    const pulse = this.corrPulse, t = this.corrAnim;
+
+    const w = r * (1.25 + pulse * 0.3);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = fade * (0.24 + pulse * 0.22);
+    ctx.drawImage(glowBlob("#7fdc4a"), sx - w, sy + r * 0.5 - w * 0.45, w * 2, w * 0.9);
+    ctx.restore();
+
+    // anel apodrecido girando no chão — visível em inimigo de qualquer cor
+    ctx.save();
+    ctx.translate(sx, sy + r * 0.95);
+    ctx.scale(1, 0.4);
+    ctx.rotate(-t * 1.1);
+    ctx.strokeStyle = `rgba(127,220,74,${(fade * (0.5 + pulse * 0.4)).toFixed(2)})`;
+    ctx.lineWidth = 1.4 + pulse;
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.65, a, a + 1.1);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // podridão sobre o inimigo: tinta esverdeada, orbes girando e onda a cada tick
+  drawCorrOver(ctx, sx, sy, r, spr, anim) {
+    const fade = Math.min(1, this.corrTime / 0.5);
+    const pulse = this.corrPulse, t = this.corrAnim;
+
+    if (spr) {
+      drawSpriteGlow(ctx, spr, sx, sy, r * 2.7, this.facing < 0, anim,
+        "#7fdc4a", fade * (0.05 + pulse * 0.09));
+    }
+
+    const blob = glowBlob("#7fdc4a");
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 3; i++) {
+      const a = t * 2.2 + (i / 3) * Math.PI * 2;
+      const depth = 0.7 + Math.sin(a) * 0.3;
+      const px = sx + Math.cos(a) * r * 1.5;
+      const py = sy - r * 0.1 + Math.sin(a) * r * 0.55;
+      const w = r * 0.32 * depth * (1 + pulse * 0.3);
+      ctx.globalAlpha = fade * 0.5 * depth;
+      ctx.drawImage(blob, px - w, py - w, w * 2, w * 2);
+      ctx.globalAlpha = fade * 0.8 * depth;
+      ctx.fillStyle = "#d9ff9e";
+      ctx.beginPath(); ctx.arc(px, py, 1.2 * depth, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+
+    // onda que sai do corpo no ritmo do dano do DoT
+    if (pulse > 0) {
+      const k = 1 - pulse;
+      ctx.strokeStyle = `rgba(190,255,140,${(fade * pulse * 0.78).toFixed(2)})`;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + r * 0.35, r * (1 + k * 1.7), r * (0.4 + k * 0.75),
+        0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+}
+
+class Projectile {
+  constructor() { this.dead = false; }
+  reset(obj, o) {
+    this.x = o.x; this.y = o.y;
+    this.vx = o.vx; this.vy = o.vy;
+    this.damage = o.damage;
+    this.radius = o.radius;
+    this.color = o.color;
+    this.source = o.source;
+    this.life = o.life;
+    this.hostile = o.hostile || false; // true = dano no player (boss)
+    this.homing = o.homing || false;   // teleguiado: curva atrás do alvo
+    this.speed = o.speed || Math.hypot(o.vx, o.vy);
+    this.turnRate = o.turnRate || 0;   // rad/s de curva
+    this.pierce = o.pierce || 0;
+    // perfurantes guardam quem já acertaram (evita multi-hit no mesmo alvo)
+    if (this.pierce > 0) { this.hits = this.hits || new Set(); this.hits.clear(); }
+    else this.hits = null;
+    // rastro: buffer plano [x0,y0,...] amostrado por DISTÂNCIA, não por frame,
+    // p/ o rastro ter o mesmo comprimento em qualquer fps/velocidade de jogo.
+    if (o.trail) {
+      this.trailMax = 24;                        // amostras guardadas
+      this.trailStep = o.trail / this.trailMax;  // px entre amostras
+      this.trail = this.trail || [];
+      this.trail.length = 0;
+      this.rgb = hexRgb(this.color);
+      this.age = 0;
+    } else this.trail = null;
+    this.dead = false;
+  }
+  update(dt) {
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.life -= dt;
+    if (this.trail) {
+      this.age += dt;
+      const t = this.trail, step = this.trailStep;
+      if (!t.length) t.push(this.x, this.y);
+      else {
+        const lx = t[t.length - 2], ly = t[t.length - 1];
+        const dx = this.x - lx, dy = this.y - ly, d = Math.hypot(dx, dy);
+        const n = Math.min(Math.floor(d / step), this.trailMax);
+        for (let i = 1; i <= n; i++) {
+          const f = (i * step) / d;
+          t.push(lx + dx * f, ly + dy * f);
+        }
+      }
+      while (t.length > this.trailMax * 2) t.splice(0, 2);
+    }
+    if (this.life <= 0) this.dead = true;
+  }
+  draw(ctx, cam) {
+    const sx = this.x - cam.left, sy = this.y - cam.top, r = this.radius;
+    if (this.trail) { this.drawComet(ctx, cam, sx, sy, r); return; }
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 2);
+    g.addColorStop(0, "#fff");
+    g.addColorStop(0.4, this.color);
+    g.addColorStop(1, "rgba(122,60,255,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(sx, sy, r * 2, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // rastro em cometa: blobs suaves ao longo das últimas posições + cabeça esticada
+  drawComet(ctx, cam, sx, sy, r) {
+    const t = this.trail, n = t.length >> 1;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+
+    if (n >= 3) {
+      const blob = glowBlob(this.color);
+      const total = n + 1;                     // + posição atual, p/ colar na cabeça
+      for (let i = 0; i < total; i++) {
+        const k = i / (total - 1);             // 0 = cauda, 1 = cabeça
+        const x = i < n ? t[i * 2] - cam.left : sx;
+        const y = i < n ? t[i * 2 + 1] - cam.top : sy;
+        const w = r * (0.95 + 1.8 * k * k);
+        ctx.globalAlpha = 0.38 * k * Math.sqrt(k);
+        ctx.drawImage(blob, x - w, y - w, w * 2, w * 2);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // cabeça: halo esticado no eixo do voo, com pulso sutil
+    const pulse = 1 + Math.sin(this.age * 26) * 0.12;
+    ctx.translate(sx, sy);
+    ctx.rotate(Math.atan2(this.vy, this.vx));
+    ctx.scale(1.5, 0.85);
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 2.6 * pulse);
+    halo.addColorStop(0, "#fff");
+    halo.addColorStop(0.28, this.color);
+    halo.addColorStop(0.62, `rgba(${this.rgb},0.35)`);
+    halo.addColorStop(1, `rgba(${this.rgb},0)`);
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(0, 0, r * 2.6 * pulse, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+class XPOrb {
+  constructor() {}
+  reset(obj, x, y, value) {
+    this.x = x; this.y = y; this.value = value;
+    this.magnet = false; // ativado pelo item Ímã de Almas
+  }
+  // ímã: acelera em direção ao player quando dentro do pickupRange (ou sempre, se magnet)
+  update(dt, player) {
+    const dx = player.x - this.x, dy = player.y - this.y;
+    const d = Math.hypot(dx, dy) || 1;
+    if (this.magnet || d < player.pickupRange) {
+      const pull = this.magnet ? 560 : 240 + (player.pickupRange - d) * 6;
+      this.x += (dx / d) * pull * dt;
+      this.y += (dy / d) * pull * dt;
+    }
+    return d < player.radius + 6; // true = coletado
+  }
+  draw(ctx, cam) {
+    const sx = this.x - cam.left, sy = this.y - cam.top;
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 7);
+    g.addColorStop(0, "#d8ffb0");
+    g.addColorStop(0.5, "#6fdc4a");
+    g.addColorStop(1, "rgba(58,122,38,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(sx, sy, 7, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// Item dropado no chão; coletado ao encostar.
+class Pickup {
+  constructor() {}
+  reset(obj, x, y, itemId) {
+    this.x = x; this.y = y;
+    this.item = ITEMS[itemId];
+    this.bob = Math.random() * 6.28;
+  }
+  draw(ctx, cam) {
+    const sx = this.x - cam.left, sy = this.y - cam.top - Math.sin(this.bob) * 3;
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 18);
+    g.addColorStop(0, this.item.color);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(sx, sy, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.font = "20px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(this.item.icon, sx, sy);
+    ctx.textAlign = "start";
+    ctx.textBaseline = "alphabetic";
+  }
+}
+
+class Particle {
+  constructor() {}
+  reset(obj, x, y, vx, vy, life, color, size) {
+    this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+    this.life = life; this.maxLife = life;
+    this.color = color; this.size = size;
+  }
+  update(dt) {
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.vx *= 0.9; this.vy *= 0.9;
+    this.life -= dt;
+    return this.life <= 0;
+  }
+  draw(ctx, cam) {
+    const a = this.life / this.maxLife;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x - cam.left, this.y - cam.top, this.size * a, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+// Zona de dano no chão (Rain of Fire e, depois, explosões de combo).
+class AreaEffect {
+  constructor() {}
+  reset(obj, o) {
+    this.x = o.x; this.y = o.y;
+    this.radius = o.radius;
+    this.dps = o.dps;
+    this.life = o.life; this.maxLife = o.life;
+    this.tickInterval = o.tickInterval;
+    this.tickTimer = o.tickInterval;
+    this.rgb = hexRgb(o.color);
+    this.source = o.source;
+  }
+  draw(ctx, cam) {
+    const sx = this.x - cam.left, sy = this.y - cam.top;
+    const a = Math.min(1, this.life / 0.4) * 0.5; // fade out no fim
+    const g = ctx.createRadialGradient(sx, sy, this.radius * 0.2, sx, sy, this.radius);
+    g.addColorStop(0, `rgba(${this.rgb},${a * 0.55})`);
+    g.addColorStop(0.6, `rgba(${this.rgb},${a * 0.32})`);
+    g.addColorStop(1, `rgba(${this.rgb},0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(sx, sy, this.radius, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// Gera inimigos fora da tela em fluxo contínuo, escalando com o tempo.
+class SpawnManager {
+  constructor() { this.reset(); }
+  reset() {
+    this.timer = 0;
+    this.interval = BALANCE.spawn.baseInterval;
+    this.scale = { hp: 1, dmg: 1, speed: 1 };
+    this.ramps = 0;
+    this.rampClock = 0;   // time accumulated since the last ramp
+    this.hard = false;    // has BALANCE.spawn.hardAt been crossed yet?
+    this.nextWaveAt = BALANCE.spawn.waveEvery;
+    this.nextBossAt = BALANCE.spawn.bossAt;
+  }
+  // true past the 5 min mark — the hard phase uses a different set of numbers
+  isHard(elapsed) { return elapsed >= BALANCE.spawn.hardAt; }
+
+  // ajusta dificuldade conforme o tempo decorrido. The ramp is timed by
+  // accumulation (not floor(elapsed / rampEvery)) because the cadence changes
+  // mid-run: the early phase's 30s become 15s past hardAt.
+  applyScaling(dt, elapsed) {
+    const B = BALANCE.spawn;
+    const hard = this.isHard(elapsed);
+    const every = hard ? B.hardRampEvery : B.rampEvery;
+    this.rampClock += dt;
+    while (this.rampClock >= every) {
+      this.rampClock -= every;
+      this.ramps++;
+      this.interval = Math.max(hard ? B.hardMinInterval : B.minInterval,
+        this.interval * (hard ? B.hardIntervalDecay : B.intervalDecay));
+      this.scale.hp *= 1 + (hard ? B.hardHpGrowth : B.hpGrowth);
+      this.scale.dmg *= 1 + (hard ? B.hardDmgGrowth : B.dmgGrowth);
+      this.scale.speed *= 1 + (hard ? B.hardSpeedGrowth : B.speedGrowth);
+    }
+  }
+  // spawn weight of this type in the current phase
+  weightOf(type, late) {
+    return late && type.lateWeight != null ? type.lateWeight : type.weight;
+  }
+  pickType(elapsed) {
+    const late = this.isHard(elapsed);
+    let total = 0;
+    const pool = [];
+    for (const id in ENEMIES) {
+      const t = ENEMIES[id];
+      if (t.boss || elapsed < t.minTime) continue;
+      pool.push(t); total += this.weightOf(t, late);
+    }
+    let roll = (this.timer * 9301 + elapsed * 49297) % total; // pseudo-random barato
+    for (const t of pool) { if ((roll -= this.weightOf(t, late)) < 0) return t; }
+    return pool[0];
+  }
+  // how many Dreadlords come out at once — grows through the hard phase
+  bossCount(elapsed) {
+    const B = BALANCE.spawn;
+    if (!this.isHard(elapsed)) return 1;
+    const extra = Math.floor((elapsed - B.hardAt) / B.hardBossStack);
+    return Math.min(B.maxBossStack, 1 + extra);
+  }
+  update(dt, game) {
+    const B = BALANCE.spawn;
+    this.applyScaling(dt, game.elapsed);
+
+    const hard = this.isHard(game.elapsed);
+    if (hard && !this.hard) { this.hard = true; game.onHardPhase(); }
+
+    // wave densa em círculo
+    if (game.elapsed >= this.nextWaveAt) {
+      this.nextWaveAt += hard ? B.hardWaveEvery : B.waveEvery;
+      this.spawnWave(game);
+    }
+    // mini-boss Dreadlord
+    if (game.elapsed >= this.nextBossAt) {
+      this.nextBossAt += hard ? B.hardBossEvery : B.bossEvery;
+      this.spawnBoss(game);
+    }
+
+    if (game.enemies.active.length >= (hard ? B.hardMaxAlive : B.maxAlive)) return;
+    this.timer += dt;
+    while (this.timer >= this.interval) {
+      this.timer -= this.interval;
+      this.spawnOne(game);
+    }
+  }
+  _reach(game) {
+    const cam = game.camera;
+    return Math.hypot(cam.w, cam.h) / 2 + BALANCE.spawn.margin;
+  }
+  spawnOne(game) {
+    const reach = this._reach(game);
+    const a = (game.elapsed * 2.3 + game.enemies.active.length * 1.7) % (Math.PI * 2);
+    const x = game.player.x + Math.cos(a) * reach;
+    const y = game.player.y + Math.sin(a) * reach;
+    game.enemies.spawn(this.pickType(game.elapsed), x, y, this.scale);
+  }
+  spawnWave(game) {
+    const reach = this._reach(game) * 0.92;
+    const n = BALANCE.spawn.waveBase + this.ramps * 4;
+    for (let i = 0; i < n; i++) {
+      const a = (Math.PI * 2 / n) * i;
+      const x = game.player.x + Math.cos(a) * reach;
+      const y = game.player.y + Math.sin(a) * reach;
+      game.enemies.spawn(this.pickType(game.elapsed), x, y, this.scale);
+    }
+  }
+  spawnBoss(game) {
+    const reach = this._reach(game);
+    const n = this.bossCount(game.elapsed);
+    const base = Math.random() * Math.PI * 2;
+    for (let i = 0; i < n; i++) {
+      const a = base + (Math.PI * 2 / n) * i;
+      const x = game.player.x + Math.cos(a) * reach;
+      const y = game.player.y + Math.sin(a) * reach;
+      game.enemies.spawn(ENEMIES.dreadlord, x, y, this.scale);
+    }
+    game.onBossSpawn(n);
+  }
+}
+
+// Mantém as habilidades adquiridas, roda o auto-cast e contabiliza dano.
+class AbilitySystem {
+  reset() {
+    this.owned = new Map();   // id -> { level, timer }
+    this.damage = new Map();  // id -> dano total acumulado (stats/game over)
+    this.vfx = [];            // spells com efeito visual no personagem
+  }
+  has(id) { return this.owned.has(id); }
+  level(id) { return this.owned.get(id)?.level || 0; }
+
+  // adiciona uma spell nova ou sobe seu nível
+  acquire(id, api) {
+    let inst = this.owned.get(id);
+    if (inst) inst.level = Math.min(inst.level + 1, SPELLS[id].maxLevel);
+    else { inst = { level: 1, timer: 0 }; this.owned.set(id, inst); }
+    SPELLS[id].onChange?.(inst, api);
+    this.rebuildVfx();
+  }
+
+  // lista pronta p/ o render não alocar por frame: spells possuídas que têm vfx
+  rebuildVfx() {
+    this.vfx.length = 0;
+    for (const [id, inst] of this.owned) {
+      if (SPELLS[id].vfx) this.vfx.push({ def: SPELLS[id], inst });
+    }
+  }
+
+  record(id, amount) {
+    this.damage.set(id, (this.damage.get(id) || 0) + amount);
+  }
+
+  tick(dt, api) {
+    for (const [id, inst] of this.owned) {
+      SPELLS[id].tick(dt, api, inst);
+    }
+  }
+
+  draw(ctx, api, cam) {
+    for (const [id, inst] of this.owned) {
+      SPELLS[id].draw?.(ctx, api, inst, cam);
+    }
+  }
+}
+
+// Buffs adquiridos (linha 2). Mantém níveis e o objeto agregado de modifiers.
+class BuffSystem {
+  reset() { this.owned = new Map(); this.recompute(); }
+  has(id) { return this.owned.has(id); }
+  level(id) { return this.owned.get(id) || 0; }
+  acquire(id) {
+    this.owned.set(id, Math.min(this.level(id) + 1, BUFFS[id].maxLevel));
+    this.recompute();
+  }
+  // re-agrega os modifiers a partir dos buffs possuídos
+  recompute() {
+    const m = {
+      damage: 1, cooldown: 1, area: 1, projectiles: 0, duration: 1,
+      moveSpeed: 1, armor: 0, regen: 0, xp: 1, pickup: 1,
+    };
+    for (const [id, l] of this.owned) BUFFS[id].apply(m, l);
+    m.cooldown = Math.max(0.35, m.cooldown);
+    this.mods = m;
+  }
+}
+
+// Monta as 3 cartas oferecidas a cada level up.
+class UpgradeSystem {
+  // candidatos das DUAS linhas: spells da classe + buffs globais.
+  // cada um: novo (não possuído) ou upgrade (abaixo do nível máximo)
+  getChoices(game) {
+    const cls = CLASSES[game.selectedClass];
+    const pool = [];
+    const add = (kind, id, def, curLevel) => {
+      if (curLevel === 0) pool.push({ kind, id, def, isNew: true, from: 0, to: 1 });
+      else if (curLevel < def.maxLevel) pool.push({ kind, id, def, isNew: false, from: curLevel, to: curLevel + 1 });
+    };
+    for (const id of cls.spellPool) add("spell", id, SPELLS[id], game.abilities.level(id));
+    for (const id in BUFFS) add("buff", id, BUFFS[id], game.buffs.level(id));
+
+    // embaralha e pega até 3
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, 3);
+  }
+}
+
+// Desbloqueia combos quando os requisitos são atingidos.
+class ComboSystem {
+  constructor() {
+    this.preview = new Set(); // ligados na amostra do menu; sobrevive ao reset
+    this.reset();
+  }
+  reset() { this.unlocked = new Set(); this.active = []; this.rebuildActive(); }
+  // só o que foi desbloqueado de fato conta pro jogo (empower, api.hasCombo)
+  has(id) { return this.unlocked.has(id); }
+  // `active` = o que aparece no personagem (desbloqueado + preview), como array
+  // pronto para o render não alocar nada por frame
+  rebuildActive() {
+    this.active.length = 0;
+    for (const c of COMBOS) {
+      if (!this.unlocked.has(c.id) && !this.preview.has(c.id)) continue;
+      if (!c.rgb) c.rgb = hexRgb(c.color);
+      this.active.push(c);
+    }
+  }
+  togglePreview(id) {
+    if (this.preview.has(id)) this.preview.delete(id);
+    else this.preview.add(id);
+    this.rebuildActive();
+  }
+  setAllPreview(on) {
+    this.preview.clear();
+    if (on) for (const c of COMBOS) this.preview.add(c.id);
+    this.rebuildActive();
+  }
+  // checa após cada aquisição; retorna os combos recém-desbloqueados (p/ toast)
+  check(abilities, buffs) {
+    const lvl = (r) => (r.kind === "buff" ? buffs.level(r.id) : abilities.level(r.id));
+    const newly = [];
+    for (const c of COMBOS) {
+      if (this.unlocked.has(c.id)) continue;
+      if (c.requires.every((r) => lvl(r) >= r.level)) {
+        this.unlocked.add(c.id);
+        newly.push(c);
+      }
+    }
+    if (newly.length) this.rebuildActive();
+    return newly;
+  }
+}
+
+/* =========================================================================
+   GAME — estado global + loop + máquina de estados
+   ========================================================================= */
+
+const STATE = { MENU: "menu", PLAYING: "playing", LEVELUP: "levelup", GAMEOVER: "gameover", PAUSED: "paused", CHEST: "chest" };
+
+class Game {
+  constructor() {
+    this.canvas = document.getElementById("canvas");
+    this.ctx = this.canvas.getContext("2d");
+    this.dpr = Math.min(devicePixelRatio || 1, 2);
+
+    buildSprites();
+    this.input = new InputManager();
+    this.camera = new Camera();
+    this.camera.pattern = this.ctx.createPattern(makeGroundTile(), "repeat");
+    this.player = new Player();
+
+    this.enemies = new Pool(() => new Enemy(), (o, ...a) => o.reset(o, ...a));
+    this.projectiles = new Pool(() => new Projectile(), (o, ...a) => o.reset(o, ...a));
+    this.orbs = new Pool(() => new XPOrb(), (o, ...a) => o.reset(o, ...a));
+    this.areas = new Pool(() => new AreaEffect(), (o, ...a) => o.reset(o, ...a));
+    this.particles = new Pool(() => new Particle(), (o, ...a) => o.reset(o, ...a));
+    this.pickups = new Pool(() => new Pickup(), (o, ...a) => o.reset(o, ...a));
+    this.spawner = new SpawnManager();
+    this.lastBossChestAt = -BALANCE.spawn.bossChestCooldown;
+    this.sfx = new Sfx();
+    this.grid = new SpatialGrid(48);
+    this.abilities = new AbilitySystem();
+    this.buffs = new BuffSystem();
+    this.upgrades = new UpgradeSystem();
+    this.combos = new ComboSystem();
+    this.api = this.buildApi();
+
+    this.state = STATE.MENU;
+    this.selectedClass = "warlock";
+    this.selectedSpeed = 1;   // escolhido no menu
+    this.timeScale = 1;       // aplicado ao iniciar
+    this.elapsed = 0;        // segundos de sobrevivência
+    this.lastTime = 0;
+    this._dmgTimer = 0;      // throttle do medidor de dano
+
+    this._loop = this._loop.bind(this);
+    addEventListener("keydown", (e) => {
+      if (e.key.toLowerCase() === "m") this.sfx.muted = !this.sfx.muted;
+      if (e.key === "Escape") this.togglePause();
+    });
+    addEventListener("resize", () => this.resize());
+    this.resize();
+    this.setupComboPreview();
+    this.buildMenu();
+
+    // HUD refs
+    this.ui = {
+      hud: document.getElementById("hud"),
+      menu: document.getElementById("menu"),
+      timer: document.getElementById("timer"),
+      kills: document.getElementById("kills"),
+      hpFill: document.getElementById("hpFill"),
+      xpFill: document.getElementById("xpFill"),
+      hpLabel: document.getElementById("hpLabel"),
+      xpLabel: document.getElementById("xpLabel"),
+      gameover: document.getElementById("gameover"),
+      stats: document.getElementById("stats"),
+      abilities: document.getElementById("abilityBar"),
+      buffBar: document.getElementById("buffBar"),
+      dmgHud: document.getElementById("dmgHud"),
+      levelup: document.getElementById("levelup"),
+      cards: document.getElementById("cards"),
+      toasts: document.getElementById("toasts"),
+      pause: document.getElementById("pause"),
+      pausePanel: document.getElementById("pausePanel"),
+      chest: document.getElementById("chest"),
+      chestList: document.getElementById("chestList"),
+      chestRarity: document.getElementById("chestRarity"),
+    };
+    document.getElementById("restartBtn").onclick = () => this.start();
+    document.getElementById("chestBtn").onclick = () => this.closeChest();
+    document.getElementById("resumeBtn").onclick = () => this.resume();
+    document.getElementById("pauseRestartBtn").onclick = () => this.start();
+    document.getElementById("quitBtn").onclick = () => this.quitToMenu();
+
+    requestAnimationFrame(this._loop);
+  }
+
+  resize() {
+    const w = innerWidth, h = innerHeight;
+    this.canvas.width = w * this.dpr;
+    this.canvas.height = h * this.dpr;
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.camera.resize(w, h);
+  }
+
+  // stats base da spell com buffs globais + empoderamento de combo aplicados
+  buffedStats(def, level) {
+    const s = def.stats(level), m = this.buffs.mods;
+    if (s.damage != null) s.damage *= m.damage;
+    if (s.dps != null) s.dps *= m.damage;
+    if (s.cooldown != null) s.cooldown = Math.max(0.05, s.cooldown * m.cooldown);
+    // tickInterval menor = DoT pulsa mais rápido (mais dano total na mesma duração)
+    if (s.tickInterval != null) s.tickInterval = Math.max(0.08, s.tickInterval * m.cooldown);
+    if (s.count != null) s.count += m.projectiles;
+    if (s.radius != null) s.radius *= m.area;
+    if (s.duration != null) s.duration *= m.duration;
+
+    // combo ativo empodera DRASTICAMENTE a spell envolvida
+    for (const c of COMBOS) {
+      const e = c.empower;
+      if (!e || e.spell !== def.id || !this.combos.has(c.id)) continue;
+      if (e.damage) { if (s.damage != null) s.damage *= e.damage; if (s.dps != null) s.dps *= e.damage; }
+      if (e.cooldown && s.cooldown != null) s.cooldown *= e.cooldown;
+      if (e.area && s.radius != null) s.radius *= e.area;
+      if (e.duration && s.duration != null) s.duration *= e.duration;
+    }
+    return s;
+  }
+
+  addShake(mag) { this.camera.shake = Math.max(this.camera.shake, mag); }
+
+  spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 40 + Math.random() * 120;
+      this.particles.spawn(x, y, Math.cos(a) * sp, Math.sin(a) * sp,
+        0.3 + Math.random() * 0.3, color, 2 + Math.random() * 2.5);
+    }
+  }
+
+  onBossSpawn(count = 1) {
+    this.addShake(10 + (count - 1) * 4);
+    this.sfx.boss();
+    this.showToast({ head: "Chefe!", color: "#b23cff", icon: "☠",
+      name: count > 1 ? `${count} Dreadlords!` : "Dreadlord!",
+      desc: count > 1
+        ? "Os nathrezim cercaram você pela Distorção Profana."
+        : "Um nathrezim emergiu da Distorção Profana." });
+  }
+
+  // 5 min mark: the spawn curve shifts gear (see BALANCE.spawn.hardAt)
+  onHardPhase() {
+    this.addShake(14);
+    this.sfx.boss();
+    this.showToast({ head: "A Distorção rasgou!", color: "#ff3b6b", icon: "🔥",
+      name: "A Legião avança",
+      desc: "A horda fica mais rápida, mais densa e mais letal a cada 15s." });
+  }
+
+  // API desacoplada entregue às habilidades no tick (não tocam o Game direto)
+  buildApi() {
+    const game = this;
+    return {
+      get player() { return game.player; },
+      get elapsed() { return game.elapsed; },
+      stats(def, level) { return game.buffedStats(def, level); },
+      fireProjectile(o) { game.projectiles.spawn(o); },
+      spawnArea(o) { game.areas.spawn(o); },
+      damageEnemy(e, amount, source) { game.damageEnemy(e, amount, source); },
+      heal(amount) {
+        const p = game.player;
+        p.hp = Math.min(p.maxHp, p.hp + amount);
+      },
+      forEnemiesInRadius(x, y, r, fn) { game.grid.forRadius(x, y, r, fn); },
+      hasCombo(id) { return game.combos.has(id); },
+      // inimigo vivo mais próximo de (x,y) dentro de maxDist
+      nearestEnemy(x, y, maxDist) {
+        const list = game.enemies.active;
+        let best = null, bestD = maxDist * maxDist;
+        for (let i = 0; i < list.length; i++) {
+          const e = list[i];
+          const dx = e.x - x, dy = e.y - y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD) { bestD = d2; best = e; }
+        }
+        return best;
+      },
+      // até `count` inimigos mais próximos dentro de maxDist
+      nearestEnemies(x, y, maxDist, count) {
+        const list = game.enemies.active, md2 = maxDist * maxDist, hits = [];
+        for (let i = 0; i < list.length; i++) {
+          const e = list[i];
+          const dx = e.x - x, dy = e.y - y, d2 = dx * dx + dy * dy;
+          if (d2 < md2) hits.push([d2, e]);
+        }
+        hits.sort((a, b) => a[0] - b[0]);
+        const out = [];
+        for (let i = 0; i < Math.min(count, hits.length); i++) out.push(hits[i][1]);
+        return out;
+      },
+    };
+  }
+
+  // Canvas de amostra do menu: um warlock parado só para exibir os vfx de combo.
+  setupComboPreview() {
+    if (!DEV_MODE) {
+      document.getElementById("comboBlock").style.display = "none";
+      return; // sem previewCtx, renderComboPreview vira no-op
+    }
+    const c = document.getElementById("comboPreview");
+    c.width = COMBO_PREVIEW_SIZE * this.dpr;
+    c.height = COMBO_PREVIEW_SIZE * this.dpr;
+    this.previewCtx = c.getContext("2d");
+    this.previewCtx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.previewGround = this.previewCtx.createPattern(makeGroundTile(), "repeat");
+    this.previewPlayer = new Player();
+    this.previewPlayer.reset(CLASSES.warlock);
+    this.previewPlayer.moving = true;
+    this.previewCam = { left: 0, top: 0 };
+  }
+
+  renderComboPreview() {
+    const ctx = this.previewCtx;
+    if (!ctx) return;
+    const S = COMBO_PREVIEW_SIZE, p = this.previewPlayer;
+    ctx.fillStyle = this.previewGround;
+    ctx.fillRect(0, 0, S, S);
+    ctx.fillStyle = "rgba(10,7,16,0.35)";
+    ctx.fillRect(0, 0, S, S);
+    p.animTime += 1 / 60;
+    p.vfxTime += 1 / 60;
+    this.previewCam.left = p.x - S / 2;
+    this.previewCam.top = p.y - S * 0.58;
+    p.draw(ctx, this.previewCam, this.combos);
+  }
+
+  // --- Menu de seleção de classe ---
+  buildMenu() {
+    const grid = document.getElementById("classGrid");
+    grid.innerHTML = "";
+    for (const id in CLASSES) {
+      const c = CLASSES[id];
+      const card = document.createElement("div");
+      card.className = "class-card " + (c.available ? "available" : "locked")
+        + (c.available && id === this.selectedClass ? " selected" : "");
+      card.innerHTML = `
+        <div class="class-icon" style="background:radial-gradient(circle at 35% 30%, #fff, ${c.color})"></div>
+        <div class="class-name">${c.name}</div>
+        <div class="class-tag">${c.tag}</div>`;
+      if (c.available) {
+        card.onclick = () => {
+          this.selectedClass = id;
+          this.buildMenu();
+        };
+      }
+      grid.appendChild(card);
+    }
+    document.getElementById("startBtn").onclick = () => this.start();
+
+    document.querySelectorAll(".speed-btn").forEach((b) => {
+      b.classList.toggle("active", +b.dataset.spd === this.selectedSpeed);
+      b.onclick = () => {
+        this.selectedSpeed = +b.dataset.spd;
+        document.querySelectorAll(".speed-btn").forEach((o) =>
+          o.classList.toggle("active", o === b));
+      };
+    });
+
+    if (!DEV_MODE) return;
+
+    const toggles = document.getElementById("comboToggles");
+    toggles.innerHTML = "";
+    for (const c of COMBOS) {
+      const on = this.combos.preview.has(c.id);
+      const b = document.createElement("button");
+      b.className = "combo-btn";
+      b.title = `${c.name} — ${c.desc}`;
+      b.innerHTML = `<span style="color:${c.color}">${c.icon}</span>`;
+      if (on) {
+        b.style.borderColor = c.color;
+        b.style.boxShadow = `0 0 12px rgba(${hexRgb(c.color)},0.55)`;
+      }
+      b.onclick = () => { this.combos.togglePreview(c.id); this.buildMenu(); };
+      toggles.appendChild(b);
+    }
+    const allOn = this.combos.preview.size === COMBOS.length;
+    const all = document.createElement("button");
+    all.className = "combo-btn wide";
+    all.textContent = allOn ? "Nenhum" : "Todos";
+    all.onclick = () => { this.combos.setAllPreview(!allOn); this.buildMenu(); };
+    toggles.appendChild(all);
+  }
+
+  start() {
+    const cls = CLASSES[this.selectedClass];
+    this.timeScale = this.selectedSpeed;
+    this.player.reset(cls);
+    this.enemies.clear();
+    this.projectiles.clear();
+    this.orbs.clear();
+    this.areas.clear();
+    this.particles.clear();
+    this.pickups.clear();
+    this.sfx.init();
+    this.spawner.reset();
+    this.lastBossChestAt = -BALANCE.spawn.bossChestCooldown;
+    this.abilities.reset();
+    this.buffs.reset();
+    this.combos.reset();
+    this.ui.toasts.innerHTML = "";
+    (cls.starting || []).forEach((id) => this.abilities.acquire(id, this.api));
+    this.updateAbilityBar();
+    this.player.formIdx = this.player.formIndex(this.combos.active.length);
+    this.elapsed = 0;
+    this.camera.x = this.player.x;
+    this.camera.y = this.player.y;
+    this.camera.follow(this.player, 0, true);
+    this.state = STATE.PLAYING;
+    this.ui.menu.classList.add("hidden");
+    this.ui.gameover.classList.add("hidden");
+    this.ui.levelup.classList.add("hidden");
+    this.ui.pause.classList.add("hidden");
+    this.ui.chest.classList.add("hidden");
+    this.ui.hud.classList.remove("hidden");
+  }
+
+  gameOver() {
+    this.state = STATE.GAMEOVER;
+    this.sfx.gameOver();
+    this.ui.hud.classList.add("hidden");
+    const p = this.player;
+    const m = Math.floor(this.elapsed / 60), s = Math.floor(this.elapsed % 60);
+    let dmgRows = "";
+    const dmg = [...this.abilities.damage.entries()].sort((a, b) => b[1] - a[1]);
+    for (const [id, total] of dmg) {
+      const name = SPELLS[id]?.name || id;
+      dmgRows += `<div class="stat"><span>${name}</span><b>${Math.round(total).toLocaleString("pt-BR")}</b></div>`;
+    }
+    this.ui.stats.innerHTML = `
+      <div class="stat"><span>Sobreviveu</span><b>${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}</b></div>
+      <div class="stat"><span>Abates</span><b>${p.kills}</b></div>
+      <div class="stat"><span>Nível</span><b>${p.level}</b></div>
+      ${dmgRows ? `<div class="stat-head">Dano por habilidade</div>${dmgRows}` : ""}`;
+    this.ui.gameover.classList.remove("hidden");
+  }
+
+  // --- Pausa (ESC) ---
+  togglePause() {
+    if (this.state === STATE.PLAYING) {
+      this.state = STATE.PAUSED;
+      this.renderPausePanel();
+      this.ui.pause.classList.remove("hidden");
+    } else if (this.state === STATE.PAUSED) {
+      this.resume();
+    }
+  }
+
+  // Pause screen: owned spells/buffs with their levels, plus every combo
+  // and how many levels are still missing to unlock it.
+  renderPausePanel() {
+    const defOf = (r) => (r.kind === "buff" ? BUFFS[r.id] : SPELLS[r.id]);
+    const lvlOf = (r) => (r.kind === "buff" ? this.buffs.level(r.id) : this.abilities.level(r.id));
+
+    const powerRow = (def, level) => {
+      const max = def.maxLevel;
+      const atMax = level >= max;
+      const next = atMax
+        ? "Nível máximo atingido."
+        : `<b>Nv ${level + 1}:</b> ${def.desc(level + 1)}`;
+      return `<div class="pw-row">
+        <div class="pw-ic" style="border-color:${def.color};color:${def.color}">${def.icon}</div>
+        <div class="pw-body">
+          <div class="pw-top">
+            <span class="pw-name">${def.name}</span>
+            <span class="pw-lv ${atMax ? "max" : ""}">${atMax ? "MÁX" : `Nv ${level}/${max}`}</span>
+          </div>
+          <div class="pw-bar"><div class="pw-fill" style="width:${(level / max) * 100}%;background:${def.color}"></div></div>
+          <div class="pw-next">${next}</div>
+        </div>
+      </div>`;
+    };
+
+    let spellsHtml = "";
+    for (const [id, inst] of this.abilities.owned) spellsHtml += powerRow(SPELLS[id], inst.level);
+    let buffsHtml = "";
+    for (const [id, lvl] of this.buffs.owned) buffsHtml += powerRow(BUFFS[id], lvl);
+
+    const rows = COMBOS.map((c) => {
+      const reqs = c.requires.map((r) => {
+        const cur = lvlOf(r);
+        return { def: defOf(r), cur, need: r.level, done: cur >= r.level };
+      });
+      const need = reqs.reduce((a, r) => a + r.need, 0);
+      const have = reqs.reduce((a, r) => a + Math.min(r.cur, r.need), 0);
+      return { c, reqs, need, have, missing: need - have, unlocked: this.combos.has(c.id) };
+    });
+    rows.sort((a, b) => (b.unlocked - a.unlocked) || (a.missing - b.missing));
+
+    let combosHtml = "";
+    for (const r of rows) {
+      const pct = (r.have / r.need) * 100;
+      const label = r.unlocked
+        ? "Ativo"
+        : r.missing === 1 ? "Falta 1 nível" : `Faltam ${r.missing} níveis`;
+      const cls = r.unlocked ? "on" : r.missing <= 2 ? "close" : "";
+      const reqHtml = r.reqs.map((q) =>
+        `<span class="cb-req-row ${q.done ? "ok" : ""}">
+          <span style="color:${q.def.color}">${q.def.icon}</span>${q.def.name}
+          <b>${Math.min(q.cur, q.need)}/${q.need}</b></span>`).join("");
+      combosHtml += `<div class="cb-row ${r.unlocked ? "done" : ""} ${!r.unlocked && r.have === 0 ? "far" : ""}"
+          style="border-color:${r.unlocked ? r.c.color : "rgba(255,255,255,0.1)"}">
+        <div class="cb-head">
+          <span class="cb-ic" style="color:${r.c.color}">${r.c.icon}</span>
+          <span class="cb-name">${r.c.name}</span>
+          <span class="cb-status ${cls}">${label}</span>
+        </div>
+        <div class="cb-desc">${r.c.desc}</div>
+        <div class="cb-bar"><div class="cb-fill" style="width:${pct}%;background:${r.c.color}"></div></div>
+        <div class="cb-req">${reqHtml}</div>
+      </div>`;
+    }
+
+    const unlockedCount = rows.filter((r) => r.unlocked).length;
+    this.ui.pausePanel.innerHTML = `
+      <div class="pause-col">
+        <div class="pause-head">Spells</div>
+        ${spellsHtml || `<div class="pause-empty">Nenhuma spell ainda.</div>`}
+        <div class="pause-head">Buffs</div>
+        ${buffsHtml || `<div class="pause-empty">Nenhum buff ainda.</div>`}
+      </div>
+      <div class="pause-col">
+        <div class="pause-head">Combos — ${unlockedCount}/${rows.length}</div>
+        ${combosHtml}
+      </div>`;
+  }
+  resume() {
+    this.ui.pause.classList.add("hidden");
+    this.state = STATE.PLAYING;
+  }
+  quitToMenu() {
+    this.ui.pause.classList.add("hidden");
+    this.ui.hud.classList.add("hidden");
+    this.state = STATE.MENU;
+    this.buildMenu();
+    this.ui.menu.classList.remove("hidden");
+  }
+
+  // --- Level up: pausa e oferece até 3 cartas ---
+  openLevelUp() {
+    this.state = STATE.LEVELUP;
+    this.sfx.levelUp();
+    const choices = this.upgrades.getChoices(this);
+    if (choices.length === 0) {           // nada a oferecer (tudo no máximo)
+      this.player.pendingLevels = 0;
+      this.state = STATE.PLAYING;
+      return;
+    }
+    this.ui.cards.innerHTML = "";
+    for (const c of choices) {
+      const card = document.createElement("div");
+      card.className = "card card-" + c.kind;
+      const tag = c.kind === "spell" ? "Spell" : "Buff";
+      const hint = this.comboHintFor(c);
+      const hintHtml = hint
+        ? `<div class="card-combo ${hint.completes ? "ready" : ""}" style="color:${hint.combo.color};border-color:${hint.combo.color}">
+            ${hint.combo.icon} ${hint.completes ? "Completa" : "Combo"}: ${hint.combo.name}</div>`
+        : "";
+      card.innerHTML = `
+        <div class="card-kind">${tag}</div>
+        <div class="card-icon" style="color:${c.def.color}">${c.def.icon}</div>
+        <div class="card-name">${c.def.name}</div>
+        <div class="card-level">${c.isNew ? "NOVO" : `Nível ${c.from} → ${c.to}`}</div>
+        <div class="card-desc">${c.def.desc(c.to)}</div>
+        ${hintHtml}`;
+      card.onclick = () => this.applyChoice(c);
+      this.ui.cards.appendChild(card);
+    }
+    this.ui.levelup.classList.remove("hidden");
+  }
+
+  // hint de combo p/ uma carta: só quando a OUTRA peça do combo já foi adquirida.
+  // retorna { combo, completes } ou null
+  comboHintFor(choice) {
+    const lvlOf = (r) => (r.kind === "buff" ? this.buffs.level(r.id) : this.abilities.level(r.id));
+    for (const c of COMBOS) {
+      if (this.combos.has(c.id)) continue;
+      const mine = c.requires.find((r) => r.kind === choice.kind && r.id === choice.id);
+      if (!mine) continue;
+      const others = c.requires.filter((r) => r !== mine);
+      if (!others.every((r) => lvlOf(r) >= 1)) continue; // outra peça precisa já existir
+      const completes = choice.to >= mine.level && others.every((r) => lvlOf(r) >= r.level);
+      return { combo: c, completes };
+    }
+    return null;
+  }
+
+  applyChoice(c) {
+    if (c.kind === "spell") this.abilities.acquire(c.id, this.api);
+    else this.buffs.acquire(c.id);
+    this.updateAbilityBar();
+    this.combos.check(this.abilities, this.buffs).forEach((combo) => {
+      this.sfx.combo();
+      this.addShake(16);
+      this.spawnParticles(this.player.x, this.player.y, combo.color, 32);
+      this.player.comboPulse(combo.color);
+      this.showToast(combo);
+    });
+    this.checkEvolution();
+    this.player.pendingLevels--;
+    this.ui.levelup.classList.add("hidden");
+    if (this.player.pendingLevels > 0) this.openLevelUp();
+    else this.state = STATE.PLAYING;
+  }
+
+  // troca de forma do personagem quando o nº de combos cruza um limiar
+  checkEvolution() {
+    const idx = this.player.formIndex(this.combos.active.length);
+    if (idx === this.player.formIdx) return;
+    const grew = idx > this.player.formIdx;
+    this.player.formIdx = idx;
+    const f = this.player.forms[idx];
+    if (!grew || !f.name) return;
+    this.sfx.combo();
+    this.addShake(22);
+    this.spawnParticles(this.player.x, this.player.y, f.color, 44);
+    this.player.comboPulse(f.color);
+    this.showToast({ head: "Metamorfose!", color: f.color, icon: f.icon,
+      name: f.name, desc: f.desc });
+  }
+
+  // notificação genérica (combo/item/boss); auto-remove via animação CSS
+  showToast(combo) {
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.style.borderColor = combo.color;
+    el.innerHTML = `
+      <div class="toast-head"><span style="color:${combo.color}">${combo.icon}</span> ${combo.head || "Combo desbloqueado!"}</div>
+      <div class="toast-name">${combo.name}</div>
+      <div class="toast-desc">${combo.desc}</div>`;
+    this.ui.toasts.appendChild(el);
+    setTimeout(() => el.remove(), 5200);
+  }
+
+  // HUD: duas fileiras — spells em cima, buffs embaixo
+  updateAbilityBar() {
+    const icon = (def, level) => `<div class="ab-icon" style="border-color:${def.color}">
+        <span style="color:${def.color}">${def.icon}</span><b>${level}</b></div>`;
+    let spells = "";
+    for (const [id, inst] of this.abilities.owned) spells += icon(SPELLS[id], inst.level);
+    this.ui.abilities.innerHTML = spells;
+    let buffs = "";
+    for (const [id, lvl] of this.buffs.owned) buffs += icon(BUFFS[id], lvl);
+    this.ui.buffBar.innerHTML = buffs;
+    this.updateDamageHud();
+  }
+
+  // medidor de dano acumulado por spell (ordenado, barra relativa ao maior)
+  updateDamageHud() {
+    const dmg = this.abilities.damage;
+    const rows = [];
+    for (const [id] of this.abilities.owned) rows.push({ def: SPELLS[id], val: dmg.get(id) || 0 });
+    rows.sort((a, b) => b.val - a.val);
+    const max = rows.length ? Math.max(1, rows[0].val) : 1;
+    let html = "";
+    for (const r of rows) {
+      html += `<div class="dmg-row">
+        <span class="dmg-ic" style="color:${r.def.color}">${r.def.icon}</span>
+        <div class="dmg-bar">
+          <div class="dmg-fill" style="width:${(r.val / max * 100)}%;background:${r.def.color}"></div>
+          <span class="dmg-val">${fmtNum(r.val)}</span>
+        </div></div>`;
+    }
+    this.ui.dmgHud.innerHTML = html;
+  }
+
+  // --- Loop principal: rAF + delta time ---
+  _loop(now) {
+    requestAnimationFrame(this._loop);
+    if (!this.lastTime) this.lastTime = now;
+    let dt = (now - this.lastTime) / 1000;
+    this.lastTime = now;
+    if (dt > 0.1) dt = 0.1; // clamp (evita salto após troca de aba)
+
+    // sub-stepping: aplica a velocidade do jogo em passos pequenos p/ estabilidade
+    let total = dt * this.timeScale;
+    while (total > 0) {
+      const step = Math.min(0.025, total);
+      this.update(step);
+      total -= step;
+    }
+    this.render();
+  }
+
+  update(dt) {
+    if (this.state !== STATE.PLAYING) return;
+    this.elapsed += dt;
+    this.player.update(dt, this.input);
+
+    this.applyPassives(dt);             // Demon Armor: regen + redução de dano
+    this.spawner.update(dt, this);
+    this.updateEnemies(dt);              // move + grid + separação + contato + DoT
+    this.abilities.tick(dt, this.api);  // auto-cast de todas as habilidades
+    this.updateProjectiles(dt);          // move + colisão → dano
+    this.updateAreas(dt);                // zonas de fogo → dano em área
+    this.killDeadEnemies();              // morte → orbe + kill + Life Tap + spread
+    this.updateOrbs(dt);                 // ímã + coleta → XP
+    this.updatePickups(dt);              // itens dropados
+    this.updateParticles(dt);
+
+    this.camera.follow(this.player, dt);
+    this.camera.updateShake(dt);
+    this.updateHUD();
+    this._dmgTimer -= dt;
+    if (this._dmgTimer <= 0) { this._dmgTimer = 0.25; this.updateDamageHud(); }
+
+    if (this.player.hp <= 0) { this.gameOver(); return; }
+    if (this.player.pendingLevels > 0) this.openLevelUp();
+  }
+
+  updateEnemies(dt) {
+    const list = this.enemies.active;
+    const p = this.player;
+    this.grid.clear();
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      e.update(dt, p);
+      this.grid.insert(e);
+
+      // DoT da Corruption
+      if (e.corrTime > 0) {
+        e.corrTime -= dt;
+        e.corrTickTimer -= dt;
+        if (e.corrTickTimer <= 0) {
+          e.corrTickTimer += e.corrTick;
+          e.corrPulse = 1;
+          this.damageEnemy(e, e.corrDmg, "corruption");
+        }
+      }
+
+      // colisão com o player → dano por contato (mitigado por Demon Armor)
+      const dx = p.x - e.x, dy = p.y - e.y;
+      const rr = p.radius + e.radius;
+      if (dx * dx + dy * dy < rr * rr) {
+        p.hp -= e.touchDps * dt * (1 - p.dmgReduction);
+      }
+
+      // boss ranged: dispara projétil hostil no player
+      if (e.type.ranged) {
+        e.shootTimer -= dt;
+        const t = e.type;
+        if (e.shootTimer <= 0 && dx * dx + dy * dy < t.shootRange * t.shootRange) {
+          e.shootTimer = t.shootInterval;
+          const a = Math.atan2(p.y - e.y, p.x - e.x);
+          this.projectiles.spawn({
+            x: e.x, y: e.y,
+            vx: Math.cos(a) * t.shootSpeed, vy: Math.sin(a) * t.shootSpeed,
+            damage: e.shootDamage, radius: 7, color: "#ff4db8",
+            source: "enemy", life: 3, pierce: 0, hostile: true,
+          });
+        }
+      }
+    }
+    this.separateEnemies();
+  }
+
+  updateParticles(dt) {
+    const list = this.particles.active;
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].update(dt)) { this.particles.release(i); i--; }
+    }
+  }
+
+  updatePickups(dt) {
+    const list = this.pickups.active, p = this.player;
+    for (let i = 0; i < list.length; i++) {
+      const pk = list[i];
+      pk.bob += dt * 4;
+      const dx = p.x - pk.x, dy = p.y - pk.y, rr = p.radius + 14;
+      if (dx * dx + dy * dy < rr * rr) {
+        pk.item.onPickup(this);
+        if (!pk.item.silent) this.onItemPickup(pk.item);
+        this.pickups.release(i); i--;
+      }
+    }
+  }
+
+  onItemPickup(item) {
+    this.sfx.item();
+    this.addShake(4);
+    this.showToast({ color: item.color, icon: item.icon, name: item.name, desc: item.desc });
+  }
+
+  // Baú do boss: sobe +1 em até 5 spells/buffs não-maxados (aleatórios).
+  openChest() {
+    const cands = [];
+    for (const [id, inst] of this.abilities.owned)
+      if (inst.level < SPELLS[id].maxLevel) cands.push({ kind: "spell", id, def: SPELLS[id] });
+    for (const [id, lvl] of this.buffs.owned)
+      if (lvl < BUFFS[id].maxLevel) cands.push({ kind: "buff", id, def: BUFFS[id] });
+    for (let i = cands.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [cands[i], cands[j]] = [cands[j], cands[i]];
+    }
+
+    // raridade: 1 (60%) / 3 (30%) / 5 (10%)
+    const roll = Math.random();
+    const rarity = roll < 0.6
+      ? { count: 1, label: "Comum", color: "#cfd2dc" }
+      : roll < 0.9
+        ? { count: 3, label: "Raro", color: "#5acfff" }
+        : { count: 5, label: "Lendário", color: "#ffd24a" };
+    const picks = cands.slice(0, rarity.count);
+
+    const results = [];
+    for (const c of picks) {
+      const from = c.kind === "spell" ? this.abilities.level(c.id) : this.buffs.level(c.id);
+      if (c.kind === "spell") this.abilities.acquire(c.id, this.api);
+      else this.buffs.acquire(c.id);
+      const to = c.kind === "spell" ? this.abilities.level(c.id) : this.buffs.level(c.id);
+      results.push({ def: c.def, from, to });
+    }
+    if (picks.length === 0) this.player.hp = this.player.maxHp; // tudo no máximo → cura total
+
+    this.updateAbilityBar();
+    this.combos.check(this.abilities, this.buffs).forEach((combo) => {
+      this.sfx.combo();
+      this.addShake(16);
+      this.spawnParticles(this.player.x, this.player.y, combo.color, 32);
+      this.player.comboPulse(combo.color);
+      this.showToast(combo);
+    });
+    this.checkEvolution();
+
+    this.sfx.levelUp();
+    this.addShake(rarity.count >= 5 ? 16 : rarity.count >= 3 ? 10 : 6);
+    if (rarity.count >= 5) this.spawnParticles(this.player.x, this.player.y, rarity.color, 28);
+    let rows = "";
+    if (results.length === 0) {
+      rows = `<div class="chest-empty">Arsenal no máximo — cura total!</div>`;
+    } else {
+      for (const r of results) {
+        rows += `<div class="chest-row">
+          <span class="chest-ic" style="color:${r.def.color}">${r.def.icon}</span>
+          <span class="chest-name">${r.def.name}</span>
+          <span class="chest-lv">Lv ${r.from} → ${r.to}</span></div>`;
+      }
+    }
+    this.ui.chestList.innerHTML = rows;
+    this.ui.chestRarity.textContent = `${rarity.label} · ${rarity.count} poder${rarity.count > 1 ? "es" : ""}`;
+    this.ui.chestRarity.style.color = rarity.color;
+    this.state = STATE.CHEST;
+    this.ui.chest.classList.remove("hidden");
+  }
+  closeChest() {
+    this.ui.chest.classList.add("hidden");
+    this.state = STATE.PLAYING;
+    if (this.player.pendingLevels > 0) this.openLevelUp();
+  }
+
+  // fonte única de dano em inimigos: registra stats, propaga Corruption e combos
+  damageEnemy(e, amount, source) {
+    e.hp -= amount;
+    e.hitFlash = 0.1;
+    this.abilities.record(source, amount);
+
+    if (source !== "corruption" && this.abilities.has("corruption")) {
+      this.applyCorruption(e);
+    }
+    // COMBO Demonic Pact: imps curam o player com fração do dano
+    if (source === "summonImp" && this.combos.has("demonicPact")) {
+      const p = this.player;
+      p.hp = Math.min(p.maxHp, p.hp + amount * 0.3);
+    }
+    // COMBO Unstable Affliction: DoT respinga dano em área (sem recursão)
+    if (source === "corruption" && this.combos.has("unstableAffliction")) {
+      const r = 55, splash = amount * 0.6;
+      this.grid.forRadius(e.x, e.y, r, (o) => {
+        if (o === e || o.hp <= 0) return;
+        const dx = o.x - e.x, dy = o.y - e.y;
+        if (dx * dx + dy * dy < r * r) {
+          o.hp -= splash; o.hitFlash = 0.1;
+          this.abilities.record("corruption", splash);
+        }
+      });
+    }
+  }
+
+  applyCorruption(e) {
+    const s = this.buffedStats(SPELLS.corruption, this.abilities.level("corruption"));
+    if (e.corrTime <= 0) e.corrTickTimer = s.tickInterval; // não reinicia cadência ativa
+    e.corrTime = s.duration;
+    e.corrDmg = s.damage;
+    e.corrTick = s.tickInterval;
+    e.corrupted = true;
+  }
+
+  applyPassives(dt) {
+    const p = this.player, m = this.buffs.mods;
+    p.speed = p.baseSpeed * m.moveSpeed;
+    p.pickupRange = p.basePickup * m.pickup;
+    p.dmgReduction = m.armor;
+    if (m.regen > 0) p.hp = Math.min(p.maxHp, p.hp + m.regen * dt);
+  }
+
+  updateAreas(dt) {
+    const list = this.areas.active;
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
+      a.life -= dt;
+      a.tickTimer -= dt;
+      if (a.tickTimer <= 0) {
+        a.tickTimer += a.tickInterval;
+        const dmg = a.dps * a.tickInterval;
+        this.grid.forRadius(a.x, a.y, a.radius, (e) => {
+          if (e.hp <= 0) return;
+          const dx = e.x - a.x, dy = e.y - a.y, rr = a.radius + e.radius;
+          if (dx * dx + dy * dy < rr * rr) this.damageEnemy(e, dmg, a.source);
+        });
+      }
+      if (a.life <= 0) { this.areas.release(i); i--; }
+    }
+  }
+
+  // separação leve reaproveitando o grid já populado — sem O(n²)
+  separateEnemies() {
+    const list = this.enemies.active;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      this.grid.forNear(e.x, e.y, (o) => {
+        if (o === e) return;
+        let dx = e.x - o.x, dy = e.y - o.y;
+        const minD = e.radius + o.radius;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > 0 && d2 < minD * minD) {
+          const d = Math.sqrt(d2);
+          const push = (minD - d) * 0.5;
+          dx /= d; dy /= d;
+          e.x += dx * push; e.y += dy * push;
+          o.x -= dx * push; o.y -= dy * push;
+        }
+      });
+    }
+  }
+
+  updateProjectiles(dt) {
+    const list = this.projectiles.active;
+    const pl = this.player;
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+
+      // teleguiado: curva a velocidade em direção ao inimigo mais próximo
+      if (p.homing) {
+        const target = this.api.nearestEnemy(p.x, p.y, 4000);
+        if (target) {
+          const desired = Math.atan2(target.y - p.y, target.x - p.x);
+          const cur = Math.atan2(p.vy, p.vx);
+          let diff = desired - cur;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          const turn = Math.max(-p.turnRate * dt, Math.min(p.turnRate * dt, diff));
+          const a = cur + turn;
+          p.vx = Math.cos(a) * p.speed;
+          p.vy = Math.sin(a) * p.speed;
+        }
+      }
+
+      p.update(dt);
+      if (!p.dead && p.hostile) {
+        // projétil de boss → atinge o player uma vez
+        const dx = pl.x - p.x, dy = pl.y - p.y, rr = pl.radius + p.radius;
+        if (dx * dx + dy * dy < rr * rr) {
+          pl.hp -= p.damage * (1 - pl.dmgReduction);
+          p.dead = true;
+          this.addShake(6);
+          this.sfx.hurt();
+          this.spawnParticles(pl.x, pl.y, "#ff5a5f", 8);
+        }
+      } else if (!p.dead) {
+        this.grid.forNear(p.x, p.y, (e) => {
+          if (p.dead || e.hp <= 0) return;
+          const dx = e.x - p.x, dy = e.y - p.y;
+          const rr = e.radius + p.radius;
+          if (dx * dx + dy * dy < rr * rr) {
+            if (p.hits) { if (p.hits.has(e)) return; p.hits.add(e); }
+            this.damageEnemy(e, p.damage, p.source);
+            if (p.pierce > 0) p.pierce--; else p.dead = true;
+          }
+        });
+      }
+      if (p.dead) { this.projectiles.release(i); i--; }
+    }
+  }
+
+  killDeadEnemies() {
+    const list = this.enemies.active;
+    const hasCorruption = this.abilities.has("corruption");
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      if (e.hp > 0) continue;
+
+      if (e.corrupted && hasCorruption) {
+        if (this.combos.has("seedOfCorruption")) {
+          // COMBO: explode em área, causa dano e espalha Corruption
+          const r = 85, dmg = e.corrDmg * 4;
+          this.grid.forRadius(e.x, e.y, r, (o) => {
+            if (o === e || o.hp <= 0) return;
+            const dx = o.x - e.x, dy = o.y - e.y;
+            if (dx * dx + dy * dy < r * r) {
+              o.hp -= dmg; o.hitFlash = 0.1;
+              this.abilities.record("corruption", dmg);
+              this.applyCorruption(o);
+            }
+          });
+          this.areas.spawn({ x: e.x, y: e.y, radius: r, dps: 0, life: 0.35,
+            tickInterval: 1, color: "#7fdc4a", source: "corruption" });
+        } else {
+          // base: chance de espalhar para inimigos próximos ao morrer
+          const s = SPELLS.corruption.stats(this.abilities.level("corruption"));
+          if (s.spreadChance > 0 && Math.random() < s.spreadChance) {
+            this.grid.forRadius(e.x, e.y, 70, (o) => {
+              if (o !== e && o.hp > 0) this.applyCorruption(o);
+            });
+          }
+        }
+      }
+
+      this.orbs.spawn(e.x, e.y, e.type.xp);
+      this.spawnParticles(e.x, e.y, e.type.color, e.type.boss ? 24 : 6);
+      this.sfx.death();
+      if (e.type.boss) this.addShake(8);
+      this.player.kills++;
+
+      // boss: chest, but at most one per bossChestCooldown — the hard phase
+      // drops several Dreadlords together and one chest each would snowball.
+      // Without a chest the boss pays out an extra shower of XP orbs instead.
+      if (e.type.boss) {
+        if (this.elapsed - this.lastBossChestAt >= BALANCE.spawn.bossChestCooldown) {
+          this.lastBossChestAt = this.elapsed;
+          this.pickups.spawn(e.x, e.y, "chest");
+        } else {
+          for (let k = 0; k < 6; k++) {
+            const a = (Math.PI * 2 / 6) * k;
+            this.orbs.spawn(e.x + Math.cos(a) * 26, e.y + Math.sin(a) * 26, e.type.xp);
+          }
+        }
+      } else {
+        for (const id in ITEMS) {
+          if (ITEMS[id].dropChance > 0 && Math.random() < ITEMS[id].dropChance) {
+            this.pickups.spawn(e.x, e.y, id);
+            break;
+          }
+        }
+      }
+
+      this.enemies.release(i); i--;
+    }
+  }
+
+  updateOrbs(dt) {
+    const list = this.orbs.active;
+    for (let i = 0; i < list.length; i++) {
+      const collected = list[i].update(dt, this.player);
+      if (collected) {
+        this.player.gainXp(list[i].value * this.buffs.mods.xp);
+        this.orbs.release(i); i--;
+      }
+    }
+  }
+
+  updateHUD() {
+    const p = this.player;
+    const m = Math.floor(this.elapsed / 60);
+    const s = Math.floor(this.elapsed % 60);
+    this.ui.timer.textContent =
+      String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    this.ui.timer.classList.toggle("hard", this.elapsed >= BALANCE.spawn.hardAt);
+    this.ui.kills.textContent = "☠ " + p.kills;
+    this.ui.hpFill.style.width = (p.hp / p.maxHp * 100) + "%";
+    this.ui.xpFill.style.width = (p.xp / p.xpToNext * 100) + "%";
+    this.ui.hpLabel.textContent = Math.ceil(p.hp) + " / " + p.maxHp;
+    this.ui.xpLabel.textContent = "Nível " + p.level;
+  }
+
+  render() {
+    const ctx = this.ctx;
+    if (this.state === STATE.MENU) {
+      // fundo animado leve no menu
+      this.camera.x += 12 * (1 / 60);
+      this.camera.drawGround(ctx);
+      this.renderComboPreview();
+      return;
+    }
+    this.camera.drawGround(ctx);
+
+    const areas = this.areas.active;
+    for (let i = 0; i < areas.length; i++) areas[i].draw(ctx, this.camera);
+
+    const orbs = this.orbs.active;
+    for (let i = 0; i < orbs.length; i++) orbs[i].draw(ctx, this.camera);
+
+    const pickups = this.pickups.active;
+    for (let i = 0; i < pickups.length; i++) pickups[i].draw(ctx, this.camera);
+
+    const enemies = this.enemies.active;
+    for (let i = 0; i < enemies.length; i++) enemies[i].draw(ctx, this.camera);
+
+    const parts = this.particles.active;
+    for (let i = 0; i < parts.length; i++) parts[i].draw(ctx, this.camera);
+
+    this.player.draw(ctx, this.camera, this.combos, this.abilities);
+
+    const proj = this.projectiles.active;
+    for (let i = 0; i < proj.length; i++) proj[i].draw(ctx, this.camera);
+
+    // feixes, imps e auras das habilidades
+    this.abilities.draw(ctx, this.api, this.camera);
+  }
+}
+
+window.addEventListener("DOMContentLoaded", () => new Game());
+</script>
+</body>
+</html>
