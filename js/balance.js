@@ -99,6 +99,34 @@ const BALANCE = {
 };
 
 
+/* ETAPAS: a batida lenta da run, e a UNICA fonte de ponto de eixo.
+
+   O level up passou a ser so profundidade (um tier de uma spell que voce ja
+   tem). Largura e comprometimento saem daqui — de marcos de TEMPO, que o
+   jogador ve chegar no relogio em vez de sortear.
+
+   Por que tempo e nao chefe: o primeiro Dreadlord so nasce aos 5 min e depois
+   vem a cada 2:30. Metade da run ficaria sem marco nenhum, e o eixo — que e a
+   unica decisao irreversivel do jogo — chegaria tarde demais para ser mirado.
+
+   `at` e `points` andam juntos por indice, e `points` SOMA exatamente
+   AXIS_RULES.pool: o pool fecha aos 10 minutos, que e onde uma run competente
+   deveria estar acabando. Nao ha marco depois disso porque nao ha mais ponto
+   para dar. `driver_milestone` cobra a soma.
+
+   `pieceDiscount` e a economia inteira em um numero: largura NAO gasta o pool,
+   ela DESACELERA o pool. A carta de um eixo que vem com spell nova entrega um
+   ponto a menos que a carta seca do mesmo eixo. Sete etapas so de Dedicacao
+   dao 20 pontos (capstone puro + hibrido); sete com spell dao 13 (nenhum
+   capstone, mas nove spells). O jogador escolhe entre maestria e arsenal, e
+   pela primeira vez ele consegue ver o que esta pagando. */
+BALANCE.milestones = {
+  at:     [60, 150, 240, 330, 420, 510, 600],  // segundos de run
+  points: [ 2,   2,   2,   3,   3,   3,   5],  // soma 20 = AXIS_RULES.pool
+  pieceDiscount: 1,   // quanto a carta com spell nova deixa de dar
+  warnAt: 12,         // s antes do marco em que o HUD comeca a avisar
+};
+
 /* Baú: quantos tiers grátis ele entrega. Peso relativo, não porcentagem;
    `lateWeight` substitui `weight` depois de BALANCE.spawn.hardAt — no fim da run
    um tier avulso não muda mais nada, um pacote de 5 sim. */

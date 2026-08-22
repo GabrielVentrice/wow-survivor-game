@@ -16,8 +16,9 @@ class UI {
       pieceBar: $("pieceBar"), axisBar: $("axisBar"), dmgHud: $("dmgHud"),
       toasts: $("toasts"),
       levelup: $("levelup"), lvRows: $("lvRows"), lvBuild: $("lvBuild"),
-      lvEyebrow: $("lvEyebrow"), lvBudget: $("lvBudget"),
-      lvWas: $("lvWas"), lvFree: $("lvFree"), lvTotal: $("lvTotal"),
+      lvEyebrow: $("lvEyebrow"),
+      milestone: $("milestone"), msRows: $("msRows"), msEyebrow: $("msEyebrow"),
+      msPool: $("msPool"), msCap: $("msCap"), msClock: $("msClock"),
       pause: $("pause"), pausePanel: $("pausePanel"),
       chest: $("chest"), chestList: $("chestList"), chestRarity: $("chestRarity"),
       gameover: $("gameover"), stats: $("stats"),
@@ -86,6 +87,19 @@ class UI {
     const g = this.game, p = g.player, e = this.el;
     e.timer.textContent = mmss(g.elapsed);
     e.timer.classList.toggle("hard", g.elapsed >= BALANCE.spawn.hardAt);
+
+    /* Contagem para a proxima etapa. Marco que chega sem aviso nao estrutura
+       ritmo nenhum: o valor de uma batida lenta esta em o jogador VER a
+       decisao se aproximando e poder se preparar para ela. Perto do marco o
+       elemento acende — e ai ele passa a dizer o eixo que a run tem hoje, que
+       e o contexto da escolha que vem. */
+    const left = g.nextMilestoneIn();
+    if (left == null) e.msClock.classList.add("hidden");
+    else {
+      e.msClock.classList.remove("hidden");
+      e.msClock.classList.toggle("soon", left <= BALANCE.milestones.warnAt);
+      e.msClock.textContent = `◆ ${mmss(left)}`;
+    }
     e.kills.textContent = "☠ " + p.kills;
     const hp = Math.max(0, p.hp);
     e.hpFill.style.width = (hp / p.maxHp * 100) + "%";
@@ -195,8 +209,15 @@ class UI {
     g.state = STATE.LEVELUP;
     g.sfx.levelUp();
     const offers = g.build.getOffers(3);
+    /* Bolo vazio: toda trilha fechada e toda passiva tomada. Nao ha o que
+       oferecer, entao o nivel vira cura em vez de sumir em silencio — subir de
+       nivel e nao receber nada e o jogo cobrando atencao e devolvendo vazio. */
     if (!offers.length) {
       g.player.pendingLevels = 0;
+      g.player.hp = Math.min(g.player.maxHp, g.player.hp + g.player.maxHp * 0.35);
+      this.toast({ head: "Arsenal completo", color: "#7fdc4a", icon: "✚",
+        name: "Nada mais a aprender",
+        desc: "Todo caminho fechado — o nível virou fôlego." });
       g.state = STATE.PLAYING;
       return;
     }
@@ -206,8 +227,6 @@ class UI {
        repetir o nivel ja alcancado tres vezes seguidas. */
     const lv = g.player.level - g.player.pendingLevels;
     this.el.lvEyebrow.textContent = `Nível ${lv} → ${lv + 1}`;
-    this.el.lvTotal.textContent = `/ ${AXIS_RULES.pool} pontos de eixo`;
-    this.updateBudget(null);
 
     this.lvOffers = offers;
     this.lvViews = offers.map((o) => this.offerView(o));
@@ -235,46 +254,25 @@ class UI {
   lvHoverTo(i) {
     if (this.lvHover === i) return;
     this.lvHover = i;
-    this.updateBudget(i >= 0 ? this.lvViews[i] : null);
     this.el.lvBuild.innerHTML = this.buildPanelHtml(i);
   }
 
-  /* Previa do gasto no chip de orcamento: o saldo cai para o que sobraria e o
-     chip vira alarme. Ponto de eixo nao volta — e o unico numero desta tela
-     que o jogador nao pode desfazer depois, entao ele e o unico que se antecipa
-     ao clique. Sem custo real (passiva, tier livre, eixo no teto) nada muda:
-     alarme que acende sempre para de alarmar. */
-  updateBudget(v) {
-    const left = this.game.build.axisLeft;
-    const spend = !!(v && v.gain > 0);
-    this.el.lvWas.textContent = left;
-    this.el.lvFree.textContent = spend ? left - v.gain : left;
-    this.el.lvBudget.classList.toggle("spend", spend);
-  }
-
   /* Tudo o que a linha mostra, derivado do que a oferta ja carrega. Roda uma
-     vez por oferta (nao por hover): o resultado fica em `this.lvViews`. */
+     vez por oferta (nao por hover): o resultado fica em `this.lvViews`.
+
+     A terceira coluna era CUSTO e virou PROGRESSO. O level up nao gasta mais
+     nada — a pergunta que ele faz e "qual das minhas spells vira a spell da
+     run?", e o que responde isso e onde cada trilha esta, nao um preco que
+     agora e sempre zero. Coluna de custo com "não gasta ponto" em todas as
+     tres linhas seria um terco da tela dizendo a mesma coisa. */
   offerView(o) {
-    const b = this.game.build;
     const axis = o.axis || null;
     const v = {
       color: axis ? axis.color : o.def.color,
-      axis, gain: 0, pips: null, delta: [], rec: "",
+      axis, pips: null, delta: [], rec: "",
     };
 
-    if (o.kind === "piece") {
-      const trig = TRIGGER_LABEL[o.def.trigger.type] || "Automática";
-      v.kind = "Spell nova";
-      v.glyph = "◈";
-      v.icon = o.def.icon;
-      v.name = o.def.name;
-      v.subtitle = `${trig.toLowerCase()} · dispara sozinha`;
-      v.plain = o.def.desc;
-      v.why = `${axis.icon} ${axis.name} — ${axis.tag}.`;
-      v.delta = [["não está na build", trig]];
-      v.progress = "spell nova";
-      v.cost = o.def.axisPoints != null ? o.def.axisPoints : 2;
-    } else if (o.kind === "passive") {
+    if (o.kind === "passive") {
       v.kind = "Passiva";
       v.glyph = "✦";
       v.round = true;       // circulo: a mesma forma que a passiva tem no HUD
@@ -282,11 +280,15 @@ class UI {
       v.name = o.def.name;
       v.subtitle = "não dispara · afeta a build inteira";
       v.plain = o.def.desc;
+      /* Passiva mora no level up junto com os tiers porque ela nao e largura:
+         ela nao tem tier, nao tem eixo e nao pede investimento nenhum depois
+         de tomada. Ela so multiplica o que a build ja tem — que e exatamente
+         o que esta tela faz. */
       v.why = o.def.exclusive
         ? `Escolher esta fecha a porta de ${PASSIVES[o.def.exclusive].name} — a build tem que optar.`
         : "Vale para a build inteira, não para uma peça só.";
-      v.progress = "passiva";
-      v.cost = 0;
+      v.progHead = "Vale para tudo";
+      v.progTail = "não sobe de tier";
     } else {
       const evo = o.isEvo && o.evo ? o.evo : null;
       /* Evolucao ganha etiqueta propria em vez de "Melhoria · evolução": ela
@@ -296,7 +298,7 @@ class UI {
       v.kind = evo ? "Evolução" : "Melhoria";
       v.glyph = evo ? "⭐" : "▲";
       // O icone de uma melhoria e o de uma spell que voce JA tem: sem o selo
-      // ele e indistinguivel do icone de uma spell nova.
+      // ele e indistinguivel do icone de uma spell que voce nao tem.
       v.badge = o.tierIndex + 1;
       v.icon = evo ? evo.icon : o.def.icon;
       /* O slot do nome carrega a SPELL, nao o nome de fantasia do tier. O
@@ -319,37 +321,16 @@ class UI {
       // com o que a spell E, que e o contexto da melhoria.
       v.why = evo ? evo.desc : o.def.desc;
       v.delta = this.tierDelta(o);
-      v.progress = o.path.name;
       v.pips = o.tierIndex + 1;
-      v.cost = o.tierIndex + 1 > PATH_RULES.freeTier ? 1 : 0;
-    }
-
-    /* Custo REAL, nao o de tabela: com o eixo no teto ou o pool no fim,
-       `addAxis` entrega menos do que a oferta pede — e dizer "custa 2" quando
-       vai custar 0 e a mentira mais cara possivel nesta tela. */
-    if (axis && v.cost) {
-      v.gain = Math.max(0, Math.min(v.cost,
-        AXIS_RULES.capPerAxis - b.axis[axis.id], b.axisLeft));
-    }
-    /* Veredito primeiro, detalhe depois e mais fraco: a pergunta e "gasta ou
-       nao?", e ela cabe em tres palavras. Numa unica frase forte o custo
-       quebrava em duas linhas e virava o bloco mais pesado da coluna, o que
-       ele nao precisa ser para ser lido. */
-    if (!v.cost) {
-      v.costFree = true;
-      v.costHead = "Não gasta ponto";
-      v.costTail = o.kind === "passive"
-        ? "passivas são livres"
-        : `até o tier ${PATH_RULES.freeTier} é livre`;
-    } else if (!v.gain) {
-      v.costFree = true;
-      v.costHead = "Não gasta ponto";
-      v.costTail = `${axis.name} já no teto`;
-    } else {
-      v.costFree = false;
-      const cur = b.axis[axis.id];
-      v.costHead = `Custa ${v.gain}`;
-      v.costTail = `${axis.name} ${cur} → ${cur + v.gain}`;
+      /* Veredito primeiro, detalhe depois — a mesma hierarquia que o custo
+         tinha. O veredito e quao fundo esta compra deixa a trilha; o detalhe e
+         qual trilha, porque uma spell tem tres e elas nao se misturam. */
+      const falta = PATH_RULES.tiers - (o.tierIndex + 1);
+      v.progHead = evo ? "Fecha o caminho"
+        : falta === 0 ? "Fecha o caminho"
+        : falta === 1 ? "A um tier do fim"
+        : `Tier ${o.tierIndex + 1} de ${PATH_RULES.tiers}`;
+      v.progTail = o.path.name;
     }
 
     v.rec = this.recFor(o, v);
@@ -385,23 +366,20 @@ class UI {
     return out;
   }
 
-  /* O chip verde so aparece quando a oferta muda a corrida por um MARCO —
-     abrir ou aproximar um capstone, ou acender a aura fechando um caminho.
-     Sem gancho real ele nao aparece: recomendacao decorativa vira ruido e o
-     jogador para de ler o chip que importa. */
+  /* O chip verde so aparece quando a oferta muda a corrida por um MARCO. Sem
+     gancho real ele nao aparece: recomendacao decorativa vira ruido e o
+     jogador para de ler o chip que importa.
+
+     No level up sobrou UM gancho, e ele e o certo: fechar um caminho acende a
+     aura da spell em volta do warlock. O gancho de capstone saiu junto com o
+     custo — capstone e assunto de etapa agora, e apontar para ele numa tela
+     que nao entrega ponto de eixo seria apontar para uma porta que esta na
+     outra sala. */
   recFor(o, v) {
     const b = this.game.build;
     if (o.kind === "path" && o.tierIndex + 1 === PATH_RULES.tiers && !b.isComplete(o.inst)) {
       return "acende a aura";
     }
-    if (!v.axis || !v.gain) return "";
-    const before = this.nearestCapstone();
-    const after = this.nearestCapstone(v.axis.id, v.gain);
-    if (!after) return "";
-    // Sem artigo de proposito: os capstones tem generos diferentes ("a
-    // Tirania", "o Ceifador") e um artigo fixo erra metade dos nomes.
-    if (!after.missing) return `abre ${after.cap.name}`;
-    if (before && after.missing < before.missing) return `aproxima ${after.cap.name}`;
     return "";
   }
 
@@ -451,10 +429,9 @@ class UI {
         <div class="lv-why">${v.why}</div>
       </div>
       <div class="lv-cost">
-        <div class="lv-cost-line ${v.costFree ? "free" : "pay"}">${v.costHead}
-          <span>${v.costTail}</span></div>
-        <div class="lv-prog"><span class="lv-prog-lbl">${v.progress}</span>${
-          v.pips != null ? this.pipsHtml(v.pips) : ""}</div>
+        <div class="lv-cost-line ${v.pips != null ? "pay" : "free"}">${v.progHead}
+          <span>${v.progTail}</span></div>
+        ${v.pips != null ? `<div class="lv-prog">${this.pipsHtml(v.pips)}</div>` : ""}
         ${v.rec ? `<div class="lv-rec">${v.rec}</div>` : ""}
         <div class="lv-pick">Escolher</div>
       </div>`;
@@ -464,6 +441,35 @@ class UI {
     let s = `<span class="lv-pips">`;
     for (let i = 0; i < PATH_RULES.tiers; i++) s += `<i class="${i < n ? "on" : ""}"></i>`;
     return s + `</span>`;
+  }
+
+  /* As tres barras de eixo, compartilhadas pelo painel do level up e pela tela
+     de etapa. `axisId`/`add` desenham a PREVIA do ganho: a barra fantasma
+     mostra onde o eixo chegaria, e o numero vira "4 → 7".
+
+     Uma funcao so para os dois porque a barra e a mesma pergunta nos dois
+     lugares — quanto falta para o capstone. Duas copias divergiriam na
+     primeira vez que o teto por eixo mudasse. */
+  axesHtml(axisId, add) {
+    const b = this.game.build;
+    const pct = (n) => Math.min(100, n / AXIS_RULES.capPerAxis * 100);
+    let out = "";
+    for (const id in AXES) {
+      const a = AXES[id], val = b.axis[id];
+      const gain = id === axisId ? (add || 0) : 0;
+      out += `<div class="lv-ax" style="--acc:${a.color}">
+        <div class="lv-ax-head">
+          <span class="lv-ax-ic">${a.icon}</span>
+          <span class="lv-ax-name">${a.name}</span>
+          <span class="lv-ax-num ${gain ? "lit" : ""}">${
+            gain ? `${val} → ${val + gain}` : val} / ${AXIS_RULES.capPerAxis}</span>
+        </div>
+        <div class="lv-ax-track">
+          <i class="ghost" style="width:${pct(val + gain)}%"></i>
+          <i style="width:${pct(val)}%"></i>
+        </div></div>`;
+    }
+    return out;
   }
 
   /* Painel da build: o contexto sem o qual "melhoria" e "spell nova" sao
@@ -478,20 +484,10 @@ class UI {
     const o = hoverIdx >= 0 && this.lvOffers ? this.lvOffers[hoverIdx] : null;
     const v = hoverIdx >= 0 && this.lvViews ? this.lvViews[hoverIdx] : null;
 
-    /* Quais spells a oferta sob o mouse mexe: o tier melhora a instancia dele;
-       a spell nova destaca quem a habilitou (`requires`), que e o unico
-       vinculo real que ela tem com a build de agora. */
+    /* Qual spell a oferta sob o mouse mexe. So o tier tem alvo: passiva vale
+       para a build inteira, entao destacar tudo seria destacar nada. */
     const hit = new Set();
     if (o && o.kind === "path") hit.add(o.inst.key);
-    if (o && o.kind === "piece" && o.def.requires) {
-      const r = o.def.requires;
-      if (r.piece && b.pieces.has(r.piece)) hit.add(r.piece);
-      if (r.tag) {
-        for (const inst of b.pieces.values()) {
-          if (inst.def.tags && inst.def.tags.indexOf(r.tag) >= 0) hit.add(inst.key);
-        }
-      }
-    }
 
     const start = (CLASSES[g.selectedClass] && CLASSES[g.selectedClass].starting) || [];
     const rows = [];
@@ -506,7 +502,7 @@ class UI {
         def: d, paths, hit: hit.has(inst.key),
         meta: start.indexOf(inst.key) >= 0
           ? "kit inicial"
-          : `${AXES[d.axis].name} · ${d.axisPoints != null ? d.axisPoints : 2} pts`,
+          : `${AXES[d.axis].icon} ${AXES[d.axis].name}`,
       });
     }
     // A spell afetada sobe para o topo, para nunca cair dentro do contador.
@@ -559,23 +555,13 @@ class UI {
       chips += `<span class="lv-chip more">+${b.passives.size - np}</span>`;
     }
 
-    let axes = "";
-    for (const id in AXES) {
-      const a = AXES[id], val = b.axis[id];
-      const add = v && v.axis && v.axis.id === id ? v.gain : 0;
-      const pct = (n) => Math.min(100, n / AXIS_RULES.capPerAxis * 100);
-      axes += `<div class="lv-ax" style="--acc:${a.color}">
-        <div class="lv-ax-head">
-          <span class="lv-ax-ic">${a.icon}</span>
-          <span class="lv-ax-name">${a.name}</span>
-          <span class="lv-ax-num ${add ? "lit" : ""}">${
-            add ? `${val} → ${val + add}` : val} / ${AXIS_RULES.capPerAxis}</span>
-        </div>
-        <div class="lv-ax-track">
-          <i class="ghost" style="width:${pct(val + add)}%"></i>
-          <i style="width:${pct(val)}%"></i>
-        </div></div>`;
-    }
+    /* Os eixos continuam no painel, mas agora sao so LEITURA: nenhuma oferta
+       de level up os move. Eles ficam porque respondem "o que a proxima etapa
+       decide" — e o jogador precisa dessa resposta enquanto escolhe onde
+       aprofundar, senao ele investe fundo num eixo que a run nao vai seguir.
+       A previa de ganho migrou para a tela de etapa, que e onde o numero
+       muda. */
+    const axes = this.axesHtml(null, 0);
 
     let cap = "";
     const near = this.nearestCapstone();
@@ -665,6 +651,180 @@ class UI {
     p.comboPulse(color);
     this.toast({ head: "Metamorfose!", color, icon: f.icon,
       name: f.name, desc: f.desc });
+  }
+
+  /* --- etapa ---------------------------------------------------------------
+     A BATIDA LENTA. Tres cartas, sempre uma por eixo, e a unica fonte de ponto
+     de eixo do jogo.
+
+     Ela e o oposto da tela de level up de proposito. Level up compara LINHAS
+     porque a pergunta la e "qual destas tres coisas diferentes eu quero"; aqui
+     a pergunta e uma so — para onde a run vai — e as tres respostas sao a
+     mesma forma preenchida com eixos diferentes. Isso pede CARTAS lado a lado,
+     que e a leitura horizontal: o olho corre os tres numeros na mesma altura e
+     compara a mesma coisa tres vezes.
+
+     Aqui o custo volta, e ele e o unico do jogo: uma carta que traz spell nova
+     entrega um ponto a MENOS que a carta seca do mesmo eixo. Largura nao gasta
+     o pool, ela desacelera o pool — e essa e a unica decisao da run que nao se
+     desfaz depois. */
+
+  openMilestone() {
+    const g = this.game;
+    /* Pool cheio: nao ha mais ponto para dar, entao a tela nao tem pergunta a
+       fazer. Some em silencio em vez de abrir vazia — pela tabela isso so
+       acontece se um marco escapar depois do ultimo. */
+    if (g.build.axisLeft <= 0) {
+      g.pendingMilestones = 0;
+      g.state = STATE.PLAYING;
+      return;
+    }
+    g.state = STATE.MILESTONE;
+    g.sfx.levelUp();
+    g.addShake(10);
+
+    const idx = g.milestoneIdx - g.pendingMilestones;
+    const offers = g.build.getMilestoneOffers(Math.max(0, idx));
+    this.msOffers = offers;
+    this.msHover = null;
+
+    const at = BALANCE.milestones.at;
+    const n = Math.min(idx + 1, at.length);
+    this.el.msEyebrow.textContent = `Etapa ${n} de ${at.length} · ${mmss(at[Math.min(idx, at.length - 1)])}`;
+
+    this.el.msRows.innerHTML = "";
+    for (let i = 0; i < offers.length; i++) {
+      const o = offers[i];
+      const card = document.createElement("div");
+      card.className = "ms-card";
+      card.style.setProperty("--acc", o.axis.color);
+      card.style.setProperty("--acc-dim", o.axis.color + "55");
+      card.style.setProperty("--acc-wash", o.axis.color + "1c");
+      card.innerHTML = this.msCardHtml(o);
+      /* O ALVO e o botao, nao a carta: a carta e um eixo e o eixo tem duas
+         maneiras de ser levado. Carta inteira clicavel precisaria de um padrao
+         escolhido por nos, e escolher pelo jogador a metade irreversivel da
+         decisao e o oposto do que esta tela existe para fazer. */
+      const btns = card.querySelectorAll(".ms-take");
+      for (const btn of btns) {
+        const wet = btn.dataset.wet === "1";
+        btn.onclick = (ev) => { ev.stopPropagation(); this.applyMilestone(o, wet); };
+        btn.onmouseenter = () => this.msHoverTo(o, wet);
+        btn.onmouseleave = () => this.msHoverTo(null, false);
+      }
+      this.el.msRows.appendChild(card);
+    }
+    this.msRender(null, false);
+    this.el.milestone.classList.remove("hidden");
+  }
+
+  msHoverTo(o, wet) {
+    const tag = o ? o.axisId + (wet ? "+" : "") : null;
+    if (this.msHover === tag) return;
+    this.msHover = tag;
+    this.msRender(o, wet);
+  }
+
+  /* Como no level up, o hover re-renderiza so o RODAPE: mexer nas cartas
+     mataria a transicao de `transform` que o CSS esta rodando naquele
+     instante. */
+  msRender(o, wet) {
+    const step = !o ? null : (wet ? o.wet : o.dry);
+    this.el.msPool.innerHTML = this.axesHtml(o ? o.axisId : null, step ? step.gain : 0);
+    this.el.msCap.innerHTML = this.capLineHtml(o, step);
+  }
+
+  /* O alvo, com previa. Capstone e a unica coisa que os pontos de eixo compram
+     a longo prazo, entao a tela que os entrega tem que dizer onde eles levam —
+     senao alocar e uma decisao de rota longa com feedback so no fim da run. */
+  capLineHtml(o, step) {
+    const before = this.nearestCapstone();
+    const after = step && step.gain
+      ? this.nearestCapstone(o.axisId, step.gain)
+      : before;
+    if (!after) {
+      return `<div class="ms-cap none">Nenhum capstone cabe mais no pool restante.</div>`;
+    }
+    if (!after.missing) {
+      return `<div class="ms-cap open">${after.cap.icon}
+        <b style="color:${after.cap.color}">${after.cap.name}</b> abre agora.</div>`;
+    }
+    const falta = after.gaps.map((x) => `${x.need} de ${x.axis.name}`).join(" e ");
+    const closer = before && after.missing < before.missing;
+    return `<div class="ms-cap${closer ? " closer" : ""}">${after.cap.icon}
+      <b style="color:${after.cap.color}">${after.cap.name}</b> a ${falta}${
+      closer ? ` <i>— ${before.missing} antes desta carta</i>` : ""}</div>`;
+  }
+
+  msCardHtml(o) {
+    const cur = this.game.build.axis[o.axisId];
+    /* Os dois botoes carregam o numero REAL, e e a diferenca entre eles que
+       conta a economia do jogo em um lugar so. Sem a linha da troca o jogador
+       ve dois numeros diferentes e conclui que foi sorte, quando na verdade
+       foi a spell que ele esta levando junto. */
+    const take = (step, wet, label, note) => {
+      if (!step) return "";
+      const dead = step.gain <= 0;
+      return `<button class="ms-take${wet ? " wet" : ""}${dead ? " dead" : ""}" data-wet="${wet ? 1 : 0}">
+        <span class="ms-take-l">${label}</span>
+        <span class="ms-take-n">${dead ? "+0" : "+" + step.gain}</span>
+        <span class="ms-take-s">${dead
+          ? (cur >= AXIS_RULES.capPerAxis ? "eixo no teto" : "pool no fim")
+          : `${cur} → ${cur + step.gain}` + (note ? ` · ${note}` : "")}</span>
+      </button>`;
+    };
+
+    const spell = o.piece
+      ? `<div class="ms-spell">
+          <span class="ms-spell-ic">${o.piece.icon}</span>
+          <span class="ms-spell-txt">
+            <span class="ms-spell-kind"><i>◈</i>Spell nova</span>
+            <span class="ms-spell-name">${o.piece.name}</span>
+            <span class="ms-spell-desc">${o.piece.desc}</span>
+          </span></div>`
+      : `<div class="ms-spell empty">
+          <span class="ms-spell-txt">
+            <span class="ms-spell-name">Nada novo neste eixo</span>
+            <span class="ms-spell-desc">Todas as spells de ${o.axis.name} já estão na build.</span>
+          </span></div>`;
+
+    return `
+      <div class="ms-head">
+        <span class="ms-ic">${o.axis.icon}</span>
+        <span class="ms-axis">${o.axis.name}</span>
+        <span class="ms-tag">${o.axis.tag}</span>
+      </div>
+      ${spell}
+      <div class="ms-takes">
+        ${take(o.dry, false, "Só o eixo", "")}
+        ${take(o.wet, true, "Com a spell", `−${BALANCE.milestones.pieceDiscount} pelo arsenal`)}
+      </div>`;
+  }
+
+  applyMilestone(o, takePiece) {
+    const g = this.game;
+    const res = g.build.applyMilestone(o, takePiece);
+
+    if (res.piece) {
+      this.toast({ head: "Spell nova!", color: res.piece.color, icon: res.piece.icon,
+        name: res.piece.name, desc: res.piece.desc });
+    }
+    for (const cap of res.caps) {
+      g.sfx.combo();
+      g.addShake(18);
+      g.spawnParticles(g.player.x, g.player.y, cap.color, 40);
+      g.player.comboPulse(cap.color);
+      this.toast({ head: "Capstone!", color: cap.color, icon: cap.icon,
+        name: cap.name, desc: cap.desc });
+    }
+    this.checkForm(res.caps[res.caps.length - 1]);
+    this.updatePieceBar();
+
+    g.pendingMilestones--;
+    this.el.milestone.classList.add("hidden");
+    if (g.pendingMilestones > 0) this.openMilestone();
+    else if (g.player.pendingLevels > 0) this.openLevelUp();
+    else g.state = STATE.PLAYING;
   }
 
   /* --- bau ---------------------------------------------------------------- */

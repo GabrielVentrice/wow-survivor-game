@@ -35,7 +35,14 @@ function stubCtx() {
 function stubEl(id) {
   const el = {
     id, innerHTML: "", textContent: "", className: "", value: "",
-    style: new Proxy({}, { get: () => "", set: () => true }),
+    /* `setProperty` precisa existir de verdade: a UI passa as cores de eixo
+       por variavel CSS (`--acc`), e um proxy que devolve "" para toda
+       propriedade fazia a chamada estourar. Devolvendo no-op, o codigo real de
+       montagem de tela roda no headless em vez de ser desviado pelo driver. */
+    style: new Proxy({}, {
+      get: (t, k) => (k === "setProperty" || k === "removeProperty" ? () => {} : ""),
+      set: () => true,
+    }),
     dataset: {}, children: [], width: 0, height: 0,
     classList: { add: () => {}, remove: () => {}, toggle: () => {}, contains: () => false },
     appendChild(c) { this.children.push(c); return c; },

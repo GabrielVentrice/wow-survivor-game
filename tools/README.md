@@ -16,14 +16,15 @@ DRIVER=driver_audio.js node tools/harness.js .   # som de morte: grafo, throttle
 DRIVER=driver_music.js node tools/harness.js .   # trilha: andamento, camadas, estados
 DRIVER=driver_render.js node tools/harness.js .  # cenário, demônios e explosão: render e caches
 DRIVER=driver_track.js node tools/harness.js .   # trilha em arquivo: loop, fallback, estados
-DRIVER=driver_cards.js node tools/harness.js .   # level up: tipo, pips, custo real, teto do painel
+DRIVER=driver_cards.js node tools/harness.js .   # level up: so profundidade, pips, progresso, teto do painel
+DRIVER=driver_milestone.js node tools/harness.js .  # etapa: tabela, tres eixos, ganho real, quem mira fecha capstone
 DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas, abertura
 DRIVER=driver_chest.js node tools/harness.js .   # baú: cadência de aparição e tamanho do prêmio
 DRIVER=driver_form.js  node tools/harness.js .   # metamorfose por capstone e aura por spell concluída
 DRIVER=driver_pixel.js node tools/harness.js .   # grid de pixel: buffer, câmera, escala igual p/ todos, laje
 DRIVER=driver_palette.js node tools/harness.js . # paleta mestre: cor fora da PAL, rampa chapada, corpo aceso
 DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câmera, curvas de evento
-DRIVER=driver_preview.js node tools/harness.js . # escreve tools/levelup-preview.html (revisão visual)
+DRIVER=driver_preview.js node tools/harness.js . # escreve tools/levelup-preview.html: level up + etapa (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
 DRIVER=driver_balance.js node tools/harness.js . 5 16   # balanceamento (5 runs x 4 políticas)
@@ -99,17 +100,45 @@ A política `agressivo` marca 1.2x: ela ignora defesa e controle por construçã
 morre cedo, e o terço inicial curto distorce a razão. É arquétipo glass cannon
 falhando, não regressão.
 
-`driver_preview` também não mede nada: escreve `tools/levelup-preview.html`, a
-tela de level-up montada com builds de verdade. Os quatro estados que valem
-revisão são **caçados na simulação**, não fixados por número de rodada: linha
-completa, linha compacta, compacta com excedente e **evolução na mesa** — esse
-último é o mais raro de encontrar jogando e o que tem etiqueta própria. O hover
-cai na linha que cobra ponto (para o chip de orçamento aparecer em alarme), ou
-na evolução quando há uma.
-O HTML sai do mesmo `UI.rowHtml`/`UI.buildPanelHtml` do jogo e o CSS é lido do
-`index.html`, então prévia que diverge do jogo não existe. Mesmo argumento do
-`sprites.html`: tela que só aparece por segundos, em estados sorteados, não se
-revisa jogando.
+`driver_preview` também não mede nada: escreve `tools/levelup-preview.html`,
+com as **duas** telas de escolha montadas a partir de builds de verdade. Os
+quatro estados do level-up são **caçados na simulação**, não fixados por número
+de rodada: linha completa, linha compacta, compacta com excedente e **evolução
+na mesa** — esse último é o mais raro de encontrar jogando e o que tem etiqueta
+própria. A etapa sai nos dois extremos: primeiro marco (2 pontos, build crua,
+capstone longe) e marco final (5 pontos, eixo carregado, capstone ao alcance),
+que é onde os números da carta mudam de peso.
+O HTML sai dos mesmos `UI.rowHtml`/`UI.buildPanelHtml`/`UI.msCardHtml` do jogo e
+o CSS é lido do `index.html`, então prévia que diverge do jogo não existe. Mesmo
+argumento do `sprites.html`: tela que só aparece por segundos, em estados
+sorteados, não se revisa jogando — e a etapa aparece **sete vezes por run** e
+carrega a única decisão que não se desfaz.
+
+## As duas telas de escolha
+
+`driver_cards` cobre a batida rápida e `driver_milestone` a lenta, e a divisão
+entre eles é a mesma do jogo: level-up só aprofunda, etapa é a única fonte de
+ponto de eixo.
+
+`driver_cards` reprova, além do que já checava, **oferta de peça nova no
+level-up** e **escolha de level-up que mova o pool de eixo**. As duas são a
+mesma regressão vista de dois lados: uma tela em que largura e profundidade
+disputam a mesma escolha, e largura ganha sempre.
+
+`driver_milestone` guarda sete coisas, e três delas vieram de erros medidos:
+
+- a tabela fecha (`points` soma `AXIS_RULES.pool`, `at` do mesmo tamanho);
+- os **três** eixos aparecem em toda etapa — sortear qual eixo aparece faria do
+  capstone um acidente outra vez;
+- a carta **seca** existe sempre. Na primeira versão ela era um *fallback* para
+  quando o eixo tinha ficado sem spell a oferecer, e com dez peças por eixo isso
+  nunca acontecia: medido, o pool travava em 13 de 20 e **nenhuma** run
+  alcançava capstone;
+- o número anunciado é o creditado, nas duas maneiras;
+- levar a spell custa `pieceDiscount` de velocidade;
+- a spell da etapa não cobra eixo duas vezes (entra como `free`);
+- e **quem mira, chega**: um perfil que concentra o eixo e paga o preço fecha
+  capstone. Sem esta última o resto é contabilidade.
 
 ## Impacto
 

@@ -39,9 +39,11 @@ sem tell em tela ganha tarja laranja, e o filtro "só o que não anima" lista as
 card mudo e registry que passou na frente da galeria.
 
 `DRIVER=driver_preview.js node tools/harness.js .` escreve
-`tools/levelup-preview.html`, a **tela de level-up** montada com builds de
-verdade em três tamanhos (2, 6 e 11 spells). Mesmo argumento da galeria: tela
-que só aparece por segundos, em estados sorteados, não se revisa jogando.
+`tools/levelup-preview.html`, com as **duas telas de escolha** montadas a partir
+de builds de verdade: o level-up em três tamanhos (2, 6 e 11 spells) e a etapa
+nos dois extremos (primeiro marco e marco final). Mesmo argumento da galeria:
+tela que só aparece por segundos, em estados sorteados, não se revisa jogando —
+e a etapa aparece sete vezes por run carregando a única decisão irreversível.
 
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
 Antes de commitar, rode a bateria headless: veja `tools/README.md`.
@@ -76,7 +78,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/content/*.js` | o catálogo: 31 peças, passivas, capstones, demônios |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
-| `js/ui.js` | `UI` — HUD, tela de level-up, pausa, baú, game over |
+| `js/ui.js` | `UI` — HUD, tela de level-up, tela de etapa, pausa, baú, game over |
 | `js/game.js` | `Game` — estado, loop, funil de dano, colisões |
 
 Ponto de entrada: `new Game()` no `DOMContentLoaded`, fim de `js/game.js`.
@@ -396,10 +398,17 @@ Três armadilhas que a medição pegou:
   survivors você corrige posição o tempo todo, e o reset binário deixou
   `rainOfFire` com 0% de dano em 9 de 9 runs.
 
-Evolução e capstone são o clímax da progressão. Se a medição mostrar menos de
-~25% das runs chegando lá, o problema é de OFERTA e não de números — as
-alavancas são o peso de caminho já iniciado em `getOffers` e a ordenação do
-baú em `UI.openChest`.
+Evolução e capstone são o clímax da progressão. Se a medição mostrar que um
+perfil que MIRA não chega lá, o problema é de OFERTA e não de números — e as
+alavancas mudaram de lugar junto com o custo: hoje são `BALANCE.milestones`
+(`points`, `pieceDiscount`, `at`) para o capstone, e a ordenação do baú em
+`UI.openChest` para a evolução. O peso de caminho já iniciado em `getOffers`
+saiu: ele era muleta para um bolo poluído por peças novas, que não existe mais.
+
+Medir por média das políticas engana aqui. `driver_balance` roda cinco perfis, e
+três deles (`aleatorio`, `amplo`, `agressivo`) **não miram por construção** —
+não chegar ao capstone é o preço declarado deles, não uma regressão. Quem
+responde pela saúde do clímax são `focado` e `misto`.
 
 ### O corpo do warlock conta a progressão: capstone vira forma, spell vira aura
 
@@ -436,17 +445,23 @@ Consequências que valem para conteúdo novo:
   faz) precisa chamar `checkForm` depois de `checkCapstones`.
 
 `driver_form` guarda as duas regras: que ponto de eixo sozinho não move a forma,
-e que peça comprada sem caminho fechado não acende nada. Medido em 20 runs:
-50% acendem ao menos uma aura, 40% ganham ao menos uma forma.
+e que peça comprada sem caminho fechado não acende nada. Desde a separação das
+duas telas ele cobra uma terceira, que é a mesma ideia por outro lado: **level-up
+não move o pool de eixo**. Se ele voltasse a mover, a forma voltaria a chegar por
+inércia.
 
 ### Regras estruturais que forçam comprometimento
 
 - Pool de **20** pontos de eixo, teto de **15** por eixo → impossível maximizar dois.
+- **Ponto de eixo só vem de etapa.** Level-up não cobra nada e o baú entrega tier
+  — as duas moedas nunca mais disputam a mesma escolha (ver "As duas batidas").
 - No máximo **2** caminhos por peça passam do tier 2 → impossível maximizar três.
 - Passivas podem declarar `exclusive` → `Fúria Contida` e `Pés de Cinza` nunca coexistem.
 - Peça com `requires` só é oferecida depois que a habilitadora está na build.
 - O kit inicial da classe entra **de graça** (`acquirePiece(id, true)`), para o
-  pool de 20 ficar inteiro para as escolhas do jogador.
+  pool de 20 ficar inteiro para as escolhas do jogador — e a spell que vem numa
+  etapa também, porque o eixo dela já foi pago pelo ponto que a carta deixou de
+  dar.
 - **Baú é a única fonte de tiers grátis**, e por isso é dado: `BALANCE.spawn`
   diz com que frequência ele nasce (avulso pelo spawner a partir dos 45s, e de
   todo Dreadlord morto) e `BALANCE.chest.rarity` diz quantos tiers ele entrega —
@@ -454,16 +469,136 @@ e que peça comprada sem caminho fechado não acende nada. Medido em 20 runs:
   tier avulso não muda mais o jogo. Mexer nesses números é mexer na velocidade
   em que a build fecha; `driver_chest` mede as duas pontas.
 
+### As duas batidas: level-up aprofunda, etapa compromete
+
+O jogo tem **duas telas de escolha**, com ritmos e perguntas diferentes, e elas
+não podem voltar a ser uma só.
+
+| | Level-up | Etapa |
+|---|---|---|
+| **Quando** | subiu de nível (~17–70 por run) | marco de tempo (`BALANCE.milestones.at`, 7 por run) |
+| **A pergunta** | qual das minhas spells vira *a* spell da run? | para onde essa run vai? |
+| **O que oferece** | tier de caminho, passiva global | ponto de eixo, com ou sem spell nova |
+| **Custa** | nada | é a **única** fonte de ponto de eixo |
+| **Desfaz?** | a próxima escolha corrige | **nunca** |
+| **Forma** | três linhas, leitura vertical | três cartas, leitura horizontal |
+
+**Por que foram separadas.** Antes as duas moedas dividiam a mesma escolha:
+comprar peça nova custava 2 pontos de eixo, tier acima do 2 custava 1. Com
+apenas ~17 escolhas na run inteira, comprar largura era sempre a carta que
+*parecia* maior, e o pool de 20 acabava antes de qualquer trilha chegar ao tier
+5. Medido, numa run de 16 min: **13 spells na build, onze delas no tier 0**, e
+em 16 runs **0 capstones, 0 metamorfoses, 2 evoluções**. O clímax da progressão
+existia no código e não acontecia no jogo.
+
+Depois da separação, nas mesmas 16 runs: evoluções 2→8, auras 7→10 (mediana 2
+por run), e capstone e metamorfose deixam de ser zero — um perfil que *mira* o
+eixo fecha **dois** capstones e chega à forma final. Quem não mira não chega, e
+isso agora é escolha declarada e não sorteio.
+
+Consequências que valem para qualquer coisa nova:
+
+- **Nada no level-up pode chamar `addAxis`.** `driver_cards` compara o pool
+  antes e depois de toda escolha. Um tier que voltasse a cobrar eixo
+  recolocaria o imposto sobre profundidade sem que a tela dissesse isso.
+- **Passiva fica no level-up, e não é exceção.** Ela não tem tier, não tem eixo
+  e não pede investimento depois: só multiplica o que a build já tem
+  (`pieceMods` sobre um `match`). Isso é aprofundar, não alargar.
+- **Peça nova só entra por etapa**, e como `free` — o eixo dela já foi pago pelo
+  ponto que a carta deixou de dar.
+- **Muletas que saíram junto.** O peso extra para caminho já começado e o sort
+  que jogava evolução para a frente da fila compensavam um bolo poluído por
+  dezenas de peças novas. Com o bolo só de profundidade, o sorteio volta a ser
+  honesto: não há mais nada disputando com a trilha que o jogador começou.
+- **Nível sem oferta vira fôlego.** Com toda trilha fechada e toda passiva
+  tomada o bolo esvazia, e o nível cura 35% em vez de sumir em silêncio. Subir
+  de nível e não receber nada é o jogo cobrando atenção e devolvendo vazio.
+
+### A tela de etapa: três cartas, duas maneiras de levar cada uma
+
+`BALANCE.milestones` é o dado inteiro. `at` e `points` andam por índice, e
+`points` **soma exatamente `AXIS_RULES.pool`**: o pool fecha aos 10 minutos, que
+é onde uma run competente deveria estar acabando. `driver_milestone` cobra a
+soma — se ela sobrar a promessa da pool nunca se cumpre, se passar `addAxis`
+come a diferença em silêncio.
+
+Marco de **tempo** e não de chefe: o primeiro Dreadlord só nasce aos 5 min e
+depois vem a cada 2:30, então metade da run ficaria sem marco e a única decisão
+irreversível chegaria tarde demais para ser mirada. `#msClock` no HUD conta para
+o próximo — marco que chega sem aviso não estrutura ritmo nenhum.
+
+**Os três eixos aparecem em toda etapa, sempre.** Isso é regra, não
+conveniência: sortear qual eixo aparece transformaria a única decisão
+irreversível do jogo em loteria, e o capstone voltaria a ser acidente. O que o
+sorteio decide é o *conteúdo* de cada carta — qual spell daquele eixo ela traz.
+
+**E cada carta tem duas maneiras de ser levada**, que é onde mora a economia:
+
+- **só o eixo**: o marco inteiro vira ponto;
+- **com a spell**: `pieceDiscount` a menos, e a spell entra na build.
+
+Largura não **gasta** o pool, ela **desacelera** o pool. Sete etapas secas dão
+20 pontos (dois capstones) e duas spells a run inteira — o que seca o bolo do
+level-up em pouco mais de vinte tiers. Sete com spell dão 13 pontos (nenhum
+capstone) e nove spells rasas. Nenhum dos dois lados é a jogada certa; o jogo
+está na mistura, e ela é a decisão real desta tela.
+
+**As duas maneiras têm que estar sempre na mesa.** Na primeira versão a carta
+seca era um *fallback* para quando o eixo tinha ficado sem spell a oferecer — e
+com dez peças por eixo isso nunca acontecia. Medido: o pool travava em 13 de 20
+e **nenhuma** run alcançava capstone, exatamente o defeito que a separação
+existia para consertar. Escolha que o jogador não pode fazer não é escolha.
+
+Regras de apresentação, e por quê:
+
+- **Cartas, não linhas.** O level-up compara três coisas *diferentes*, então o
+  olho corre na vertical por campo. Aqui as três respostas têm a mesma forma
+  preenchida com eixos diferentes, e comparar vira um movimento horizontal: o
+  número de cada eixo cai na mesma altura nas três. As duas telas também não
+  podem *parecer* a mesma tela, senão o jogador não percebe que a pergunta
+  mudou — e a desta é a única que ele não desfaz.
+- **O alvo é o botão, não a carta.** Carta inteira clicável exigiria escolher
+  por ele qual das duas maneiras é o padrão, e é justamente a metade
+  irreversível da decisão.
+- **O número anunciado é o creditado.** Com o eixo no teto ou o pool no fim,
+  `addAxis` entrega menos; `getMilestoneOffers` já devolve `gain` real ao lado
+  do `want` de tabela, e o driver compara os dois em toda carta de toda etapa.
+- **O rodapé é o que transforma "+3" num destino**: as três barras de eixo com
+  prévia (`UI.axesHtml`, compartilhada com o painel do level-up) e o capstone
+  mais próximo. Sem ele, alocar é uma decisão de rota longa com feedback só no
+  fim da run.
+
+Alavancas de tuning, em ordem de força: `points` (velocidade em que o pool
+fecha), `pieceDiscount` (quanto arsenal custa), `at` (o ritmo da run).
+
+**Um buraco conhecido, não introduzido aqui e agora visível:** o kit inicial é
+Corruption + Incinerate, então a run nasce com sementes de Corrupção e
+Cataclismo e nenhuma de Domínio. Com o eixo virando escolha deliberada, Domínio
+quase nunca é escolhido e o catálogo de demônios fica sem uso — `driver_balance`
+lista dez peças em `NUNCA ESCOLHIDA`, quase todas de Domínio. Antes isso ficava
+escondido porque peça nova era comprada por sorteio global. O conserto é de
+conteúdo (semear Domínio no kit inicial, ou dar a escolha ao jogador), não de
+motor.
+
 ### A tela de level-up compara linhas, não cartas
 
-É a única tela em que o jogador decide algo que não é posição, e a decisão é
-**irreversível** — ponto de eixo não volta. Ela é três **linhas** com as mesmas
-três colunas (o que é / o que muda no jogo / custo) mais um painel com a build
-de agora, e não três cartas verticais. Cartas obrigam a ler três blocos
-separados para comparar um mesmo campo; linhas deixam o olho correr na vertical.
+Ela é três **linhas** com as mesmas três colunas (o que é / o que muda no jogo /
+onde chega) mais um painel com a build de agora, e não três cartas verticais.
+Cartas obrigam a ler três blocos separados para comparar um mesmo campo; linhas
+deixam o olho correr na vertical. Comparar é o ponto: as três ofertas são coisas
+diferentes, e a decisão é qual campo delas pesa mais.
 
 O que caiu junto com as cartas: a legenda de tipos do topo (o tipo agora vive na
-própria linha) e o chip minúsculo de custo no rodapé (custo virou coluna).
+própria linha) e o chip minúsculo de custo no rodapé.
+
+**A terceira coluna era CUSTO e virou PROGRESSO**, quando o ponto de eixo saiu
+daqui (ver "As duas batidas"). O que sobrou de custo — a coluna, o chip de
+orçamento no cabeçalho e o gancho de capstone no chip verde — foi removido em
+vez de mantido dizendo "não gasta ponto" nas três linhas: um terço da tela
+repetindo a mesma informação é um terço da tela em silêncio. A pergunta desta
+tela agora é onde a compra deixa a trilha, e é isso que a coluna responde
+(`Fecha o caminho` / `A um tier do fim` / `Tier 3 de 5`, e embaixo qual
+caminho).
 
 **A coluna do meio é a manchete.** Quem decide a compra é o que a oferta *faz* —
 não o nome de fantasia do tier, não o ícone, não o botão. A primeira versão
@@ -473,7 +608,7 @@ pousava em tudo menos na informação. A hierarquia hoje:
 
 1. **`.lv-plain`, 21px** — o que muda no jogo, o item mais claro da linha.
 2. **o delta** logo abaixo, com o número que o jogador vai passar a ter.
-3. nome da spell, custo e etiqueta de tipo — um degrau abaixo, legíveis sem
+3. nome da spell, progresso e etiqueta de tipo — um degrau abaixo, legíveis sem
    competir.
 4. `.lv-why`, ícone e botão — o fundo da pilha.
 
@@ -486,10 +621,11 @@ Três regras que caem daí, e que valem para qualquer coisa nova nesta tela:
 - **A linha inteira é clicável, então o botão é lembrete e não alvo.**
   Preenchido em repouso ele era o segundo bloco mais barulhento de cada linha.
   Vazado em repouso, enche no hover da linha — que é quando ele tem algo a dizer.
-- **Veredito antes de detalhe no custo.** A pergunta é "gasta ou não?", e ela
-  cabe em três palavras (`Custa 2` / `Não gasta ponto`); o detalhe
-  (`Domínio 0 → 2`) vem abaixo, menor e mais fraco. Numa frase única e forte o
-  custo quebrava em duas linhas e virava o bloco mais pesado da coluna.
+- **Veredito antes de detalhe.** A pergunta cabe em três palavras
+  (`A um tier do fim`); o detalhe (o nome do caminho) vem abaixo, menor e mais
+  fraco. Numa frase única e forte a coluna quebrava em duas linhas e virava o
+  bloco mais pesado da linha. Valia para o custo e vale igual para o progresso
+  que tomou o lugar dele.
 
 Regra prática ao acrescentar qualquer coisa à linha: se ela chama mais atenção
 que `.lv-plain`, ela está errada — ou ela é mais importante que o efeito, e aí
@@ -499,14 +635,14 @@ o argumento precisa ser feito.
 **eixo** — qual build ela alimenta —, então uma melhoria verde e uma spell nova
 verde são a mesma cor: cor já está ocupada. Quem separa as três é:
 
-- **etiqueta sólida com glifo** (`◈` spell nova, `▲` melhoria, `✦` passiva) em
-  vez de legenda solta na cor do eixo, que lia como comentário e não como rótulo;
+- **etiqueta sólida com glifo** (`▲` melhoria, `✦` passiva — e `◈` spell nova,
+  que hoje só aparece na tela de etapa) em vez de legenda solta na cor do eixo,
+  que lia como comentário e não como rótulo;
 - **tile redondo quando é passiva** — a mesma convenção que a barra de peças do
   HUD já usa (`.pb-icon.pb-passive`);
 - **selo com o tier no canto do tile quando é melhoria**, porque aí o ícone
-  *mente*: ele é o ícone de uma spell que o jogador já tem, idêntico ao de uma
-  spell nova com aquele mesmo ícone. O número é o que diz "isto é profundidade,
-  não largura".
+  *mente*: ele é o ícone de uma spell que o jogador já tem, e sozinho não diz
+  quão fundo ela já está. O número é o que diz "isto é profundidade".
 - **evolução tem etiqueta própria** (`⭐ Evolução`), não `Melhoria · evolução`:
   ela não é um degrau a mais, é conversão — a peça troca de nome, arte, trigger
   e efeitos. Chamar as duas coisas de melhoria some com o clímax justamente na
@@ -526,9 +662,9 @@ Tudo o que a linha mostra sai do que já existe:
 |---|---|
 | frase principal | `tier.desc` / `def.desc` — já são frases em pt-BR |
 | antes → depois | `tier.mods` aplicado a `inst.r.stats` (`UI.tierDelta`) |
-| porquê | a peça que o tier melhora, ou o eixo que a spell alimenta |
-| custo | `Math.min(custo, teto do eixo, pool livre)` — o que `addAxis` vai cobrar |
-| chip verde | abre/aproxima um capstone, ou fecha um caminho (acende a aura) |
+| porquê | a peça que o tier melhora |
+| onde chega | `tier.tierIndex` contra `PATH_RULES.tiers`, e o nome do caminho |
+| chip verde | fecha um caminho (acende a aura) |
 | painel inteiro | `build.pieces`, `build.passives`, `build.axis`, `CAPSTONES` |
 
 Consequências:
@@ -543,12 +679,13 @@ Consequências:
   a tabela o delta imprimiria "limiar 0.35 → 0.5". Stat sem entrada não aparece,
   e `driver_cards` reprova mod que mexa em stat fora da tabela: o silêncio não
   passa batido.
-- **O custo anunciado é o custo real.** Com o eixo no teto ou o pool no fim,
-  `addAxis` entrega menos do que a oferta pede; dizer "custa 2" quando vai
-  custar 0 é a mentira mais cara que esta tela pode contar. O driver compara os
-  dois em toda oferta de toda rodada.
 - **Chip de recomendação só com gancho real.** Recomendação decorativa vira
-  ruído e o jogador para de ler o chip que importa.
+  ruído e o jogador para de ler o chip que importa. Sobrou **um** gancho aqui, e
+  é o certo: fechar um caminho acende a aura. O de capstone migrou para a tela
+  de etapa — apontar para ele numa tela que não entrega ponto de eixo seria
+  apontar para uma porta que está na outra sala. (A regra de que o número
+  anunciado é o número real não sumiu: ela mudou de tela, e
+  `driver_milestone` a cobra em toda carta de toda etapa.)
 
 **O painel não rola — ele resume.** Overlay de jogo não tem barra de rolagem, e
 a build cresce a run inteira. Em ordem: densidade automática (`PANEL.fullRows`
@@ -560,17 +697,15 @@ sobe para o topo para nunca cair dentro do contador. **Eixos e capstone são
 que pode sumir — quem cede espaço é a lista de spells.
 
 Estado novo é **um só**: o índice da oferta sob o mouse. O hover re-renderiza
-só o painel (`lvBuild`) e o chip de orçamento; mexer nas linhas mataria a
-transição de `transform` que o CSS está rodando naquele instante.
+só o painel (`lvBuild`); mexer nas linhas mataria a transição de `transform` que
+o CSS está rodando naquele instante. A mesma regra vale na tela de etapa, onde o
+hover re-renderiza só o rodapé.
 
-**O chip de orçamento antecipa o gasto.** No hover o saldo cai para o que
-sobraria (`20 → 18`) e o chip vira alarme. Ponto de eixo é o único número desta
-tela que não se desfaz depois, então é o único que se antecipa ao clique — e o
-número mostrado é `v.gain`, o custo real, não o de tabela. Sem custo (passiva,
-tier livre, eixo no teto) nada muda: alarme que acende sempre para de alarmar.
-O vermelho é `#ff6b8a`, o mesmo que o relógio assume na fase dura — o laranja
-de "custa" não serve aqui porque ele **é** a cor do eixo Cataclismo, e numa
-oferta de Cataclismo o alarme sumiria dentro da própria linha.
+**Os eixos continuam no painel, agora como leitura.** Nenhuma oferta desta tela
+os move, mas eles ficam porque respondem "o que a próxima etapa decide" — e o
+jogador precisa dessa resposta enquanto escolhe onde aprofundar, senão investe
+fundo num eixo que a run não vai seguir. A prévia de ganho migrou para a tela de
+etapa, que é onde o número muda; `UI.axesHtml` desenha as barras nas duas.
 
 Tipografia: **Outfit** e **IBM Plex Mono**, vindas do Google Fonts. É a exceção
 à regra de "nenhum asset novo" — baixar os `.woff2` adicionaria arquivo ao repo.

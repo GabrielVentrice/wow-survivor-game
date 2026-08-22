@@ -8,6 +8,7 @@
 const STATE = {
   MENU: "menu", PLAYING: "playing", LEVELUP: "levelup",
   GAMEOVER: "gameover", PAUSED: "paused", CHEST: "chest",
+  MILESTONE: "milestone",
 };
 
 const MAX_FX_DEPTH = 8;   // teto de aninhamento de efeitos (backstop anti-loop)
@@ -102,6 +103,8 @@ class Game {
     this.elapsed = 0;
     this.clock = 0;         // relogio de simulacao: base de TODO agendamento
     this.lastTime = 0;
+    this.milestoneIdx = 0;      // proximo marco de BALANCE.milestones.at
+    this.pendingMilestones = 0; // etapas vencidas e ainda nao gastas
     this._dmgTimer = 0;
 
     this.ui = new UI(this);
@@ -341,6 +344,8 @@ class Game {
     this.build.reset();
     this.elapsed = 0;
     this.clock = 0;
+    this.milestoneIdx = 0;
+    this.pendingMilestones = 0;
     this.bossAlive = 0;
     this.lastBossChestAt = -BALANCE.spawn.bossChestCooldown;
     this.timeScale = this.selectedSpeed;
@@ -479,6 +484,7 @@ class Game {
     this.applyPassives(dt);
     this.build.updateDynamic();
 
+    this.updateMilestones();
     this.spawner.update(dt, this);
     this.updateEnemies(dt);          // move + preenche o grid + contato
     this.minions.update(dt, this.clock);
@@ -501,7 +507,39 @@ class Game {
     if (this._dmgTimer <= 0) { this._dmgTimer = 0.25; this.ui.updateDamageMeter(); }
 
     if (this.player.hp <= 0) { this.gameOver(); return; }
+
+    /* Etapa antes de nivel. As duas telas param o jogo, entao a ordem so
+       importa quando as duas caem no mesmo frame — e ai a etapa vai primeiro
+       porque ela e a rara: um marco engolido pela fila de level ups perderia
+       o palco que ele existe para ter. */
+    if (this.pendingMilestones > 0) { this.ui.openMilestone(); return; }
     if (this.player.pendingLevels > 0) this.ui.openLevelUp();
+  }
+
+  /* Marcos de tempo: a batida lenta e a unica fonte de ponto de eixo.
+
+     Marca em FILA (`pendingMilestones++`) em vez de abrir a tela aqui: este
+     ponto do update esta no meio da simulacao, e um `state` trocado aqui
+     deixaria o resto do frame rodando com o jogo ja "parado". Quem abre e o
+     fim do update, junto com o level up.
+
+     A fila tambem cobre o caso raro de dois marcos no mesmo frame (timeScale 3
+     com um travamento): o segundo espera sua vez em vez de sumir. */
+  updateMilestones() {
+    const at = BALANCE.milestones.at;
+    while (this.milestoneIdx < at.length && this.elapsed >= at[this.milestoneIdx]) {
+      this.milestoneIdx++;
+      this.pendingMilestones++;
+    }
+  }
+
+  /* Segundos ate o proximo marco, ou null quando nao ha mais nenhum. E o que o
+     HUD mostra: marco que chega sem aviso nao estrutura ritmo nenhum — o
+     jogador precisa poder ver a decisao se aproximando. */
+  nextMilestoneIn() {
+    const at = BALANCE.milestones.at;
+    if (this.milestoneIdx >= at.length) return null;
+    return Math.max(0, at[this.milestoneIdx] - this.elapsed);
   }
 
   /* A trilha acompanha a pressao real da run, nao um cronometro proprio:

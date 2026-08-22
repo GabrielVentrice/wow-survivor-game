@@ -246,8 +246,11 @@ class BuildSystem {
     const wasComplete = this.isComplete(inst);
     const tierIdx = inst.paths[pathId];
     inst.paths[pathId] = tierIdx + 1;
-    // investir fundo num caminho aprofunda o eixo da peca
-    if (tierIdx + 1 > PATH_RULES.freeTier) this.addAxis(inst.def.axis, 1);
+    /* Tier NAO paga mais eixo. Enquanto pagava, aprofundar e alargar
+       disputavam a mesma bolsa de 20 pontos, e alargar sempre ganhava — a
+       carta de spell nova parece maior que "+18% de dano". Hoje o eixo so vem
+       de etapa, entao profundidade e de graca e a tela de level up nao tem
+       orcamento nenhum para o jogador administrar. */
 
     let evolved = null;
     const path = inst.def.paths[pathId];
@@ -385,47 +388,45 @@ class BuildSystem {
   }
 
   /* --- ofertas de level up ------------------------------------------------
-     Um unico pool: peca nova, tier de caminho, ou passiva global. */
+     O level up e a BATIDA RAPIDA: so profundidade. Duas coisas entram no
+     bolo, e as duas melhoram o que a build JA tem:
+
+       - tier de caminho de uma peca possuida;
+       - passiva global, que nao e uma spell a mais — ela nao tem tier, nao
+         tem eixo e nao pede investimento nenhum depois: ela so multiplica o
+         que ja esta la (`pieceMods` sobre um `match`).
+
+     Peca nova SAIU daqui e mora nas etapas (`getMilestoneOffers`). Medido
+     antes da separacao, numa run de 16 min: 17 escolhas no total, 13 spells na
+     build e onze delas no tier 0 — o pool de 20 pontos era consumido por
+     largura antes de qualquer trilha chegar perto do tier 5, e em 16 runs
+     deram 0 capstones, 0 metamorfoses e 2 evolucoes. Com uma unica moeda de
+     escolha por level up, comprar largura era sempre a carta que PARECIA
+     maior, e o climax da progressao nunca chegava.
+
+     Duas muletas sairam junto, e elas eram sintoma do mesmo problema: o peso
+     extra para caminho ja comecado e o sort que jogava evolucao para a frente
+     da fila existiam para compensar um bolo poluido por dezenas de pecas
+     novas. Com o bolo so de profundidade, o sorteio volta a ser honesto —
+     nao ha mais nada disputando com a trilha que o jogador comecou. */
   getOffers(count) {
     const pool = [];
 
-    // 1. pecas novas que ainda cabem no pool de eixos
-    for (const id in PIECES) {
-      const def = PIECES[id];
-      if (def.evolutionOnly || this.pieces.has(def.key)) continue;
-      if (!this.meetsRequires(def)) continue;
-      const cost = def.axisPoints != null ? def.axisPoints : 2;
-      if (!this.axisRoom(def.axis, cost)) continue;
-      pool.push({ kind: "piece", id, def, axis: AXES[def.axis] });
-    }
-
-    /* 2. tiers de caminho das pecas possuidas.
-
-       Caminho ja comecado entra no sorteio com PESO MAIOR. Sem isso, terminar
-       um caminho e loteria: sao 5 compras seguidas na mesma trilha, disputando
-       com dezenas de outras ofertas, e o resultado medido foi zero evolucoes
-       em 20 runs. O peso nao entrega nada de graca — a carta ainda precisa ser
-       escolhida — mas faz "continuar o que ja comecou" ser uma opcao real em
-       vez de um acidente estatistico. */
     for (const inst of this.pieces.values()) {
       for (const pathId in inst.def.paths) {
         if (!this.canUpgradePath(inst, pathId)) continue;
         const path = inst.def.paths[pathId];
         const idx = inst.paths[pathId];
-        const tier = path.tiers[idx];
         const isEvo = idx + 1 === PATH_RULES.tiers && !!path.evolvesInto;
-        const offer = {
-          kind: "path", inst, pathId, path, tier, tierIndex: idx,
+        pool.push({
+          kind: "path", inst, pathId, path, tier: path.tiers[idx], tierIndex: idx,
           def: inst.def, isEvo,
           evo: isEvo ? PIECES[path.evolvesInto] : null,
           axis: AXES[inst.def.axis],
-        };
-        const peso = idx >= 3 ? 6 : idx >= 1 ? 2 : 1;
-        for (let w = 0; w < peso; w++) pool.push(offer);
+        });
       }
     }
 
-    // 3. passivas globais nao possuidas e nao bloqueadas
     for (const id in PASSIVES) {
       if (this.passives.has(id) || this.passiveBlocked(id)) continue;
       pool.push({ kind: "passive", id, def: PASSIVES[id] });
@@ -433,51 +434,100 @@ class BuildSystem {
 
     shuffle(pool);
 
-    /* Um tier que COMPLETA uma evolução vai para a frente da fila.
-
-       Sem isso a evolução é loteria: são 5 compras no mesmo caminho, sorteadas
-       entre dezenas de ofertas. Medido antes desta regra: zero evoluções em 20
-       runs — o clímax do sistema de progressão nunca aparecia. Puxar só o
-       último degrau não entrega nada de graça; o jogador ainda pagou os
-       quatro tiers anteriores. */
-    pool.sort((a, b) => (b.isEvo ? 1 : 0) - (a.isEvo ? 1 : 0));
-
-    /* Monta o saque. Duas travas:
-       - no maximo 2 caminhos da mesma peca (com 1, aprofundar dependia de a
-         peca certa cair de novo no sorteio seguinte);
-       - o mesmo caminho nunca aparece duas vezes, ja que agora ele entra no
-         pool repetido para ganhar peso. */
-    const out = [], perPiece = new Map(), vistos = new Set();
+    /* Trava: no maximo 2 caminhos da mesma peca por saque. Com 1, aprofundar
+       dependia de a peca certa cair de novo no sorteio seguinte; sem trava, um
+       saque inteiro podia ser a mesma spell e a tela deixava de ser escolha. */
+    const out = [], perPiece = new Map();
     for (let i = 0; i < pool.length && out.length < count; i++) {
       const o = pool[i];
       if (o.kind === "path") {
-        const tag = o.inst.key + ":" + o.pathId;
-        if (vistos.has(tag)) continue;
         const n = perPiece.get(o.inst.key) || 0;
         if (n >= 2) continue;
-        vistos.add(tag);
         perPiece.set(o.inst.key, n + 1);
       }
       out.push(o);
     }
+    return out;
+  }
 
-    /* Se o saque ficou so de caminhos, a pool de eixos nunca enche e nenhum
-       capstone abre. Troca a ultima carta por uma peca nova quando ainda ha
-       ponto de eixo sobrando. Medido antes desta regra: pool parava em 13/20 e
-       1 em 20 runs via um capstone. */
-    if (this.axisLeft > 0 && out.length === count && out.every((o) => o.kind === "path")) {
-      const nova = pool.find((o) => o.kind === "piece");
-      if (nova) out[count - 1] = nova;
+  /* --- ofertas de etapa ----------------------------------------------------
+     A BATIDA LENTA. Tres cartas, SEMPRE uma por eixo — e o "sempre" e a regra,
+     nao conveniencia. O ponto de eixo e a unica coisa desta run que nao se
+     desfaz depois; sortear QUAL eixo aparece transformaria a unica decisao
+     irreversivel do jogo em loteria, e o capstone voltaria a ser acidente.
+     Com os tres na mesa toda etapa, ele e alvo miravel desde o primeiro marco.
+
+     Cada carta oferece DUAS maneiras de levar o mesmo eixo, e e ai que mora a
+     economia inteira:
+
+       - seca: o marco todo vira ponto de eixo;
+       - com spell: um ponto a menos, e a spell entra na build.
+
+     Largura nao gasta o pool, ela DESACELERA o pool. E as duas tem que estar
+     sempre na mesa: na primeira versao a carta seca so aparecia quando o eixo
+     tinha ficado sem spell para oferecer, e com dez pecas por eixo isso nunca
+     acontecia — medido, o pool travava em 13 de 20 e NENHUMA run alcancava
+     capstone, exatamente o defeito que a separacao das telas existia para
+     consertar. Uma escolha que o jogador nao pode fazer nao e uma escolha.
+
+     Nenhum dos dois lados e a jogada certa. Sete etapas secas dao 20 pontos
+     (dois capstones) e duas spells a run inteira, que seca o bolo do level up
+     em pouco mais de vinte tiers; sete com spell dao 13 pontos (nenhum
+     capstone) e nove spells rasas. O jogo esta na mistura. */
+  getMilestoneOffers(index) {
+    const M = BALANCE.milestones;
+    const base = M.points[Math.min(index, M.points.length - 1)];
+    /* Ganho REAL, nao o de tabela: com o eixo no teto ou o pool no fim,
+       `addAxis` entrega menos. Anunciar 3 e creditar 1 e a mentira mais cara
+       que esta tela pode contar, porque nao ha como desfazer. */
+    const real = (axisId, want) => Math.max(0, Math.min(want,
+      AXIS_RULES.capPerAxis - this.axis[axisId], this.axisLeft));
+    const out = [];
+
+    for (const axisId in AXES) {
+      const cands = [];
+      for (const id in PIECES) {
+        const def = PIECES[id];
+        if (def.evolutionOnly || def.axis !== axisId) continue;
+        if (this.pieces.has(def.key) || !this.meetsRequires(def)) continue;
+        cands.push(def);
+      }
+      shuffle(cands);
+      const piece = cands.length ? cands[0] : null;
+      const withWant = Math.max(1, base - M.pieceDiscount);
+      out.push({
+        kind: "milestone", axisId, axis: AXES[axisId], piece,
+        dry: { want: base, gain: real(axisId, base) },
+        wet: piece ? { want: withWant, gain: real(axisId, withWant) } : null,
+      });
     }
     return out;
   }
 
-  // Aplica uma oferta escolhida. Retorna { caps, evolved, completed } para os
-  // toasts: `caps` vira metamorfose, `completed` vira aura.
+  /* `takePiece` diz qual das duas maneiras o jogador escolheu. A spell entra
+     como `free`: o eixo dela ja foi pago pelo ponto que a carta deixou de dar
+     (`pieceDiscount`). Cobrar de novo em `acquirePiece` seria cobrar duas
+     vezes pela mesma largura. */
+  applyMilestone(o, takePiece) {
+    const take = !!(takePiece && o.piece);
+    const gained = this.addAxis(o.axisId, take ? o.wet.want : o.dry.want);
+    if (take) this.acquirePiece(o.piece.id, true);
+    else this.afterChange();
+    const caps = this.checkCapstones();
+    if (caps.length) this.afterChange();
+    return { gained, piece: take ? o.piece : null, caps };
+  }
+
+  /* Aplica uma oferta de LEVEL UP. Retorna { caps, evolved, completed } para
+     os toasts: `completed` vira aura, `caps` vira metamorfose.
+
+     `caps` continua sendo checado aqui apesar de nenhuma oferta de level up
+     dar ponto de eixo: uma passiva pode mexer em stats que um capstone le, e
+     custa uma varredura de oito entradas por escolha. Capstone que abre em
+     silencio e o climax da run chegando sem ninguem avisar. */
   applyOffer(o) {
     let evolved = null, completed = null;
-    if (o.kind === "piece") this.acquirePiece(o.id);
-    else if (o.kind === "passive") this.acquirePassive(o.id);
+    if (o.kind === "passive") this.acquirePassive(o.id);
     else if (o.kind === "path") {
       const res = this.upgradePath(o.inst, o.pathId);
       if (res) { evolved = res.evolved; completed = res.completed; }

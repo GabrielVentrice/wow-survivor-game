@@ -78,41 +78,112 @@ function setKeys(out, x, y) {
    Quatro perfis. Se o jogo só funciona sob um deles, isso é um problema de
    balanceamento, não uma virtude. */
 const POLICIES = {
-  // linha de base: sem nenhuma inteligência
-  aleatorio: (g, offers, rnd) => offers[Math.floor(rnd() * offers.length)],
-
-  // aprofunda o que já está rendendo dano
-  focado: (g, offers) => {
-    let best = null, bestScore = -1;
-    for (const o of offers) {
-      let sc = 0;
-      if (o.kind === "path") {
-        sc = 10 + (g.damageBy.get(o.inst.key) || 0) / 1000;
-        if (o.isEvo) sc += 60;
-      } else if (o.kind === "piece") sc = 5;
-      else sc = 4;
-      if (sc > bestScore) { bestScore = sc; best = o; }
-    }
-    return best;
+  // linha de base: sem nenhuma inteligencia, nas duas telas
+  aleatorio: {
+    lv: (g, offers, rnd) => offers[Math.floor(rnd() * offers.length)],
+    ms: (g, offers, rnd) => {
+      const o = offers[Math.floor(rnd() * offers.length)];
+      return { o, wet: !!o.wet && rnd() < 0.5 };
+    },
   },
 
-  // pega peça nova sempre que pode: build larga e rasa
-  amplo: (g, offers) => offers.find((o) => o.kind === "piece")
-                     || offers.find((o) => o.kind === "passive")
-                     || offers[0],
+  /* Aprofunda o que ja esta rendendo dano, e na etapa MIRA: sempre o eixo mais
+     alto, e prefere a carta seca. E o perfil que responde a pergunta que
+     motivou a separacao das duas telas — um jogador que mira consegue fechar
+     um capstone? Se nem ele consegue, o climax da run e inalcancavel. */
+  focado: {
+    lv: (g, offers) => {
+      let best = null, bestScore = -1;
+      for (const o of offers) {
+        let sc;
+        if (o.kind === "path") {
+          sc = 10 + (g.damageBy.get(o.inst.key) || 0) / 1000;
+          if (o.isEvo) sc += 60;
+        } else sc = 4;
+        if (sc > bestScore) { bestScore = sc; best = o; }
+      }
+      return best;
+    },
+    /* Mira o capstone: concentra no eixo ja investido, sempre com a carta
+       SECA — duas spells a run inteira e o preco, e o driver mede se ele vale.
 
-  // só o que causa dano: ignora defensiva e controle
-  agressivo: (g, offers) => {
-    const dmg = (o) => {
-      const d = o.kind === "path" ? o.inst.def : o.def;
-      if (!d || !d.tags) return false;
-      return d.tags.indexOf("summon") >= 0 || d.tags.indexOf("dot") >= 0
-          || d.tags.indexOf("fire") >= 0 || d.tags.indexOf("bolt") >= 0
-          || d.tags.indexOf("shadow") >= 0;
-    };
-    return offers.find((o) => o.kind === "path" && dmg(o))
-        || offers.find((o) => o.kind === "piece" && dmg(o))
-        || offers[0];
+       `gain` (o real) e nao `axis` (o acumulado) manda na pontuacao, senao o
+       bot insiste num eixo ja no teto e joga fora o marco de 5 pontos, que e o
+       maior da run. Um jogador de verdade le o "+0" apagado na carta e vai
+       para outro lugar; com pool 20 e teto 15 esses ultimos 5 sao exatamente o
+       lado secundario de um capstone hibrido. */
+    ms: (g, offers) => {
+      let best = offers[0], bestScore = -1;
+      for (const o of offers) {
+        if (!o.dry.gain) continue;
+        const sc = o.dry.gain * 100 + g.build.axis[o.axisId];
+        if (sc > bestScore) { bestScore = sc; best = o; }
+      }
+      return { o: best, wet: false };
+    },
+  },
+
+  /* O jogador de verdade: leva spell CEDO, quando ela ainda tem run pela
+     frente para subir de tier, e dedica DEPOIS, quando um arsenal novo nao
+     cresce mais. E o unico perfil que exercita a mistura, que e onde a
+     separacao das duas telas aposta que o jogo esta. */
+  misto: {
+    lv: (g, offers) => {
+      let best = null, bestScore = -1;
+      for (const o of offers) {
+        let sc;
+        if (o.kind === "path") {
+          sc = 10 + (g.damageBy.get(o.inst.key) || 0) / 1000;
+          if (o.isEvo) sc += 60;
+        } else sc = 8;
+        if (sc > bestScore) { bestScore = sc; best = o; }
+      }
+      return best;
+    },
+    ms: (g, offers) => {
+      const cedo = g.elapsed < BALANCE.spawn.hardAt;
+      let best = offers[0], bestScore = -1;
+      for (const o of offers) {
+        if (!o.dry.gain) continue;
+        const sc = o.dry.gain * 100 + g.build.axis[o.axisId];
+        if (sc > bestScore) { bestScore = sc; best = o; }
+      }
+      return { o: best, wet: cedo && !!best.wet };
+    },
+  },
+
+  // build larga e rasa: pega spell nova sempre que a etapa oferece
+  amplo: {
+    lv: (g, offers) => offers.find((o) => o.kind === "passive") || offers[0],
+    ms: (g, offers) => {
+      const o = offers.find((x) => x.wet) || offers[0];
+      return { o, wet: !!o.wet };
+    },
+  },
+
+  // so o que causa dano: ignora defensiva e controle nas duas telas
+  agressivo: {
+    lv: (g, offers) => {
+      const dmg = (o) => {
+        const d = o.kind === "path" ? o.inst.def : o.def;
+        if (!d || !d.tags) return false;
+        return d.tags.indexOf("summon") >= 0 || d.tags.indexOf("dot") >= 0
+            || d.tags.indexOf("fire") >= 0 || d.tags.indexOf("bolt") >= 0
+            || d.tags.indexOf("shadow") >= 0;
+      };
+      return offers.find((o) => o.kind === "path" && dmg(o)) || offers[0];
+    },
+    // segue o eixo da peca que mais deu dano ate agora
+    ms: (g, offers) => {
+      let bestAxis = null, bestDmg = -1;
+      for (const inst of g.build.pieces.values()) {
+        const d = g.damageBy.get(inst.key) || 0;
+        if (d > bestDmg) { bestDmg = d; bestAxis = inst.def.axis; }
+      }
+      const o = offers.find((x) => x.axisId === bestAxis) || offers[0];
+      // segue o eixo do dano, e leva a spell quando ela e do mesmo eixo
+      return { o, wet: !!o.wet };
+    },
   },
 };
 
@@ -128,10 +199,24 @@ function runOnce(policy, seed) {
   g.ui.openLevelUp = function () {
     const offers = g.build.getOffers(3);
     if (!offers.length) { g.player.pendingLevels = 0; g.state = STATE.PLAYING; return; }
-    const o = POLICIES[policy](g, offers, rnd) || offers[0];
-    picks.push(o.kind === "path" ? o.inst.def.id + ":" + o.pathId
-             : o.kind === "piece" ? o.id : "P:" + o.id);
+    const o = POLICIES[policy].lv(g, offers, rnd) || offers[0];
+    picks.push(o.kind === "path" ? o.inst.def.id + ":" + o.pathId : "P:" + o.id);
     g.ui.applyOffer(o);
+  };
+  // A etapa e a unica fonte de eixo, entao a politica precisa opinar aqui —
+  // sortear este lado tornaria capstone uma medida do sorteio e nao do perfil.
+  let milestones = 0;
+  g.ui.openMilestone = function () {
+    if (g.build.axisLeft <= 0) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
+    const idx = Math.max(0, g.milestoneIdx - g.pendingMilestones);
+    const offers = g.build.getMilestoneOffers(idx);
+    const pick = POLICIES[policy].ms(g, offers, rnd) || { o: offers[0], wet: false };
+    milestones++;
+    picks.push("M:" + pick.o.axisId + (pick.wet ? "+" + pick.o.piece.id : ""));
+    g.build.applyMilestone(pick.o, pick.wet);
+    g.ui.checkForm(null);
+    g.pendingMilestones--;
+    g.state = STATE.PLAYING;
   };
   g.ui.openChest = () => { g.state = STATE.PLAYING; };
   g.selectedSpeed = 1;
@@ -177,6 +262,8 @@ function runOnce(policy, seed) {
     hpCurve, kpsCurve, dpsCurve,
     axis: { ...g.build.axis },
     axisTotal: g.build.axisTotal,
+    milestones,
+    forms: g.player.formIdx,
     pieces: [...g.build.pieces.values()].map((i) => i.def.id),
     paths: [...g.build.pieces.values()].map((i) => i.def.id + "[" + Object.values(i.paths).join("") + "]"),
     passives: [...g.build.passives.keys()],

@@ -124,6 +124,20 @@ g.ui.openLevelUp = function () {
   levelUps++;
   g.ui.applyOffer(offers[Math.floor(rnd() * offers.length)]);
 };
+/* A tela de etapa roda de VERDADE no headless (o stub de DOM aguenta): so o
+   clique e substituido por um sorteio. E o unico jeito de o smoke pegar erro
+   de montagem de carta, que e onde mora metade do codigo novo. */
+let milestones = 0;
+const msPick = g.ui.applyMilestone.bind(g.ui);
+g.ui.applyMilestone = function (o, wet) { milestones++; msPick(o, wet); };
+const msOpen = g.ui.openMilestone.bind(g.ui);
+g.ui.openMilestone = function () {
+  msOpen();
+  if (g.state !== STATE.MILESTONE) return;
+  const offers = g.ui.msOffers;
+  const o = offers[Math.floor(rnd() * offers.length)];
+  g.ui.applyMilestone(o, !!o.wet && rnd() < 0.5);
+};
 g.ui.openChest = function () { g.state = STATE.PLAYING; };
 
 const DT = 1 / 60;
@@ -156,7 +170,7 @@ let totalDmg = 0;
 for (const v of g.damageBy.values()) totalDmg += v;
 console.log(`ok  ${MINUTES} min simulados em ${ms}ms`);
 console.log(`    nivel ${g.player.level}, ${levelUps} escolhas, ${g.player.kills} abates, ${(totalDmg / 1e3).toFixed(0)}k de dano`);
-console.log(`    eixos ${b.axis.corruption}/${b.axis.dominion}/${b.axis.cataclysm} (pool ${b.axisTotal}/${AXIS_RULES.pool})`);
+console.log(`    eixos ${b.axis.corruption}/${b.axis.dominion}/${b.axis.cataclysm} (pool ${b.axisTotal}/${AXIS_RULES.pool}) em ${milestones} etapas`);
 console.log(`    pecas: ${[...b.pieces.values()].map((i) => i.def.name + "[" + Object.values(i.paths).join("") + "]").join(", ") || "—"}`);
 console.log(`    passivas: ${[...b.passives.keys()].join(", ") || "—"}`);
 console.log(`    capstones: ${[...b.capstones].join(", ") || "—"}`);

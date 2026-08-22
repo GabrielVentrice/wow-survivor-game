@@ -84,6 +84,24 @@
     50% { opacity: 0.62; }
   }
 
+  /* Contagem para a proxima etapa. Fica abaixo do relogio e discreta: ela e
+     ANTECIPACAO, nao alarme — passa a run inteira em tela e um elemento que
+     grita o tempo todo para de ser lido. Acende so nos ultimos segundos, que e
+     quando ele tem algo a dizer, e ai usa o ambar do bau (#ffd24a) em vez do
+     vermelho da fase dura: etapa e premio, nao ameaca, e as duas coisas nao
+     podem falar a mesma cor num HUD que ja e barulhento. */
+  #msClock {
+    margin-top: 2px;
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em;
+    color: #8b7fa3; text-shadow: 0 1px 2px #000;
+    transition: color 0.3s;
+  }
+  #msClock.soon {
+    color: #ffd24a;
+    text-shadow: 0 0 10px rgba(255, 210, 74, 0.55), 0 1px 2px #000;
+    animation: timer-pulse 0.8s ease-in-out infinite;
+  }
+
   #kills {
     font-size: 14px;
     color: var(--fel);
@@ -645,30 +663,6 @@
     font-size: 42px; font-weight: 800; line-height: 1;
     letter-spacing: -0.01em; color: #f3ecff;
   }
-  .lv-budget {
-    display: flex; align-items: center; gap: 10px; flex: none;
-    padding: 8px 14px; border-radius: 10px; font-family: var(--mono);
-    border: 1px solid rgba(255, 255, 255, 0.09); background: rgba(0, 0, 0, 0.3);
-    transition: border-color 0.2s, background 0.2s;
-  }
-  .lv-budget-k { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #8b7fa3; }
-  .lv-budget-v { font-size: 22px; font-weight: 600; color: #efe9fa; transition: color 0.2s; }
-  .lv-budget-t { font-size: 13px; color: #6a5d80; }
-  /* Previa do gasto: no hover o saldo CAI para o que sobraria e o chip vira
-     alarme. Ponto de eixo e o unico recurso irreversivel do jogo — ver o saldo
-     depois da compra ANTES de comprar e a diferenca entre escolher e adivinhar.
-
-     O vermelho e o mesmo que o relogio assume na fase dura (#ff6b8a), nao um
-     hex novo. O laranja de "custa" nao servia aqui: ele E a cor do eixo
-     Cataclismo, entao numa oferta de Cataclismo o alarme sumiria dentro da
-     propria linha. Leitura em `n → n` como nas barras de eixo do painel, que
-     e o mesmo idioma logo abaixo. */
-  .lv-budget-was { display: none; font-size: 14px; color: #6a5d80; margin-right: -4px; }
-  .lv-budget-was::after { content: " →"; }
-  .lv-budget.spend { border-color: rgba(255, 107, 138, 0.45); background: rgba(255, 107, 138, 0.1); }
-  .lv-budget.spend .lv-budget-was { display: inline; }
-  .lv-budget.spend .lv-budget-v { color: #ff6b8a; }
-
   .lv-colhead {
     display: grid; grid-template-columns: var(--lv-cols); gap: 16px; padding: 0 16px;
     font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em;
@@ -783,6 +777,122 @@
   }
   .lv-row:hover .lv-pick { color: #14091f; background: var(--acc); border-color: var(--acc); }
   .lv-foot { font-size: 13px; color: #7c6f92; }
+
+  /* --- ETAPA: a batida lenta ------------------------------------------------
+     Deliberadamente o oposto da tela de level up. La sao LINHAS porque a
+     pergunta e "qual destas tres coisas diferentes eu quero", e o olho precisa
+     correr na vertical comparando campos. Aqui a pergunta e uma so — para onde
+     a run vai — e as tres respostas tem a MESMA forma preenchida com eixos
+     diferentes. Isso pede CARTAS lado a lado: o numero de cada eixo cai na
+     mesma altura nas tres, e comparar vira um movimento de olho horizontal em
+     vez de tres leituras.
+
+     As duas telas tambem nao podem PARECER a mesma tela, senao o jogador nao
+     percebe que a pergunta mudou — e a desta e a unica que ele nao desfaz. */
+  .ms { align-items: center; justify-content: center; }
+  .ms-wrap {
+    position: relative; z-index: 1; pointer-events: auto;
+    display: flex; flex-direction: column; gap: 22px;
+    width: min(1120px, 94vw); max-height: 92vh; padding: 4px;
+  }
+  .ms-head-top { display: flex; flex-direction: column; gap: 6px; text-align: center; }
+  .ms-eyebrow {
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: #ffd24a;
+  }
+  .ms-title {
+    font-size: clamp(30px, 4vw, 44px); font-weight: 800; line-height: 1;
+    letter-spacing: -0.01em; color: #f3ecff;
+  }
+  .ms-sub { font-size: 14px; color: #8b7fa3; text-wrap: pretty; }
+
+  .ms-rows { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; min-height: 0; }
+  .ms-card {
+    cursor: pointer; pointer-events: auto;
+    display: flex; flex-direction: column; gap: 13px;
+    padding: 18px 18px 16px; border-radius: 15px;
+    background: linear-gradient(165deg, var(--acc-wash), rgba(255, 255, 255, 0.015));
+    border: 1.5px solid var(--acc-dim);
+    border-top: 5px solid var(--acc);
+    transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s;
+  }
+  .ms-card:hover { border-color: var(--acc); box-shadow: 0 20px 46px rgba(0, 0, 0, 0.5); }
+
+  .ms-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .ms-ic { font-size: 22px; line-height: 1; }
+  .ms-axis { font-size: 19px; font-weight: 700; color: var(--acc); }
+  .ms-tag { flex-basis: 100%; font-size: 12px; color: #8b7fa3; }
+
+  .ms-spell {
+    display: flex; align-items: flex-start; gap: 11px; flex: 1;
+    padding: 12px; border-radius: 11px;
+    background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .ms-spell.empty { background: rgba(0, 0, 0, 0.16); }
+  .ms-spell-ic { font-size: 26px; line-height: 1.1; }
+  .ms-spell-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .ms-spell-kind {
+    display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 999px;
+    background: var(--acc); color: #14091f;
+  }
+  .ms-spell-kind i { font-style: normal; }
+  .ms-spell-name { font-size: 15.5px; font-weight: 600; color: #efe9fa; }
+  .ms-spell-desc { font-size: 12.5px; line-height: 1.35; color: #8b7fa3; text-wrap: pretty; }
+
+  /* Os DOIS botoes sao o alvo, nao a carta. A carta e um eixo; o eixo tem duas
+     maneiras de ser levado, e a diferenca entre os dois numeros e a economia
+     inteira do jogo dita em um lugar so.
+
+     Aqui, ao contrario do `.lv-pick`, os botoes sao solidos em repouso: eles
+     nao sao lembrete de que a linha e clicavel — eles SAO a decisao, e cada um
+     carrega um numero diferente que o jogador precisa comparar antes de mirar
+     o mouse em qualquer lugar. */
+  .ms-takes { display: flex; flex-direction: column; gap: 8px; }
+  .ms-take {
+    cursor: pointer; pointer-events: auto; text-align: left; font: inherit;
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
+    padding: 10px 13px; border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1.5px solid var(--acc-dim);
+    transition: background 0.14s, border-color 0.14s, transform 0.14s;
+  }
+  .ms-take:hover { transform: translateY(-2px); border-color: var(--acc); background: var(--acc-wash); }
+  .ms-take-l { font-size: 14px; font-weight: 600; color: #efe9fa; }
+  .ms-take-n {
+    grid-row: span 2; align-self: center;
+    font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--acc);
+  }
+  .ms-take-s { font-size: 11.5px; color: #8b7fa3; }
+  /* Levar a spell e a opcao que ANDA MENOS: o ambar do bau marca ela como o
+     lado do arsenal, sem sugerir que e a errada — as duas sao jogadas legitimas
+     e o jogo esta na mistura. */
+  .ms-take.wet .ms-take-n { color: #ffd24a; }
+  .ms-take.wet:hover { border-color: #ffd24a; }
+  /* Eixo no teto ou pool no fim: o botao continua clicavel quando traz spell,
+     mas para de prometer avanco. Apagar e mais honesto que exibir "+0" aceso. */
+  .ms-take.dead { opacity: 0.55; }
+  .ms-take.dead .ms-take-n { color: #7c6f92; }
+
+  /* O rodape e o unico bloco que o hover re-renderiza: barras dos tres eixos
+     com a previa do ganho, e o capstone mais proximo. E o que transforma "+3"
+     num destino em vez de um numero solto. */
+  .ms-foot {
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 16px 18px; border-radius: 13px;
+    background: rgba(0, 0, 0, 0.34); border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .ms-pool { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .ms-cap { font-size: 13.5px; color: #cfc6e0; text-wrap: pretty; }
+  .ms-cap i { font-style: normal; color: #7c6f92; }
+  .ms-cap.closer { color: #7fdc4a; }
+  .ms-cap.open { color: #ffd24a; font-weight: 600; }
+  .ms-cap.none { color: #7c6f92; }
+
+  @media (max-width: 860px) {
+    .ms-rows, .ms-pool { grid-template-columns: 1fr; }
+  }
 
   /* --- coluna direita: o painel elastico da build ----------------------------
      Overlay de jogo nao rola — ele RESUME. A lista de spells e a unica coisa
@@ -924,6 +1034,7 @@
   <div id="hud" class="hidden">
     <div class="hud-top">
       <div id="timer">00:00</div>
+      <div id="msClock" class="hidden">◆ 01:00</div>
       <div id="kills">☠ 0</div>
     </div>
     <div id="pieceBar"></div>
@@ -964,22 +1075,35 @@
         <div class="lv-head">
           <div class="lv-head-txt">
             <div class="lv-eyebrow" id="lvEyebrow">Nível 1 → 2</div>
-            <div class="lv-title">Escolha uma</div>
-          </div>
-          <div class="lv-budget" id="lvBudget">
-            <span class="lv-budget-k">Livres</span>
-            <span class="lv-budget-was" id="lvWas">20</span>
-            <span class="lv-budget-v" id="lvFree">20</span>
-            <span class="lv-budget-t" id="lvTotal">/ 20 pontos de eixo</span>
+            <div class="lv-title">Aprofunde uma</div>
           </div>
         </div>
         <div class="lv-colhead">
-          <span>O que é</span><span>O que muda no jogo</span><span>Custo</span>
+          <span>O que é</span><span>O que muda no jogo</span><span>Onde chega</span>
         </div>
         <div id="lvRows" class="lv-rows"></div>
-        <div class="lv-foot">Uma escolha e a partida continua — as outras voltam ao bolo no próximo nível.</div>
+        <div class="lv-foot">Nada aqui custa ponto de eixo — isso é assunto das etapas. Uma escolha e a partida continua.</div>
       </div>
       <div id="lvBuild" class="lv-build"></div>
+    </div>
+  </div>
+
+  <!-- Etapa: a batida lenta. Tres cartas, sempre uma por eixo — o ponto de
+       eixo e a unica decisao irreversivel da run, entao ela nunca e sorteada.
+       O que o sorteio decide e o CONTEUDO de cada carta. -->
+  <div id="milestone" class="screen ms hidden">
+    <div class="lv-glow"></div>
+    <div class="ms-wrap">
+      <div class="ms-head-top">
+        <div class="ms-eyebrow" id="msEyebrow">Etapa 1 de 7 · 01:00</div>
+        <div class="ms-title">Para onde esta run vai?</div>
+        <div class="ms-sub">O único ponto que não volta. Escolha o eixo — a spell vem junto, cobrando um ponto.</div>
+      </div>
+      <div id="msRows" class="ms-rows"></div>
+      <div class="ms-foot">
+        <div id="msPool" class="ms-pool"></div>
+        <div id="msCap" class="ms-capwrap"></div>
+      </div>
     </div>
   </div>
 

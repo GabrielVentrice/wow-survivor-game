@@ -1,10 +1,16 @@
 // Tela de level-up: as tres linhas e o painel de build.
 //
-// E a unica tela em que o jogador decide algo que nao e posicao, e a decisao e
-// irreversivel (ponto de eixo nao volta). Se ela mentir sobre o tipo da oferta
-// ou sobre o custo, a escolha vira cara ou coroa — entao o que este driver
-// cobra e exatamente isso: tipo legivel, pips certos, custo igual ao que o
-// `addAxis` vai cobrar de verdade, e um painel que resume em vez de estourar.
+// A BATIDA RAPIDA. Depois da separacao das duas telas ela nao gasta mais nada:
+// so aprofunda o que a build ja tem (tier de caminho) ou multiplica (passiva
+// global). Ponto de eixo e assunto da etapa, e `driver_milestone` cobra aquela.
+//
+// O que este driver cobra e o que sobrou de mentira possivel: tipo legivel sem
+// depender de cor, pips iguais ao tier real, progresso dito em toda linha, e um
+// painel que RESUME em vez de estourar — overlay de jogo nao tem rolagem.
+//
+// E cobra tambem que peca nova NAO volte para ca por acidente: o defeito que a
+// separacao existe para consertar era exatamente uma tela em que largura e
+// profundidade disputavam a mesma escolha, e largura ganhava sempre.
 const g = new Game();
 window.game = g;
 let s = 7;
@@ -14,11 +20,11 @@ g.start();
 let problems = 0;
 const bad = (m) => { problems++; console.log("X   " + m); };
 
-const seen = { piece: 0, path: 0, passive: 0, evo: 0, delta: 0, rec: 0 };
-// A etiqueta de tipo e a unica coisa que separa as tres ofertas sem depender de
+const seen = { path: 0, passive: 0, evo: 0, delta: 0, rec: 0 };
+// A etiqueta de tipo e a unica coisa que separa as ofertas sem depender de
 // cor — a cor da linha e a do eixo, nao a do tipo.
-const KIND = { piece: "Spell nova", path: "Melhoria", passive: "Passiva" };
-const GLYPH = { piece: "◈", path: "▲", passive: "✦" };
+const KIND = { path: "Melhoria", passive: "Passiva" };
+const GLYPH = { path: "▲", passive: "✦" };
 const noFmt = new Set();
 
 for (let round = 0; round < 400; round++) {
@@ -38,6 +44,12 @@ for (let round = 0; round < 400; round++) {
 
   for (let i = 0; i < offers.length; i++) {
     const o = offers[i], v = views[i];
+    // Largura no level up e o defeito que esta separacao conserta: peca nova
+    // aqui significa que o pool de ofertas voltou a misturar as duas moedas.
+    if (o.kind !== "path" && o.kind !== "passive") {
+      bad(`oferta de level up do tipo "${o.kind}" — so tier e passiva entram aqui`);
+      continue;
+    }
     seen[o.kind]++;
     let html;
     try { html = g.ui.rowHtml(v); }
@@ -50,16 +62,16 @@ for (let round = 0; round < 400; round++) {
     if ((o.kind === "passive") !== html.includes("lv-tile round")) {
       bad(`${o.kind} (${o.def.name}): forma do tile nao casa com o tipo`);
     }
-    if (!v.costHead || !v.costTail) bad(`${o.kind} (${o.def.name}): linha sem custo`);
+    /* A terceira coluna era CUSTO e virou PROGRESSO — o level up nao cobra
+       mais nada, e uma coluna dizendo "não gasta ponto" tres vezes seria um
+       terco da tela em silencio. Ela continua obrigatoria: sem ela a linha nao
+       diz onde a compra deixa a trilha, que e a pergunta desta tela. */
+    if (!v.progHead || !v.progTail) bad(`${o.kind} (${o.def.name}): linha sem progresso`);
+    if (v.cost != null || v.gain != null) {
+      bad(`${o.kind} (${o.def.name}): view ainda carrega custo de eixo`);
+    }
     if (v.delta.length) seen.delta++;
     if (v.rec) seen.rec++;
-
-    // O custo mostrado tem que ser o que o eixo VAI receber.
-    const room = Math.max(0, Math.min(
-      AXIS_RULES.capPerAxis - (o.axis ? g.build.axis[o.axis.id] : 0), g.build.axisLeft));
-    const want = o.axis ? Math.min(v.cost, room) : 0;
-    if (v.gain !== want) bad(`${o.def.name}: custo anunciado ${v.gain}, real ${want}`);
-    if (!v.gain && !v.costFree) bad(`${o.def.name}: cobra em laranja um custo de 0`);
 
     if (o.kind === "path") {
       if (!html.includes(o.def.name)) bad(`path ${o.def.name}: linha nao diz qual peca melhora`);
@@ -75,22 +87,11 @@ for (let round = 0; round < 400; round++) {
     }
   }
 
-  /* O chip de orcamento tem que antecipar o gasto: com o mouse numa oferta que
-     cobra, o saldo mostrado e o que SOBRA. Errar aqui e pior que nao ter a
-     previa — o jogador decide olhando um numero que nao vai acontecer. */
-  g.ui.lvViews = views;
-  for (let i = 0; i < offers.length; i++) {
-    g.ui.updateBudget(views[i]);
-    const esperado = g.build.axisLeft - views[i].gain;
-    if (+g.ui.el.lvFree.textContent !== esperado) {
-      bad(`${offers[i].def.name}: chip mostra ${g.ui.el.lvFree.textContent} livres, esperado ${esperado}`);
-    }
-    if (+g.ui.el.lvWas.textContent !== g.build.axisLeft) {
-      bad(`${offers[i].def.name}: chip perdeu o saldo de antes`);
-    }
-  }
-  g.ui.updateBudget(null);
-  if (+g.ui.el.lvFree.textContent !== g.build.axisLeft) bad("chip nao volta ao saldo sem hover");
+  /* Nenhuma escolha desta tela pode mexer no pool de eixo. E a invariante que
+     separa as duas batidas, e ela e barata de conferir: sem ela, um tier que
+     voltasse a chamar `addAxis` recolocaria o imposto sobre profundidade sem
+     que nada na tela dissesse isso ao jogador. */
+  const poolAntes = g.build.axisTotal;
 
   // O painel tem que aguentar a build inteira sem estourar: o teto de linhas
   // e de chips e o que substitui a rolagem, que overlay de jogo nao tem.
@@ -114,13 +115,18 @@ for (let round = 0; round < 400; round++) {
     if ((panel.match(/class="lv-ax"/g) || []).length !== 3) bad("painel sem os tres eixos");
   }
 
-  g.ui.applyOffer(offers[Math.floor(Math.random() * offers.length)]);
+  const escolha = offers[Math.floor(Math.random() * offers.length)];
+  g.ui.applyOffer(escolha);
+  if (g.build.axisTotal !== poolAntes) {
+    bad(`${escolha.def.name}: escolha de level up moveu o pool de eixo ` +
+        `(${poolAntes} -> ${g.build.axisTotal})`);
+  }
 }
 
 if (noFmt.size) bad(`stats sem rotulo em STAT_FMT: ${[...noFmt].join(", ")}`);
 const missing = Object.entries(seen).filter(([, n]) => !n).map(([k]) => k);
 if (missing.length) bad(`nunca aconteceu: ${missing.join(", ")}`);
 console.log(problems ? `X   ${problems} problemas na tela de level-up`
-  : `ok  level-up validado — ${seen.piece} peca, ${seen.path} caminho (${seen.evo} evolucao), ` +
+  : `ok  level-up validado — ${seen.path} caminho (${seen.evo} evolucao), ` +
     `${seen.passive} passiva, ${seen.delta} com antes/depois, ${seen.rec} com chip de marco`);
 if (problems) __exit(1);

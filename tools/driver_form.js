@@ -42,13 +42,27 @@ g.start();
 const p = g.player;
 const b = g.build;
 
-// enche o pool de eixo sem fechar capstone nenhum: a forma tem que ficar parada
-let guard = 0;
+/* Enche o pool de eixo sem fechar capstone nenhum: a forma tem que ficar
+   parada. O ponto agora so vem de ETAPA, e espalhar entre os tres eixos e o
+   jeito de chegar a 20 sem cruzar nenhum limiar (15 puro, 10+5 hibrido). */
+let guard = 0, volta = 0;
 while (b.axisLeft > 0 && guard++ < 200) {
+  const offers = b.getMilestoneOffers(guard % BALANCE.milestones.points.length);
+  const o = offers[volta++ % offers.length];
+  const antes = b.axisTotal;
+  b.applyMilestone(o, false);
+  if (b.axisTotal === antes) break;   // todo eixo no teto: nao ha mais o que dar
+}
+/* E confere que level up NAO move o pool: se ele voltar a cobrar eixo, a forma
+   volta a chegar por inercia — que e o defeito que a separacao consertou. */
+const poolAntesLv = b.axisTotal;
+for (let i = 0; i < 12; i++) {
   const offers = b.getOffers(3);
-  const nova = offers.find((o) => o.kind === "piece") || offers[0];
-  if (!nova) break;
-  b.applyOffer(nova);
+  if (!offers.length) break;
+  b.applyOffer(offers[i % offers.length]);
+}
+if (b.axisTotal !== poolAntesLv) {
+  fail(`level up moveu o pool de eixo (${poolAntesLv} -> ${b.axisTotal})`);
 }
 if (b.capstones.size === 0 && p.formIdx !== 0) {
   fail(`forma avancou para ${p.formIdx} com ${b.axisTotal} pontos e nenhum capstone`);

@@ -20,6 +20,19 @@ g.ui.openLevelUp = function () {
   if (!o.length) { g.player.pendingLevels = 0; g.state = STATE.PLAYING; return; }
   g.ui.applyOffer(o[Math.floor(Math.random() * o.length)]);
 };
+/* A etapa tambem para o jogo, entao ela precisa ser resolvida aqui: sem isso o
+   `state` trava em MILESTONE no primeiro marco e a run mede a cadencia de bau
+   dos primeiros 60 segundos achando que mediu 12 minutos. Leva a spell quando
+   ha uma, porque bau so tem o que entregar se a build tiver caminhos abertos. */
+g.ui.openMilestone = function () {
+  if (g.build.axisLeft <= 0) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
+  const idx = Math.max(0, g.milestoneIdx - g.pendingMilestones);
+  const offers = g.build.getMilestoneOffers(idx);
+  const o = offers.find((x) => x.wet) || offers[0];
+  g.build.applyMilestone(o, !!o.wet);
+  g.pendingMilestones--;
+  g.state = STATE.PLAYING;
+};
 
 // --- 1. cadência: quando e quantos baús nascem ---------------------------
 const spawnedAt = [];
