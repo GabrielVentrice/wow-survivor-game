@@ -265,9 +265,11 @@ laranja "sem animação própria", ao contrário, **não** é falha: é a lista 
 o jogo muda sem avisar em tela — hoje 25 mecânicas.
 
 `make_track.py` não é driver: é o gerador da trilha de fundo
-(`audio/gothic-lofi.mp3`). Precisa de numpy e scipy, roda em ~7 s e imprime o
-nível de cada barramento e o degrau no ponto de volta do loop. Como reencodar
-está em `audio/README.md`.
+(`audio/rain-lofi.mp3`, o lofi de chuva). Precisa de numpy e scipy, roda em ~7 s
+e imprime o nível de cada barramento e o degrau no ponto de volta do loop —
+degrau menor que o típico entre amostras é a prova de que a faixa emenda e pode
+rodar com `loop` nativo. Como reencodar, e por que a chuva entra depois da
+fita, está em `audio/README.md`.
 
 O stub de `AudioContext` monta o grafo de verdade e explode em rampa
 exponencial com alvo <= 0, então erro de WebAudio aparece aqui e não só no

@@ -78,7 +78,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
 | `js/voices.js` | `VOICES` — o que cada evento visual SOA (o irmão de `js/render/vfx.js`) |
 | `js/music.js` | `MUSIC` + `Music` — trilha procedural (a **reserva**) |
-| `js/track.js` | `Track` + `Soundtrack` — toca `audio/gothic-lofi.mp3`, com fallback |
+| `js/track.js` | `Track` + `Soundtrack` — toca `audio/rain-lofi.mp3`, com fallback |
 | `js/assets/sfx-bone.js` | amostra de osso quebrando embutida em base64 |
 | `js/entities.js` | `Player`, `Enemy`, `Projectile`, `Minion`, `AreaEffect`, `DotInstance`, `XPOrb`, `Pickup`, `Particle`, `SpawnManager` |
 | `js/systems/resolve.js` | registries (`PIECES`, `PASSIVES`, `CAPSTONES`, `MINIONS`) + pipeline de stats |
@@ -1264,12 +1264,13 @@ junto com a run — veios mais vivos, mais brasa no ar, vinheta mais fechada.
 Sprites, chão, efeitos sonoros e a trilha de reserva são gerados em runtime.
 **Não adicione arquivos de imagem.** Os dois assets de áudio que existem seguem
 regras diferentes, e a diferença é `file://`. Nenhum dos dois vem de banco de
-sons: a trilha é sintetizada por `tools/make_track.py` e o estalo de osso está
-embutido — não há licença de terceiro a conferir em nada que o jogo toca.
+sons: a trilha é sintetizada por `tools/make_track.py` — **inclusive a chuva**,
+que é ruído modelado no espectro e não gravação de campo — e o estalo de osso
+está embutido; não há licença de terceiro a conferir em nada que o jogo toca.
 
 | Asset | Como carrega | Por quê |
 |---|---|---|
-| `audio/gothic-lofi.mp3` (trilha) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
+| `audio/rain-lofi.mp3` (trilha) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
 | osso quebrando (efeito) | base64 → `atob` → `decodeAudioData` | Precisa sobrepor e variar de tom dezenas de vezes por segundo; `<audio>` não dá isso. Base64 não passa por rede, então funciona em `file://`. 21 KB. |
 
 **Os dois têm fallback e o jogo nunca fica mudo:** `Soundtrack` cai para a
@@ -1280,8 +1281,9 @@ decodificar. Os drivers `driver_track` e `driver_audio` testam esses caminhos.
 **Modo de repetição da trilha.** `Track` tem dois, e escolher errado estraga a
 faixa. `seamless` (padrão) usa `loop = true` nativo, para faixa montada para
 emendar — é o caso da atual, que fecha em si mesma por construção (32 compassos
-exatos, caudas dobradas de volta no começo, LFOs com período que divide o loop,
-filtros de master circulares). `{ crossfade: 3.5 }`
+exatos, caudas dobradas de volta no começo, LFOs com número inteiro de ciclos
+dentro do loop, filtros de master circulares, e a camada de chuva gerada no
+domínio da frequência, que é periódica por construção). `{ crossfade: 3.5 }`
 usa dois elementos que se cruzam no fim, para faixa que *não* emenda. Cruzar uma
 faixa que já emenda é pior que não fazer nada: o cruzamento sobrepõe a faixa
 com ela mesma e dobra a batida na volta.
