@@ -245,6 +245,19 @@ As regras que caem daí:
   funcionam quando a célula é grande, mas em 1:1 são no-op.
   Pose desenhada à mão continua sendo melhor que pose gerada: o gerador é o
   piso, não o teto.
+- **E o degrau é o MESMO para todo mundo.** `step` é quantos pixels do buffer
+  um pixel de arte ocupa, e cai de `drawH / (PIXEL_UNIT * linhas)`. Nada obrigava
+  ele a ser igual para todos — e silenciosamente não era: o Abomination e o
+  Dreadlord desenhavam em `step 2`, com pixel de arte do dobro do tamanho dos
+  outros dezesseis. É o mixel na versão silenciosa: não é escala fracionária,
+  que ferve; é escala inteira que **não bate com o resto do elenco**, e as duas
+  criaturas leem como se viessem de um jogo de resolução menor.
+  O conserto nunca é reduzir a altura desenhada — isso encolheria o bicho para
+  metade do próprio hitbox. É **redesenhar a grade no tamanho em que ela
+  aparece**: 16x14 virou 28x28 e 22x19 virou 44x38, com `art` intacto nos dois,
+  então nada de balanceamento mudou. `driver_pixel` cobra a igualdade agora,
+  porque o defeito é invisível num sprite sozinho e óbvio ao lado de um ghoul.
+
 - **Tamanho de sprite é degrau, não contínuo.** Uma grade de 14 linhas só existe
   com 42, 84 ou 126 pixels de altura. Por isso a altura é dado explícito
   (`ENEMIES.art`, `MINIONS.scale`, `CLASSES.<id>.forms[].scale`) e os valores

@@ -78,6 +78,46 @@ for (const id in SPRITES) {
 if (bad) fail("placeSprite fora do grid: " + bad);
 else console.log(`  ok ${Object.keys(SPRITES).length} sprites no grid em toda faixa de tamanho (celulas de ${[...sizes].sort((a, b) => a - b).join("/")}px)`);
 
+
+// --- every sprite draws at the SAME pixel size ------------------------------
+/* `step` is how many buffer pixels one art pixel occupies, and it falls out of
+   `drawH / (PIXEL_UNIT * rows)`. Nothing forced it to be the same for everyone,
+   and it silently was not: the Abomination and the Dreadlord rendered at step 2
+   — art pixels twice the size of the other sixteen sprites. That is the mixel
+   defect in its quiet form. Not fractional scaling, which boils; a whole-number
+   scale that simply does not match the rest of the cast, so two creatures look
+   like they came from a lower-resolution game.
+
+   It is invisible in a sprite viewed alone and obvious the moment the two stand
+   next to a ghoul, which is why it lives here and not in someone's eye. */
+const stepOf = (rows, drawH) => Math.max(1, Math.round(drawH / (U * rows)));
+const arts = [];
+for (const id in ENEMIES) {
+  const e = ENEMIES[id];
+  arts.push([id, "inimigo", SPRITE_DATA[id].rows.length, e.radius * (e.art || 2.7)]);
+}
+for (const id in MINIONS) {
+  const m = MINIONS[id];
+  if (m.sprite) arts.push([id, "demonio", SPRITE_DATA[m.sprite].rows.length, m.radius * m.scale]);
+}
+for (const f of CLASSES.warlock.forms) {
+  arts.push([f.sprite, "forma", SPRITE_DATA[f.sprite].rows.length, BALANCE.player.radius * f.scale]);
+}
+const steps = new Map();
+for (const [id, kind, rows, drawH] of arts) {
+  const st = stepOf(rows, drawH);
+  if (!steps.has(st)) steps.set(st, []);
+  steps.get(st).push(`${id} (${kind}, ${rows} linhas, ${Math.round(drawH)}un)`);
+}
+if (steps.size > 1) {
+  const big = [...steps.entries()].filter(([st]) => st > 1);
+  fail(`pixel de arte de tamanhos diferentes no mesmo jogo: ` +
+       big.map(([st, ids]) => `step ${st} em ${ids.join(", ")}`).join("; ") +
+       ` — redesenhe a grade no tamanho em que ela aparece, nao amplie`);
+} else {
+  console.log(`  ok ${arts.length} sprites desenham com o mesmo pixel de arte (step ${[...steps.keys()][0]})`);
+}
+
 // --- walk frames ------------------------------------------------------------
 // The grid cannot squash by 1.05 of a pixel, so movement is poses. A generator
 // that silently produced four copies of the same pose would leave the game
