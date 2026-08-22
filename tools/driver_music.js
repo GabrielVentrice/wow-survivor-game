@@ -15,7 +15,6 @@ if (!g.music.ctx) fail("trilha nao pegou o AudioContext no start()");
 if (!g.music.on) fail("trilha nao ligou no start()");
 
 __audio.nodes = 0;
-const stepDur = 60 / MUSIC.bpm / 2;
 for (let i = 0; i < 60 * 30; i++) {           // 30s de jogo
   g.player.hp = g.player.maxHp;
   g.input.keys = new Set(["d"]);
@@ -24,7 +23,7 @@ for (let i = 0; i < 60 * 30; i++) {           // 30s de jogo
 }
 const barras = g.music.step / MUSIC.stepsPerBar;
 console.log(`  ok 30s -> passo ${g.music.step} (${barras.toFixed(1)} compassos), ${__audio.nodes} notas`);
-const esperado = 30 / stepDur;
+const esperado = 30 / (60 / MUSIC.bpm / 2);
 if (Math.abs(g.music.step - esperado) > esperado * 0.12) {
   fail(`andamento errado: passo ${g.music.step}, esperado ~${esperado.toFixed(0)}`);
 } else console.log(`  ok andamento bate com ${MUSIC.bpm} BPM (esperado ~${esperado.toFixed(0)} passos)`);
@@ -46,21 +45,47 @@ if (!(k1 > k0)) fail(`fase dura nao subiu a intensidade (${k0.toFixed(2)} -> ${k
 else if (k2 !== 1) fail(`chefe em campo nao levou ao teto (${k2})`);
 else console.log(`  ok intensidade ${k0.toFixed(2)} -> ${k1.toFixed(2)} (fase dura) -> ${k2.toFixed(2)} (chefe)`);
 
-// todas as camadas precisam existir de fato no talo
+// cada camada da orquestracao precisa existir de fato
+const stepDur = 60 / MUSIC.bpm / 2;
+const camadas = [
+  ["_choir", "coro"], ["_drum", "tambor"], ["_brass", "metais"],
+  ["_horn", "trompa"], ["_tremolo", "cordas"], ["_impact", "impacto"],
+  ["_voice", "baixo"],
+];
+const usadas = {};
+for (const [fn] of camadas) {
+  const orig = g.music[fn].bind(g.music);
+  g.music[fn] = (...a) => { usadas[fn] = (usadas[fn] || 0) + 1; return orig(...a); };
+}
 g.music.intensity = 1; g.music.state = "playing";
 __audio.nodes = 0;
-for (let i = 0; i < MUSIC.stepsPerBar * MUSIC.bars; i++) g.music._scheduleStep(i, 0);
+for (let i = 0; i < MUSIC.stepsPerBar * MUSIC.bars; i++) g.music._scheduleStep(i, 0, stepDur);
 console.log(`  ok um loop completo no talo -> ${__audio.nodes} notas`);
-if (__audio.nodes < 40) fail("as camadas de alta intensidade nao entraram");
+for (const [fn, nome] of camadas) {
+  if (!usadas[fn]) fail(`camada "${nome}" nunca toca no talo`);
+}
+console.log(`  ok camadas: ${camadas.map(([f, n]) => n + "×" + (usadas[f] || 0)).join(", ")}`);
+if (__audio.nodes < 60) fail("as camadas de alta intensidade nao entraram");
+
+// a progressao tem que DESCER: e o tetracorde frigio que faz soar Legiao
+const baixos = MUSIC.chords.map((c) => c.bass);
+for (let i = 1; i < baixos.length; i++) {
+  if (baixos[i] >= baixos[i - 1]) fail(`baixo nao desce em ${MUSIC.chords[i].name} (${baixos.join(",")})`);
+}
+console.log(`  ok baixo desce ${MUSIC.chords.map((c) => c.name).join(" - ")} (${baixos.join(", ")})`);
+// o V precisa ser MAIOR: e a terca maior que da o gosto de frigio dominante
+const V = MUSIC.chords[3];
+if ((V.notes[1] - V.notes[0]) !== 4) fail(`o acorde ${V.name} nao e maior (terca de ${V.notes[1] - V.notes[0]} semitons)`);
+else console.log(`  ok ${V.name} vem maior (terca de 4 semitons = frigio dominante)`);
 
 // no menu a trilha e mais rala que no jogo
 g.music.intensity = 0; g.music.state = "menu";
 __audio.nodes = 0;
-for (let i = 0; i < MUSIC.stepsPerBar * MUSIC.bars; i++) g.music._scheduleStep(i, 0);
+for (let i = 0; i < MUSIC.stepsPerBar * MUSIC.bars; i++) g.music._scheduleStep(i, 0, stepDur);
 const menuNotes = __audio.nodes;
 g.music.intensity = 1; g.music.state = "playing";
 __audio.nodes = 0;
-for (let i = 0; i < MUSIC.stepsPerBar * MUSIC.bars; i++) g.music._scheduleStep(i, 0);
+for (let i = 0; i < MUSIC.stepsPerBar * MUSIC.bars; i++) g.music._scheduleStep(i, 0, stepDur);
 if (!(menuNotes < __audio.nodes)) fail(`menu (${menuNotes}) nao e mais ralo que o jogo (${__audio.nodes})`);
 else console.log(`  ok menu ${menuNotes} notas x jogo no talo ${__audio.nodes} notas`);
 

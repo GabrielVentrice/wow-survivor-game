@@ -86,6 +86,12 @@ for (const cid in CAPSTONES) {
   for (const n of hookNames) delete calls[n];
   populate(40);
   simulate(14);
+  // Ceifador e Chamador dependem de um DoT vencendo a duracao num alvo VIVO —
+  // e o Chamador exige que seja o de Immolate. A simulacao produz isso as
+  // vezes; o teste nao pode depender do seed.
+  if (cap.on && cap.on.dot_expired && !calls[cap.on.dot_expired]) {
+    provokeDotExpiry(cid === "chamador" ? "immolate" : null);
+  }
   const fired = hookNames.filter((n) => calls[n] > 0);
   if (fired.length !== hookNames.length) {
     console.error(`  X ${cap.name}: hook(s) nunca dispararam: ${hookNames.filter((n) => !calls[n]).join(", ")}`);
@@ -98,14 +104,14 @@ for (const cid in CAPSTONES) {
 /* Provoca a expiracao natural de um DoT: inimigo duro o bastante para nao
    morrer, DoT curto, relogio adiantado. Alguns hooks dependem dessa condicao
    exata e uma simulacao aleatoria pode passar minutos sem produzi-la. */
-function provokeDotExpiry() {
+function provokeDotExpiry(dotKey) {
   const e = g.enemies.spawn(ENEMIES.abomination, g.player.x + 200, g.player.y, g.spawner.scale);
   e.hp = e.maxHp = 1e7;
   const o = g.enemies.spawn(ENEMIES.abomination, e.x + 40, e.y, g.spawner.scale);
   o.hp = o.maxHp = 1e7;
   g.grid.clear(); g.grid.insert(e); g.grid.insert(o);
   const c = { key: "teste", color: "#7fdc4a", now: g.clock, x: e.x, y: e.y, target: e };
-  g.dots.apply(e, { key: "prova", dps: 4, duration: 1, tickInterval: 0.5,
+  g.dots.apply(e, { key: dotKey || "prova", dps: 4, duration: 1, tickInterval: 0.5,
                     stacking: { mode: "refresh", max: 1 } }, c);
   for (let i = 0; i < 40; i++) { g.clock += 0.05; g.dots.update(g.clock); }
 }

@@ -22,11 +22,28 @@
    ========================================================================= */
 
 const SCENERY = {
-  chunk: 420,          // lado do bloco de mundo que recebe props
+  chunk: 620,          // lado do bloco de mundo que recebe props
   tileVariants: 8,
   maxChunkCache: 512,
-  embers: 90,
+  embers: 46,
 };
+
+/* Peso de cada tipo de destroço. Os que brilham e se mexem (braseiro, sigilo,
+   cristal) competem com as habilidades do jogador pela atenção, então são
+   raros; o que carrega o cenário são as peças escuras e paradas. */
+const PROP_WEIGHTS = [
+  ["bones", 26], ["spike", 22], ["pillar", 18], ["fissure", 14],
+  ["crystal", 9], ["brazier", 6], ["sigil", 5],
+];
+const PROP_WEIGHT_TOTAL = PROP_WEIGHTS.reduce((a, p) => a + p[1], 0);
+function pickProp(r) {
+  let n = r * PROP_WEIGHT_TOTAL;
+  for (let i = 0; i < PROP_WEIGHTS.length; i++) {
+    n -= PROP_WEIGHTS[i][1];
+    if (n <= 0) return PROP_WEIGHTS[i][0];
+  }
+  return "bones";
+}
 
 // hash inteiro estável de duas coordenadas — a base de todo o determinismo
 function hash2(x, y) {
@@ -63,9 +80,9 @@ function makeFelTile(variant) {
   x.fillRect(0, 0, T, T);
 
   // granulado da rocha
-  for (let i = 0; i < 130; i++) {
+  for (let i = 0; i < 110; i++) {
     const px = rnd() * T, py = rnd() * T, sz = 1 + rnd() * 2.2;
-    x.fillStyle = rnd() < 0.45 ? "rgba(190,180,220,0.035)" : "rgba(0,0,0,0.3)";
+    x.fillStyle = rnd() < 0.45 ? "rgba(190,180,220,0.028)" : "rgba(0,0,0,0.32)";
     x.fillRect(px, py, sz, sz);
   }
 
@@ -83,7 +100,7 @@ function makeFelTile(variant) {
 
   // veios de fel: o brilho vem de duas passadas, uma larga e turva por baixo
   // e uma fina e clara por cima — é o que faz parecer luz e não risco verde
-  const veins = 1 + Math.floor(rnd() * 3);
+  const veins = rnd() < 0.42 ? 0 : 1 + Math.floor(rnd() * 2);
   for (let v = 0; v < veins; v++) {
     const pts = [];
     let cx = rnd() * T, cy = rnd() * T;
@@ -95,8 +112,8 @@ function makeFelTile(variant) {
       cy += Math.sin(a) * (T * 0.18);
     }
     for (const pass of [
-      { w: 5, s: "rgba(90,200,60,0.10)" },
-      { w: 1.6, s: "rgba(180,255,120,0.34)" },
+      { w: 5, s: "rgba(90,200,60,0.055)" },
+      { w: 1.5, s: "rgba(170,240,115,0.19)" },
     ]) {
       x.strokeStyle = pass.s;
       x.lineWidth = pass.w;
@@ -109,11 +126,11 @@ function makeFelTile(variant) {
   }
 
   // marca demoníaca ocasional gravada na laje
-  if (rnd() < 0.3) {
+  if (rnd() < 0.18) {
     x.save();
     x.translate(T * (0.3 + rnd() * 0.4), T * (0.3 + rnd() * 0.4));
     x.rotate(rnd() * Math.PI * 2);
-    x.strokeStyle = "rgba(122,60,255,0.16)";
+    x.strokeStyle = "rgba(122,60,255,0.1)";
     x.lineWidth = 1.4;
     const r = T * 0.12;
     x.beginPath(); x.arc(0, 0, r, 0, Math.PI * 2); x.stroke();
@@ -198,14 +215,16 @@ class Scenery {
     const C = SCENERY.chunk;
     const rnd = seeded(hash2(cx, cy));
     props = [];
-    const n = 1 + Math.floor(rnd() * 3);
+    // boa parte dos blocos fica vazia de proposito: o vazio e o que faz os
+    // destroços que existem parecerem colocados, e não espalhados
+    const n = rnd() < 0.34 ? 0 : 1 + Math.floor(rnd() * 2);
     for (let i = 0; i < n; i++) {
-      const kind = PROP_KINDS[Math.floor(rnd() * PROP_KINDS.length)];
+      const kind = pickProp(rnd());
       props.push({
         kind,
         x: cx * C + 24 + rnd() * (C - 48),
         y: cy * C + 24 + rnd() * (C - 48),
-        s: 0.75 + rnd() * 0.9,       // escala
+        s: 0.7 + rnd() * 0.75,       // escala
         a: rnd() * Math.PI * 2,      // rotação
         seed: rnd(),
         variant: Math.floor(rnd() * 4),
@@ -271,7 +290,7 @@ class Scenery {
       if (sx < -40) { e.x += cam.w + 80; sx += cam.w + 80; }
       else if (sx > cam.w + 40) { e.x -= cam.w + 80; sx -= cam.w + 80; }
       const k = 0.35 + Math.sin(t * 2 + i * 1.7) * 0.3;
-      ctx.globalAlpha = k * (0.4 + this.corruption * 0.5);
+      ctx.globalAlpha = k * (0.24 + this.corruption * 0.34);
       ctx.fillStyle = i % 5 === 0 ? "#c88aff" : "#a8ff6a";
       ctx.beginPath();
       ctx.arc(sx, sy, e.size, 0, Math.PI * 2);
@@ -324,8 +343,8 @@ const PROPS = {
     const s = p.s, k = 0.6 + Math.sin(t * 1.4 + p.seed * 9) * 0.4;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.16 + k * 0.14;
-    const w = 30 * s;
+    ctx.globalAlpha = 0.1 + k * 0.09;
+    const w = 26 * s;
     ctx.drawImage(glowBlob("#7fdc4a"), sx - w, sy - w * 0.8, w * 2, w * 1.6);
     ctx.restore();
 
@@ -436,8 +455,8 @@ const PROPS = {
       ctx.ellipse(sx + Math.sin(ph * 2 + i) * 2.5 * s, fy, fw, fw * 1.7, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.globalAlpha = 0.22;
-    const w = 26 * s;
+    ctx.globalAlpha = 0.15;
+    const w = 24 * s;
     ctx.drawImage(glowBlob("#7fdc4a"), sx - w, sy - 22 * s - w, w * 2, w * 2);
     ctx.restore();
   },
@@ -450,11 +469,11 @@ const PROPS = {
     ctx.translate(sx, sy);
     ctx.scale(1, 0.42);
     ctx.rotate(p.a + t * 0.12);
-    ctx.strokeStyle = `rgba(122,60,255,${(0.16 + k * 0.14 + corr * 0.12).toFixed(3)})`;
+    ctx.strokeStyle = `rgba(122,60,255,${(0.1 + k * 0.09 + corr * 0.08).toFixed(3)})`;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.arc(0, 0, r * 0.62, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = `rgba(160,255,120,${(0.12 + k * 0.16).toFixed(3)})`;
+    ctx.strokeStyle = `rgba(160,255,120,${(0.07 + k * 0.1).toFixed(3)})`;
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2;
       ctx.beginPath();
@@ -482,15 +501,15 @@ const PROPS = {
     ctx.lineTo(len * 0.2, 4 * s);
     ctx.lineTo(len / 2, -2 * s);
     ctx.stroke();
-    ctx.strokeStyle = `rgba(170,255,110,${(0.3 + k * 0.3 + corr * 0.2).toFixed(3)})`;
+    ctx.strokeStyle = `rgba(170,255,110,${(0.18 + k * 0.2 + corr * 0.14).toFixed(3)})`;
     ctx.lineWidth = 2.2 * s;
     ctx.stroke();
     ctx.restore();
 
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.1 + k * 0.1;
-    const w = 34 * s;
+    ctx.globalAlpha = 0.06 + k * 0.07;
+    const w = 30 * s;
     ctx.drawImage(glowBlob("#7fdc4a"), sx - w, sy - w * 0.45, w * 2, w * 0.9);
     ctx.restore();
   },

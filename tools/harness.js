@@ -95,6 +95,13 @@ const sandbox = {
         type: "", frequency: param(0), Q: param(0) }),
       createGain: () => Object.assign(node(), { gain: param(0) }),
       createDelay: () => Object.assign(node(), { delayTime: param(0) }),
+      createWaveShaper: () => Object.assign(node(), {
+        set curve(v) {
+          if (!v || !v.length) throw new Error("WaveShaper sem curva");
+          this._c = v;
+        },
+        get curve() { return this._c; },
+        oversample: "none" }),
       createOscillator: () => Object.assign(node(), {
         type: "", frequency: param(0), detune: param(0),
         start: () => { __audio.nodes++; }, stop: () => {} }),

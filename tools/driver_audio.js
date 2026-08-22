@@ -35,6 +35,14 @@ console.log(`  ok chacina de 400 mortes em 8s -> ${played} sons tocados, ${__aud
 if (played === 0) fail("throttle engoliu todas as mortes");
 if (played > 260) fail(`throttle nao segurou nada (${played} de 400)`);
 
+// rugido de chefe: precisa ser bem mais denso que uma morte comum
+__audio.nodes = 0;
+g.clock += 2;
+try { g.sfx.boss(); } catch (e) { fail("rugido de chefe: " + e.message); }
+const roar = __audio.nodes;
+if (roar < 4) fail(`rugido de chefe com so ${roar} fontes`);
+else console.log(`  ok rugido de chefe -> ${roar} fontes`);
+
 // mudo continua mudo
 g.sfx.muted = true;
 __audio.nodes = 0;

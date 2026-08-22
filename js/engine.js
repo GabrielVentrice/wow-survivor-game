@@ -125,6 +125,35 @@ class SpatialGrid {
   }
 }
 
+/* Ruido branco de meio segundo, gerado uma vez por AudioContext e
+   reaproveitado por todo mundo. E a materia-prima de tudo que e percussivo:
+   estalo de osso, pele de tambor, chiado de fel. */
+let _noiseBuf = null, _noiseCtx = null;
+function noiseBuffer(ctx) {
+  if (_noiseBuf && _noiseCtx === ctx) return _noiseBuf;
+  const len = Math.floor(ctx.sampleRate * 0.5);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  _noiseBuf = buf; _noiseCtx = ctx;
+  return buf;
+}
+
+/* Curva de saturacao suave para WaveShaper. Da mordida aos metais sem virar
+   distorcao de guitarra. Construida uma vez. */
+let _driveCurve = null;
+function driveCurve() {
+  if (_driveCurve) return _driveCurve;
+  const n = 1024;
+  const c = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1;
+    c[i] = Math.tanh(x * 2.2) * 0.82;
+  }
+  _driveCurve = c;
+  return c;
+}
+
 // --- Som procedural via WebAudio (sem assets). Toggle com M. ---
 class Sfx {
   constructor() {
@@ -159,15 +188,7 @@ class Sfx {
      Ruido branco de meio segundo, gerado uma vez e reaproveitado. E a
      materia-prima de tudo que e percussivo: estalo de osso, esmagamento,
      baque de corpo. */
-  _noise() {
-    if (this._noiseBuf) return this._noiseBuf;
-    const len = Math.floor(this.ctx.sampleRate * 0.5);
-    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    this._noiseBuf = buf;
-    return buf;
-  }
+  _noise() { return noiseBuffer(this.ctx); }
 
   // rajada de ruido filtrada — o timbre vem do filtro, o "peso" vem do decay
   _burst(t, dur, filter, freq, q, vol, rate) {
@@ -258,12 +279,42 @@ class Sfx {
                   0.15 + s * 0.13, "sawtooth", 0.04 * vol, 780 - s * 200);
     }
 
-    // 5. so o chefe: a armadura cedendo depois que o corpo ja caiu
+    /* 5. guincho de fel: uma serra despencando por um bandpass estreito e
+       saturada. E o que separa "algo quebrou" de "algo da Legiao morreu".
+       Curto e discreto de proposito — a horda inteira guinchando junto seria
+       insuportavel, entao so os corpos maiores guincham sempre. */
+    if (s > 0.25 || Math.random() < 0.35) {
+      this._screech(now + 0.004, 0.1 + s * 0.11, 0.05 * vol * (0.7 + s * 0.6), s);
+    }
+
+    // 6. so o chefe: a armadura cedendo depois que o corpo ja caiu
     if (s >= 0.95) {
       this._burst(now + 0.13, 0.09, "bandpass", 1500 + Math.random() * 600, 8, 0.07);
       this._burst(now + 0.19, 0.26, "lowpass", 320, 1, 0.07, 0.6);
       this._sweep(now + 0.16, 70, 28, 0.42, "sine", 0.1);
     }
+  }
+
+  // guincho demoniaco: serra caindo rapido, saturada, num bandpass estreito
+  _screech(t, dur, vol, size) {
+    if (vol < 0.0005) return;
+    const ctx = this.ctx;
+    const o = ctx.createOscillator();
+    o.type = "sawtooth";
+    const f0 = (1150 - size * 420) * (0.85 + Math.random() * 0.3);
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(60, f0 * 0.17), t + dur);
+    const sh = ctx.createWaveShaper();
+    sh.curve = driveCurve();
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1500 - size * 500;
+    bp.Q.value = 4.5;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(sh); sh.connect(bp); bp.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + dur + 0.02);
   }
 
   hurt() { this.tone(120, 0.18, "sawtooth", 0.1); }
@@ -273,7 +324,15 @@ class Sfx {
     this.tone(660, 0.1, "triangle", 0.12, 0.09);
     this.tone(880, 0.18, "triangle", 0.12, 0.18);
   }
-  boss() { this.tone(80, 0.5, "sawtooth", 0.14); this.tone(60, 0.6, "sawtooth", 0.12, 0.05); }
+  // chegada de chefe: rugido saturado descendo, com o ar sacudindo por baixo
+  boss() {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    this._screech(now, 0.7, 0.09, 0.2);
+    this._sweep(now + 0.02, 130, 42, 0.9, "sawtooth", 0.11, 500);
+    this._sweep(now + 0.1, 62, 26, 1.3, "sine", 0.12);
+    this._burst(now + 0.05, 0.5, "lowpass", 380, 1, 0.06, 0.5);
+  }
   item() { this.tone(700, 0.09, "sine", 0.12); this.tone(1050, 0.12, "sine", 0.1, 0.08); }
   gameOver() { this.tone(330, 0.3, "triangle", 0.12); this.tone(196, 0.5, "triangle", 0.12, 0.18); }
 }
