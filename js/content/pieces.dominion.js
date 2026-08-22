@@ -9,7 +9,7 @@ Object.assign(PIECES, {
 
   wildImps: {
     id: "wildImps", key: "wildImps", name: "Wild Imps",
-    icon: "👺", color: "#9a4cff", axis: "dominion", axisPoints: 2,
+    color: "#9a4cff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "fire"], vfx: "chain",
     desc: "Um bando de imps orbita você cuspindo fogo. Barulhento e constante.",
     stats: { count: 3, respawn: 2.2, damage: 8, duration: 9, range: 280, attackInterval: 0.75, speed: 480 },
@@ -54,7 +54,7 @@ Object.assign(PIECES, {
 
   dreadstalkers: {
     id: "dreadstalkers", key: "dreadstalkers", name: "Dreadstalkers",
-    icon: "🐺", color: "#9a4cff", axis: "dominion", axisPoints: 2,
+    color: "#9a4cff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "shadow"],
     desc: "Caçadores que saem à procura. Você anda; eles limpam a vizinhança.",
     stats: { count: 2, respawn: 5, damage: 26, duration: 14, range: 460, attackInterval: 0.85 },
@@ -98,7 +98,7 @@ Object.assign(PIECES, {
 
   felguard: {
     id: "felguard", key: "felguard", name: "Felguard",
-    icon: "🪓", color: "#9a4cff", axis: "dominion", axisPoints: 2,
+    color: "#9a4cff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "fel", "guard"],
     desc: "Um guarda-costas que não sai do seu lado e corta quem chega perto.",
     stats: { count: 1, respawn: 6, damage: 44, duration: 20, range: 210, attackInterval: 0.8, cleave: 80 },
@@ -141,7 +141,7 @@ Object.assign(PIECES, {
 
   voidwalker: {
     id: "voidwalker", key: "voidwalker", name: "Voidwalker",
-    icon: "🌀", color: "#6a28c8", axis: "dominion", axisPoints: 2,
+    color: "#6a28c8", axis: "dominion", axisPoints: 2,
     tags: ["summon", "orbital", "guard"],
     desc: "Uma massa do Vazio gira ao seu redor, puxa a horda e a tritura por contato.",
     stats: { count: 2, damage: 14, orbitRadius: 88, orbitSpeed: 1.25, attackInterval: 0.35, pullForce: 26, pullRadius: 150 },
@@ -185,7 +185,7 @@ Object.assign(PIECES, {
 
   doom: {
     id: "doom", key: "doom", name: "Doom",
-    icon: "⌛", color: "#c07aff", axis: "dominion", axisPoints: 2,
+    color: "#c07aff", axis: "dominion", axisPoints: 2,
     tags: ["shadow", "dot", "summon"],
     desc: "Uma sentença. Quando ela vence, nasce um demônio de dentro do alvo.",
     stats: { cooldown: 4, range: 420, targets: 1, dps: 9, duration: 8, tickInterval: 1,
@@ -231,7 +231,7 @@ Object.assign(PIECES, {
 
   implosion: {
     id: "implosion", key: "implosion", name: "Implosion",
-    icon: "💢", color: "#c07aff", axis: "dominion", axisPoints: 2,
+    color: "#c07aff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "fel", "reactive"],
     desc: "Quando você apanha, seus demônios implodem em volta de você. Punição vira resposta.",
     requires: { tag: "summon" },
@@ -275,7 +275,7 @@ Object.assign(PIECES, {
 
   netherPortal: {
     id: "netherPortal", key: "netherPortal", name: "Nether Portal",
-    icon: "🌌", color: "#c07aff", axis: "dominion", axisPoints: 3,
+    color: "#c07aff", axis: "dominion", axisPoints: 3,
     tags: ["summon", "aura"],
     desc: "Abre uma fenda onde você está. Ela fica lá cuspindo demônios enquanto você sai andando.",
     stats: { interval: 9, duration: 14, damage: 22, spawnEvery: 2.4, portalRange: 360 },
@@ -323,7 +323,7 @@ Object.assign(PIECES, {
 
   demonicTyrant: {
     id: "demonicTyrant", key: "wildImps", name: "Demonic Tyrant",
-    icon: "😈", color: "#c07aff", axis: "dominion", axisPoints: 0,
+    color: "#c07aff", axis: "dominion", axisPoints: 0,
     tags: ["summon", "fel", "tyrant"], evolutionOnly: true, vfx: "chain",
     desc: "O bando some. No lugar dele vem um só — e ele basta.",
     stats: { count: 1, respawn: 8, damage: 70, duration: 22, range: 360, attackInterval: 0.55, cleave: 120 },
@@ -369,7 +369,7 @@ Object.assign(PIECES, {
 
   grimoireOfSacrifice: {
     id: "grimoireOfSacrifice", key: "felguard", name: "Grimoire of Sacrifice",
-    icon: "📕", color: "#c07aff", axis: "dominion", axisPoints: 0,
+    color: "#c07aff", axis: "dominion", axisPoints: 0,
     tags: ["fel", "guard", "sacrifice"], evolutionOnly: true, vfx: "blood",
     desc: "Você devora o próprio guarda. Perde o corpo dele, ganha o poder — e um escudo que nunca acaba.",
     stats: { interval: 3.5, damage: 85, radius: 200, shield: 55, cap: 420 },

@@ -683,8 +683,20 @@ class Pickup {
     this.item = ITEMS[itemId];
     this.bob = Math.random() * 6.28;
   }
+  /* Era um EMOJI desenhado com `fillText` em cima da pixel art: fonte do
+     sistema operacional, fora da grade de pixel, e trazendo paleta propria
+     (ciano e ambar, as duas cores que a identidade extinguiu). Agora e uma
+     das mesmas primitivas geometricas que a UI usa para os icones.
+
+     O tamanho e dado em unidades de MUNDO e so as bordas passam por
+     `snapUnit`: assim ele tem o mesmo tamanho aparente onde `PIXEL_GRID` nao
+     esta ligado (a galeria) e continua preso a grade dentro do jogo, que e
+     onde a camera anda em float e uma borda solta fervilha.
+
+     Osso, e nunca `--osso-600` cheio: o branco puro e reserva do warlock. */
   draw(ctx, cam) {
-    const sx = this.x - cam.left, sy = this.y - cam.top - Math.sin(this.bob) * 3;
+    const sx = snapUnit(this.x - cam.left);
+    const sy = snapUnit(this.y - cam.top - Math.sin(this.bob) * 3);
     const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 18);
     g.addColorStop(0, this.item.color);
     g.addColorStop(1, "rgba(0,0,0,0)");
@@ -692,12 +704,19 @@ class Pickup {
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(sx, sy, 18, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
-    ctx.font = "20px serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(this.item.icon, sx, sy);
-    ctx.textAlign = "start";
-    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = this.item.color;
+    const r = snapUnit(12), t = PIXEL_GRID * 2;
+    if (this.item.art === "anel") {
+      ctx.fillRect(sx - r, sy - r, r * 2, t);
+      ctx.fillRect(sx - r, sy + r - t, r * 2, t);
+      ctx.fillRect(sx - r, sy - r, t, r * 2);
+      ctx.fillRect(sx + r - t, sy - r, t, r * 2);
+    } else {
+      // placa: quadrado com o mesmo chanfro da UI, topo-esq e base-dir
+      const c = snapUnit(r * 0.5);
+      ctx.fillRect(sx - r + c, sy - r, r * 2 - c, r * 2 - c);
+      ctx.fillRect(sx - r, sy - r + c, r * 2 - c, r * 2 - c);
+    }
   }
 }
 

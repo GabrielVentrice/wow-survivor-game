@@ -4,6 +4,12 @@ Guia para o Claude Code (claude.ai/code) trabalhar neste repositório.
 
 ## O que é
 
+**PACTO** — nome **provisório**, e vale saber que ele é provisório: veio junto
+com a identidade visual (é sobre trocar carne por poder, que é o que a
+metamorfose faz literalmente no corpo), está no `<title>` e no menu, mas não foi
+decidido. O repositório e as pastas continuam `wow-survivor-game`; trocar isso é
+decisão do dono do projeto, não consequência do handoff.
+
 Survivors-like (Vampire Survivors) com tema WoW, classe Warlock, e um sistema de
 build roguelike inspirado em Bloons TD 6 (caminhos de upgrade que trocam a
 identidade da peça) e Echoes of Mystralia (composição livre de efeitos).
@@ -39,11 +45,12 @@ sem tell em tela ganha tarja laranja, e o filtro "só o que não anima" lista as
 card mudo e registry que passou na frente da galeria.
 
 `DRIVER=driver_preview.js node tools/harness.js .` escreve
-`tools/levelup-preview.html`, com as **duas telas de escolha** montadas a partir
-de builds de verdade: o level-up em três tamanhos (2, 6 e 11 spells) e a etapa
-nos dois extremos (primeiro marco e marco final). Mesmo argumento da galeria:
-tela que só aparece por segundos, em estados sorteados, não se revisa jogando —
-e a etapa aparece sete vezes por run carregando a única decisão irreversível.
+`tools/telas-preview.html`, com as **seis telas de UI** montadas a partir de
+builds de verdade: o level-up em quatro estados (build crua, média, tira no teto
+e evolução na mesa), a etapa nas duas fases, e HUD, pausa, baú e game over.
+Mesmo argumento da galeria: tela que só aparece por segundos, em estados
+sorteados, não se revisa jogando — e a etapa carrega a única decisão
+irreversível da run.
 
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
 Antes de commitar, rode a bateria headless: veja `tools/README.md`.
@@ -80,6 +87,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
+| `js/ui-glyph.js` | `UI_PAL` + `Glyph` — a paleta da UI e o que substitui todo emoji |
 | `js/ui.js` | `UI` — HUD, tela de level-up, tela de etapa, pausa, baú, game over |
 | `js/game.js` | `Game` — estado, loop, funil de dano, colisões |
 
@@ -96,7 +104,7 @@ Schema de uma peça:
 
 ```js
 {
-  id, key, name, icon, color, axis, axisPoints, tags, desc,
+  id, key, name, color, axis, axisPoints, tags, desc,
   requires?,      // { piece: "<key>" } ou { tag: "<tag>" } — gate de oferta
   vfx?,           // nome em PIECE_VFX
   evolutionOnly?, // true = só chega por evolução, não entra no sorteio
@@ -207,6 +215,116 @@ dano são HTML, atualizados por `js/ui.js`. Elemento novo de UI = markup no
 `index.html` + ref em `UI.el`.
 
 A ordem das chamadas em `Game.render()` **é** a ordem de profundidade.
+
+### A identidade da UI: osso gravado em obsidiana
+
+A interface é uma **placa dura, sem brilho e sem cor própria**, e a única cor
+saturada em tela pertence à build do jogador. Os tokens moram no `:root` do
+`index.html` e a ponte com o canvas mora em `js/ui-glyph.js` (`UI_PAL`) —
+duas listas divergem na primeira mudança, então há uma só.
+
+Três defeitos motivaram o sistema, e cada regra abaixo conserta um deles:
+
+1. **Todo ícone da UI era emoji do sistema operacional** — arte 3D arredondada
+   em cima de pixel art em grade inteira, trazendo paleta própria, e mudando de
+   desenho conforme o SO de quem abre o jogo.
+2. **Roxo era fundo, borda, botão, brilho *e* um dos três eixos de build.** Sem
+   neutro em tela, nenhum acento acentua.
+3. **As duas telas de escolha se diferenciavam por matiz** — verde (= Corrupção)
+   e âmbar (a menos de 20° do laranja do Cataclismo). Matiz é a variável mais
+   ocupada do projeto e era ela carregando a distinção mais importante.
+
+**Cinco regras. Tela nova que respeitar as cinco vai parecer deste jogo.**
+
+| # | Regra | O que significa na prática |
+|---|---|---|
+| R1 | **O cromo é osso** | Zero roxo em botão, borda, foco ou fundo. Domínio volta a ser só um eixo. Toda UI que não fala de eixo é osso sobre obsidiana. |
+| R2 | **Cor é predicado** | Verde/roxo/laranja só aparecem quando aquele pixel está falando de Corrupção, Domínio ou Cataclismo. Vermelho existe só na barra de vida, no relógio da fase dura e no eyebrow do game over. Âmbar e ciano foram removidos. |
+| R3 | **Placa, não card** | Canto chanfrado — o jeito pixel de arredondar —, nunca `border-radius`. Fundo chapado. Profundidade é 1px claro em cima + 1px escuro embaixo: luz de cima-à-esquerda, a mesma regra do sprite. |
+| R4 | **Brilho é orçamento** | Uma tela tem um só emissor. No jogo é a build; na UI é nada. `filter:blur`, `text-shadow`, `backdrop-filter`, glow e `box-shadow` projetada estão proibidos. |
+| R5 | **Ícone sai do gerador do mundo** | Nenhum emoji, em lugar nenhum — nem no canvas (o item no chão também era `fillText` de emoji). |
+
+Quatro testes para tela que ainda não existe: **some a cor, ainda funciona?** ·
+**conte os elementos saturados** (mais de três, ou mais de um botão cheio, e a
+hierarquia caiu) · **a silhueta identifica a tela** desfocada a 20px ·
+**nada abaixo de 14px, nada arredondado**, alvo de clique de 44px.
+
+Um `grep -nE 'border-radius|text-shadow|blur|gradient|backdrop' index.html` é
+metade da verificação. A única `border-radius` permitida é o tile **redondo da
+passiva**, que é a forma que separa "não dispara" de "spell" sem usar cor.
+
+#### O glifo: sprite em osso, ou uma das dez primitivas
+
+`Glyph.svg(id, size)` (`js/ui-glyph.js`) devolve SVG em linha, em duas fontes e
+nesta ordem:
+
+1. **O gerador do mundo.** Se a peça invoca um demônio que já existe em
+   `SPRITE_DATA`, o ícone é aquela grade desenhada em osso monocromático — a
+   arte do jogo, sem cor própria, com a silhueta fazendo o trabalho.
+2. **Uma das dez primitivas** de traço 4 (`quadrado`, `placa`, `círculo`,
+   `anel`, `losango`, `losango vazado`, `barra`, `duas barras`, `barra
+   horizontal`, `duas barras horizontais`). Não há grade em osso para as trinta
+   e poucas spells que não invocam nada, e inventar uma ilustração por spell
+   seria arte que envelhece na primeira mudança de catálogo. A primitiva não
+   *ilustra* a spell: ela a **distingue**, que é o único trabalho que um ícone
+   de 32px faz de verdade.
+
+Saída é SVG e não canvas porque a UI é DOM: um `<svg>` entra em qualquer
+`innerHTML` que já existe, herda `currentColor` e escala com a moldura sem
+borrar. Continua sendo arte gerada em runtime — zero arquivo de imagem.
+
+Peça nova sem entrada em `PRIMITIVA_DE` **não cai num quadrado genérico**: o
+hash do `id` espalha entre as dez, então ela nasce distinguível antes de alguém
+escolher a forma dela à mão.
+
+#### As quatro espécies de botão: preenchimento é custo
+
+É a regra que resolve "nada diz qual botão não volta".
+
+| Espécie | Significado | Onde |
+|---|---|---|
+| **fantasma** (borda osso, fundo transparente) | reversível, não cobra nada | `Escolher` no level up |
+| **osso** (fundo `--osso-600`) | neutro forte, cobra atenção | `Iniciar`, `Continuar`, `Tentar de novo` |
+| **selo** (fundo na cor do eixo, peso 900) | **irreversível, cobra um ponto de eixo** | **só na etapa** |
+| **recuado** (borda `--obs-500`, hover vermelho) | destrutivo, não convida | `Reiniciar`, `Sair` |
+
+**Nunca dois botões cheios na mesma tela.** O selo é o único botão do jogo
+pintado com cor de eixo, e ele só existe na tela que cobra o ponto que não
+volta. Antes a pausa tinha três pílulas roxas idênticas — sair convidava tanto
+quanto voltar ao jogo.
+
+#### A reserva do warlock
+
+`--osso-600` puro (`#EDE7DA`) é **exclusividade do warlock no canvas**. Nenhum
+outro sprite, vfx, partícula ou item usa osso cheio — é por isso que o item no
+chão é `--osso-400`/`--osso-500` e não branco. Com a build inteira acesa o
+jogador perdia de vista a única coisa que controla; ele passa a ser a única
+coisa branca em tela. Não é mais luz: é **reserva**.
+
+#### O HUD: cinco lugares, e nada no meio
+
+Margem de 24 em todos os cantos. Topo-esquerda a tira de peças (glifos de 56 com
+os pips do estado da build embaixo), topo-centro o relógio e **uma** linha de
+contexto, topo-direita as três barras de eixo, base-centro vida e XP,
+base-direita os toasts. Três mudanças estruturais, e cada uma remove antes de
+acrescentar:
+
+- **As barras de eixo saem de baixo da tira de peças** e vão para o canto
+  oposto. Eram dois widgets empilhados no mesmo canto, e nenhum dos dois legível
+  de relance.
+- **O medidor de dano por peça SAI do HUD.** Dano acumulado é informação de
+  pós-run: ninguém corrige a jogada com ela. Ele vira a estrela da pausa e do
+  game over, e o HUD perde um canto disputado.
+- **O relógio perde a terceira linha e as três cores.** Eram tempo, etapa e
+  abates em branco, âmbar e verde — e etapa e abates não são estados de eixo,
+  então não podem falar em cor de eixo. Viraram uma linha só, em osso.
+
+**Toast tem teto de três**, a opacidade do fundo cai por idade
+(`.92` → `.82` → `.70`) e o excedente vira uma linha `+N eventos`. Cinco toasts
+empilhados nunca mais. O contador de eventos anunciados é `UI.toastCount` e não
+o número de nós vivos: quem pergunta "isso avisou alguma coisa?" precisa da
+resposta mesmo quando o quarto evento virou contador — `driver_form` depende
+disso.
 
 ### Um grid de pixel, e todo mundo dentro dele
 
@@ -610,30 +728,24 @@ da morte não entrega nada**.
 
 #### Apresentação
 
-- **Três colunas, cada uma lida de cima para baixo na ordem da decisão**: de
-  que eixo é · **o que faz** · quanto anda. Ela já foi três linhas com colunas
-  fixas, e o argumento era alinhamento — mesma estrutura em três eixos, então
-  comparar era correr uma coluna só. Só que a estrutura deixou de ser a mesma
-  quando a fase fechada entrou: oferta sorteada tem manchete de spell e um
-  botão, oferta aberta tem manchete de eixo e dois. Alinhar campo que não
-  existe nas três não alinha nada, e quem pagava a conta era o buff.
-- **O BUFF é a manchete do bloco.** É a única parte da tela que diz o que a run
-  vai *ganhar*, e na linha ele era texto cinza de 12.5px espremido na faixa do
-  meio — o jogador comparava dois números sem ler o que estava comprando. Hoje
-  é caixa acesa na cor do eixo, com o texto na altura de leitura que o
-  `.lv-plain` tem na outra tela, e o nome da spell perde de propósito para o
-  efeito. A caixa **não estica** para preencher a coluna: quem alinha os
-  números das três é o `margin-top: auto` dos botões — esticada, a oferta de
-  frase curta virava um retângulo aceso meio vazio, que lê como conteúdo
-  faltando e não como respiro.
-- **A forma é o que separa as duas telas, e ela já trocou de dono duas vezes.**
-  O que decide a forma não é a tela, é o que ela compara. E as duas não podem
-  *parecer* a mesma tela: o jogador precisa perceber que a pergunta mudou, e a
-  desta é a única que ele não desfaz. Com as duas em coluna, a diferença mora
-  no acento (barra **vertical à esquerda** aqui, de topo lá), no bloco que não
-  levanta nem é clicável, no rodapé (barras de eixo e capstone aqui, tira de
-  spells lá), no selo `aberto`, nos **dois botões** por oferta e na cor do
-  eyebrow — âmbar aqui, verde lá.
+- **O FUNDO é o que separa as duas telas, e não a cor.** Esta é a única tela
+  que **apaga o canvas** — obsidiana chapada —, enquanto o level up deixa o
+  mundo vivo atrás e mantém o relógio a 32% no topo. Um é capítulo, o outro é
+  uma batida dentro da run, e o contraste entre preto chapado e mundo vivo é a
+  distinção mais forte que existe: não custa um pixel de cor.
+  A versão anterior tentava fazer isso por MATIZ — eyebrow âmbar aqui, verde
+  lá —, e matiz é a variável mais ocupada do projeto: o âmbar ficava a menos de
+  20° do laranja do Cataclismo e o verde *era* a Corrupção. Hoje os dois
+  eyebrows são osso, e o que diverge é fundo, alinhamento (título à esquerda
+  aqui, centralizado lá), a barra vertical de eixo na ponta da linha, o rodapé
+  (barras de eixo e capstone aqui, tira de spells lá) e o **selo**.
+- **Linha, e não coluna.** Ela já foi três colunas, e o argumento era o buff
+  espremido na faixa do meio de uma linha de 88px. O que consertou o buff não
+  foi virar coluna: foi ele deixar de ser texto cinza de 12.5px. Numa linha
+  larga sobra espaço para a descrição em `texto-m` ao lado do nome em
+  `display-m`, e o **bloco de commit fica sempre na mesma coluna da direita** —
+  então comparar os números das três é correr o olho por uma coluna só, que é
+  exatamente o que uma tela de três ofertas com a mesma estrutura pede.
 - **Duas formas de bloco, e o cabeçalho é onde elas se separam.** No bloco
   **aberto** a manchete é o EIXO — a pergunta é quanto investir nele, e a spell
   é uma das duas maneiras de levar. No **sorteado** a manchete é a SPELL, porque
@@ -642,16 +754,20 @@ da morte não entrega nada**.
   jogador não escolheu — o sorteio é que pôs aquele eixo ali.
 - **`aberto` é o único selo da tela**, e marca a regra que mais importa: este
   eixo não depende mais do sorteio para reaparecer.
-- **O alvo é o botão, não o bloco** — e por isso ele nem carrega `cursor:
+- **O alvo é o SELO, não o bloco** — e por isso a linha não carrega `cursor:
   pointer` nem levanta no hover como a carta do level-up. Bloco inteiro clicável
   exigiria escolher por ele qual das duas maneiras é o padrão, e é justamente a
-  metade irreversível da decisão. Os dois botões ficam empilhados no pé, não
-  lado a lado: os números precisam ser lidos um SOBRE o outro para a diferença
-  aparecer.
+  metade irreversível da decisão. Os dois selos ficam empilhados, não lado a
+  lado: os números precisam ser lidos um SOBRE o outro para a diferença
+  aparecer. E são a **única** coisa do jogo pintada com cor de eixo cheia — na
+  etapa aberta o "só o eixo" é contornado e o "com a spell" é cheio, mesma
+  família em pesos diferentes: a opção que leva mais coisa pesa mais.
+- **`min-height`, nunca `height`.** Com altura fixa uma descrição que quebra em
+  quatro linhas transborda e invade a linha vizinha. Vale para toda linha que
+  contém texto.
 - **A mesa nem sempre tem três.** No fim da run o catálogo esgota e sobram duas
-  ofertas, ou uma. Por isso as colunas são flex centrado e não grade de três:
-  numa grade fixa a sobrevivente ficaria encolhida no canto esquerdo com dois
-  buracos ao lado.
+  ofertas, ou uma — e como são linhas empilhadas, a sobrevivente ocupa a largura
+  inteira em vez de encolher num canto com dois buracos ao lado.
 - **O número anunciado é o creditado.** Com o eixo no teto ou o pool no fim,
   `addAxis` entrega menos; `getMilestoneOffers` devolve `gain` real ao lado do
   `want` de tabela, e o driver compara os dois em toda oferta de toda etapa.
@@ -730,10 +846,14 @@ Regras que continuam valendo:
   diferente que precisa ser comparado antes de mirar o mouse.
 - **O tipo é carregado por forma, nunca por cor.** A cor da carta é a do
   **eixo**, então melhoria verde e evolução verde são a mesma cor. Quem separa é
-  etiqueta sólida com glifo (`▲` melhoria, `⭐` evolução, `✦` passiva — `◈`
-  spell nova só existe na tela de etapa), tile redondo na passiva, e o selo do
-  tier no canto do tile na melhoria, porque aí o ícone *mente*: é o ícone de uma
-  spell que o jogador já tem e sozinho não diz quão fundo ela está.
+  etiqueta com glifo — `▲` melhoria, `★` evolução, `✦` passiva —, tile redondo
+  na passiva, e o selo do tier no canto do tile na melhoria, porque aí o ícone
+  *mente*: é o ícone de uma spell que o jogador já tem e sozinho não diz quão
+  fundo ela está. Os glifos são **dingbats de apresentação em texto**, nunca
+  emoji: `⭐` (U+2B50) sai colorido pelo SO e por isso virou `★` (U+2605).
+  E o peso da etiqueta também informa: **melhoria e passiva são contornadas**
+  (falam de categoria) e **evolução é cheia em osso** (fala de raridade) — ela
+  não é um degrau a mais, é conversão.
 - **Veredito, não coordenada.** O subtítulo já diz "caminho · tier N de 5"; o
   rodapé da carta diz o que aquilo *significa* (`Fecha o caminho` / `A um tier
   do fim`).
@@ -767,7 +887,7 @@ rebalanceamento. Tudo o que a carta mostra sai do que já existe:
 | antes → depois | `tier.mods` aplicado a `inst.r.stats` (`UI.tierDelta`) |
 | onde chega | `tierIndex` contra `PATH_RULES.tiers` |
 | porquê | só em evolução e passiva exclusiva |
-| chip verde | fecha um caminho (acende a aura) |
+| chip na cor do eixo | fecha um caminho (acende a aura) |
 | tira inteira | `build.pieces`, `build.passives` |
 
 Consequências:
@@ -806,10 +926,23 @@ a tira; mexer nas cartas mataria a transição de `transform` que o CSS está
 rodando naquele instante. A mesma regra vale na tela de etapa, onde o hover
 re-renderiza só o rodapé.
 
-Tipografia: **Outfit** e **IBM Plex Mono**, vindas do Google Fonts. É a exceção
-à regra de "nenhum asset novo" — baixar os `.woff2` adicionaria arquivo ao repo.
-Offline as pilhas de fallback em `--ui`/`--mono` assumem e a tela continua
-legível, só perde o desenho da fonte.
+**Tipografia: três famílias, três funções.**
+
+| Família | Função | Por quê |
+|---|---|---|
+| **Big Shoulders Display** | voz do jogo: logo, título, nome de peça, label de botão | condensada e de traço uniforme — cabe apertado no HUD, grita no menu, e **sobrevive à pixelização**, que é requisito do logo |
+| **Eczar** | nome próprio de peça em corpo, efeito, texto corrido | traz o grimório sem virar fantasia |
+| **IBM Plex Mono** | número, tempo, tier, eyebrow, etiqueta | já estava no projeto e estava certo |
+
+**Outfit saiu**: não tem voz, é fonte de landing page.
+
+**Piso de 14px, sem exceção**, e alvo de clique mínimo de 44px. Os 13px do
+rodapé e os 12px do "1/20 pontos" do HUD antigo subiram ou sumiram.
+
+As três vêm do Google Fonts, e essa é a **única** exceção à regra de "nenhum
+asset novo" — baixar os `.woff2` adicionaria arquivo ao repo. Offline as pilhas
+de fallback em `--fonte-display`/`--fonte-texto`/`--fonte-dado` assumem e a tela
+continua legível, só perde o desenho da fonte.
 
 ### A paleta mestre: uma paleta, não dezenove
 
@@ -1062,6 +1195,11 @@ jogador perde informação de combate.
 2. Adicione a entrada em `Object.assign(PIECES, { ... })` seguindo o schema.
 3. `key` igual ao `id`, a menos que seja evolução de outra peça.
 4. Todo número em `stats`; trigger e efeitos só com `"@ref"`.
+   **Não há campo `icon`**: o ícone sai de `Glyph.svg(id)` — mapeie o `id` em
+   `GLIFO_SPRITE` (se a peça invoca um demônio que já tem grade) ou em
+   `PRIMITIVA_DE` (`js/ui-glyph.js`). Sem mapa o hash escolhe uma das dez, o que
+   já é distinguível — escolher à mão só é melhor porque a forma pode dizer algo
+   sobre a mecânica.
 5. Três caminhos, cinco tiers cada. Reserve índices distintos por caminho.
 6. Se depende de outra peça, declare `requires`.
 7. Recarregue o browser. Não há mais nada a mudar.

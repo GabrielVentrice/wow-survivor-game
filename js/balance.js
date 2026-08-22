@@ -314,13 +314,13 @@ const AXIS_PALETTE = {
 };
 
 const AXES = {
-  corruption: { id: "corruption", name: "Corrupção", icon: "☠",
+  corruption: { id: "corruption", name: "Corrupção",
                 color: AXIS_PALETTE.corruption.base, palette: AXIS_PALETTE.corruption,
                 tag: "DoT, propagação, morte lenta" },
-  dominion:   { id: "dominion",   name: "Domínio",   icon: "👹",
+  dominion:   { id: "dominion",   name: "Domínio",
                 color: AXIS_PALETTE.dominion.base, palette: AXIS_PALETTE.dominion,
                 tag: "Demônios, presença, exército" },
-  cataclysm:  { id: "cataclysm",  name: "Cataclismo", icon: "🔥",
+  cataclysm:  { id: "cataclysm",  name: "Cataclismo",
                 color: AXIS_PALETTE.cataclysm.base, palette: AXIS_PALETTE.cataclysm,
                 tag: "Golpes grandes, fogo, detonação" },
 };
@@ -383,31 +383,31 @@ const CLASSES = {
     forms: [
       { sprite: "warlock", scale: 3.375 },
       { sprite: "warlockAdept", spells: 1, scale: 3.5625, dy: -0.33, color: "#aaff5a",
-        icon: "\u{1F480}", name: "Iniciado",
+        name: "Iniciado",
         desc: "Uma spell levada ate o fim cobra o corpo: chifres rompem a testa e um antebraco ja e osso." },
       { sprite: "warlockColheita", cap: "colheita", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.corruption.light,
-        icon: "\u{1F33E}", name: "Colheita",
+        name: "Colheita",
         desc: "O manto apodreceu em raizes e a caixa toracica esta escancarada." },
       { sprite: "warlockCeifador", cap: "ceifador", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.corruption.base,
-        icon: "\u26B0", name: "Ceifador",
+        name: "Ceifador",
         desc: "Caveira dentro do capuz, garras longas, cranios de imp pendurados na barra." },
       { sprite: "warlockVoraz", cap: "voraz", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.corruption.base,
-        icon: "\u{1F988}", name: "Voraz",
+        name: "Voraz",
         desc: "O tronco abriu numa boca de presas que vai do peito a cintura." },
       { sprite: "warlockTirania", cap: "tirania", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.dominion.light,
-        icon: "\u{1F451}", name: "Tirania",
+        name: "Tirania",
         desc: "Coroa de ferro, ombreiras douradas, e os pes nao tocam mais o chao." },
       { sprite: "warlockDiabolista", cap: "diabolista", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.dominion.base,
-        icon: "\u{1F4DC}", name: "Diabolista",
+        name: "Diabolista",
         desc: "Selo de latao as costas, mascara com chifres, e nenhum passo." },
       { sprite: "warlockEnxame", cap: "enxame", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.dominion.base,
-        icon: "\u{1F41D}", name: "Enxame",
+        name: "Enxame",
         desc: "O peito e os ombros racharam em celulas de colmeia sob placas de quitina." },
       { sprite: "warlockNihilam", cap: "nihilam", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.cataclysm.light,
-        icon: "\u{1F480}", name: "Nihilam",
+        name: "Nihilam",
         desc: "Queimado ate a casca: o cranio a mostra e o tronco rachado de brasa." },
       { sprite: "warlockChamador", cap: "chamador", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.cataclysm.base,
-        icon: "\u{1F514}", name: "Chamador",
+        name: "Chamador",
         desc: "Coroa de ferro negro e um sino rachado pendurado no peito." },
     ],
   },
@@ -419,15 +419,18 @@ const CLASSES = {
    onPickup(game) aplica o efeito imediato ao coletar. */
 const ITEMS = {
   magnet: {
-    // Per kill, and a run kills thousands: at 1.2% the magnet showed up so often
-    // that walking to the orbs stopped being a decision.
-    id: "magnet", name: "Ímã de Almas", icon: "🧲", color: "#5acfff",
+    /* Per kill, and a run kills thousands: at 1.2% the magnet showed up so
+       often that walking to the orbs stopped being a decision.
+
+       Osso, nao ciano: recompensa neutra nao pertence a eixo nenhum, e o ciano
+       era a cor que a raridade do bau usava — as duas sairam juntas. */
+    id: "magnet", name: "Ímã de Almas", art: "anel", color: "#98928A",
     dropChance: 0.004,
     desc: "Atrai todo o XP do chão para você.",
     onPickup(game) { for (const o of game.orbs.active) o.magnet = true; },
   },
   chest: {
-    id: "chest", name: "Baú do Dreadlord", icon: "📦", color: "#ffd24a",
+    id: "chest", name: "Baú do Dreadlord", art: "placa", color: "#C9C3BA",
     dropChance: 0,        // só dropa de boss (garantido)
     silent: true,         // abre tela própria em vez de toast
     onPickup(game) { game.openChest(); },

@@ -105,7 +105,6 @@ class Game {
     this.lastTime = 0;
     this.milestoneIdx = 0;      // proximo marco de BALANCE.milestones.at
     this.pendingMilestones = 0; // etapas vencidas e ainda nao gastas
-    this._dmgTimer = 0;
 
     this.ui = new UI(this);
     this._loop = this._loop.bind(this);
@@ -371,8 +370,8 @@ class Game {
       this.addShake(20);
       this.emitVfx("heal", this.player.x, this.player.y, 90, PIECES.soulstone.color);
       this.sfx.levelUp();
-      this.ui.toast({ head: "Soulstone!", color: PIECES.soulstone.color, icon: "🔮",
-        name: "Você voltou", desc: "Uma alma guardada pagou o preço no seu lugar." });
+      this.ui.toast({ head: "Soulstone", axis: PIECES.soulstone.axis,
+        name: "Uma alma guardada pagou o preço no seu lugar." });
       return;
     }
     this.state = STATE.GAMEOVER;
@@ -425,19 +424,15 @@ class Game {
     this.bossAlive += count;
     this.addShake(10 + (count - 1) * 4);
     this.sfx.boss();
-    this.ui.toast({ head: "Chefe!", color: "#b23cff", icon: "☠",
-      name: count > 1 ? `${count} Dreadlords!` : "Dreadlord!",
-      desc: count > 1
-        ? "Os nathrezim cercaram você pela Distorção Profana."
-        : "Um nathrezim emergiu da Distorção Profana." });
+    this.ui.toast({ head: "Chefe",
+      name: count > 1 ? `${count} Dreadlords na Distorção` : "Dreadlord na Distorção" });
   }
 
   onHardPhase() {
     this.addShake(14);
     this.sfx.boss();
-    this.ui.toast({ head: "A Distorção rasgou!", color: "#ff3b6b", icon: "🔥",
-      name: "A Legião avança",
-      desc: "A horda fica mais rápida, mais densa e mais letal a cada 15s." });
+    this.ui.toast({ head: "A Distorção rasgou",
+      name: "A horda acelera a cada 15s" });
   }
 
   /* --- loop ---------------------------------------------------------------
@@ -503,8 +498,6 @@ class Game {
     this.scenery.corruption = clamp(this.elapsed / BALANCE.spawn.hardAt, 0, 1);
     this.music.setIntensity(this.musicIntensity());
     this.ui.updateHUD();
-    this._dmgTimer -= dt;
-    if (this._dmgTimer <= 0) { this._dmgTimer = 0.25; this.ui.updateDamageMeter(); }
 
     if (this.player.hp <= 0) { this.gameOver(); return; }
 
@@ -903,8 +896,7 @@ class Game {
         if (!pk.item.silent) {
           this.sfx.item();
           this.addShake(4);
-          this.ui.toast({ color: pk.item.color, icon: pk.item.icon,
-                          name: pk.item.name, desc: pk.item.desc });
+          this.ui.toast({ name: pk.item.name });
         }
         this.pickups.release(i); i--;
         // Dois baús no mesmo frame: o segundo openChest sobrescreveria a tela

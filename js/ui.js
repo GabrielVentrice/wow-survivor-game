@@ -1,8 +1,21 @@
 "use strict";
 /* =========================================================================
    UI — canvas desenha o mundo, DOM desenha a interface.
+
    Tudo aqui e HTML sobre o canvas, escondido/mostrado pela classe .hidden.
    Elemento novo de UI = markup no index.html + ref em this.el.
+
+   A identidade e "osso gravado em obsidiana": a interface e uma placa dura,
+   sem brilho e sem cor propria, e a unica cor saturada em tela pertence a
+   build do jogador. As cinco regras que governam cada linha daqui estao no
+   topo do <style> do index.html; as duas que mais aparecem neste arquivo:
+
+   - COR E PREDICADO. Verde/roxo/laranja so entram quando aquele pixel esta
+     falando de Corrupcao, Dominio ou Cataclismo — e a cor vem de `eixoVars`,
+     nunca de um hex escrito a mao e nunca de `def.color`, que e a cor do
+     MUNDO. Passiva e global: ela nao tem eixo, entao ela e osso.
+   - ICONE SAI DO GERADOR DO MUNDO. Nenhum emoji: `Glyph.svg` devolve o sprite
+     do demonio em osso monocromatico, ou uma das dez primitivas.
    ========================================================================= */
 
 class UI {
@@ -10,48 +23,79 @@ class UI {
     this.game = game;
     const $ = (id) => document.getElementById(id);
     this.el = {
-      hud: $("hud"), menu: $("menu"), timer: $("timer"), kills: $("kills"),
+      hud: $("hud"), menu: $("menu"), timer: $("timer"), hudCtx: $("hudCtx"),
       hpFill: $("hpFill"), xpFill: $("xpFill"), shieldFill: $("shieldFill"),
       hpLabel: $("hpLabel"), xpLabel: $("xpLabel"),
-      pieceBar: $("pieceBar"), axisBar: $("axisBar"), dmgHud: $("dmgHud"),
-      toasts: $("toasts"),
+      pieceBar: $("pieceBar"), axisBar: $("axisBar"), toasts: $("toasts"),
       levelup: $("levelup"), lvRows: $("lvRows"), lvBuild: $("lvBuild"),
-      lvEyebrow: $("lvEyebrow"),
+      lvEyebrow: $("lvEyebrow"), lvClock: $("lvClock"), lvCtx: $("lvCtx"),
       milestone: $("milestone"), msRows: $("msRows"), msEyebrow: $("msEyebrow"),
-      msPool: $("msPool"), msCap: $("msCap"), msClock: $("msClock"),
-      pause: $("pause"), pausePanel: $("pausePanel"),
+      msSub: $("msSub"), msPool: $("msPool"), msCap: $("msCap"),
+      pause: $("pause"), pausePanel: $("pauseBody"),
+      pausePieces: $("pausePieces"), pauseAxes: $("pauseAxes"), pauseDmg: $("pauseDmg"),
+      pauseMeta: $("pauseMeta"), pauseCount: $("pauseCount"),
+      pausePool: $("pausePool"), pauseDmgTot: $("pauseDmgTot"),
       chest: $("chest"), chestList: $("chestList"), chestRarity: $("chestRarity"),
-      gameover: $("gameover"), stats: $("stats"),
+      chestPips: $("chestPips"), chestCount: $("chestCount"),
+      gameover: $("gameover"), goNums: $("goNums"), goDmg: $("goDmg"),
+      goLine: $("goLine"), goExtra: $("goExtra"),
       classGrid: $("classGrid"), startBtn: $("startBtn"),
     };
     $("restartBtn").onclick = () => this.game.start();
+    $("goMenuBtn").onclick = () => this.game.quitToMenu();
     $("chestBtn").onclick = () => this.closeChest();
     $("resumeBtn").onclick = () => this.game.resume();
     $("pauseRestartBtn").onclick = () => this.game.start();
     $("quitBtn").onclick = () => this.game.quitToMenu();
+
+    /* Toast e fila, nao pilha livre: o teto de tres e o que separa "o jogo me
+       avisou" de "o jogo despejou". `toastCount` conta os eventos ANUNCIADOS,
+       nao os nos vivos no DOM — quem pergunta "isso avisou alguma coisa?"
+       precisa da resposta mesmo quando o quarto evento virou contador. */
+    this.live = [];
+    this.toastCount = 0;
   }
 
-  /* --- menu --------------------------------------------------------------- */
+  /* As tres variaveis de cor de um eixo, escritas inline no elemento. E o
+     unico lugar do arquivo que decide cor: se um dia a paleta mudar, ela muda
+     aqui e no :root, e nao em quarenta interpolacoes.
+
+     `null` devolve OSSO — e o caso da passiva, que e global e nao pertence a
+     build nenhuma, e o do que ainda nao tem eixo. */
+  eixoVars(axisId) {
+    if (!axisId || !UI_PAL.eixo[axisId]) {
+      return `--eixo:${UI_PAL.osso};--eixo-300:${UI_PAL.osso};--eixo-900:${UI_PAL.obs}`;
+    }
+    return `--eixo:${UI_PAL.eixo[axisId]};--eixo-300:${UI_PAL.brasa[axisId]};` +
+           `--eixo-900:${UI_PAL.cravado[axisId]}`;
+  }
+
+  /* --- menu ----------------------------------------------------------------
+     As duas cartas de classe trancada sairam: ocupavam dois tercos da selecao
+     anunciando o que o jogo nao tem. Quando o Mago existir, ele ganha uma
+     placa igual — e a de agora ja e essa placa. */
 
   buildMenu() {
     const g = this.game;
     let html = "";
     for (const id in CLASSES) {
       const c = CLASSES[id];
-      html += `<div class="class-card ${c.available ? "available" : "locked"}
-        ${id === g.selectedClass ? "selected" : ""}" data-cls="${id}">
-        <div class="class-icon" style="color:${c.color}">${c.available ? "🜏" : "🔒"}</div>
-        <div class="class-name">${c.name}</div>
-        <div class="class-tag">${c.tag}</div></div>`;
+      if (!c.available) continue;
+      html += `<div class="classe livre ${id === g.selectedClass ? "sel" : ""}" data-cls="${id}">
+        <span class="gl-box" style="width:72px;height:72px">${Glyph.svg("warlock", 46)}</span>
+        <span class="classe-txt">
+          <span class="classe-nome">${c.name}</span>
+          <span class="rotulo">${c.tag}</span>
+        </span>
+        <span class="tag tag-raro">Única</span></div>`;
     }
     this.el.classGrid.innerHTML = html;
     for (const card of this.el.classGrid.children) {
       const id = card.dataset.cls;
-      if (!CLASSES[id].available) continue;
       card.onclick = () => {
         g.selectedClass = id;
-        for (const c of this.el.classGrid.children) c.classList.remove("selected");
-        card.classList.add("selected");
+        for (const c of this.el.classGrid.children) c.classList.remove("sel");
+        card.classList.add("sel");
       };
     }
     this.el.startBtn.onclick = () => g.start();
@@ -61,156 +105,154 @@ class UI {
     this.el.menu.classList.add("hidden");
     this.el.gameover.classList.add("hidden");
     this.el.levelup.classList.add("hidden");
+    this.el.milestone.classList.add("hidden");
     this.el.chest.classList.add("hidden");
     this.el.pause.classList.add("hidden");
     this.el.hud.classList.remove("hidden");
+    this.live.length = 0;
     this.el.toasts.innerHTML = "";
     this.updatePieceBar();
   }
 
   toMenu() {
     this.el.pause.classList.add("hidden");
+    this.el.gameover.classList.add("hidden");
     this.el.hud.classList.add("hidden");
     this.el.menu.classList.remove("hidden");
   }
 
-  /* --- HUD ---------------------------------------------------------------- */
+  /* --- HUD (9.4) -----------------------------------------------------------
+     Cinco lugares, margem de 24 em todos, nada no meio. O medidor de dano por
+     peca NAO mora mais aqui: dano acumulado e informacao de pos-run, ninguem
+     corrige a jogada com ela. Ela e a estrela da Pausa e do Game over, e o HUD
+     perde um canto disputado.
+
+     O relogio tambem perdeu a terceira linha e as tres cores. Etapa e abates
+     nao sao estados de eixo, entao nao podem falar em cor de eixo — viraram
+     uma linha so, de contexto, em osso. */
 
   updateHUD() {
     const g = this.game, p = g.player, e = this.el;
     e.timer.textContent = mmss(g.elapsed);
     e.timer.classList.toggle("hard", g.elapsed >= BALANCE.spawn.hardAt);
 
-    /* Contagem para a proxima etapa. Marco que chega sem aviso nao estrutura
-       ritmo nenhum: o valor de uma batida lenta esta em o jogador VER a
-       decisao se aproximando e poder se preparar para ela. Perto do marco o
-       elemento acende — e ai ele passa a dizer o eixo que a run tem hoje, que
-       e o contexto da escolha que vem. */
+    /* Marco que chega sem aviso nao estrutura ritmo nenhum: o valor de uma
+       batida lenta esta em VER a decisao se aproximando. Perto dela a linha
+       acende — em osso, que e o unico jeito de acender sem mentir sobre eixo. */
     const left = g.nextMilestoneIn();
-    if (left == null) e.msClock.classList.add("hidden");
-    else {
-      e.msClock.classList.remove("hidden");
-      e.msClock.classList.toggle("soon", left <= BALANCE.milestones.warnAt);
-      e.msClock.textContent = `◆ ${mmss(left)}`;
-    }
-    e.kills.textContent = "☠ " + p.kills;
+    const abates = `${fmtNum(p.kills)} abates`;
+    e.hudCtx.textContent = left == null ? abates : `Etapa em ${mmss(left)} · ${abates}`;
+    e.hudCtx.classList.toggle("soon", left != null && left <= BALANCE.milestones.warnAt);
+
     const hp = Math.max(0, p.hp);
     e.hpFill.style.width = (hp / p.maxHp * 100) + "%";
     const lim = p.maxShield > 0 ? p.maxShield : p.maxHp;
     e.shieldFill.style.width = (Math.min(1, p.shield / lim) * 100) + "%";
     e.hpLabel.textContent = p.shield > 0
-      ? `${Math.ceil(hp)} / ${p.maxHp}  (+${Math.ceil(p.shield)})`
+      ? `${Math.ceil(hp)} / ${p.maxHp} (+${Math.ceil(p.shield)})`
       : `${Math.ceil(hp)} / ${p.maxHp}`;
     e.xpFill.style.width = (p.xp / p.xpToNext * 100) + "%";
     e.xpLabel.textContent = "Nível " + p.level;
   }
 
-  // Barra de eixos: mostra pool gasto, teto por eixo e capstones acesos.
+  /* Barras de eixo, no canto OPOSTO ao da tira de pecas. Elas viviam empilhadas
+     debaixo dela — dois widgets disputando o mesmo canto, e nenhum dos dois
+     legivel de relance. Eixo com 0 ponto fica em osso com o quadrado VAZADO:
+     cor e para o que existe. */
   updateAxisBar() {
     const b = this.game.build;
     let html = "";
     for (const id in AXES) {
       const a = AXES[id], v = b.axis[id];
-      const caps = [];
-      for (const cid of b.capstones) if (CAPSTONES[cid].axis === id) caps.push(CAPSTONES[cid]);
-      html += `<div class="axis-row" title="${a.name} — ${a.tag}">
-        <span class="axis-ic" style="color:${a.color}">${a.icon}</span>
-        <div class="axis-track">
-          <div class="axis-fill" style="width:${v / AXIS_RULES.capPerAxis * 100}%;background:${a.color}"></div>
-          <span class="axis-num">${v}</span>
-        </div>
-        <span class="axis-caps">${caps.map((c) =>
-          `<b style="color:${c.color}" title="${c.name}: ${c.desc}">${c.icon}</b>`).join("")}</span>
-      </div>`;
+      html += `<div class="hud-ax" style="${this.eixoVars(id)}" title="${a.name} — ${a.tag}">
+        <b class="${v ? "" : "vazio"}"></b>
+        <div class="barra"><i style="width:${v / AXIS_RULES.capPerAxis * 100}%"></i></div>
+        <span>${v}/${AXIS_RULES.capPerAxis}</span></div>`;
     }
-    html += `<div class="axis-pool">${b.axisTotal}/${AXIS_RULES.pool} pontos</div>`;
+    const left = b.axisLeft;
+    html += `<div class="hud-pool rotulo dim">${b.axisTotal} gastos · ${left} por gastar</div>`;
     this.el.axisBar.innerHTML = html;
   }
 
-  // Barra de pecas: icone + pips de tier por caminho (o "estado da build").
+  /* A tira de pecas: glifo de 56 e os pips do estado da build embaixo. O que
+     passa do teto vira UM tile contador — o HUD nao rola e a tira nao pode
+     virar duas fileiras cobrindo meia tela. */
   updatePieceBar() {
     const b = this.game.build;
-    let html = "";
+    let html = "", n = 0;
     for (const inst of b.pieces.values()) {
+      if (n >= STRIP.hud) break;
+      n++;
+      const d = inst.def;
       let pips = "";
       for (const pid in inst.paths) {
-        const n = inst.paths[pid];
-        pips += `<i class="${n > PATH_RULES.freeTier ? "deep" : ""}">${n}</i>`;
+        pips += `<i class="${inst.paths[pid] > PATH_RULES.freeTier ? "on" : ""}"></i>`;
       }
+      /* Spell CONCLUIDA: ela e a unica que ganha adorno em volta do warlock, e
+         a tira precisa dizer QUAL esta ardendo la. Uma linha na cor do eixo no
+         topo do tile — nao um glow, que o orcamento de brilho proibe. */
       const aura = b.isComplete(inst);
-      html += `<div class="pb-icon ${aura ? "pb-aura" : ""}"
-        style="border-color:${inst.def.color};color:${inst.def.color}"
-        title="${inst.def.name}${aura ? " — concluída, aura acesa" : ""}">
-        <span style="color:${inst.def.color}">${inst.def.icon}</span>
-        <div class="pb-pips">${pips}</div></div>`;
+      html += `<div class="pb ${aura ? "pb-aura" : ""}" style="${this.eixoVars(d.axis)}"
+        title="${d.name}${aura ? " — concluída, aura acesa" : ""}">
+        ${Glyph.svg(d.id, 30)}<div class="pb-pips">${pips}</div></div>`;
     }
-    for (const id of b.passives.keys()) {
-      const p = PASSIVES[id];
-      html += `<div class="pb-icon pb-passive" style="border-color:${p.color}"
-        title="${p.name}: ${p.desc}"><span style="color:${p.color}">${p.icon}</span></div>`;
-    }
+    const sobra = b.pieces.size - n;
+    if (sobra > 0) html += `<div class="pb mais">+${sobra}</div>`;
     this.el.pieceBar.innerHTML = html;
     this.updateAxisBar();
-    this.updateDamageMeter();
   }
 
-  updateDamageMeter() {
-    const g = this.game;
-    const rows = [];
-    for (const inst of g.build.pieces.values()) {
-      rows.push({ def: inst.def, val: g.damageBy.get(inst.key) || 0 });
-    }
-    rows.sort((a, b) => b.val - a.val);
-    const max = rows.length ? Math.max(1, rows[0].val) : 1;
-    let html = "";
-    for (const r of rows) {
-      html += `<div class="dmg-row">
-        <span class="dmg-ic" style="color:${r.def.color}">${r.def.icon}</span>
-        <div class="dmg-bar">
-          <div class="dmg-fill" style="width:${r.val / max * 100}%;background:${r.def.color}"></div>
-          <span class="dmg-val">${fmtNum(r.val)}</span>
-        </div></div>`;
-    }
-    this.el.dmgHud.innerHTML = html;
-  }
+  /* --- toast (8.9) ---------------------------------------------------------
+     340x44, teto de TRES, e a tarja de 4x20 na cor do eixo e a unica cor do
+     componente. A opacidade do fundo cai por idade e o excedente vira UMA
+     linha de contador: cinco toasts empilhados nunca mais. */
 
   toast(t) {
-    const el = document.createElement("div");
-    el.className = "toast";
-    el.style.borderColor = t.color;
-    el.innerHTML = `
-      <div class="toast-head"><span style="color:${t.color}">${t.icon}</span> ${t.head || "Novo poder!"}</div>
-      <div class="toast-name">${t.name}</div>
-      <div class="toast-desc">${t.desc}</div>`;
-    this.el.toasts.appendChild(el);
-    setTimeout(() => el.remove(), 4200);
+    this.toastCount++;
+    this.live.push(t);
+    setTimeout(() => { this.live.shift(); this.renderToasts(); }, 4200);
+    this.renderToasts();
   }
 
-  /* --- level up ------------------------------------------------------------
-     Um unico pool de ofertas: peca nova, tier de caminho ou passiva global.
-     E a unica hora em que o jogador decide algo que nao e posicao — e a unica
-     decisao IRREVERSIVEL, porque ponto de eixo nao volta.
+  renderToasts() {
+    const vis = this.live.slice(-TOASTS.max);
+    const sobra = this.live.length - vis.length;
+    let html = sobra > 0
+      ? `<div class="toast-mais">+${sobra} evento${sobra > 1 ? "s" : ""}</div>` : "";
+    for (let i = 0; i < vis.length; i++) {
+      const t = vis[i];
+      // o mais novo e o mais opaco; a coluna e invertida, entao ele fica embaixo
+      const idade = vis.length - 1 - i;
+      const txt = t.head ? `${t.head} — ${t.name}` : t.name;
+      html += `<div class="toast${idade ? " t" + (idade + 1) : ""}" style="${this.eixoVars(t.axis)}">
+        <b></b><span>${txt}</span>${t.value ? `<em>${t.value}</em>` : ""}</div>`;
+    }
+    this.el.toasts.innerHTML = html;
+  }
 
-     A tela sao TRES LINHAS com as mesmas tres colunas (o que e / o que muda /
-     custo) mais um painel com a build de agora. Nada aqui e texto novo por
-     tier: a frase sai do `desc` que ja existe, o "antes -> depois" sai dos
-     MODS do tier aplicados aos stats resolvidos da instancia, e o painel
-     inteiro e derivado do `Build`. Conteudo continua sendo dado. */
+  /* --- level up (9.3) ------------------------------------------------------
+     Tres CARTAS verticais sobre o mundo vivo, e o relogio fica em 32% no topo:
+     isto e uma batida dentro da run, nao um capitulo. O contraste com o preto
+     chapado da Etapa e a distincao mais forte que existe entre as duas telas,
+     e nao custa um pixel de cor.
+
+     A hierarquia interna e a regra que sobrevive a qualquer mudanca de forma:
+     `.lv-plain` — o que muda no jogo — e o item mais claro da carta, ACIMA do
+     nome da spell. Numa carta o nome vem antes no espaco, entao ele tem que
+     perder no TAMANHO, senao a leitura pousa no rotulo em vez de no efeito. */
 
   openLevelUp() {
     const g = this.game;
     g.state = STATE.LEVELUP;
     g.sfx.levelUp();
     const offers = g.build.getOffers(3);
-    /* Bolo vazio: toda trilha fechada e toda passiva tomada. Nao ha o que
-       oferecer, entao o nivel vira cura em vez de sumir em silencio — subir de
-       nivel e nao receber nada e o jogo cobrando atencao e devolvendo vazio. */
+    /* Bolo vazio: toda trilha fechada e toda passiva tomada. O nivel vira cura
+       em vez de sumir em silencio — subir de nivel e nao receber nada e o jogo
+       cobrando atencao e devolvendo vazio. */
     if (!offers.length) {
       g.player.pendingLevels = 0;
       g.player.hp = Math.min(g.player.maxHp, g.player.hp + g.player.maxHp * 0.35);
-      this.toast({ head: "Arsenal completo", color: "#7fdc4a", icon: "✚",
-        name: "Nada mais a aprender",
-        desc: "Todo caminho fechado — o nível virou fôlego." });
+      this.toast({ head: "Arsenal completo", name: "Todo caminho fechado — o nível virou fôlego." });
       g.state = STATE.PLAYING;
       return;
     }
@@ -220,6 +262,8 @@ class UI {
        repetir o nivel ja alcancado tres vezes seguidas. */
     const lv = g.player.level - g.player.pendingLevels;
     this.el.lvEyebrow.textContent = `Nível ${lv} → ${lv + 1}`;
+    this.el.lvClock.textContent = mmss(g.elapsed);
+    this.el.lvCtx.textContent = `${fmtNum(g.player.kills)} abates`;
 
     this.lvOffers = offers;
     this.lvViews = offers.map((o) => this.offerView(o));
@@ -228,14 +272,12 @@ class UI {
     for (let i = 0; i < offers.length; i++) {
       const v = this.lvViews[i];
       const row = document.createElement("div");
-      row.className = "lv-card";
-      row.style.setProperty("--acc", v.color);
-      row.style.setProperty("--acc-dim", v.color + "55");
-      row.style.setProperty("--acc-wash", v.color + "1c");
+      row.className = "lv-card ch2";
+      row.setAttribute("style", this.eixoVars(v.axisId));
       row.innerHTML = this.cardHtml(v);
       row.onclick = () => this.applyOffer(offers[i]);
-      // O hover so re-renderiza o PAINEL: mexer nas linhas mataria a transicao
-      // de `transform` que o CSS esta rodando naquele instante.
+      // O hover so re-renderiza a TIRA: mexer nas cartas mataria a transicao
+      // que o CSS esta rodando naquele instante.
       row.onmouseenter = () => this.lvHoverTo(i);
       row.onmouseleave = () => this.lvHoverTo(-1);
       this.el.lvRows.appendChild(row);
@@ -250,79 +292,64 @@ class UI {
     this.el.lvBuild.innerHTML = this.buildStripHtml(i);
   }
 
-  /* Tudo o que a linha mostra, derivado do que a oferta ja carrega. Roda uma
+  /* Tudo o que a carta mostra, derivado do que a oferta ja carrega. Roda uma
      vez por oferta (nao por hover): o resultado fica em `this.lvViews`.
 
-     A terceira coluna era CUSTO e virou PROGRESSO. O level up nao gasta mais
-     nada — a pergunta que ele faz e "qual das minhas spells vira a spell da
-     run?", e o que responde isso e onde cada trilha esta, nao um preco que
-     agora e sempre zero. Coluna de custo com "não gasta ponto" em todas as
-     tres linhas seria um terco da tela dizendo a mesma coisa. */
+     Nenhum texto novo por tier: sao 645 tiers no catalogo, e escrever
+     "antes -> depois" a mao em cada um seria conteudo que envelhece no
+     primeiro rebalanceamento. */
   offerView(o) {
     const axis = o.axis || null;
-    const v = {
-      color: axis ? axis.color : o.def.color,
-      axis, pips: null, delta: [], rec: "",
-    };
+    const v = { axisId: axis ? axis.id : null, axis, pips: null, delta: [], rec: "" };
 
     if (o.kind === "passive") {
       v.kind = "Passiva";
       v.glyph = "✦";
-      v.round = true;       // circulo: a mesma forma que a passiva tem no HUD
-      v.icon = o.def.icon;
+      v.round = true;       // circulo: a unica forma redonda do jogo e a passiva
+      v.tagCls = "tag-cat"; // categoria, nao raridade
+      v.id = o.def.id;
       v.name = o.def.name;
       v.subtitle = "não dispara · afeta a build inteira";
       v.plain = o.def.desc;
-      /* `why` so aparece quando ACRESCENTA. Na linha ele carregava sempre o
-         que a spell e, porque a coluna existia de qualquer jeito; numa carta o
-         nome esta logo acima e repetir a identidade e ruido. Sobra o caso em
-         que ha um aviso de verdade: passiva exclusiva fecha uma porta, e essa
-         e uma consequencia que a carta nao mostra em lugar nenhum. */
+      /* `why` so aparece quando ACRESCENTA. Numa carta o nome esta logo acima e
+         repetir a identidade e ruido; sobram os dois casos com informacao nova
+         — passiva exclusiva, que fecha uma porta, e evolucao, que troca a peca
+         de identidade inteira. */
       v.why = o.def.exclusive
         ? `Fecha a porta de ${PASSIVES[o.def.exclusive].name} — a build tem que optar.`
         : "";
       v.progHead = "Vale para a build inteira";
     } else {
       const evo = o.isEvo && o.evo ? o.evo : null;
-      /* Evolucao ganha etiqueta propria em vez de "Melhoria · evolução": ela
-         nao e um degrau a mais, e conversao — a peca troca de nome, arte,
-         trigger e efeitos. Chamar as duas coisas de melhoria some com o
-         climax justamente na linha em que ele acontece. */
+      /* Evolucao ganha etiqueta propria em vez de "Melhoria": ela nao e um
+         degrau a mais, e conversao — a peca troca de nome, arte, trigger e
+         efeitos. Chamar as duas coisas de melhoria some com o climax
+         justamente na carta em que ele acontece. Por isso ela e a etiqueta de
+         RARIDADE (cheia em osso), e melhoria e a de categoria (contornada). */
       v.kind = evo ? "Evolução" : "Melhoria";
-      v.glyph = evo ? "⭐" : "▲";
-      // O icone de uma melhoria e o de uma spell que voce JA tem: sem o selo
-      // ele e indistinguivel do icone de uma spell que voce nao tem.
+      v.glyph = evo ? "★" : "▲";
+      v.tagCls = evo ? "tag-raro" : "tag-cat";
+      // O selo do tier existe porque o icone de uma melhoria MENTE: e o icone
+      // de uma spell que voce ja tem, e sozinho nao diz quao fundo ela esta.
       v.badge = o.tierIndex + 1;
-      v.icon = evo ? evo.icon : o.def.icon;
+      v.id = evo ? evo.id : o.def.id;
       /* O slot do nome carrega a SPELL, nao o nome de fantasia do tier. O
-         jogador reconhece "Incinerate" de imediato — esta na build dele, no
-         painel e no HUD; "Brasa" nao quer dizer nada ate ser lido. O nome do
-         tier desce para o subtitulo, junto do caminho e do degrau, que e onde
-         ele serve de referencia sem disputar atencao com o efeito. */
+         jogador reconhece "Incinerate" de imediato; "Brasa" nao quer dizer nada
+         ate ser lido. O nome do tier desce para o subtitulo. */
       v.name = evo ? evo.name : o.def.name;
       v.subtitle = evo
         ? `${o.def.name} · ${o.path.name} · tier ${PATH_RULES.tiers} de ${PATH_RULES.tiers}`
         : `${o.tier.name} · ${o.path.name} · tier ${o.tierIndex + 1} de ${PATH_RULES.tiers}`;
-      /* O `desc` dos sete tiers de evolucao comeca com "EVOLUÇÃO — ", de quando
-         a carta nao tinha onde marcar isso. Agora a etiqueta marca, entao o
-         prefixo repetiria a palavra tres vezes na mesma linha (etiqueta, frase
-         e porque). Tirado na exibicao, nao no dado: o `desc` continua servindo
-         a quem le o catalogo direto. */
+      /* O `desc` dos tiers de evolucao comeca com "EVOLUÇÃO — ", de quando a
+         carta nao tinha onde marcar isso. Agora a etiqueta marca. Tirado na
+         exibicao, nao no dado: o `desc` continua servindo a quem le o catalogo. */
       const plain = o.tier.desc.replace(/^EVOLUÇÃO\s*[—-]\s*/, "");
       v.plain = plain.charAt(0).toUpperCase() + plain.slice(1);
-      /* So a evolucao ganha `why`, e por um motivo: ali a peca troca de
-         identidade inteira (nome, arte, trigger, efeitos), entao o que ela
-         PASSA A SER e informacao nova. Numa melhoria comum o nome da spell esta
-         logo acima e repetir o `desc` dela seria encher a carta com o que o
-         jogador ja sabe. */
       v.why = evo ? evo.desc : "";
       v.delta = this.tierDelta(o);
       v.pips = o.tierIndex + 1;
-      /* Veredito primeiro, detalhe depois — a mesma hierarquia que o custo
-         tinha. O veredito e quao fundo esta compra deixa a trilha; o detalhe e
-         qual trilha, porque uma spell tem tres e elas nao se misturam. */
-      /* Veredito, nao coordenada: o subtitulo ja diz "caminho · tier N de 5".
-         Aqui vai o que aquilo SIGNIFICA para a compra. */
+      /* Veredito, nao coordenada: o subtitulo ja diz "caminho · tier N de 5";
+         aqui vai o que aquilo SIGNIFICA para a compra. */
       const falta = PATH_RULES.tiers - (o.tierIndex + 1);
       v.progHead = falta === 0 ? "Fecha o caminho"
         : falta === 1 ? "A um tier do fim"
@@ -333,14 +360,11 @@ class UI {
     return v;
   }
 
-  /* "antes -> depois" saido dos MODS do tier, aplicados aos stats JA
-     resolvidos da instancia (com passivas e capstone dentro). E o numero que o
-     jogador vai passar a ter, nao o numero da tabela — e nunca desatualiza
-     quando o balanceamento muda.
-
-     Tier so-estrutural (mods nulo, `patch` presente) nao tem delta numerico: a
-     frase do tier ja E a mudanca. Um tier pode escrever `was`/`now` a mao
-     quando o texto disser mais que o numero. */
+  /* "antes -> depois" saido dos MODS do tier, aplicados aos stats JA resolvidos
+     da instancia (com passivas e capstone dentro). E o numero que o jogador vai
+     passar a ter, nao o da tabela — e nunca desatualiza quando o balanceamento
+     muda. Tier so-estrutural (mods nulo, `patch` presente) nao tem delta: a
+     frase do tier ja E a mudanca. */
   tierDelta(o) {
     const t = o.tier;
     if (t.was && t.now) return [[t.was, t.now]];
@@ -355,22 +379,16 @@ class UI {
       const s = STAT_FMT[k];
       if (!s) continue;
       out.push([`${s.name} ${s.fmt(a)}`, s.fmt(z)]);
-      // Duas linhas e o teto: a terceira empurraria o "porque" para fora da
-      // altura da linha, e o porque e o que explica a compra.
+      // Duas linhas e o teto: a terceira empurra o "porque" para fora da carta.
       if (out.length === 2) break;
     }
     return out;
   }
 
-  /* O chip verde so aparece quando a oferta muda a corrida por um MARCO. Sem
-     gancho real ele nao aparece: recomendacao decorativa vira ruido e o
-     jogador para de ler o chip que importa.
-
-     No level up sobrou UM gancho, e ele e o certo: fechar um caminho acende a
-     aura da spell em volta do warlock. O gancho de capstone saiu junto com o
-     custo — capstone e assunto de etapa agora, e apontar para ele numa tela
-     que nao entrega ponto de eixo seria apontar para uma porta que esta na
-     outra sala. */
+  /* Chip de recomendacao so com gancho REAL. Sem gancho ele nao aparece:
+     recomendacao decorativa vira ruido e o jogador para de ler o chip que
+     importa. No level up sobrou um, e ele e o certo — fechar um caminho acende
+     a aura da spell em volta do warlock. */
   recFor(o, v) {
     const b = this.game.build;
     if (o.kind === "path" && o.tierIndex + 1 === PATH_RULES.tiers && !b.isComplete(o.inst)) {
@@ -403,19 +421,9 @@ class UI {
     return best;
   }
 
-  /* Uma CARTA por oferta, em coluna. A tela nasceu em linhas porque comparava
-     tres coisas diferentes (spell nova / melhoria / passiva) e o olho precisava
-     correr um campo de cada vez na vertical. Depois que peca nova saiu para as
-     etapas, as tres ofertas viraram a mesma coisa — um degrau numa spell que
-     voce ja tem — e as colunas de "o que e / o que muda / onde chega" passaram
-     a repartir uma informacao que ja era homogenea. Grade de tres colunas para
-     comparar campos que nao divergem mais e so moldura.
-
-     A hierarquia interna nao mudou, e ela e a regra que sobrevive a qualquer
-     forma: `.lv-plain` — o que muda no jogo — e o item mais claro da carta,
-     acima do nome da spell, do icone e do botao. Numa carta o nome vem antes
-     no espaco, entao ele tem que perder no TAMANHO, senao a leitura pousa no
-     rotulo em vez de no efeito. */
+  /* A carta, 300x352, em retrato. O EIXO aparece em tres lugares PEQUENOS —
+     quadrado de 8px, delta e pips — e nunca na moldura inteira: a carta e
+     translucida e o mundo atras ja e colorido. */
   cardHtml(v) {
     let delta = "";
     for (const d of v.delta) {
@@ -423,9 +431,12 @@ class UI {
                `<span class="arrow">→</span><span class="now">${d[1]}</span></div>`;
     }
     return `
-      <div class="lv-kind"><i>${v.glyph}</i>${v.kind}</div>
+      <div class="lv-topo">
+        <span class="tag ${v.tagCls} lv-kind ch1"><i>${v.glyph}</i>${v.kind}</span>
+        <b></b>
+      </div>
       <div class="lv-what">
-        <div class="lv-tile${v.round ? " round" : ""}">${v.icon}${
+        <div class="lv-tile${v.round ? " round" : ""}">${Glyph.svg(v.id, 32)}${
           v.badge ? `<b>${v.badge}</b>` : ""}</div>
         <div class="lv-what-txt">
           <div class="lv-name">${v.name}</div>
@@ -442,24 +453,27 @@ class UI {
           <span class="lv-prog-head">${v.progHead}</span>
           ${v.pips != null ? this.pipsHtml(v.pips) : ""}
         </div>
-        ${v.rec ? `<div class="lv-rec">${v.rec}</div>` : ""}
-        <div class="lv-pick">Escolher</div>
+        ${v.rec ? `<span class="tag tag-eixo lv-rec ch1">${v.rec}</span>` : ""}
+        <div class="btn btn-fantasma ch1 lv-pick">Escolher</div>
       </div>`;
   }
 
+  /* Cinco pips. O degrau que ACABOU DE SUBIR sai na brasa (`-300`), e cinco
+     cheios saem em OSSO: a peca deixa o sistema de eixo, porque nao ha mais
+     decisao ali. */
   pipsHtml(n) {
-    let s = `<span class="lv-pips">`;
-    for (let i = 0; i < PATH_RULES.tiers; i++) s += `<i class="${i < n ? "on" : ""}"></i>`;
+    let s = `<span class="lv-pips${n >= PATH_RULES.tiers ? " max" : ""}">`;
+    for (let i = 0; i < PATH_RULES.tiers; i++) {
+      s += `<i class="${i < n ? (i === n - 1 ? "on brasa" : "on") : ""}"></i>`;
+    }
     return s + `</span>`;
   }
 
-  /* As tres barras de eixo, compartilhadas pelo painel do level up e pela tela
-     de etapa. `axisId`/`add` desenham a PREVIA do ganho: a barra fantasma
-     mostra onde o eixo chegaria, e o numero vira "4 → 7".
-
-     Uma funcao so para os dois porque a barra e a mesma pergunta nos dois
-     lugares — quanto falta para o capstone. Duas copias divergiriam na
-     primeira vez que o teto por eixo mudasse. */
+  /* As tres barras de eixo do rodape da ETAPA. `axisId`/`add` desenham a
+     PREVIA: a barra cravada mostra onde o eixo PARA se a oferta sob o mouse for
+     comprada, e o numero vira "4 → 7". E o unico jeito de ver o custo antes de
+     pagar. Eixo com 0 ponto fica em osso com o quadrado vazado — cor e para o
+     que existe. */
   axesHtml(axisId, add) {
     const b = this.game.build;
     const pct = (n) => Math.min(100, n / AXIS_RULES.capPerAxis * 100);
@@ -467,10 +481,10 @@ class UI {
     for (const id in AXES) {
       const a = AXES[id], val = b.axis[id];
       const gain = id === axisId ? (add || 0) : 0;
-      out += `<div class="lv-ax" style="--acc:${a.color}">
+      out += `<div class="lv-ax" style="${this.eixoVars(val || gain ? id : null)}">
         <div class="lv-ax-head">
-          <span class="lv-ax-ic">${a.icon}</span>
-          <span class="lv-ax-name">${a.name}</span>
+          <span class="lv-ax-ic ${val || gain ? "" : "vazio"}"></span>
+          <span class="lv-ax-name ${val ? "" : "off"}">${a.name}</span>
           <span class="lv-ax-num ${gain ? "lit" : ""}">${
             gain ? `${val} → ${val + gain}` : val} / ${AXIS_RULES.capPerAxis}</span>
         </div>
@@ -482,20 +496,11 @@ class UI {
     return out;
   }
 
-  /* A build de agora, em UMA TIRA. Era um painel lateral de 316px com densidade
-     automatica, teto de linhas, contador de excedente, chips de passiva, tres
-     barras de eixo e a linha do capstone — metade daquilo existia para caber
-     numa coluna estreita, e a outra metade respondia perguntas que esta tela
-     nao faz mais.
-
-     Os eixos e o capstone saem daqui de vez: nenhuma oferta de level up os
-     move, e a tela de ETAPA — que e onde eles mudam — ja os mostra com previa
-     ao vivo. Repetir aqui era mostrar um numero parado ao lado de tres cartas
-     que nao o tocam.
-
-     O que sobra e a unica pergunta que a tira responde, e ela e a pergunta
-     desta tela: em que degrau estao as minhas outras spells? Icone, pips do
-     caminho mais fundo, e destaque em quem a carta sob o mouse melhora. */
+  /* A build de agora, em UMA TIRA — nunca duas, porque overlay de jogo nao
+     rola. Eixo e capstone NAO moram aqui: nenhuma oferta desta tela os move, e
+     a tela de etapa, que e onde eles mudam, ja os mostra com previa ao vivo.
+     Sobra a unica pergunta que esta tela faz: em que degrau estao as minhas
+     outras spells? */
   buildStripHtml(hoverIdx) {
     const b = this.game.build;
     const o = hoverIdx >= 0 && this.lvOffers ? this.lvOffers[hoverIdx] : null;
@@ -515,16 +520,20 @@ class UI {
     const teto = STRIP.spells;
     let list = "";
     for (let i = 0; i < rows.length && i < teto; i++) {
-      const r = rows[i], c = r.def.color;
+      const r = rows[i];
       list += `<div class="lv-sp${r.hit ? " hit" : ""}${r.done ? " done" : ""}"
-        style="--acc:${c};--acc-dim:${c}55" title="${r.def.name}${
+        style="${this.eixoVars(r.def.axis)}" title="${r.def.name}${
         r.nome ? ` — ${r.nome} tier ${r.top}` : ""}">
-        <span class="lv-sp-ic">${r.def.icon}</span>
         <span class="lv-sp-name">${r.def.name}</span>
         ${this.pipsHtml(r.top)}</div>`;
     }
+    /* O contador fica FORA da lista: ela corta o que nao cabe (`overflow`
+       hidden, porque a tira e uma linha so), e o contador cortado pela metade
+       e a unica peca da tira que nao pode desaparecer. */
+    let mais = "";
     if (rows.length > teto) {
-      list += `<div class="lv-sp more">+${rows.length - teto}</div>`;
+      const n = rows.length - teto;
+      mais = `<div class="lv-sp more">+${n} peça${n > 1 ? "s" : ""}</div>`;
     }
 
     let chips = "";
@@ -532,14 +541,14 @@ class UI {
     for (const id of b.passives.keys()) {
       if (np >= STRIP.chips) break;
       const p = PASSIVES[id];
-      chips += `<span class="lv-chip" style="--acc-dim:${p.color}55;--acc-wash:${p.color}16"
-        title="${p.name}: ${p.desc}"><i>${p.icon}</i></span>`;
+      chips += `<span class="lv-chip" title="${p.name}: ${p.desc}">${Glyph.svg(id, 18)}</span>`;
       np++;
     }
     if (b.passives.size > np) chips += `<span class="lv-chip more">+${b.passives.size - np}</span>`;
 
     return `<span class="lv-strip-lbl">Sua build</span>
       <div class="lv-strip-list">${list}</div>
+      ${mais}
       ${chips ? `<div class="lv-strip-chips">${chips}</div>` : ""}`;
   }
 
@@ -552,18 +561,11 @@ class UI {
       g.addShake(22);
       g.spawnParticles(g.player.x, g.player.y, res.evolved.to.color, 48);
       g.player.comboPulse(res.evolved.to.color);
-      this.toast({ head: "Evolução!", color: res.evolved.to.color, icon: res.evolved.to.icon,
-        name: `${res.evolved.from} → ${res.evolved.to.name}`, desc: res.evolved.to.desc });
+      this.toast({ head: "Evolução", axis: res.evolved.to.axis,
+        name: `${res.evolved.from} → ${res.evolved.to.name}` });
     }
     if (res.completed) this.auraToast(res.completed);
-    for (const cap of res.caps) {
-      g.sfx.combo();
-      g.addShake(18);
-      g.spawnParticles(g.player.x, g.player.y, cap.color, 40);
-      g.player.comboPulse(cap.color);
-      this.toast({ head: "Capstone!", color: cap.color, icon: cap.icon,
-        name: cap.name, desc: cap.desc });
-    }
+    for (const cap of res.caps) this.capToast(cap);
     this.checkForm(res.caps[res.caps.length - 1]);
     this.updatePieceBar();
 
@@ -581,9 +583,16 @@ class UI {
     g.addShake(14);
     g.spawnParticles(g.player.x, g.player.y, def.color, 34);
     g.player.comboPulse(def.color);
-    this.toast({ head: "Aura!", color: def.color, icon: def.icon,
-      name: def.name,
-      desc: "Spell concluída — a aura dela agora arde em volta de você." });
+    this.toast({ head: "Aura", axis: def.axis, name: `${def.name} concluída` });
+  }
+
+  capToast(cap) {
+    const g = this.game;
+    g.sfx.combo();
+    g.addShake(18);
+    g.spawnParticles(g.player.x, g.player.y, cap.color, 40);
+    g.player.comboPulse(cap.color);
+    this.toast({ head: "Capstone", axis: cap.axis, name: cap.name });
   }
 
   /* Metamorfose visual: ancorada nos CAPSTONES fechados. `cause` e o capstone
@@ -608,31 +617,26 @@ class UI {
     g.addShake(22);
     g.spawnParticles(p.x, p.y, color, 44);
     p.comboPulse(color);
-    this.toast({ head: "Metamorfose!", color, icon: f.icon,
-      name: f.name, desc: f.desc });
+    this.toast({ head: "Metamorfose", axis: cause ? cause.axis : null, name: f.name });
   }
 
-  /* --- etapa ---------------------------------------------------------------
-     A BATIDA LENTA. Tres linhas, o eixo aberto sempre entre elas, e a unica
-     fonte de ponto de eixo do jogo.
+  /* --- etapa (9.2 / 9.8) ---------------------------------------------------
+     A BATIDA LENTA, e a unica fonte de ponto de eixo do jogo.
 
-     Ela e o oposto da tela de level up de proposito, e as duas ja trocaram de
-     forma uma vez: o que decide a forma nao e a tela, e o que ela compara. As
-     tres ofertas daqui tem a MESMA estrutura preenchida com eixos diferentes —
-     um rotulo, uma spell, um numero (ou dois) —, e estrutura repetida e o caso
-     da LINHA com colunas fixas: o numero de cada oferta cai sempre na terceira
-     coluna, entao comparar e correr o olho por uma coluna so.
+     Ela e o oposto da tela de level up de proposito, e a diferenca mais forte
+     entre as duas nao e cor: e o FUNDO. Aqui o canvas some — obsidiana
+     chapada —, e e isso que diz ao jogador que a pergunta mudou. O titulo e
+     alinhado a esquerda contra o centralizado de la, o acento e a barra
+     vertical na ponta da linha, e o alvo sao os SELOS, nao o bloco.
 
-     Aqui o custo volta, e ele e o unico do jogo: a oferta que traz spell nova
-     entrega um ponto a MENOS que a seca do mesmo eixo. Largura nao gasta o
-     pool, ela desacelera o pool — e essa e a unica decisao da run que nao se
-     desfaz depois. */
+     O selo e o unico botao do jogo pintado com cor de eixo, porque
+     preenchimento e custo e esta e a unica tela que cobra um ponto que nao
+     volta. */
 
   openMilestone() {
     const g = this.game;
     /* Pool cheio: nao ha mais ponto para dar, entao a tela nao tem pergunta a
-       fazer. Some em silencio em vez de abrir vazia — pela tabela isso so
-       acontece se um marco escapar depois do ultimo. */
+       fazer. Some em silencio em vez de abrir vazia. */
     if (g.build.axisLeft <= 0) {
       g.pendingMilestones = 0;
       g.state = STATE.PLAYING;
@@ -653,27 +657,33 @@ class UI {
     this.msHover = null;
 
     /* Sem denominador: as etapas nao acabam numa contagem, acabam quando a pool
-       acaba. Dizer "de 7" mentiria justo para quem mais precisa saber que ainda
-       vem mais — o jogador que levou spell toda vez e esta atrasado na pool. */
+       acaba. "Etapa 4 de 7" mentiria justo para quem mais precisa saber que
+       ainda vem mais — o jogador que levou spell toda vez e esta atrasado. */
     const falta = g.build.axisLeft;
-    this.el.msEyebrow.textContent = `Etapa ${idx + 1} · ${mmss(g.milestoneTimeAt(idx))} · ` +
-      `${falta} ponto${falta === 1 ? "" : "s"} de eixo por gastar`;
+    this.el.msEyebrow.innerHTML =
+      `<span>Etapa ${idx + 1}</span><s></s><span>${mmss(g.milestoneTimeAt(idx))}</span><s></s>` +
+      `<span>${falta} ponto${falta === 1 ? "" : "s"} por gastar</span>`;
+
+    /* O subtitulo muda de assunto junto com a fase. Enquanto nenhum eixo abriu,
+       a pergunta e descoberta; com um eixo aberto, ela vira quanto investir
+       nele — e isso precisa estar dito antes das linhas, nao deduzido delas. */
+    const aberta = offers.find((o) => o.locked);
+    this.el.msSub.textContent = aberta
+      ? `${aberta.axis.name} já está aberta: o eixo sozinho não cobra mais nada. A spell, sim.`
+      : "O único ponto que não volta. Escolha o eixo — a spell vem junto, cobrando um ponto.";
 
     this.el.msRows.innerHTML = "";
     for (let i = 0; i < offers.length; i++) {
       const o = offers[i];
       const row = document.createElement("div");
-      row.className = "ms-row";
-      row.style.setProperty("--acc", o.axis.color);
-      row.style.setProperty("--acc-dim", o.axis.color + "55");
-      row.style.setProperty("--acc-wash", o.axis.color + "1c");
+      row.className = "ms-row" + (o.locked ? " aberta" : "");
+      row.setAttribute("style", this.eixoVars(o.axisId));
       row.innerHTML = this.msRowHtml(o);
       /* O ALVO e o botao, nao o bloco: o bloco e um eixo e o eixo tem duas
          maneiras de ser levado. Bloco inteiro clicavel precisaria de um padrao
          escolhido por nos, e escolher pelo jogador a metade irreversivel da
          decisao e o oposto do que esta tela existe para fazer. */
-      const btns = row.querySelectorAll(".ms-take");
-      for (const btn of btns) {
+      for (const btn of row.querySelectorAll(".ms-take")) {
         const wet = btn.dataset.wet === "1";
         btn.onclick = (ev) => { ev.stopPropagation(); this.applyMilestone(o, wet); };
         btn.onmouseenter = () => this.msHoverTo(o, wet);
@@ -692,7 +702,7 @@ class UI {
     this.msRender(o, wet);
   }
 
-  /* Como no level up, o hover re-renderiza so o RODAPE: mexer nas colunas
+  /* Como no level up, o hover re-renderiza so o RODAPE: mexer nas linhas
      mataria a transicao que o CSS esta rodando naquele instante. */
   msRender(o, wet) {
     const step = !o ? null : ((wet ? o.wet : o.dry) || o.wet || o.dry);
@@ -701,27 +711,29 @@ class UI {
   }
 
   /* O alvo, com previa. Capstone e a unica coisa que os pontos de eixo compram
-     a longo prazo, entao a tela que os entrega tem que dizer onde eles levam —
-     senao alocar e uma decisao de rota longa com feedback so no fim da run. */
+     a longo prazo, entao a tela que os entrega tem que dizer onde eles levam. */
   capLineHtml(o, step) {
     const before = this.nearestCapstone();
-    const after = step && step.gain
-      ? this.nearestCapstone(o.axisId, step.gain)
-      : before;
-    if (!after) {
-      return `<div class="ms-cap none">Nenhum capstone cabe mais no pool restante.</div>`;
-    }
+    const after = step && step.gain ? this.nearestCapstone(o.axisId, step.gain) : before;
+    if (!after) return `<div class="ms-cap">Nenhum capstone cabe no pool restante</div>`;
     if (!after.missing) {
-      return `<div class="ms-cap open">${after.cap.icon}
-        <b style="color:${after.cap.color}">${after.cap.name}</b> abre agora.</div>`;
+      return `<div class="ms-cap open"><b>${after.cap.name}</b> abre agora</div>`;
     }
     const falta = after.gaps.map((x) => `${x.need} de ${x.axis.name}`).join(" e ");
     const closer = before && after.missing < before.missing;
-    return `<div class="ms-cap${closer ? " closer" : ""}">${after.cap.icon}
-      <b style="color:${after.cap.color}">${after.cap.name}</b> a ${falta}${
-      closer ? ` <i>— ${before.missing} antes desta linha</i>` : ""}</div>`;
+    return `<div class="ms-cap${closer ? " open" : ""}"><b>${after.cap.name}</b> a ${falta}</div>`;
   }
 
+  /* Duas formas de linha, e o CABECALHO e onde elas se separam.
+
+     ABERTA (eixo em `unlockAt`+): a manchete e o EIXO, porque a pergunta e
+     quanto investir nele — a spell e uma das duas maneiras de levar, nao o
+     assunto. Ela ganha o selo `aberto`, moldura, e os dois botoes.
+
+     SORTEADA: a manchete e a SPELL, porque e ela que esta sendo escolhida; o
+     eixo vira etiqueta abaixo, na cor dele. Por o eixo no topo de uma linha
+     sorteada seria anunciar como titulo algo que o jogador nao escolheu — o
+     sorteio e que pos aquele eixo ali. */
   msRowHtml(o) {
     const b = this.game.build, cur = b.axis[o.axisId];
     const M = BALANCE.milestones;
@@ -730,71 +742,49 @@ class UI {
        `addAxis` entrega menos do que a tabela promete — e esta e a unica tela
        do jogo cujo numero nao pode ser desfeito, entao ela e a ultima que pode
        arredondar a verdade. */
-    const take = (step, wet, label, note) => {
+    const take = (step, wet, label) => {
       if (!step) return "";
       const dead = step.gain <= 0;
-      return `<button class="ms-take${wet ? " wet" : ""}${dead ? " dead" : ""}" data-wet="${wet ? 1 : 0}">
-        <span class="ms-take-l">${label}</span>
-        <span class="ms-take-n">${dead ? "+0" : "+" + step.gain}</span>
-        <span class="ms-take-s">${dead
-          ? (cur >= AXIS_RULES.capPerAxis ? "eixo no teto" : "pool no fim")
-          : `${o.axis.name} ${cur} → ${cur + step.gain}` + (note ? ` · ${note}` : "")}</span>
-      </button>`;
+      const nota = dead
+        ? (cur >= AXIS_RULES.capPerAxis ? "eixo no teto" : "pool no fim")
+        : `${o.axis.name} ${cur} → ${cur + step.gain}`;
+      return `<div>
+        <button class="ms-take${wet ? "" : " seco"}${dead ? " dead" : ""}" data-wet="${wet ? 1 : 0}">
+          <span>${label}</span><em>${dead ? "+0" : "+" + step.gain}</em>
+        </button>
+        <div class="ms-take-note">${nota}</div></div>`;
     };
 
-    const spell = o.piece
-      ? `<div class="ms-spell">
-          <span class="ms-spell-ic">${o.piece.icon}</span>
-          <span class="ms-spell-txt">
-            <span class="ms-spell-kind"><i>◈</i>Spell nova</span>
-            <span class="ms-spell-name">${o.piece.name}</span>
-            <span class="ms-spell-desc">${o.piece.desc}</span>
-          </span></div>`
-      : `<div class="ms-spell empty">
-          <span class="ms-spell-txt">
-            <span class="ms-spell-name">Nada novo neste eixo</span>
-            <span class="ms-spell-desc">Todas as spells de ${o.axis.name} já estão na build.</span>
-          </span></div>`;
-
-    /* Duas formas de bloco, e a diferenca e o que cada uma esta perguntando.
-
-       ABERTA (eixo em `unlockAt`+): a manchete e o EIXO, porque a pergunta e
-       quanto investir nele — a spell e uma das duas maneiras de levar, nao o
-       assunto. Ela ganha o cabecalho de eixo e os dois botoes.
-
-       SORTEADA: a manchete e a SPELL, porque e ela que esta sendo escolhida; o
-       eixo aparece no botao como consequencia (+1 em Corrupcao). Por o eixo no
-       topo aqui seria anunciar como titulo algo que o jogador nao escolheu — o
-       sorteio e que pos aquele eixo ali.
-
-       Nas duas, o meio do bloco e o BUFF: a mesma caixa acesa, porque o que a
-       spell FAZ e a coisa que a tela existe para o jogador ler antes de gastar
-       o unico ponto que nao volta. */
     if (!o.locked) {
       return `
-        <div class="ms-head loose">
-          <span class="ms-ic">${o.piece.icon}</span>
-          <span class="ms-axis">${o.piece.name}</span>
-          <span class="ms-tag" style="color:${o.axis.color}">${o.axis.icon} ${o.axis.name}</span>
+        <span class="ms-eixo"></span>
+        <span class="ms-ic">${Glyph.svg(o.piece.id, 54)}</span>
+        <div class="ms-txt">
+          <div class="ms-head"><span class="ms-axis">${o.piece.name}</span></div>
+          <div class="ms-tag">${o.axis.name}</div>
+          <div class="ms-desc">${o.piece.desc}</div>
         </div>
-        <div class="ms-spell"><span class="ms-spell-txt">
-          <span class="ms-spell-desc">${o.piece.desc}</span></span></div>
-        <div class="ms-takes">
-          ${take(o.wet, true, "Levar esta spell", "")}
-        </div>`;
+        <div class="ms-takes">${take(o.wet, true, "Levar")}</div>`;
     }
 
+    const spell = o.piece
+      ? `<div class="ms-desc"><b>${o.piece.name}</b> — ${o.piece.desc}</div>`
+      : `<div class="ms-desc">Todas as spells de ${o.axis.name} já estão na build.</div>`;
     return `
-      <div class="ms-head">
-        <span class="ms-ic">${o.axis.icon}</span>
-        <span class="ms-axis">${o.axis.name}</span>
-        <span class="ms-open" title="Eixo com ${M.unlockAt}+ pontos: nunca mais sai da mesa">aberto</span>
-        <span class="ms-tag">${o.axis.tag}</span>
+      <span class="ms-eixo"></span>
+      <span class="ms-ic">${Glyph.svg(o.piece ? o.piece.id : o.axisId, 64)}</span>
+      <div class="ms-txt">
+        <div class="ms-head">
+          <span class="ms-axis">${o.axis.name}</span>
+          <span class="tag tag-eixo ch1" title="Eixo com ${M.unlockAt}+ pontos: nunca mais sai da mesa">aberto</span>
+          <span class="ms-num">${cur}/${AXIS_RULES.capPerAxis}</span>
+        </div>
+        <div class="ms-tag">${o.axis.tag}</div>
+        ${spell}
       </div>
-      ${spell}
       <div class="ms-takes">
-        ${take(o.dry, false, "Só o eixo", "")}
-        ${take(o.wet, true, "Com a spell", `−${M.axisPoints - M.spellPoints} pelo arsenal`)}
+        ${take(o.dry, false, "Só o eixo")}
+        ${take(o.wet, true, "Com a spell")}
       </div>`;
   }
 
@@ -803,17 +793,9 @@ class UI {
     const res = g.build.applyMilestone(o, takePiece);
 
     if (res.piece) {
-      this.toast({ head: "Spell nova!", color: res.piece.color, icon: res.piece.icon,
-        name: res.piece.name, desc: res.piece.desc });
+      this.toast({ head: "Spell nova", axis: res.piece.axis, name: res.piece.name });
     }
-    for (const cap of res.caps) {
-      g.sfx.combo();
-      g.addShake(18);
-      g.spawnParticles(g.player.x, g.player.y, cap.color, 40);
-      g.player.comboPulse(cap.color);
-      this.toast({ head: "Capstone!", color: cap.color, icon: cap.icon,
-        name: cap.name, desc: cap.desc });
-    }
+    for (const cap of res.caps) this.capToast(cap);
     this.checkForm(res.caps[res.caps.length - 1]);
     this.updatePieceBar();
 
@@ -824,16 +806,20 @@ class UI {
     else g.state = STATE.PLAYING;
   }
 
-  /* --- bau ---------------------------------------------------------------- */
+  /* --- bau (9.7) -----------------------------------------------------------
+     Coluna de 640 sobre preto, contra os 1360 da placa de Etapa: mesma
+     familia, silhueta diferente. Nada esta sendo cobrado aqui, entao o botao e
+     OSSO e nunca selo.
+
+     A escada de raridade nao tem matiz novo — o ciano saiu. Quem diz o tamanho
+     do premio e a ESPESSURA DA LUZ no topo da placa e o numero de linhas. */
 
   openChest() {
     const g = this.game;
-    /* O baú termina o que você começou.
-
-       Sorteando tiers uniformemente ele espalhava investimento e empurrava a
-       build para longe das evoluções — que exigem cinco compras na MESMA
-       trilha. Ordenando por profundidade, o baú vira o empurrão final: pega o
-       caminho mais adiantado primeiro e, com sorte, fecha o tier 5. */
+    /* O bau termina o que voce comecou: sorteando tiers uniformemente ele
+       espalhava investimento e empurrava a build para longe das evolucoes, que
+       exigem cinco compras na MESMA trilha. Ordenado por profundidade, ele
+       vira o empurrao final. */
     const cands = [];
     for (const inst of g.build.pieces.values()) {
       for (const pid in inst.def.paths) {
@@ -843,8 +829,6 @@ class UI {
     shuffle(cands);
     cands.sort((a, b) => b.inst.paths[b.pathId] - a.inst.paths[a.pathId]);
 
-    // Raridade é dado (BALANCE.chest.rarity); depois de hardAt a tabela troca de
-    // coluna e os baús grandes passam a ser a regra.
     const late = g.elapsed >= BALANCE.spawn.hardAt;
     const rarity = pickWeighted(BALANCE.chest.rarity, late ? "lateWeight" : "weight");
 
@@ -866,38 +850,47 @@ class UI {
 
     for (const r of results) {
       if (!r.evolved) continue;
-      this.toast({ head: "Evolução!", color: r.evolved.to.color, icon: r.evolved.to.icon,
-        name: `${r.evolved.from} → ${r.evolved.to.name}`, desc: r.evolved.to.desc });
+      this.toast({ head: "Evolução", axis: r.evolved.to.axis,
+        name: `${r.evolved.from} → ${r.evolved.to.name}` });
     }
-    for (const r of results) {
-      if (r.completed) this.auraToast(r.completed);
-    }
+    for (const r of results) if (r.completed) this.auraToast(r.completed);
     let lastCap = null;
     for (const cap of g.build.checkCapstones()) {
       g.build.afterChange();
       lastCap = cap;
-      this.toast({ head: "Capstone!", color: cap.color, icon: cap.icon,
-        name: cap.name, desc: cap.desc });
+      this.capToast(cap);
     }
     this.checkForm(lastCap);
     this.updatePieceBar();
 
     g.sfx.levelUp();
     g.addShake(rarity.shake);
-    let rows = results.length
-      ? results.map((r) => `<div class="chest-row">
-          <span class="chest-ic" style="color:${r.def.color}">${r.def.icon}</span>
-          <span class="chest-name">${r.def.name} · ${r.path.name}</span>
-          <span class="chest-lv">Tier ${r.from} → ${r.to}</span></div>`).join("")
-      : `<div class="chest-empty">Arsenal no máximo — cura total!</div>`;
-    this.el.chestList.innerHTML = rows;
-    // O rótulo conta o que caiu, não o que foi sorteado: com o arsenal quase no
-    // teto um Lendário entrega menos de 5 e dizer "5 tiers" seria mentira.
+
+    const luz = results.length >= 5 ? "r5" : results.length >= 3 ? "r3" : "r1";
+    this.el.chestList.innerHTML = results.length
+      ? results.map((r) => `<div class="chest-row ${luz}" style="${this.eixoVars(r.def.axis)}">
+          <span class="bau-ic">${Glyph.svg(r.def.id, 28)}</span>
+          <span class="bau-txt">
+            <span class="bau-nome">${r.def.name}</span>
+            <span class="bau-galho">${r.path.name}</span>
+          </span>
+          ${this.pipsHtml(r.to)}
+          <span class="bau-step">${r.from} → ${r.to}</span></div>`).join("")
+      : `<div class="chest-row r1"><span class="bau-txt">
+          <span class="bau-nome">Arsenal no máximo</span>
+          <span class="bau-galho">cura total</span></span></div>`;
+
+    // O rotulo conta o que CAIU, nao o que foi sorteado: com o arsenal quase no
+    // teto um Lendario entrega menos de 5 e dizer "5 tiers" seria mentira.
     const got = results.length;
-    this.el.chestRarity.textContent = got
-      ? `${rarity.label} · ${got} tier${got > 1 ? "s" : ""}`
-      : `${rarity.label} · arsenal no máximo`;
-    this.el.chestRarity.style.color = rarity.color;
+    this.el.chestRarity.textContent = rarity.label;
+    this.el.chestCount.textContent = got
+      ? `${got} tier${got > 1 ? "s" : ""} grátis` : "arsenal no máximo";
+    let pips = "";
+    for (let i = 0; i < 3; i++) {
+      pips += `<i class="${i < (rarity.count >= 5 ? 3 : rarity.count >= 3 ? 2 : 1) ? "on" : ""}"></i>`;
+    }
+    this.el.chestPips.innerHTML = pips;
     g.state = STATE.CHEST;
     this.el.chest.classList.remove("hidden");
   }
@@ -909,128 +902,203 @@ class UI {
     if (g.player.pendingLevels > 0) this.openLevelUp();
   }
 
-  /* --- pausa: o painel onde a build inteira e legivel --------------------- */
+  /* --- pausa (9.6) ---------------------------------------------------------
+     Um bloco largo a esquerda (as pecas, em duas colunas de linha compacta) e
+     uma pilha estreita a direita (eixos, dano, marcos). Antes cada peca gastava
+     ~100px com os tres galhos escritos e a lista era cortada no meio; os galhos
+     foram para o hover e a peca coube em 52px. Se a build crescer, e a coluna
+     que ganha uma terceira — nao a tela que estica.
+
+     E os tres botoes deixaram de ser tres pilulas identicas: sair convidava
+     tanto quanto voltar ao jogo. */
 
   onPause() {
     const g = this.game, b = g.build;
-    let left = `<div class="pause-head">Peças</div>`;
-    if (!b.pieces.size) left += `<div class="pause-empty">Nenhuma peça ainda.</div>`;
+    this.el.pauseMeta.textContent =
+      `${mmss(g.elapsed)} · nível ${g.player.level} · ${fmtNum(g.player.kills)} abates`;
+
+    let pecas = "";
     for (const inst of b.pieces.values()) {
-      let paths = "";
+      let top = 0, galhos = [];
       for (const pid in inst.def.paths) {
-        const path = inst.def.paths[pid];
         const n = inst.paths[pid];
-        const locked = !b.canUpgradePath(inst, pid) && n < PATH_RULES.tiers;
-        let pips = "";
-        for (let i = 0; i < PATH_RULES.tiers; i++) {
-          pips += `<i class="${i < n ? "on" : ""}"></i>`;
-        }
-        const next = n < PATH_RULES.tiers ? path.tiers[n].name : "máximo";
-        paths += `<div class="pp-row ${locked ? "locked" : ""}">
-          <span class="pp-name">${path.name}</span>
-          <span class="pp-pips">${pips}</span>
-          <span class="pp-next">${locked ? "trancado" : next}</span></div>`;
+        if (n > top) top = n;
+        galhos.push(`${inst.def.paths[pid].name} ${n}/${PATH_RULES.tiers}`);
       }
-      left += `<div class="pw-row">
-        <div class="pw-ic" style="border-color:${inst.def.color};color:${inst.def.color}">${inst.def.icon}</div>
-        <div class="pw-body">
-          <div class="pw-top"><span class="pw-name">${inst.def.name}</span>
-            <span class="pw-lv">${TRIGGER_LABEL[inst.r.trigger.type] || ""}</span></div>
-          <div class="pw-next">${inst.def.desc}</div>
-          ${paths}
-        </div></div>`;
+      /* Os tres galhos e o gatilho vivem no HOVER: antes cada peca gastava
+         ~100px com eles escritos e a lista era cortada no meio. Com eles no
+         title a peca cabe em 52px e a build inteira cabe na tela. */
+      const gat = TRIGGER_LABEL[inst.r.trigger.type] || "";
+      pecas += `<div class="pa-pw" style="${this.eixoVars(inst.def.axis)}"
+        title="${inst.def.name}${gat ? ` (${gat})` : ""} — ${galhos.join(" · ")}">
+        <span class="pa-pw-ic">${Glyph.svg(inst.def.id, 24)}</span>
+        <span class="pa-pw-nome">${inst.def.name}</span>
+        ${this.pipsHtml(top)}</div>`;
     }
+    for (const id of b.passives.keys()) {
+      const p = PASSIVES[id];
+      pecas += `<div class="pa-pw" title="${p.name}: ${p.desc}">
+        <span class="pa-pw-ic" style="border-radius:50%">${Glyph.svg(id, 24)}</span>
+        <span class="pa-pw-nome">${p.name}</span>
+        <span class="tag tag-cat ch1">Passiva</span></div>`;
+    }
+    if (!pecas) pecas = `<div class="pa-vazio">Nenhuma peça ainda.</div>`;
+    this.el.pausePieces.innerHTML = pecas;
+    this.el.pauseCount.textContent = `${b.pieces.size} + ${b.passives.size}`;
 
-    let right = `<div class="pause-head">Eixos</div><div class="pause-axis">`;
-    for (const id in AXES) {
-      const a = AXES[id];
-      right += `<div class="cb-row ${b.axis[id] >= AXIS_RULES.hybridMain ? "done" : ""}">
-        <div class="cb-head"><span class="cb-ic">${a.icon}</span>
-          <span class="cb-name">${a.name}</span>
-          <span class="cb-status ${b.axis[id] >= AXIS_RULES.pureAt ? "on" : ""}">${b.axis[id]}/${AXIS_RULES.capPerAxis}</span></div>
-        <div class="cb-desc">${a.tag}</div>
-        <div class="cb-bar"><div class="cb-fill" style="width:${b.axis[id] / AXIS_RULES.capPerAxis * 100}%;background:${a.color}"></div></div>
-      </div>`;
-    }
-    /* Metamorfose: o painel diz em que forma o warlock esta e o que falta para
-       a proxima — sem isso o jogador ve o corpo mudar e nao sabe por que. */
-    const forms = g.player.forms;
-    right += `</div><div class="pause-head">Metamorfose</div>`;
-    for (let i = 0; i < forms.length; i++) {
-      const f = forms[i];
-      if (!f.name) continue;
-      const on = b.capstones.size >= f.caps;
-      right += `<div class="cb-row ${on ? "done" : ""}">
-        <div class="cb-head"><span class="cb-ic">${f.icon}</span>
-          <span class="cb-name">${f.name}</span>
-          <span class="cb-status ${on ? "on" : ""}">${b.capstones.size}/${f.caps} capstones</span></div>
-        <div class="cb-desc">${f.desc}</div></div>`;
-    }
+    this.el.pauseAxes.innerHTML = this.axesHtml(null, 0);
+    this.el.pausePool.textContent = `${b.axisTotal}/${AXIS_RULES.pool}`;
 
-    right += `<div class="pause-head">Capstones</div>`;
-    for (const id in CAPSTONES) {
-      const c = CAPSTONES[id];
-      const on = b.capstones.has(id);
-      const req = Object.entries(c.req)
-        .map(([a, v]) => `<span class="cb-req-row ${b.axis[a] >= v ? "ok" : ""}">${AXES[a].icon} <b>${b.axis[a]}/${v}</b></span>`)
-        .join("");
-      right += `<div class="cb-row ${on ? "done" : ""}">
-        <div class="cb-head"><span class="cb-ic">${c.icon}</span>
-          <span class="cb-name">${c.name}</span>
-          <span class="cb-status ${on ? "on" : ""}">${on ? "ativo" : ""}</span></div>
-        <div class="cb-desc">${c.desc}</div>
-        <div class="cb-req">${req}</div></div>`;
+    /* Dano por peca: tres linhas e o resto colapsa. E a mesma regra do Game
+       over, e pelo mesmo motivo — a lista nao pode crescer com a build, senao
+       ela empurra os marcos para fora da tela. */
+    const rows = this.damageRows();
+    const max = rows.length ? Math.max(1, rows[0].val) : 1;
+    const total = rows.reduce((s, r) => s + r.val, 0);
+    let dmg = "";
+    for (let i = 0; i < rows.length && i < PAUSE.dmg; i++) {
+      const r = rows[i];
+      dmg += `<div class="pa-dmg" style="${this.eixoVars(r.def.axis)}">
+        <span class="pa-dmg-nome">${r.def.name}</span>
+        <div class="barra"><i style="width:${r.val / max * 100}%"></i></div>
+        <span class="pa-dmg-val">${fmtNum(r.val)}</span></div>`;
     }
-    if (b.passives.size) {
-      right += `<div class="pause-head">Passivas</div>`;
-      for (const id of b.passives.keys()) {
-        const p = PASSIVES[id];
-        right += `<div class="cb-row done"><div class="cb-head">
-          <span class="cb-ic">${p.icon}</span><span class="cb-name">${p.name}</span></div>
-          <div class="cb-desc">${p.desc}</div></div>`;
-      }
+    if (rows.length > PAUSE.dmg) {
+      const n = rows.length - PAUSE.dmg;
+      dmg += `<div class="pa-dmg"><span class="pa-dmg-nome dim">+${n} peça${n > 1 ? "s" : ""}</span>
+        <div class="barra"><i style="width:0"></i></div><span class="pa-dmg-val"></span></div>`;
     }
+    if (!rows.length) dmg = `<div class="pa-vazio">Nada causou dano ainda.</div>`;
 
-    this.el.pausePanel.innerHTML =
-      `<div class="pause-col">${left}</div><div class="pause-col">${right}</div>`;
+    dmg += `<div class="painel-div"></div>`;
+    const caps = [];
+    for (const id of b.capstones) caps.push(CAPSTONES[id].name);
+    const prox = this.nearestCapstone();
+    /* Uma linha, e ela diz em que FORMA o warlock esta. Ela ja foi a escada
+       inteira, e a escada deixou de existir: com uma forma por capstone as dez
+       sao irmas e nao degraus, entao listar as outras nove seria listar rotas
+       que esta run nao tomou. Quanto falta para a proxima e o que a linha
+       "Proximo" logo abaixo ja responde, e ela responde melhor — pelo capstone,
+       que e o que o jogador de fato persegue. */
+    const f = g.player.forms[g.player.formIdx];
+    dmg += `<div class="pa-linha"><span>Metamorfose</span><b>${
+      f && f.name ? f.name : "nenhuma"}</b></div>`;
+    dmg += `<div class="pa-linha"><span>Capstones</span><b>${
+      caps.length ? caps.join(" · ") : "nenhum"}</b></div>`;
+    dmg += `<div class="pa-linha"><span>Próximo</span><b>${
+      prox ? (prox.missing
+        ? `${prox.cap.name} a ${prox.gaps.map((x) => `${x.need} de ${x.axis.name}`).join(" e ")}`
+        : `${prox.cap.name} abre agora`)
+      : "nenhum cabe no pool"}</b></div>`;
+    this.el.pauseDmg.innerHTML = dmg;
+    this.el.pauseDmgTot.textContent = fmtNum(total);
+
     this.el.pause.classList.remove("hidden");
   }
 
   hidePause() { this.el.pause.classList.add("hidden"); }
 
-  /* --- game over ---------------------------------------------------------- */
-
-  onGameOver() {
+  /* Dano por peca, ordenado. Peca com 0 de dano NAO aparece: linha zerada numa
+     lista ordenada por dano so ocupa o lugar de quem tem o que dizer. */
+  damageRows() {
     const g = this.game;
     const rows = [];
     for (const inst of g.build.pieces.values()) {
-      rows.push({ def: inst.def, val: g.damageBy.get(inst.key) || 0 });
+      const val = g.damageBy.get(inst.key) || 0;
+      if (val > 0) rows.push({ def: inst.def, val });
     }
     rows.sort((a, b) => b.val - a.val);
+    return rows;
+  }
+
+  /* --- game over (9.5) -----------------------------------------------------
+     Altura FIXA por construcao. Uma build de 30 pecas ocupa exatamente a mesma
+     altura de uma de 6, porque a lista e `slice(0,5)` e o resto e uma linha; o
+     botao esta fora do fluxo que crescia. O transbordo deixa de ser possivel em
+     vez de ser evitado. */
+
+  onGameOver() {
+    const g = this.game, b = g.build;
+    const rows = this.damageRows();
     const total = rows.reduce((s, r) => s + r.val, 0);
-    let html = `
-      <div class="stat"><span>Sobrevivência</span><b>${mmss(g.elapsed)}</b></div>
-      <div class="stat"><span>Abates</span><b>${g.player.kills}</b></div>
-      <div class="stat"><span>Nível</span><b>${g.player.level}</b></div>
-      <div class="stat"><span>Dano total</span><b>${fmtNum(total)}</b></div>
-      <div class="stat"><span>Eixos</span><b>${g.build.axis.corruption}/${g.build.axis.dominion}/${g.build.axis.cataclysm}</b></div>
-      <div class="stat stat-head">Dano por peça</div>`;
-    for (const r of rows) {
-      html += `<div class="stat"><span style="color:${r.def.color}">${r.def.icon} ${r.def.name}</span>
-        <b>${fmtNum(r.val)}</b></div>`;
+
+    const eixos = [];
+    for (const id in AXES) {
+      const v = b.axis[id];
+      eixos.push(v ? `<i style="color:${UI_PAL.eixo[id]}">${v}</i>`
+                   : `<i style="color:var(--osso-200)">0</i>`);
     }
-    this.el.stats.innerHTML = html;
+    const cel = (rot, val) => `<div class="go-cel"><span class="rotulo">${rot}</span><b>${val}</b></div>`;
+    this.el.goNums.innerHTML =
+      cel("Sobrevivência", mmss(g.elapsed)) +
+      cel("Abates", fmtNum(g.player.kills)) +
+      cel("Nível", g.player.level) +
+      cel("Dano total", fmtNum(total)) +
+      cel("Eixos", eixos.join("<i style='color:var(--osso-200)'>/</i>"));
+
+    const max = rows.length ? Math.max(1, rows[0].val) : 1;
+    let dmg = "";
+    for (let i = 0; i < rows.length && i < GO.dmg; i++) {
+      const r = rows[i];
+      dmg += `<div class="go-row" style="${this.eixoVars(r.def.axis)}">
+        <span class="go-row-nome">${r.def.name}</span>
+        <div class="barra"><i style="width:${r.val / max * 100}%"></i></div>
+        <span class="go-row-val">${fmtNum(r.val)}</span>
+        <span class="go-row-pct">${total ? Math.round(r.val / total * 100) : 0}%</span></div>`;
+    }
+    if (rows.length > GO.dmg) {
+      const n = rows.length - GO.dmg;
+      dmg += `<div class="go-row mais"><span class="go-row-nome">+${n} peça${n > 1 ? "s" : ""}</span>
+        <div class="barra"><i style="width:100%;background:var(--osso-100)"></i></div>
+        <span class="go-row-val"></span><span class="go-row-pct"></span></div>`;
+    }
+    if (!rows.length) dmg = `<div class="pa-vazio">Nenhuma peça causou dano.</div>`;
+    this.el.goDmg.innerHTML = dmg;
+
+    this.el.goLine.textContent = this.runLine(rows, total);
+
+    const f = g.player.forms[g.player.formIdx];
+    const caps = [];
+    for (const id of b.capstones) caps.push(CAPSTONES[id].name);
+    let auras = 0;
+    for (const inst of b.pieces.values()) if (b.isComplete(inst)) auras++;
+    this.el.goExtra.innerHTML =
+      `<div class="pa-linha"><span>Metamorfose</span><b>${f && f.name ? f.name : "nenhuma"}</b></div>` +
+      `<div class="pa-linha"><span>Capstones</span><b>${caps.length ? caps.join(" · ") : "nenhum"}</b></div>` +
+      `<div class="pa-linha"><span>Auras acesas</span><b>${auras}</b></div>`;
+
     this.el.gameover.classList.remove("hidden");
+  }
+
+  /* A run em uma linha, gerada dos dados. Nao ha texto escrito a mao aqui pelo
+     mesmo motivo que nao ha nos tiers: uma frase por combinacao possivel seria
+     conteudo que envelhece no primeiro rebalanceamento. */
+  runLine(rows, total) {
+    const b = this.game.build;
+    if (!rows.length) return "Uma run que acabou antes de a build dizer alguma coisa.";
+    let dom = null;
+    for (const id in AXES) if (!dom || b.axis[id] > b.axis[dom]) dom = id;
+    const zero = [];
+    for (const id in AXES) if (!b.axis[id]) zero.push(AXES[id].name);
+    const top = rows[0];
+    const pct = total ? Math.round(top.val / total * 100) : 0;
+    const parte = pct >= 50 ? "mais da metade do seu dano" : `${pct}% do seu dano`;
+    const cauda = zero.length
+      ? `, e ${zero.length > 1 ? "nenhum ponto entrou em" : "o eixo"} ${zero.join(" e ")} ficou em zero até o fim`
+      : "";
+    return `Uma run de ${AXES[dom].name}: ${top.def.name} fez ${parte}${cauda}.`;
   }
 }
 
-/* Tetos da TIRA de build da tela de level-up. Sao TETOS DE LEITURA, nao de
-   dados: o overlay nao rola e a tira e uma linha so, entao o que passa disso
-   vira contador. Substituiram os tetos do painel lateral, que tinha densidade
-   automatica e duas alturas de linha — complexidade que existia para caber numa
-   coluna de 316px que nao existe mais. */
-const STRIP = { spells: 8, chips: 6 };
-
+/* Tetos de LEITURA, nao de dados. O overlay nao rola e a tira e uma linha so,
+   entao o que passa disso vira contador. */
+const STRIP = { spells: 5, chips: 6 };
+const TOASTS = { max: 3 };
+const PAUSE = { dmg: 3 };
+const GO = { dmg: 5 };
+/* Teto da tira de pecas do HUD: acima disso ela viraria duas fileiras cobrindo
+   meia tela, e a tira existe justamente para ser lida de relance. */
+STRIP.hud = 9;
 /* Como cada stat vira texto no "antes -> depois" da linha de oferta.
 
    Existe porque o numero cru mente sobre a unidade: `duration: 6` e seis

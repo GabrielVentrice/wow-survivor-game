@@ -149,4 +149,23 @@ for (const id in SPRITES_ALL) {
 if (dark.length > 2) fail(`${dark.length} grids com a metade de baixo mais clara que a de cima: ${dark.join(", ")}`);
 else console.log(`  ok luz vem de cima em ${lit} grids (${dark.length} excecao(oes): ${dark.join(", ") || "nenhuma"})`);
 
+/* --- 8. a reserva do warlock ------------------------------------------------
+   `--osso-600` puro e exclusividade dele NO CANVAS. Com a build inteira acesa o
+   jogador perdia de vista a unica coisa que controla; ele passa a ser a unica
+   coisa branca em tela, e isso so continua verdade enquanto nenhum outro sprite
+   ou item pintar com o mesmo hex. Nao e mais luz: e reserva. */
+const RESERVA = (typeof UI_PAL !== "undefined" ? UI_PAL.osso : "#EDE7DA").toLowerCase();
+const invade = [];
+for (const id in SPRITES_ALL) {
+  if (id.startsWith("warlock")) continue;
+  for (const ch in SPRITES_ALL[id].pal) {
+    if (String(SPRITES_ALL[id].pal[ch]).toLowerCase() === RESERVA) invade.push(`${id}.${ch}`);
+  }
+}
+for (const id in ITEMS) {
+  if (String(ITEMS[id].color).toLowerCase() === RESERVA) invade.push(`ITEMS.${id}`);
+}
+if (invade.length) fail(`osso puro fora do warlock: ${invade.join(", ")}`);
+else console.log("  ok o osso puro continua reserva do warlock");
+
 console.log(fails ? `\nFALHOU (${fails})` : "\nok paleta mestre validada");
