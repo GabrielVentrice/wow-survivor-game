@@ -397,7 +397,7 @@ class BuildSystem {
           evo: isEvo ? PIECES[path.evolvesInto] : null,
           axis: AXES[inst.def.axis],
         };
-        const peso = idx >= 3 ? 4 : idx >= 1 ? 2 : 1;
+        const peso = idx >= 3 ? 6 : idx >= 1 ? 2 : 1;
         for (let w = 0; w < peso; w++) pool.push(offer);
       }
     }

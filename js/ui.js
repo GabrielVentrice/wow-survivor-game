@@ -313,6 +313,12 @@ class UI {
 
   openChest() {
     const g = this.game;
+    /* O baú termina o que você começou.
+
+       Sorteando tiers uniformemente ele espalhava investimento e empurrava a
+       build para longe das evoluções — que exigem cinco compras na MESMA
+       trilha. Ordenando por profundidade, o baú vira o empurrão final: pega o
+       caminho mais adiantado primeiro e, com sorte, fecha o tier 5. */
     const cands = [];
     for (const inst of g.build.pieces.values()) {
       for (const pid in inst.def.paths) {
@@ -320,6 +326,7 @@ class UI {
       }
     }
     shuffle(cands);
+    cands.sort((a, b) => b.inst.paths[b.pathId] - a.inst.paths[a.pathId]);
 
     // Raridade é dado (BALANCE.chest.rarity); depois de hardAt a tabela troca de
     // coluna e os baús grandes passam a ser a regra.

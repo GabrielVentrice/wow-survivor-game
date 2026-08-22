@@ -102,9 +102,12 @@ Object.assign(PIECES, {
     icon: "☄", color: "#ffb54a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "reactive"], vfx: "ember",
     desc: "Detona quem já está queimando. Não funciona sozinha — e é esse o ponto.",
-    requires: { piece: "immolate" },
+    requires: { tag: "dot" },
     stats: { damage: 90, radius: 120, cooldown: 0.9, range: 460 },
-    trigger: { type: "reactive", event: "dot_applied", condition: "has_dot", dotKey: "immolate",
+    /* Detona QUALQUER DoT, não só o de Immolate. Amarrada ao Immolate ela
+       nunca chegava à mesa: a peça habilitadora aparecia em 2 de 12 runs, e
+       Conflagrate foi a única do catálogo com zero escolhas em 32 runs. */
+    trigger: { type: "reactive", event: "dot_applied", condition: "has_dot",
                cooldown: "@cooldown", needsTarget: true },
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius", big: true },
@@ -119,8 +122,7 @@ Object.assign(PIECES, {
           { damage: { mul: 3 }, radius: { mul: 2 } }),
       ]},
       trigger: { name: "Gatilho", tiers: [
-        T("Qualquer Fogo", "Detona qualquer DoT, não só Immolate.", null,
-          { "trigger.dotKey": null }),
+        T("Gatilho Fino", "Detona com metade do intervalo mínimo.", { cooldown: { mul: 0.5 } }),
         T("Ao Morrer", "Também detona quando um alvo em chamas morre.", null,
           { "trigger.event": "enemy_killed" }),
         T("Sem Trava", "Praticamente sem intervalo mínimo.", { cooldown: { set: 0.1 } }),

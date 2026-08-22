@@ -186,6 +186,33 @@ mesmo tempo. Bonito com um e ilegível com cinquenta significa que a alpha
 divide por quantidade (`1/sqrt(n)`), que existe um teto, ou que o efeito só
 aparece acima de um limiar.
 
+### Balanceamento: mais corpos, menos vida cada
+
+O eixo do tuning é a **sensação de rampagem**. Um inimigo que exige três tiros
+não dá dopamina; vinte que caem no mesmo pulso, sim. Por isso a horda é densa e
+frágil (`maxAlive` alto, `hpGrowth` baixo) e a **ameaça mora no chefe**
+(`bossHpExp` alto). Baixar o HP do lixo sem subir o do chefe tira o perigo do
+jogo inteiro — medido: zero mortes em 9 runs, vida em 100% do começo ao fim.
+
+Três armadilhas que a medição pegou:
+
+- **A curva de XP tem realimentação.** Íngreme demais → menos escolhas → build
+  fraca → menos abates → menos XP. Entre nível 124 e nível 10 havia um décimo
+  de diferença no termo quadrático. Por isso ela é cúbica: barata cedo (o
+  bola-de-neve pega) e cara tarde (existe teto). Mexer aqui pede
+  `driver_balance`, não intuição.
+- **Dreno permanente sem input mata.** `self_damage` nunca reduz abaixo de um
+  piso: sem botão para desligar, dreno letal vira carta-armadilha — Burning
+  Rush sozinha respondia por 4 de cada 5 mortes antes dos 3 minutos.
+- **Zerar carga ao andar mata a peça.** `rooted` drena em vez de zerar: num
+  survivors você corrige posição o tempo todo, e o reset binário deixou
+  `rainOfFire` com 0% de dano em 9 de 9 runs.
+
+Evolução e capstone são o clímax da progressão. Se a medição mostrar menos de
+~25% das runs chegando lá, o problema é de OFERTA e não de números — as
+alavancas são o peso de caminho já iniciado em `getOffers` e a ordenação do
+baú em `UI.openChest`.
+
 ### Regras estruturais que forçam comprometimento
 
 - Pool de **20** pontos de eixo, teto de **15** por eixo → impossível maximizar dois.

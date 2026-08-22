@@ -23,11 +23,26 @@ const DEFAULT_FORMS = [{ sprite: "warlock", at: 0, scale: 2.9 }];
    seja ~20 escolhas — e uma evolução sozinha custa 5 escolhas no MESMO
    caminho. Resultado medido: zero evoluções em 20 runs.
 
-   A curva nova é quase linear com uma leve subida. Mais escolhas por run =
-   a build continua crescendo enquanto a horda cresce, que é a condição para
-   existir sensação de rampagem em vez de parede. */
+   A curva nova sobe, mas bem menos. Ela foi calibrada DUAS vezes: a primeira
+   versão, quase linear, virou nível 124 numa run de 14 min depois que o spawn
+   dobrou e os abates foram de 1,3 mil para 17 mil. Cento e vinte escolhas
+   maximizam tudo e a decisão perde sentido. O alvo é ~50 níveis por run: o
+   suficiente para a build continuar crescendo com a horda, pouco o bastante
+   para cada carta ainda custar alguma coisa.
+
+   Calibrar isto tem realimentação, e é fácil errar feio: curva íngreme demais
+   dá menos escolhas -> build fraca -> menos abates -> menos XP -> ainda menos
+   escolhas. Medido: com o termo quadrático em 0.5 a run caiu de nível 124 para
+   nível 10 e os abates de 17 mil para mil. Não existe meio-termo ajustando só
+   a inclinação — os dois lados do abismo ficam a um décimo de distância.
+
+   Por isso a curva tem termo CÚBICO. Os primeiros níveis continuam baratos,
+   que é o que deixa o bola-de-neve pegar; o cubo só morde depois do nível ~35
+   e é ele que dá o teto. Achatar cedo e frear tarde é o que separa "a build
+   cresceu junto com a horda" de "maximizei tudo aos 8 minutos". */
 function xpForLevel(l) {
-  return Math.floor(2 + (l - 1) * 2.6 + (l - 1) * (l - 1) * 0.09);
+  const n = l - 1;
+  return Math.floor(3 + n * 2.6 + n * n * 0.09 + n * n * n * 0.008);
 }
 
 // número compacto: 1234 -> "1.2k", 2.5e6 -> "2.5M"

@@ -43,9 +43,14 @@ const BALANCE = {
     waveBase: 36,        // inimigos por wave (cresce com ramps)
     bossAt: 300,         // 1º Dreadlord aos 5 min
     bossEvery: 150,      // novos Dreadlords a cada Xs depois disso
-    // Boss HP uses hpMul raised to this exponent: without it a Dreadlord at
-    // 10 min becomes an unbreakable wall instead of a mini-boss.
-    bossHpExp: 0.6,
+    /* HP de chefe usa hpMul elevado a este expoente.
+
+       Subiu de 0.6 para 0.92 junto com a queda do HP do lixo. A divisão de
+       papéis é intencional: o LIXO é para ser ceifado — é dele que vem a
+       rampagem — e a AMEAÇA mora no chefe. Sem isso, baixar o HP da horda
+       tirava o perigo do jogo inteiro e ninguém mais morria (medido: 0 mortes
+       em 9 runs, vida em 100% do começo ao fim). */
+    bossHpExp: 0.78,
 
     // --- Hard phase: past hardAt the whole curve shifts gear. Target is for a
     // competent run to end somewhere around the 10 minute mark.
@@ -54,12 +59,12 @@ const BALANCE = {
     hardIntervalDecay: 0.84, // spawn interval tightens faster
     hardMinInterval: 0.035,  // new floor for the interval
     hardHpGrowth: 0.105,     // +10.5% HP per ramp (every 15s)
-    hardDmgGrowth: 0.06,     // +6% touch damage per ramp
-    hardSpeedGrowth: 0.02,   // +2% enemy speed per ramp
+    hardDmgGrowth: 0.085,    // +8.5% touch damage per ramp
+    hardSpeedGrowth: 0.032,  // +3.2% enemy speed per ramp
     hardMaxAlive: 1500,      // alive cap rises alongside
     hardWaveEvery: 50,       // dense waves nearly twice as frequent
-    hardBossEvery: 75,       // Dreadlords every 75s
-    hardBossStack: 150,      // every Xs past hardAt, +1 Dreadlord per summon
+    hardBossEvery: 68,       // Dreadlords every 68s
+    hardBossStack: 110,      // every Xs past hardAt, +1 Dreadlord per summon
     maxBossStack: 3,         // cap on Dreadlords per summon
     // Baú é a fonte de tiers grátis: espaçá-lo custava as evoluções. Com 10s
     // cada Dreadlord de um summon empilhado larga o seu.
@@ -116,7 +121,7 @@ const ENEMIES = {
     color: "#b23cff", weight: 0, minTime: 300,
     deathSfx: "flesh",
     boss: true, ranged: true,
-    shootInterval: 2.2, shootDamage: 14, shootSpeed: 240, shootRange: 540,
+    shootInterval: 1.9, shootDamage: 18, shootSpeed: 280, shootRange: 600,
   },
 };
 
