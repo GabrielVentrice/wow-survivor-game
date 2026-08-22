@@ -95,13 +95,15 @@ for (const id in CAPSTONES) {
   g.start();
   g.build.capstones.add(id);
   g.build.afterChange();
-  const antes = g.ui.el.toasts.children.length;
+  /* Conta os eventos ANUNCIADOS, nao os nos vivos no DOM: o teto de tres
+     toasts simultaneos faz o quarto virar contador em vez de virar elemento. */
+  const antes = g.ui.toastCount;
   g.ui.checkForm(CAPSTONES[id]);
   const f = g.player.forms[g.player.formIdx];
   if (f.cap !== id) fail(`capstone "${id}" deu a forma "${f.sprite}" (cap ${f.cap})`);
   // A metamorfose nao pode chegar calada: se a build adiantar o formIdx, o
   // checkForm vira no-op e o clima do momento some.
-  else if (g.ui.el.toasts.children.length === antes) fail(`a forma de "${id}" chegou sem anunciar nada`);
+  else if (g.ui.toastCount === antes) fail(`a forma de "${id}" chegou sem anunciar nada`);
 }
 console.log(`  ok ${Object.keys(CAPSTONES).length} capstones, cada um com a sua forma anunciada`);
 
@@ -109,11 +111,11 @@ console.log(`  ok ${Object.keys(CAPSTONES).length} capstones, cada um com a sua 
 g.start();
 const inst0 = g.build.acquirePiece("corruption", true) || g.build.get("corruption");
 g.build.axis.dominion = AXIS_RULES.pureAt;
-const antesReal = g.ui.el.toasts.children.length;
+const antesReal = g.ui.toastCount;
 g.ui.applyOffer({ kind: "path", inst: inst0, pathId: Object.keys(inst0.def.paths)[0] });
 if (!g.build.capstones.size) fail("Tirania nao abriu com 15 de dominio");
 else if (g.player.forms[g.player.formIdx].cap !== "tirania") fail(`capstone por applyOffer nao trocou a forma (formIdx ${g.player.formIdx})`);
-else if (g.ui.el.toasts.children.length <= antesReal + 1) fail("applyOffer nao anunciou capstone + metamorfose");
+else if (g.ui.toastCount <= antesReal + 1) fail("applyOffer nao anunciou capstone + metamorfose");
 else console.log("  ok capstone por applyOffer troca a forma e anuncia");
 
 /* --- 2b. pose de cast ------------------------------------------------------
@@ -244,12 +246,16 @@ try {
 try {
   g.ui.updatePieceBar();
   g.ui.onPause();
-  const html = g.ui.el.pausePanel.innerHTML;
-  for (const f of g.player.forms) {
-    if (f.name && html.indexOf(f.name) < 0) fail(`a pausa nao lista a forma "${f.name}"`);
+  /* A pausa diz em que forma o warlock ESTA, e nao mais a escada inteira: com
+     uma forma por capstone as dez sao irmas, e listar as outras nove seria
+     listar rotas que esta run nao tomou. */
+  const html = g.ui.el.pauseDmg.innerHTML;
+  const atual = g.player.forms[g.player.formIdx];
+  if (atual.name && html.indexOf(atual.name) < 0) {
+    fail(`a pausa nao diz a forma atual ("${atual.name}")`);
   }
   if (g.ui.el.pieceBar.innerHTML.indexOf("pb-aura") < 0) fail("a barra de pecas nao marca nenhuma spell concluida");
-  else console.log("  ok HUD marca spell concluida e a pausa lista as formas");
+  else console.log("  ok HUD marca spell concluida e a pausa diz a forma atual");
 } catch (e) {
   fail("UI explodiu ao ler forma/aura: " + e.message);
   console.error(e.stack);

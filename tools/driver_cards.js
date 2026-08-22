@@ -82,7 +82,7 @@ for (let round = 0; round < 400; round++) {
     catch (e) { bad(`${o.kind}: cardHtml explodiu — ${e.message}`); continue; }
     if (html.includes("undefined")) bad(`${o.kind} (${o.def.name}): carta com "undefined"`);
     const kind = o.isEvo && o.evo ? "Evolução" : KIND[o.kind];
-    const glyph = o.isEvo && o.evo ? "⭐" : GLYPH[o.kind];
+    const glyph = o.isEvo && o.evo ? "★" : GLYPH[o.kind];
     if (!html.includes(kind)) bad(`${o.kind} (${o.def.name}): carta sem o tipo da oferta`);
     if (!html.includes(`<i>${glyph}</i>`)) bad(`${o.kind} (${o.def.name}): etiqueta sem glifo`);
     if ((o.kind === "passive") !== html.includes("lv-tile round")) {
@@ -105,7 +105,7 @@ for (let round = 0; round < 400; round++) {
 
     if (o.kind === "path") {
       if (!html.includes(o.def.name)) bad(`path ${o.def.name}: carta nao diz qual peca melhora`);
-      const on = (html.match(/<i class="on"/g) || []).length;
+      const on = (html.match(/<i class="on/g) || []).length;
       if (on !== o.tierIndex + 1) bad(`path ${o.def.name}: ${on} pips acesos, esperado ${o.tierIndex + 1}`);
       if (!html.includes(`<b>${o.tierIndex + 1}</b>`)) {
         bad(`path ${o.def.name}: tile sem o selo do tier`);
@@ -132,7 +132,8 @@ for (let round = 0; round < 400; round++) {
     catch (e) { bad(`buildStripHtml(${h}) explodiu — ${e.message}`); break; }
     if (tira.includes("undefined")) bad(`tira (hover ${h}) com "undefined"`);
     const n = g.build.pieces.size;
-    const chips = (tira.match(/class="lv-sp[ "]/g) || []).length;
+    let chips = (tira.match(/class="lv-sp[ "]/g) || []).length;
+    if (tira.includes("lv-sp more")) chips--;   // o contador de excedente nao e uma spell
     if (chips !== Math.min(n, STRIP.spells)) {
       bad(`tira: ${chips} spells com ${n} pecas (teto ${STRIP.spells})`);
     }

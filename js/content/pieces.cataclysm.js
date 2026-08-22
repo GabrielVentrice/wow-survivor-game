@@ -9,7 +9,7 @@ Object.assign(PIECES, {
 
   incinerate: {
     id: "incinerate", key: "incinerate", name: "Incinerate",
-    icon: "✦", color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
+    color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "bolt"], vfx: "ember",
     desc: "Tiro rápido e teimoso. O arroz com feijão do Cataclismo.",
     stats: { cooldown: 0.75, range: 520, targets: 1, damage: 22, count: 1,
@@ -52,7 +52,7 @@ Object.assign(PIECES, {
 
   immolate: {
     id: "immolate", key: "immolate", name: "Immolate",
-    icon: "🔥", color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
+    color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "dot"],
     desc: "Põe fogo no alvo. Queima devagar — até você decidir que não.",
     stats: { cooldown: 2, range: 440, targets: 1, damage: 14,
@@ -99,7 +99,7 @@ Object.assign(PIECES, {
 
   conflagrate: {
     id: "conflagrate", key: "conflagrate", name: "Conflagrate",
-    icon: "☄", color: "#ffb54a", axis: "cataclysm", axisPoints: 2,
+    color: "#ffb54a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "reactive"], vfx: "ember",
     desc: "Detona quem já está queimando. Não funciona sozinha — e é esse o ponto.",
     requires: { tag: "dot" },
@@ -150,7 +150,7 @@ Object.assign(PIECES, {
 
   rainOfFire: {
     id: "rainOfFire", key: "rainOfFire", name: "Rain of Fire",
-    icon: "🌧", color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
+    color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "area", "rooted"], vfx: "meteor",
     desc: "Fique parado e o céu desaba onde você está. Zona de negação pura.",
     // Peca `rooted` dispara muito menos que uma `auto_target`, entao cada
@@ -193,7 +193,7 @@ Object.assign(PIECES, {
 
   infernal: {
     id: "infernal", key: "infernal", name: "Infernal",
-    icon: "🗿", color: "#e0521a", axis: "cataclysm", axisPoints: 3,
+    color: "#e0521a", axis: "cataclysm", axisPoints: 3,
     tags: ["fire", "summon"],
     desc: "Um colosso de pedra e fogo cai no campo e martela tudo em volta.",
     stats: { count: 1, respawn: 10, duration: 16, damage: 55, radius: 130, range: 300, attackInterval: 0.7 },
@@ -239,7 +239,7 @@ Object.assign(PIECES, {
 
   shadowburn: {
     id: "shadowburn", key: "shadowburn", name: "Shadowburn",
-    icon: "🕯", color: "#ffb54a", axis: "cataclysm", axisPoints: 2,
+    color: "#ffb54a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "shadow", "reactive", "execute"],
     desc: "Encontra quem está quase morto e termina o serviço. Limpeza de campo.",
     stats: { damage: 40, threshold: 0.2, executeMul: 6, cooldown: 0.4, range: 420, radius: 0 },
@@ -282,7 +282,7 @@ Object.assign(PIECES, {
 
   burningTrail: {
     id: "burningTrail", key: "burningTrail", name: "Burning Trail",
-    icon: "👣", color: "#e0521a", axis: "cataclysm", axisPoints: 2,
+    color: "#e0521a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "trail", "area"],
     desc: "O chão pega fogo por onde você passa. Correr vira ataque.",
     stats: { distance: 70, radius: 66, dps: 34, duration: 3, tickInterval: 0.35 },
@@ -326,7 +326,7 @@ Object.assign(PIECES, {
 
   chaosBolt: {
     id: "chaosBolt", key: "incinerate", name: "Chaos Bolt",
-    icon: "🌠", color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
+    color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "bolt", "rooted"], evolutionOnly: true, vfx: "ember",
     desc: "Um só projétil. Carregado parado, atravessa a horda inteira.",
     stats: { chargeTime: 1.0, range: 700, damage: 330, speed: 620, pierce: 20,
@@ -364,7 +364,7 @@ Object.assign(PIECES, {
 
   wither: {
     id: "wither", key: "immolate", name: "Wither",
-    icon: "🥀", color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
+    color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "dot", "shadow"], evolutionOnly: true,
     desc: "A chama esfria e vira podridão: não queima, definha — e não sai mais.",
     stats: { cooldown: 1.6, range: 480, targets: 2, damage: 18,
@@ -407,7 +407,7 @@ Object.assign(PIECES, {
 
   cataclysm: {
     id: "cataclysm", key: "rainOfFire", name: "Cataclysm",
-    icon: "🌋", color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
+    color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "area", "directional"], evolutionOnly: true, vfx: "meteor",
     desc: "Um meteoro lançado na direção em que você corre. A chuva virou artilharia.",
     stats: { cooldown: 1.5, distance: 240, radius: 150, damage: 220,

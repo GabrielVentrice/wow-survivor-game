@@ -25,7 +25,7 @@ DRIVER=driver_pixel.js node tools/harness.js .   # grid de pixel: buffer, câmer
 DRIVER=driver_palette.js node tools/harness.js . # paleta mestre: cor fora da PAL, rampa chapada, corpo aceso
 DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câmera, curvas de evento
 DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homing não fecha, e alvo próprio por tiro
-DRIVER=driver_preview.js node tools/harness.js . # escreve tools/levelup-preview.html: level up + etapa (revisão visual)
+DRIVER=driver_preview.js node tools/harness.js . # escreve tools/telas-preview.html: as 6 telas de UI (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
 DRIVER=driver_balance.js node tools/harness.js . 5 16   # balanceamento (5 runs x 4 políticas)
@@ -146,19 +146,27 @@ A política `agressivo` marca 1.2x: ela ignora defesa e controle por construçã
 morre cedo, e o terço inicial curto distorce a razão. É arquétipo glass cannon
 falhando, não regressão.
 
-`driver_preview` também não mede nada: escreve `tools/levelup-preview.html`,
-com as **duas** telas de escolha montadas a partir de builds de verdade. Os
+`driver_preview` também não mede nada: escreve `tools/telas-preview.html`,
+com as telas de UI montadas a partir de builds de verdade. Os
 quatro estados do level-up são **caçados na simulação**, não fixados por número
 de rodada: build crua, build média, tira no teto com contador e **evolução na
 mesa** — esse último é o mais raro de encontrar jogando e o que tem etiqueta
 própria. A etapa sai nos dois extremos: primeiro marco (2 pontos, build crua,
 capstone longe) e marco final (5 pontos, eixo carregado, capstone ao alcance),
 que é onde os números da linha mudam de peso.
-O HTML sai dos mesmos `UI.cardHtml`/`UI.buildStripHtml`/`UI.msRowHtml` do jogo e
-o CSS é lido do `index.html`, então prévia que diverge do jogo não existe. Mesmo
-argumento do `sprites.html`: tela que só aparece por segundos, em estados
-sorteados, não se revisa jogando — e a etapa aparece **sete vezes por run** e
-carrega a única decisão que não se desfaz.
+Depois delas saem as outras quatro — **HUD, pausa, baú e game over** —, pelo
+mesmo argumento: o baú depende de sorteio, a pausa só é vista quando alguém
+pausa e o game over só existe quando a run acaba, então nenhuma delas se revisa
+jogando de propósito. O baú é capturado no meio do laço e não no fim: com todo
+caminho no tier 5 ele só entrega "arsenal no máximo", que é o estado que menos
+precisa de revisão.
+
+O HTML sai dos mesmos `UI.cardHtml`/`UI.buildStripHtml`/`UI.msRowHtml`/
+`UI.onPause`/`UI.openChest`/`UI.onGameOver` do jogo e o CSS é lido do
+`index.html`, então prévia que diverge do jogo não existe. As cascas das quatro
+telas novas são escritas no driver, e por isso ele **confere cada id contra o
+`index.html`**: casca desatualizada é exatamente como uma prévia diverge em
+silêncio.
 
 ## As duas telas de escolha
 

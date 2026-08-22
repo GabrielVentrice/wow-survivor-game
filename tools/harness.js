@@ -46,6 +46,10 @@ function stubEl(id) {
     dataset: {}, children: [], width: 0, height: 0,
     classList: { add: () => {}, remove: () => {}, toggle: () => {}, contains: () => false },
     appendChild(c) { this.children.push(c); return c; },
+    /* A UI escreve as tres variaveis de cor do eixo de uma vez, em `style`.
+       Sem isto o headless desviava do codigo real de montagem de tela. */
+    setAttribute(k, v) { this[k === "class" ? "className" : k] = v; },
+    getAttribute(k) { return this[k === "class" ? "className" : k]; },
     remove() {},
     querySelectorAll: () => [],
     querySelector: () => stubEl("q"),

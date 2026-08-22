@@ -1231,7 +1231,7 @@ function pieceItems() {
 
     return {
       id: id,
-      name: (def.icon || "") + " " + def.name,
+      name: def.name,
       meta: AXES[def.axis].name + " · trigger " + (tr.type || "?") +
             (def.evolutionOnly ? " · só por evolução" : ""),
       tell: tell.length ? tell.join(" · ") : "NADA aparece em tela quando ela dispara",
@@ -1286,7 +1286,7 @@ function moduleItems(reg, kind) {
       : "nenhuma";
     return {
       id: id,
-      name: (def.icon || "") + " " + def.name,
+      name: def.name,
       meta: kind === "capstone"
         ? (AXES[def.axis] ? AXES[def.axis].name : "") + " · req " + JSON.stringify(def.req)
         : (def.exclusive ? "exclusiva com " + def.exclusive : "passiva global"),

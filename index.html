@@ -3,1011 +3,688 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>WoW Survivors — Warlock</title>
-<!-- Outfit (display/UI) e IBM Plex Mono (numeros e rotulos) sao a tipografia da
-     tela de level-up. Vem da rede: baixar os .woff2 quebraria a regra de "nenhum
-     asset novo" do repo. Offline as pilhas de fallback em --ui/--mono assumem e a
-     tela continua legivel, so perde o desenho da fonte. -->
+<title>PACTO — Warlock</title>
+<!-- Tres familias, tres funcoes. Big Shoulders e a voz do jogo: condensada,
+     traco uniforme, cabe apertado no HUD e sobrevive a pixelizacao. Eczar traz
+     o grimorio sem virar fantasia. IBM Plex Mono ja estava no projeto e estava
+     certo — numero, tempo, tier e eyebrow.
+
+     Outfit saiu: nao tem voz, e fonte de landing page.
+
+     Vem da rede, e essa e a UNICA excecao a regra de "nenhum asset novo" do
+     repo. Offline as pilhas de fallback em --fonte-* assumem e a tela continua
+     legivel, so perde o desenho da fonte. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Eczar:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
+  /* =======================================================================
+     OSSO GRAVADO EM OBSIDIANA
+
+     A interface e uma placa dura, sem brilho e sem cor propria. A unica cor
+     saturada em tela pertence a build do jogador.
+
+     Cinco regras, e elas explicam cada decisao daqui para baixo:
+
+     R1  O CROMO E OSSO. Zero roxo em botao, borda, foco ou fundo — Dominio
+         volta a ser so um eixo. Antes o roxo era fundo, borda, botao, brilho
+         E um dos tres eixos; sem neutro em tela, nenhum acento acentua.
+     R2  COR E PREDICADO. Verde/roxo/laranja so aparecem quando aquele pixel
+         esta falando de Corrupcao, Dominio ou Cataclismo. Vermelho existe so
+         na barra de vida e no dano recebido. Ambar e ciano sairam.
+     R3  PLACA, NAO CARD. Canto chanfrado — o jeito pixel de arredondar —,
+         nunca `border-radius`. Fundo chapado. Profundidade e 1px claro em
+         cima e 1px escuro embaixo: luz de cima-a-esquerda, a mesma regra do
+         sprite.
+     R4  BRILHO E ORCAMENTO. Uma tela tem um so emissor. No jogo e a build; na
+         UI e nada. `filter:blur`, `text-shadow`, `backdrop-filter`, glow e
+         `box-shadow` projetada estao proibidos aqui.
+     R5  ICONE SAI DO GERADOR DO MUNDO. Nenhum emoji (ver js/ui-glyph.js).
+     ======================================================================= */
+
   :root {
-    --fel: #6fdc4a;
-    --fel-dim: #3a7a26;
-    --shadow: #7a3cff;
-    --shadow-dim: #2a1147;
-    --bg: #06040b;
-    --panel: rgba(18, 10, 30, 0.92);
-    --text: #d8cce8;
-    --ui: "Outfit", "Trebuchet MS", "Segoe UI", sans-serif;
-    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    /* obsidiana — substrato. nada de UI nasce daqui para cima */
+    --obs-900:#040308; --obs-800:#0A0910; --obs-700:#14121B;
+    --obs-600:#1E1A26; --obs-500:#2A2533;
+
+    /* osso — todo o cromo e todo o texto. zero matiz */
+    --osso-100:#3A3446; --osso-200:#4B4655; --osso-300:#67626E;
+    --osso-400:#98928A; --osso-500:#C9C3BA; --osso-600:#EDE7DA;
+
+    /* eixos — a unica saturacao da tela. cravado / base / brasa.
+       Os tres matizes-base preservam a separacao de 60 graus que o jogo exige
+       (100 / 271 / 29). Nao introduza um quarto matiz. */
+    --corr-900:#1E3310; --corr-500:#8FE04C; --corr-300:#C6FF7A;
+    --dom-900:#251543;  --dom-500:#A96BFF;  --dom-300:#D2B0FF;
+    --cat-900:#40200A;  --cat-500:#FF8A2E;  --cat-300:#FFC182;
+
+    /* vital — reservados, e so aqui */
+    --vida:#C9302C; --vida-vazia:#7A1A18;
+
+    --fonte-display:"Big Shoulders Display", Impact, "Haettenschweiler", "Arial Narrow", sans-serif;
+    --fonte-texto:"Eczar", Georgia, "Times New Roman", serif;
+    --fonte-dado:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+    --display-xl:96px; --display-l:56px; --display-m:30px; --display-s:18px;
+    --texto-l:20px;    --texto-m:16px;
+    --dado-l:34px;     --dado-m:15px;      --rotulo:14px;  /* piso absoluto */
+
+    --e1:4px; --e2:8px; --e3:12px; --e4:16px;
+    --e5:24px; --e6:32px; --e7:48px; --e8:64px;
+    --alvo:44px;
+    --ch-1:6px; --ch-2:10px; --ch-3:16px; --ch-4:24px;
+
+    /* profundidade — tres niveis, e nada mais. se voce precisou de um quarto
+       ou de uma sombra projetada, o layout esta pedindo espaco. */
+    --placa:inset 0 1px 0 rgba(237,231,218,.10), inset 0 -1px 0 rgba(0,0,0,.6);
+    --cravada:inset 0 2px 0 rgba(0,0,0,.7), inset 0 -1px 0 rgba(237,231,218,.07);
+
+    /* o eixo da linha/carta, sobrescrito inline por js/ui.js */
+    --eixo:var(--osso-600); --eixo-300:var(--osso-600); --eixo-900:var(--obs-600);
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin:0; padding:0; box-sizing:border-box; }
 
   html, body {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: var(--bg);
-    color: var(--text);
-    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
-    user-select: none;
-    cursor: default;
+    width:100%; height:100%; overflow:hidden;
+    background:var(--obs-900); color:var(--osso-500);
+    font-family:var(--fonte-texto); font-size:var(--texto-m);
+    user-select:none; cursor:default;
+    -webkit-font-smoothing:antialiased;
   }
 
-  #game {
-    position: fixed;
-    inset: 0;
+  #game { position:fixed; inset:0; }
+  canvas { display:block; width:100%; height:100%; }
+
+  /* --- chanfro: o raio do pixel -------------------------------------------
+     Canto cortado, nunca curvo, e sempre nos MESMOS dois cantos —
+     topo-esquerdo e base-direito. Chanfro nos quatro vira octogono e perde a
+     direcao; nestes dois ele repete a diagonal da luz. */
+  .ch1{--c:var(--ch-1)} .ch2{--c:var(--ch-2)} .ch3{--c:var(--ch-3)} .ch4{--c:var(--ch-4)}
+  .ch1,.ch2,.ch3,.ch4 {
+    clip-path:polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)),
+                      calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
   }
 
-  canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
+  .placa   { background:var(--obs-700); box-shadow:var(--placa); }
+  .cravada { background:var(--obs-600); box-shadow:var(--cravada); }
+
+  /* --- degraus de tipo ----------------------------------------------------- */
+  .display-xl,.display-l,.display-m,.display-s {
+    font-family:var(--fonte-display); text-transform:uppercase; color:var(--osso-600);
   }
+  .display-xl { font-size:var(--display-xl); line-height:.86; font-weight:900; letter-spacing:.04em; }
+  .display-l  { font-size:var(--display-l);  line-height:.98; font-weight:800; }
+  .display-m  { font-size:var(--display-m);  line-height:1.05; font-weight:800; letter-spacing:.01em; }
+  .display-s  { font-size:var(--display-s);  line-height:1.10; font-weight:800; letter-spacing:.10em; }
+  .texto-l { font-size:var(--texto-l); line-height:1.45; }
+  .texto-m { font-size:var(--texto-m); line-height:1.50; }
+  .dado-l  { font-family:var(--fonte-dado); font-size:var(--dado-l); font-weight:500; letter-spacing:.02em; }
+  .dado-m  { font-family:var(--fonte-dado); font-size:var(--dado-m); font-weight:500; letter-spacing:.02em; }
+  .rotulo  { font-family:var(--fonte-dado); font-size:var(--rotulo); font-weight:500;
+             letter-spacing:.18em; text-transform:uppercase; color:var(--osso-300); }
+  .dim { color:var(--osso-200); }
 
-  /* ---------- HUD overlay ---------- */
-  #hud {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 10;
+  /* --- glifo (8.1) ---------------------------------------------------------
+     Moldura em obsidiana cravada; dentro, o sprite da peca em osso
+     monocromatico ou uma das dez primitivas. Cor no icone SO quando o icone E
+     o eixo — no pip, na etiqueta e no selo. Nunca no icone da peca. */
+  .gl-box {
+    flex:none; display:grid; place-items:center;
+    background:var(--obs-600); box-shadow:var(--placa); color:var(--osso-500);
   }
+  .gl { display:block; }
 
-  .hud-top {
-    position: absolute;
-    top: 14px;
-    left: 50%;
-    transform: translateX(-50%);
-    text-align: center;
+  /* --- etiqueta (8.2): quatro pesos, quatro significados, nenhum matiz novo */
+  .tag {
+    height:24px; padding:0 10px; display:inline-flex; align-items:center; gap:5px;
+    font-family:var(--fonte-dado); font-size:var(--rotulo);
+    font-weight:600; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap;
   }
+  .tag i { font-style:normal; letter-spacing:0; }
+  .tag-eixo  { background:var(--eixo); color:var(--obs-800); }     /* fala de eixo */
+  .tag-cat   { border:1px solid var(--osso-200); color:var(--osso-400); }  /* categoria */
+  .tag-raro  { background:var(--osso-600); color:var(--obs-800); } /* raridade */
+  .tag-off   { border:1px dashed var(--osso-200); color:var(--osso-300); } /* indisponivel */
 
-  #timer {
-    font-size: 30px;
-    font-weight: bold;
-    letter-spacing: 2px;
-    color: #fff;
-    text-shadow: 0 0 12px var(--shadow), 0 2px 4px #000;
-  }
+  /* --- pip de tier (8.3) ---------------------------------------------------
+     Cinco cheios viram OSSO: a peca saiu do sistema de eixo, porque nao ha
+     mais decisao ali. */
+  .pips { display:flex; gap:var(--e1); }
+  .pips i { width:14px; height:8px; background:var(--osso-100); }
+  .pips i.on { background:var(--eixo); }
+  .pips i.brasa { background:var(--eixo-300); }
+  .pips.max i.on { background:var(--osso-600); }
+  .pips.mini i { width:10px; height:6px; }
+  .pips.mini { gap:3px; }
 
-  /* hard phase (5 min+): the clock turns into a warning */
-  #timer.hard {
-    color: #ff6b8a;
-    text-shadow: 0 0 14px #ff3b6b, 0 2px 4px #000;
-    animation: timer-pulse 1.6s ease-in-out infinite;
-  }
-
-  @keyframes timer-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.62; }
-  }
-
-  /* Contagem para a proxima etapa. Fica abaixo do relogio e discreta: ela e
-     ANTECIPACAO, nao alarme — passa a run inteira em tela e um elemento que
-     grita o tempo todo para de ser lido. Acende so nos ultimos segundos, que e
-     quando ele tem algo a dizer, e ai usa o ambar do bau (#ffd24a) em vez do
-     vermelho da fase dura: etapa e premio, nao ameaca, e as duas coisas nao
-     podem falar a mesma cor num HUD que ja e barulhento. */
-  #msClock {
-    margin-top: 2px;
-    font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em;
-    color: #8b7fa3; text-shadow: 0 1px 2px #000;
-    transition: color 0.3s;
-  }
-  #msClock.soon {
-    color: #ffd24a;
-    text-shadow: 0 0 10px rgba(255, 210, 74, 0.55), 0 1px 2px #000;
-    animation: timer-pulse 0.8s ease-in-out infinite;
-  }
-
-  #kills {
-    font-size: 14px;
-    color: var(--fel);
-    text-shadow: 0 0 8px var(--fel-dim), 0 1px 2px #000;
-    margin-top: 2px;
-  }
-
-  /* bottom bars */
-  .bars {
-    position: absolute;
-    left: 50%;
-    bottom: 18px;
-    transform: translateX(-50%);
-    width: min(520px, 90vw);
-  }
-
-  .bar {
-    height: 16px;
-    border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 8px;
-    background: rgba(0,0,0,0.5);
-    overflow: hidden;
-    position: relative;
-    margin-top: 6px;
-  }
-
-  .bar > .fill {
-    height: 100%;
-    width: 100%;
-    transition: width 0.12s linear;
-  }
-
-  #hpFill { background: linear-gradient(90deg, #c1272d, #ff5a5f); }
-  #xpFill { background: linear-gradient(90deg, var(--shadow-dim), var(--shadow)); }
-
-  .bar > .label {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: bold;
-    text-shadow: 0 1px 2px #000;
-  }
-
-  /* ---------- Screens ---------- */
-  .screen {
-    position: fixed;
-    inset: 0;
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(ellipse at center, rgba(42,17,71,0.65), rgba(10,7,16,0.97));
-    backdrop-filter: blur(2px);
-  }
-
-  .screen.hidden { display: none; }
-
-  .title {
-    font-size: clamp(38px, 7vw, 76px);
-    font-weight: bold;
-    letter-spacing: 3px;
-    background: linear-gradient(180deg, #fff, var(--shadow));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    text-shadow: 0 0 40px rgba(122,60,255,0.5);
-  }
-
-  .subtitle {
-    color: var(--fel);
-    letter-spacing: 6px;
-    text-transform: uppercase;
-    font-size: 14px;
-    margin-top: 4px;
-    margin-bottom: 36px;
-    text-shadow: 0 0 10px var(--fel-dim);
-  }
-
-  .class-grid {
-    display: flex;
-    gap: 18px;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-bottom: 36px;
-  }
-
-  .class-card {
-    width: 150px;
-    padding: 18px 14px;
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 12px;
-    background: var(--panel);
-    text-align: center;
-    transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
-  }
-
-  .class-card.available { cursor: pointer; pointer-events: auto; }
-  .class-card.available:hover { transform: translateY(-4px); }
-  .class-card.selected {
-    border-color: var(--shadow);
-    box-shadow: 0 0 24px rgba(122,60,255,0.5);
-  }
-  .class-card.locked { opacity: 0.4; }
-
-  .class-icon {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 10px;
-    border-radius: 50%;
-  }
-
-  .class-name { font-size: 18px; font-weight: bold; }
-  .class-tag { font-size: 11px; color: #9a8ab0; margin-top: 4px; }
-
+  /* --- botao (8.4): PREENCHIMENTO E CUSTO ---------------------------------
+     Quatro especies, e a especie diz o que a escolha cobra. Nunca dois botoes
+     cheios na mesma tela; o selo — o unico botao pintado com cor de eixo — so
+     existe na tela de ETAPA, que e a unica que cobra ponto. */
   .btn {
-    pointer-events: auto;
-    cursor: pointer;
-    padding: 14px 44px;
-    font-size: 18px;
-    font-weight: bold;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #fff;
-    background: linear-gradient(180deg, var(--shadow), var(--shadow-dim));
-    border: 1px solid var(--shadow);
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(122,60,255,0.4);
-    transition: transform 0.1s, box-shadow 0.1s;
+    pointer-events:auto; cursor:pointer;
+    min-height:var(--alvo); padding:0 var(--e5);
+    display:inline-flex; align-items:center; justify-content:center;
+    font-family:var(--fonte-display); font-weight:800; font-size:var(--display-s);
+    letter-spacing:.1em; text-transform:uppercase;
+    transition:background .12s, color .12s, border-color .12s;
   }
-  .btn:hover { transform: translateY(-2px); box-shadow: 0 0 32px rgba(122,60,255,0.7); }
-  .btn:active { transform: translateY(0); }
+  .btn-fantasma { border:1px solid var(--osso-200); background:none; color:var(--osso-500); }
+  .btn-fantasma:hover { border-color:var(--osso-600); color:var(--osso-600); background:rgba(237,231,218,.05); }
+  .btn-osso { border:0; background:var(--osso-600); color:var(--obs-800); }
+  .btn-osso:hover { background:#fff; }
+  .btn-recuado { border:1px solid var(--obs-500); background:none; color:var(--osso-300); }
+  .btn-recuado:hover { border-color:var(--vida); color:var(--vida); }
+  .btn-56 { min-height:56px; padding:0 40px; }
+  .btn-64 { min-height:64px; padding:0 var(--e7); }
 
-  .hint {
-    margin-top: 22px;
-    font-size: 13px;
-    color: #7a6a90;
-    letter-spacing: 1px;
-  }
+  /* --- barra (8.5): sem raio, sem degrade, sem animacao de brilho ---------- */
+  .barra { position:relative; height:8px; background:var(--obs-600); overflow:hidden; }
+  .barra > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--eixo); }
+  /* o trecho cravado a frente do preenchido e o que FALTA para o proximo
+     capstone — nao um valor */
+  .barra > i.proximo { background:var(--eixo-900); }
 
-  .btn-col {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    width: 220px;
+  /* --- painel (8.8) --------------------------------------------------------
+     Um so recipiente para tudo que antes era widget solto. */
+  .painel { background:var(--obs-700); box-shadow:var(--placa); display:flex; flex-direction:column; min-height:0; }
+  .painel-h {
+    flex:none; height:48px; padding:0 var(--e5);
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--obs-600);
   }
-  .btn-col .btn { width: 100%; }
+  .painel-h h3 { font-family:var(--fonte-display); font-size:var(--display-s); font-weight:800;
+                 letter-spacing:.10em; text-transform:uppercase; color:var(--osso-600); }
+  .painel-h span { color:var(--osso-300); }
+  .painel-b { padding:20px var(--e5); min-height:0; overflow:auto; scrollbar-width:thin;
+              scrollbar-color:var(--osso-100) transparent; }
+  .painel-b::-webkit-scrollbar { width:6px; }
+  .painel-b::-webkit-scrollbar-thumb { background:var(--osso-100); }
+  .painel-div { height:1px; background:var(--obs-500); margin:var(--e4) 0; }
 
-  .chest-list {
-    width: min(340px, 86vw);
-    margin-bottom: 30px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .chest-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 14px;
-    background: var(--panel);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 9px;
-    animation: toastIn 0.3s ease;
-  }
-  .chest-ic { font-size: 20px; width: 24px; text-align: center; }
-  .chest-name { flex: 1; font-weight: bold; color: #fff; }
-  .chest-lv { font-size: 13px; color: var(--fel); font-weight: bold; }
-  .chest-empty { text-align: center; color: var(--fel); font-size: 16px; padding: 12px; }
+  /* =======================================================================
+     HUD — cinco lugares, margem de 24 em todos, NADA no meio.
 
-  .stats-box {
-    width: min(320px, 80vw);
-    margin-bottom: 32px;
-  }
-  .stats-box .stat {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 14px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    font-size: 15px;
-  }
-  .stats-box .stat span { color: #9a8ab0; }
-  .stats-box .stat b { color: #fff; }
-  .stats-box .stat-head {
-    margin-top: 14px; padding: 6px 14px 2px;
-    font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
-    color: var(--fel);
-  }
+     Tres mudancas estruturais em relacao ao HUD antigo:
+     - as barras de eixo saem de baixo da tira de pecas e vao para o canto
+       oposto; eram dois widgets empilhados no mesmo canto;
+     - o medidor de dano por peca SAI daqui. Dano acumulado e informacao de
+       pos-run: ninguem corrige a jogada com ela. Ela vive na Pausa e no Game
+       over, onde e a estrela — e o HUD perde um canto disputado;
+     - o relogio perde a terceira linha e as tres cores. Etapa e abates nao
+       sao estados de eixo, entao nao podem usar cor de eixo.
+     ======================================================================= */
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
+  #hud.hidden { display:none; }
 
-  /* ---------- Pause: grimório de poderes ---------- */
-  #pause {
-    justify-content: flex-start;
-    padding: 22px 16px 24px;
-    overflow-y: auto;
-  }
-  #pause .subtitle { margin-bottom: 18px; }
+  .hud-tl { position:absolute; top:var(--e5); left:var(--e5); display:flex; gap:6px; max-width:44vw; flex-wrap:wrap; }
+  .hud-tc { position:absolute; top:var(--e5); left:50%; transform:translateX(-50%); text-align:center; }
+  .hud-tr { position:absolute; top:var(--e5); right:var(--e5); width:260px; display:flex; flex-direction:column; gap:var(--e2); }
+  .hud-bc { position:absolute; bottom:var(--e5); left:50%; transform:translateX(-50%); width:min(720px,86vw); }
+  .hud-br { position:absolute; bottom:var(--e5); right:var(--e5); display:flex; flex-direction:column; gap:var(--e2); }
 
-  .pause-panel {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
-    justify-content: center;
-    flex-wrap: wrap;
-    width: min(1000px, 96vw);
-    pointer-events: auto;
-  }
+  #timer { color:var(--osso-600); }
+  /* fase dura: o relogio vira aviso. Vermelho aqui e o mesmo vermelho da vida
+     — e o unico lugar da tela em que ele significa ameaca ao jogador. */
+  #timer.hard { color:var(--vida); }
+  #hudCtx { margin-top:var(--e1); color:var(--osso-300); }
+  #hudCtx.soon { color:var(--osso-600); }
 
-  .pause-col {
-    flex: 1 1 320px;
-    min-width: 290px;
-    max-width: 480px;
-    max-height: calc(100vh - 250px);
-    overflow-y: auto;
-    padding-right: 4px;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(122,60,255,0.6) transparent;
+  /* tira de pecas: glifo + pips embaixo. O excedente vira tile contador. */
+  .pb {
+    position:relative; width:56px; height:56px; display:grid; place-items:center;
+    background:rgba(20,18,27,.88); box-shadow:var(--placa); color:var(--osso-500);
   }
-  .pause-col::-webkit-scrollbar { width: 6px; }
-  .pause-col::-webkit-scrollbar-thumb {
-    background: rgba(122,60,255,0.6);
-    border-radius: 3px;
-  }
+  /* Spell CONCLUIDA: adorno em volta do warlock e privilegio dela, e a tira
+     precisa dizer qual peca esta ardendo la. Uma linha na cor do eixo no topo
+     — nao um glow, que a R4 proibe. */
+  .pb.aura { box-shadow:var(--placa), inset 0 3px 0 var(--eixo); color:var(--osso-600); }
+  .pb.mais { background:rgba(20,18,27,.6); font-family:var(--fonte-dado); font-size:var(--rotulo); color:var(--osso-300); }
+  .pb-pips { position:absolute; left:4px; right:4px; bottom:4px; display:flex; gap:2px; }
+  .pb-pips i { flex:1; height:5px; background:var(--osso-100); }
+  .pb-pips i.on { background:var(--eixo); }
 
-  .pause-head {
-    font-size: 12px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--fel);
-    text-shadow: 0 0 10px var(--fel-dim);
-    margin: 0 0 8px 2px;
-  }
-  .pause-head + .pause-head, .pause-col > .pause-head ~ .pause-head { margin-top: 16px; }
-  .pause-empty {
-    padding: 10px 12px;
-    font-size: 13px;
-    color: #7a6a90;
-    border: 1px dashed rgba(255,255,255,0.12);
-    border-radius: 9px;
-  }
+  /* barras de eixo do HUD */
+  .hud-ax { display:flex; align-items:center; gap:var(--e2); }
+  .hud-ax > b { flex:none; width:10px; height:10px; background:var(--eixo); }
+  .hud-ax > b.vazio { background:none; box-shadow:inset 0 0 0 2px var(--osso-100); }
+  .hud-ax .barra { flex:1; }
+  .hud-ax > span { flex:none; width:34px; text-align:right; font-family:var(--fonte-dado);
+                   font-size:var(--rotulo); color:var(--osso-400); }
+  .hud-pool { text-align:right; letter-spacing:.10em; }
 
-  /* linha de poder (spell ou buff) */
-  .pw-row {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    padding: 8px 11px;
-    margin-bottom: 6px;
-    background: var(--panel);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 9px;
-  }
-  .pw-ic {
-    width: 30px; height: 30px;
-    flex: 0 0 30px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
-    border: 1px solid;
-    border-radius: 7px;
-    background: rgba(0,0,0,0.45);
-  }
-  .pw-body { flex: 1; min-width: 0; }
-  .pw-top { display: flex; align-items: baseline; gap: 8px; }
-  .pw-name { font-weight: bold; color: #fff; font-size: 14px; }
-  .pw-lv {
-    margin-left: auto;
-    font-size: 11px;
-    font-weight: bold;
-    letter-spacing: 1px;
-    color: #9a8ab0;
-  }
-  .pw-lv.max { color: var(--fel); text-shadow: 0 0 8px var(--fel-dim); }
-  .pw-bar {
-    height: 5px;
-    margin: 5px 0 4px;
-    border-radius: 3px;
-    background: rgba(0,0,0,0.55);
-    overflow: hidden;
-  }
-  .pw-fill { height: 100%; border-radius: 3px; }
-  .pw-next { font-size: 11.5px; color: #b8a8d0; line-height: 1.35; }
-  .pw-next b { color: #fff; }
+  /* vitais */
+  .barra-vida { position:relative; height:12px; background:var(--vida-vazia); overflow:hidden; }
+  .barra-vida > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--vida); }
+  .barra-vida > i#shieldFill { background:var(--osso-400); }
+  .barra-xp { position:relative; height:4px; margin-top:var(--e1); background:var(--obs-600); overflow:hidden; }
+  .barra-xp > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--osso-600); }
+  .hud-vit { margin-top:6px; display:flex; justify-content:space-between; }
 
-  /* combos */
-  .cb-row {
-    padding: 9px 11px;
-    margin-bottom: 7px;
-    background: var(--panel);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 9px;
-  }
-  .cb-row.done { background: rgba(24, 14, 40, 0.95); }
-  .cb-row.far { opacity: 0.55; }
-  .cb-head { display: flex; align-items: center; gap: 7px; }
-  .cb-ic { font-size: 16px; }
-  .cb-name { font-weight: bold; color: #fff; font-size: 14px; }
-  .cb-status {
-    margin-left: auto;
-    font-size: 10.5px;
-    font-weight: bold;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: #9a8ab0;
-    white-space: nowrap;
-  }
-  .cb-status.on { color: var(--fel); text-shadow: 0 0 8px var(--fel-dim); }
-  .cb-status.close { color: #ffd24a; }
-  .cb-desc { font-size: 11.5px; color: #b8a8d0; line-height: 1.35; margin-top: 3px; }
-  .cb-bar {
-    height: 5px;
-    margin: 6px 0 6px;
-    border-radius: 3px;
-    background: rgba(0,0,0,0.55);
-    overflow: hidden;
-  }
-  .cb-fill { height: 100%; border-radius: 3px; }
-  .cb-req { display: flex; flex-wrap: wrap; gap: 6px; }
-  .cb-req-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 7px;
-    font-size: 11px;
-    color: #9a8ab0;
-    background: rgba(0,0,0,0.4);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 6px;
-  }
-  .cb-req-row b { color: #fff; font-size: 11px; }
-  .cb-req-row.ok { color: var(--fel); border-color: rgba(111,220,74,0.45); }
-  .cb-req-row.ok b { color: var(--fel); }
-
-  @media (max-width: 760px) {
-    .pause-col { max-height: none; overflow-y: visible; }
-  }
-
-  .btn-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-top: 20px;
-  }
-  .btn-sm { padding: 11px 26px; font-size: 14px; }
-
-  /* ability bars (HUD) — spells em cima, buffs embaixo */
-
-  @keyframes comboPulse {
-    0%, 100% { box-shadow: 0 0 0 rgba(255,255,255,0); }
-    50% { box-shadow: 0 0 14px currentColor; }
-  }
-
-  /* damage meter (HUD) */
-  #dmgHud {
-    position: absolute;
-    left: 14px;
-    bottom: 16px;
-    width: 168px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .dmg-row { display: flex; align-items: center; gap: 6px; }
-  .dmg-ic { font-size: 15px; width: 18px; text-align: center; flex: none; }
-  .dmg-bar {
-    position: relative;
-    flex: 1;
-    height: 15px;
-    background: rgba(0,0,0,0.5);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 5px;
-    overflow: hidden;
-  }
-  .dmg-fill { position: absolute; inset: 0; opacity: 0.45; border-radius: 5px; transition: width 0.2s linear; }
-  .dmg-val {
-    position: absolute; right: 5px; top: 0; line-height: 15px;
-    font-size: 10px; font-weight: bold; color: #fff; text-shadow: 0 1px 2px #000;
-  }
-
-  /* combo toasts */
-  #toasts {
-    position: absolute;
-    top: 70px;
-    right: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    align-items: flex-end;
-  }
+  /* toast (8.9) — 340x44, teto de TRES, e a tarja de 4x20 na cor do eixo e a
+     unica cor do componente. Cinco toasts empilhados nunca mais. */
   .toast {
-    width: 260px;
-    padding: 12px 14px;
-    border: 1px solid #555;
-    border-left-width: 4px;
-    border-radius: 10px;
-    background: var(--panel);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-    animation: toastIn 0.35s ease, toastOut 0.5s ease 4.7s forwards;
+    width:340px; height:var(--alvo); display:flex; align-items:center; gap:var(--e3);
+    padding:0 var(--e3); background:rgba(20,18,27,.92);
+    box-shadow:inset 0 1px 0 rgba(237,231,218,.08);
+    animation:toastIn .22s ease;
   }
-  .toast-head {
-    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
-    color: #9a8ab0;
-  }
-  .toast-name { font-size: 17px; font-weight: bold; color: #fff; margin: 2px 0 4px; }
-  .toast-desc { font-size: 12px; color: #b8a8d0; line-height: 1.35; }
-  @keyframes toastIn {
-    from { opacity: 0; transform: translateX(40px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-  @keyframes toastOut {
-    to { opacity: 0; transform: translateX(40px); }
-  }
+  .toast.t2 { background:rgba(20,18,27,.82); }
+  .toast.t3 { background:rgba(20,18,27,.70); }
+  .toast > b { flex:none; width:4px; height:20px; background:var(--eixo); }
+  .toast > span { flex:1; min-width:0; font-size:var(--texto-m);
+                  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--osso-500); }
+  .toast > em { flex:none; font-style:normal; font-family:var(--fonte-dado);
+                font-size:var(--dado-m); color:var(--eixo); }
+  .toast-mais { height:28px; display:flex; align-items:center; justify-content:flex-end;
+                font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.18em;
+                text-transform:uppercase; color:var(--osso-200); }
+  @keyframes toastIn { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:none; } }
 
-  /* ---------- barra de peças (estado da build em uma linha) ---------- */
-  #pieceBar {
-    position: absolute; top: 14px; left: 14px;
-    display: flex; gap: 6px; flex-wrap: wrap; max-width: 46vw;
+  /* =======================================================================
+     TELAS
+     ======================================================================= */
+  .screen {
+    position:fixed; inset:0; z-index:20;
+    display:flex; flex-direction:column;
+    background:var(--obs-900);
   }
-  .pb-icon {
-    position: relative; width: 40px; height: 40px; border-radius: 9px;
-    border: 2px solid #555; background: rgba(12, 6, 22, 0.85);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 19px; line-height: 1;
-  }
-  .pb-icon.pb-passive { width: 30px; height: 30px; font-size: 15px; border-radius: 50%; }
-  /* Spell concluida: a mesma aura que acendeu no warlock, em miniatura, para
-     a barra dizer QUAL peca esta ardendo em volta dele. */
-  .pb-icon.pb-aura { box-shadow: 0 0 10px 1px currentColor, inset 0 0 8px -2px currentColor; }
-  .pb-icon.pb-aura::after {
-    content: ""; position: absolute; inset: -4px; border-radius: 12px;
-    border: 1px solid currentColor; opacity: 0.45;
-  }
-  .pb-pips {
-    position: absolute; bottom: -3px; left: 0; right: 0;
-    display: flex; gap: 2px; justify-content: center;
-  }
-  .pb-pips i {
-    font-style: normal; font-size: 8px; font-weight: bold; line-height: 1;
-    min-width: 9px; text-align: center; border-radius: 3px;
-    background: rgba(0, 0, 0, 0.85); color: #7a6a90;
-  }
-  .pb-pips i.deep { color: #0a0710; background: var(--fel); }
+  .screen.hidden { display:none; }
 
-  /* ---------- barra de eixos ---------- */
-  #axisBar {
-    position: absolute; top: 64px; left: 14px;
-    width: 190px; display: flex; flex-direction: column; gap: 4px;
-    background: rgba(12, 6, 22, 0.7); padding: 8px 9px; border-radius: 10px;
-    border: 1px solid rgba(122, 60, 255, 0.28);
-  }
-  .axis-row { display: flex; align-items: center; gap: 6px; }
-  .axis-ic { font-size: 13px; width: 16px; text-align: center; }
-  .axis-track {
-    position: relative; flex: 1; height: 11px; border-radius: 6px;
-    background: rgba(255, 255, 255, 0.09); overflow: hidden;
-  }
-  .axis-fill { height: 100%; border-radius: 6px; opacity: 0.65; transition: width 0.25s; }
-  .axis-num {
-    position: absolute; inset: 0; text-align: center;
-    font-size: 9px; font-weight: bold; line-height: 11px;
-    color: #fff; text-shadow: 0 1px 2px #000;
-  }
-  .axis-caps { min-width: 18px; font-size: 12px; text-align: right; }
-  .axis-pool { font-size: 10px; color: #9a8ab0; text-align: right; }
+  /* --- 9.1 MENU — silhueta: cartaz alinhado a esquerda ---------------------
+     As duas cartas de classe trancada sairam: ocupavam dois tercos da selecao
+     anunciando o que o jogo nao tem. Quando o Mago existir, ele ganha uma
+     placa igual a do Warlock. */
+  .tela-menu { background:rgba(4,3,8,.88); justify-content:center; }
+  /* a mesma regua de 1px que ancora o HUD */
+  .menu-regua { position:absolute; left:120px; top:0; bottom:0; width:1px; background:var(--obs-500); }
+  .menu-col { position:relative; margin-left:168px; width:760px; max-width:calc(100vw - 200px); pointer-events:auto; }
 
-  /* ---------- escudo na barra de vida ---------- */
-  #shieldFill {
-    position: absolute; left: 0; top: 0; height: 100%;
-    background: linear-gradient(90deg, rgba(90,180,255,0.55), rgba(150,220,255,0.75));
-    border-radius: 10px; transition: width 0.15s linear;
+  .marca { display:flex; align-items:center; gap:var(--e5); }
+  /* selo partido: losango de traco uniforme cortado ao meio por uma barra na
+     cor do fundo. Fecha em 16x16 sem perder a leitura, que e requisito — a
+     mesma marca precisa existir em pixel no mundo. */
+  .selo-partido { position:relative; flex:none; width:72px; height:72px; }
+  .selo-partido::before {
+    content:""; position:absolute; inset:9px;
+    border:6px solid var(--osso-600); transform:rotate(45deg);
   }
+  .selo-partido::after {
+    content:""; position:absolute; left:0; right:0; top:calc(50% - 3.5px);
+    height:7px; background:var(--obs-900);
+  }
+  .marca-nome { font-family:var(--fonte-display); font-weight:900; font-size:168px;
+                line-height:.8; letter-spacing:.06em; color:var(--osso-600); }
 
-  /* ---------- level-up: tres linhas comparaveis + painel de build ----------
-     A unica tela em que o jogador decide algo que nao e posicao, e a decisao
-     mais irreversivel do jogo (ponto de eixo nao volta). Por isso ela nao e
-     mais tres cartas verticais:
+  .menu-apoio { margin-top:var(--e4); margin-bottom:36px; display:flex; align-items:center; gap:var(--e3);
+                font-family:var(--fonte-dado); font-size:15px; letter-spacing:.3em; text-transform:uppercase; }
+  .menu-apoio s { width:6px; height:1px; background:var(--osso-100); text-decoration:none; }
+  .ax-corr { color:var(--corr-500); } .ax-dom { color:var(--dom-500); } .ax-cat { color:var(--cat-500); }
 
-     - Cartas obrigam a ler tres blocos separados para comparar UM campo. As
-       linhas alinham as mesmas tres colunas — o que e / o que muda / custo —
-       entao comparar e correr o olho na vertical.
-     - O custo saiu de um chip minusculo no rodape para uma coluna propria: e a
-       informacao que nao pode ser descoberta depois.
-     - A legenda de tipos do topo sumiu. O tipo agora vive na propria linha
-       (`.lv-kind`), que e onde ele e lido.
-     - O painel da direita e o contexto que faz "melhoria" e "spell nova"
-       quererem dizer alguma coisa: sem ver a build, as duas palavras sao
-       abstratas.
+  .menu-tag { margin-bottom:44px; max-width:560px; font-size:22px; line-height:1.45; color:var(--osso-400); }
 
-     `--acc` e a cor do EIXO da oferta (qual build ela alimenta), escrita
-     inline por linha em js/ui.js; `--acc-dim` e `--acc-wash` sao a mesma cor
-     em duas opacidades. */
-  /* Casado por CLASSE, nao pelo id: `driver_preview` monta a mesma tela tres
-     vezes na mesma pagina e id nao se repete. `.lv` vem depois de `.screen` na
-     folha, entao ganha dele sem precisar da especificidade do id. */
-  .lv {
-    display: flex; align-items: center; justify-content: center;
-    padding: 0; backdrop-filter: none; font-family: var(--ui);
-    background: radial-gradient(120% 90% at 50% 8%, #241137 0%, #150c22 45%, #0a0510 100%);
+  .classe {
+    width:560px; max-width:100%; padding:20px 22px; display:flex; align-items:center; gap:var(--e4);
+    background:var(--obs-700); box-shadow:var(--placa);
   }
-  .lv-glow {
-    position: absolute; inset: 0; pointer-events: none;
-    background: radial-gradient(60% 40% at 50% 0%, rgba(154, 76, 255, 0.18), transparent 70%);
-  }
-  .lv-wrap {
-    position: relative; z-index: 1; pointer-events: auto;
-    display: flex; flex-direction: column; gap: 20px;
-    width: min(1120px, 94vw); max-height: 94vh; padding: 4px;
-  }
-  .lv-head { display: flex; flex-direction: column; gap: 5px; text-align: center; }
-  .lv-eyebrow {
-    font-family: var(--mono); font-size: 13px; letter-spacing: 0.22em;
-    text-transform: uppercase; color: #7fdc4a;
-  }
-  .lv-title {
-    font-size: clamp(30px, 4vw, 42px); font-weight: 800; line-height: 1;
-    letter-spacing: -0.01em; color: #f3ecff;
-  }
+  .classe.livre { cursor:pointer; pointer-events:auto; }
+  .classe.livre:hover, .classe.sel { box-shadow:var(--placa), inset 0 0 0 1px var(--osso-600); }
+  .classe-txt { flex:1; min-width:0; display:flex; flex-direction:column; gap:var(--e1); }
+  .classe-nome { font-family:var(--fonte-display); font-size:34px; line-height:1; font-weight:800;
+                 text-transform:uppercase; color:var(--osso-600); }
 
-  /* --- as tres cartas -------------------------------------------------------
-     A tela nasceu em LINHAS, e a razao era boa enquanto valia: ela comparava
-     tres coisas diferentes (spell nova / melhoria / passiva) e o olho precisava
-     correr um campo de cada vez na vertical. Depois que peca nova mudou para a
-     tela de etapa, as tres ofertas viraram a mesma coisa — um degrau numa spell
-     que voce ja tem — e as colunas "o que e / o que muda / onde chega" passaram
-     a repartir uma informacao que ja era homogenea. Grade de tres colunas para
-     comparar campos que nao divergem mais e so moldura.
+  .menu-trancado { margin:var(--e5) 0 40px; color:var(--osso-200); }
+  .menu-acao { display:flex; align-items:center; gap:var(--e4); }
+  .menu-acao .btn { width:280px; }
+  .menu-rodape { position:absolute; left:168px; bottom:56px; color:var(--osso-200); }
+  .menu-rodape b { color:var(--osso-300); font-weight:500; }
+  .menu-versao { position:absolute; right:56px; bottom:56px; font-family:var(--fonte-dado);
+                 font-size:var(--rotulo); letter-spacing:.18em; color:var(--obs-500); }
 
-     A hierarquia INTERNA e a regra que sobrevive a mudanca de forma:
-     `.lv-plain` continua sendo o item mais claro da carta. Numa carta o nome da
-     spell vem antes no espaco, entao ele tem que perder no TAMANHO — senao a
-     leitura pousa no rotulo em vez de no efeito, que e o defeito que esta tela
-     ja corrigiu uma vez. */
-  .lv-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; min-height: 0; }
+  /* --- 9.3 LEVEL UP — silhueta: tres verticais sobre mundo vivo ------------
+     O canvas CONTINUA VIVO, so escurecido, e o relogio permanece em 32%: isto
+     e uma batida dentro da run, nao um capitulo. O contraste com o preto
+     chapado da Etapa e a distincao mais forte que existe entre as duas telas,
+     e nao custa um pixel de cor. */
+  .lv { background:rgba(4,3,8,.72); align-items:center; justify-content:center; padding:var(--e8) 120px 72px; }
+  .lv-timer { position:absolute; top:var(--e5); left:50%; transform:translateX(-50%);
+              opacity:.32; text-align:center; }
+  .lv-timer > div:first-child { font-family:var(--fonte-dado); font-size:var(--dado-l); color:var(--osso-600); }
+  .lv-wrap { position:relative; z-index:1; pointer-events:auto; width:min(1120px,94vw);
+             display:flex; flex-direction:column; align-items:center; gap:var(--e5); }
+  .lv-head { display:flex; flex-direction:column; align-items:center; gap:var(--e2); text-align:center; }
+  .lv-eyebrow { font-family:var(--fonte-dado); font-size:var(--rotulo); font-weight:500;
+                letter-spacing:.18em; text-transform:uppercase; color:var(--osso-300); }
+  .lv-title { font-family:var(--fonte-display); font-size:58px; line-height:.98; font-weight:800;
+              text-transform:uppercase; color:var(--osso-600); }
+
+  /* --- as tres cartas (8.6): 300x352, retrato ------------------------------
+     Translucida de proposito: o mundo continua atras. E por isso o EIXO
+     aparece em tres lugares PEQUENOS — quadrado de 8px, delta, pips — e nunca
+     na moldura inteira: o mundo atras ja e colorido. */
+  .lv-cards { display:flex; justify-content:center; gap:var(--e5); }
   .lv-card {
-    cursor: pointer; pointer-events: auto;
-    display: flex; flex-direction: column; gap: 12px;
-    padding: 18px 18px 16px; border-radius: 15px;
-    background: linear-gradient(170deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015));
-    border: 1.5px solid var(--acc-dim);
-    border-top: 5px solid var(--acc);
-    transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s;
+    cursor:pointer; pointer-events:auto;
+    width:300px; min-height:352px; padding:20px; display:flex; flex-direction:column; gap:var(--e4);
+    background:rgba(10,9,16,.72); border:1px solid var(--osso-200);
+    transition:background .12s, border-color .12s;
   }
-  .lv-card:hover {
-    transform: translateY(-6px); border-color: var(--acc);
-    box-shadow: 0 20px 46px rgba(0, 0, 0, 0.55);
-  }
-
-  /* O tipo NAO pode depender de cor: a cor da carta e a do EIXO (qual build ela
-     alimenta), entao uma melhoria verde e uma evolucao verde sao a mesma cor.
-     Quem separa e forma — etiqueta solida com glifo, tile redondo na passiva, e
-     o selo do tier no canto quando e melhoria, porque ai o icone mente: ele e o
-     icone de uma spell que voce ja tem e sozinho nao diz quao fundo ela esta. */
-  .lv-kind {
-    display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
-    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 3px 8px; border-radius: 999px; background: var(--acc); color: #14091f;
-  }
-  .lv-kind i { font-style: normal; }
-
-  .lv-what { display: flex; align-items: center; gap: 11px; min-width: 0; }
-  .lv-tile {
-    position: relative; flex: none;
-    width: 46px; height: 46px; border-radius: 12px;
-    display: grid; place-items: center; font-size: 24px;
-    background: var(--acc-wash); border: 1px solid var(--acc-dim); color: var(--acc);
-  }
-  .lv-tile.round { border-radius: 50%; }
+  .lv-card:hover { border-color:var(--osso-600); background:rgba(30,26,38,.88); }
+  .lv-topo { display:flex; align-items:center; justify-content:space-between; }
+  .lv-topo > b { width:8px; height:8px; background:var(--eixo); }
+  .lv-kind { display:inline-flex; }
+  /* gap 16 e nao 12: o selo do tier fica pendurado no canto do tile e com
+     12 ele encostava na primeira linha do subtitulo. */
+  .lv-what { display:flex; align-items:center; gap:var(--e4); min-width:0; }
+  .lv-tile { position:relative; flex:none; width:56px; height:56px; display:grid; place-items:center;
+             background:var(--obs-600); box-shadow:var(--placa); color:var(--osso-500); }
+  .lv-tile.round { border-radius:50%; }   /* a passiva e a unica forma redonda do jogo */
   .lv-tile > b {
-    position: absolute; right: -5px; bottom: -5px;
-    min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px;
-    display: grid; place-items: center;
-    font-family: var(--mono); font-size: 11px; font-weight: 700;
-    background: var(--acc); color: #14091f; border: 2px solid #191026;
+    position:absolute; right:-6px; bottom:-6px; min-width:20px; height:20px; padding:0 5px;
+    display:grid; place-items:center; font-family:var(--fonte-dado); font-size:var(--rotulo);
+    font-weight:600; background:var(--osso-600); color:var(--obs-800);
   }
-  .lv-what-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .lv-name { font-size: 15.5px; font-weight: 600; color: #efe9fa; line-height: 1.15; }
-  .lv-subtitle { font-size: 12px; color: #8b7fa3; line-height: 1.3; }
+  .lv-what-txt { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .lv-name { font-family:var(--fonte-display); font-size:var(--display-m); line-height:1.05;
+             font-weight:800; letter-spacing:.01em; text-transform:uppercase; color:var(--osso-600); }
+  .lv-subtitle { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.06em;
+                 color:var(--osso-300); }
+  .lv-change { display:flex; flex-direction:column; gap:var(--e3); flex:1; min-height:0; }
+  /* A MANCHETE — o que muda no jogo, e o item mais claro da carta. Numa carta
+     o nome vem ANTES no espaco, entao ele tem que perder no TAMANHO: senao a
+     leitura pousa no rotulo em vez de no efeito. */
+  .lv-plain { font-size:var(--texto-l); line-height:1.45; color:var(--osso-500); text-wrap:pretty; }
+  .lv-delta { display:flex; align-items:baseline; gap:var(--e2); flex-wrap:wrap; font-family:var(--fonte-dado); font-size:var(--dado-m); }
+  .lv-delta .was { color:var(--osso-300); }
+  .lv-delta .arrow { color:var(--osso-200); }
+  .lv-delta .now { color:var(--eixo); }
+  .lv-why { font-size:var(--rotulo); line-height:1.5; font-family:var(--fonte-texto); color:var(--osso-300); text-wrap:pretty; }
+  .lv-foot-card { margin-top:auto; display:flex; flex-direction:column; gap:var(--e3); }
+  .lv-prog-line { display:flex; align-items:center; justify-content:space-between; gap:var(--e2); }
+  .lv-prog-head { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.10em;
+                  text-transform:uppercase; color:var(--osso-300); }
+  .lv-pips { display:flex; gap:var(--e1); }
+  .lv-pips i { width:14px; height:8px; background:var(--osso-100); }
+  .lv-pips i.on { background:var(--eixo); }
+  .lv-pips i.brasa { background:var(--eixo-300); }
+  /* cinco cheios = OSSO: a peca sai do sistema de eixo, porque nao ha mais
+     decisao ali. Vale nas duas telas e na tira. */
+  .lv-pips.max i.on { background:var(--osso-600); }
+  .lv-rec { align-self:flex-start; }
+  /* A carta INTEIRA e clicavel, entao o botao e lembrete e nao alvo — vazado
+     em repouso, enche no hover. Na tela de ETAPA e o contrario, e de
+     proposito: la os botoes SAO a decisao, porque cada um carrega um numero
+     diferente que precisa ser comparado antes de mirar o mouse. */
+  .lv-pick { justify-content:center; width:100%; }
 
-  .lv-change { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
-  /* A MANCHETE. Maior e mais clara que tudo o mais na carta, incluindo o nome. */
-  .lv-plain { font-size: 19px; line-height: 1.28; color: #f3ecff; text-wrap: pretty; }
-  .lv-delta {
-    display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
-    font-family: var(--mono);
-  }
-  .lv-delta .was { font-size: 12.5px; color: #7c6f92; }
-  .lv-delta .arrow { color: #5b4d72; }
-  .lv-delta .now { font-size: 14.5px; font-weight: 600; color: var(--acc); }
-  /* So aparece quando acrescenta: aviso de passiva exclusiva, ou o que a peca
-     PASSA A SER numa evolucao. Fundo da pilha, abaixo da manchete e do delta. */
-  .lv-why { font-size: 12.5px; line-height: 1.4; color: #8b7fa3; text-wrap: pretty; }
+  /* a tira da build: UMA LINHA, sempre. O que passa do teto vira contador —
+     overlay de jogo nao rola. */
+  .lv-base { position:absolute; left:120px; right:120px; bottom:72px;
+             display:flex; flex-direction:column; gap:var(--e3); pointer-events:none; }
+  .lv-strip { display:flex; align-items:center; gap:var(--e3); min-width:0; }
+  .lv-strip-lbl { flex:none; font-family:var(--fonte-dado); font-size:var(--rotulo);
+                  letter-spacing:.18em; text-transform:uppercase; color:var(--osso-200); }
+  .lv-strip-list { display:flex; align-items:center; gap:var(--e2); flex:1; min-width:0; overflow:hidden; }
+  .lv-strip-chips { display:flex; align-items:center; gap:var(--e2); }
+  .lv-sp { flex:none; height:32px; padding:0 10px; display:flex; align-items:center; gap:var(--e2);
+           background:rgba(20,18,27,.9); box-shadow:inset 0 1px 0 rgba(237,231,218,.08); }
+  .lv-sp-name { font-size:var(--texto-m); color:var(--osso-400); white-space:nowrap; }
+  .lv-sp .lv-pips i { width:10px; height:6px; }
+  .lv-sp .lv-pips { gap:3px; }
+  /* a spell que a carta sob o mouse melhora ACENDE — e o que liga a decisao ao
+     estado da build sem a tira ter que explicar nada por escrito */
+  .lv-sp.hit { box-shadow:inset 0 1px 0 rgba(237,231,218,.08), inset 0 0 0 1px var(--eixo); }
+  .lv-sp.hit .lv-sp-name { color:var(--osso-600); }
+  .lv-sp.done .lv-sp-name { color:var(--osso-500); }
+  .lv-sp.more, .lv-chip.more { flex:none; font-family:var(--fonte-dado);
+                              font-size:var(--rotulo); color:var(--osso-200); white-space:nowrap; }
+  .lv-chip { flex:none; width:32px; height:32px; display:grid; place-items:center; border-radius:50%;
+             background:rgba(20,18,27,.9); box-shadow:inset 0 1px 0 rgba(237,231,218,.08); color:var(--osso-400); }
+  .lv-chip.more { width:auto; padding:0 10px; border-radius:0; }
+  .lv-foot { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.18em;
+             text-transform:uppercase; color:var(--osso-100); }
 
-  .lv-foot-card { display: flex; flex-direction: column; gap: 9px; }
-  .lv-prog-line { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-  .lv-prog-head { font-size: 12.5px; font-weight: 600; color: #9b8fb0; }
-  .lv-pips { display: flex; gap: 3px; }
-  .lv-pips i { width: 12px; height: 5px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); }
-  .lv-pips i.on { background: var(--acc); }
-  /* Marco (a aura) e informacao de verdade; fundo lavado e sem borda para ela
-     continuar legivel sem competir com a manchete. */
-  .lv-rec {
-    align-self: flex-start;
-    font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
-    background: rgba(127, 220, 74, 0.13); color: #7fdc4a;
-  }
-  /* A CARTA INTEIRA e clicavel; o botao e lembrete, nao alvo. Vazado em
-     repouso, enche quando a carta esta sob o mouse — que e quando ele tem algo
-     a dizer. (Na tela de ETAPA e o contrario, e de proposito: la os botoes SAO
-     a decisao, porque cada um carrega um numero diferente.) */
-  .lv-pick {
-    text-align: center; font-size: 13.5px; font-weight: 600;
-    padding: 9px 16px; border-radius: 9px;
-    color: var(--acc); background: transparent; border: 1px solid var(--acc-dim);
-    transition: background 0.16s, color 0.16s, border-color 0.16s;
-  }
-  .lv-card:hover .lv-pick { color: #14091f; background: var(--acc); border-color: var(--acc); }
+  /* --- 9.2 / 9.8 ETAPA — silhueta: placa larga sobre preto ----------------
+     Fundo obs-900 CHAPADO: o mundo sai. E a unica tela que apaga o canvas, e e
+     isso, mais que qualquer cor, que faz o jogador saber que a pergunta mudou.
+     Titulo alinhado a ESQUERDA, contra o centralizado do Level up. */
+  .ms { background:var(--obs-900); padding:88px 120px 72px; }
+  .ms-wrap { position:relative; pointer-events:auto; flex:1; min-height:0;
+             display:flex; flex-direction:column; gap:var(--e5); }
+  .ms-head-top { display:flex; flex-direction:column; gap:var(--e3); }
+  .ms-eyebrow { display:flex; align-items:center; gap:var(--e5);
+                font-family:var(--fonte-dado); font-size:var(--rotulo); font-weight:500;
+                letter-spacing:.18em; text-transform:uppercase; color:var(--osso-300); }
+  .ms-eyebrow s { width:24px; height:1px; background:var(--obs-500); text-decoration:none; }
+  .ms-title { font-family:var(--fonte-display); font-size:76px; line-height:.94; font-weight:800;
+              text-transform:uppercase; color:var(--osso-600); }
+  .ms-sub { max-width:840px; font-size:22px; line-height:1.45; color:var(--osso-400); }
 
-  /* --- a tira da build ------------------------------------------------------
-     Era um painel lateral de 316px com densidade automatica, teto de linhas,
-     contador de excedente, chips e tres barras de eixo. Metade daquilo existia
-     so para caber numa coluna estreita; a outra metade respondia perguntas que
-     esta tela nao faz mais — eixo e capstone nao sao movidos por nada daqui, e
-     a tela de ETAPA ja os mostra com previa ao vivo.
-
-     Sobrou a unica pergunta que a tira responde, que e a desta tela: em que
-     degrau estao as minhas outras spells? */
-  .lv-strip {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding: 11px 14px; border-radius: 12px;
-    background: rgba(0, 0, 0, 0.34); border: 1px solid rgba(255, 255, 255, 0.07);
-  }
-  .lv-strip-lbl {
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em;
-    text-transform: uppercase; color: #6a5d80;
-  }
-  .lv-strip-list { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; flex: 1; min-width: 0; }
-  .lv-strip-chips { display: flex; align-items: center; gap: 5px; }
-  .lv-sp {
-    display: flex; align-items: center; gap: 7px;
-    padding: 5px 9px; border-radius: 9px;
-    background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.07);
-    transition: background 0.16s, border-color 0.16s;
-  }
-  .lv-sp-ic { font-size: 14px; color: var(--acc); }
-  .lv-sp-name { font-size: 12.5px; color: #cfc4e2; white-space: nowrap; }
-  .lv-sp .lv-pips i { width: 9px; height: 4px; }
-  /* A spell que a carta sob o mouse melhora acende — e o que liga a decisao ao
-     estado da build sem a tira ter que explicar nada por escrito. */
-  .lv-sp.hit { background: var(--acc-wash); border-color: var(--acc); }
-  .lv-sp.hit .lv-sp-name { color: #f3ecff; }
-  /* Spell concluida ja tem aura no personagem: o anel diz que ela fechou. */
-  .lv-sp.done { box-shadow: inset 0 0 0 1px var(--acc-dim); }
-  .lv-sp.more, .lv-chip.more {
-    font-family: var(--mono); font-size: 11.5px; color: #6a5d80;
-  }
-  .lv-chip {
-    display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
-    background: var(--acc-wash); border: 1px solid var(--acc-dim);
-  }
-  .lv-chip i { font-style: normal; font-size: 13px; }
-  .lv-chip.more { width: auto; padding: 0 8px; border-radius: 999px; }
-
-  .lv-foot { font-size: 12.5px; color: #7c6f92; text-align: center; }
-
-  @media (max-width: 860px) {
-    .lv-cards { grid-template-columns: 1fr; }
-    .lv-plain { font-size: 17px; }
-  }
-
-  /* --- ETAPA: a batida lenta ------------------------------------------------
-     Tres COLUNAS, e cada uma e um destino inteiro lido de cima para baixo.
-
-     Enquanto a linha valia, o argumento era alinhamento: mesma estrutura em
-     tres eixos, entao comparar era correr UMA coluna. So que a estrutura deixou
-     de ser a mesma quando a fase fechada entrou — oferta sorteada tem manchete
-     de spell e um botao, oferta aberta tem manchete de eixo e dois. Alinhar
-     campo que nao existe nas tres nao alinha nada, e quem pagava a conta era o
-     BUFF: espremido na faixa do meio, ele lia como legenda do rotulo.
-
-     Em coluna cada oferta e um bloco fechado, na ordem da decisao — de que eixo
-     e, O QUE FAZ, e quanto anda. O que faz e o buff, e ele e a manchete.
-
-     E as duas telas continuam sem parecer a mesma: aqui o acento e a barra
-     VERTICAL a esquerda (no level up e a de cima), o bloco nao levanta nem e
-     clicavel, a decisao mora em botoes solidos, o eyebrow e ambar e o rodape
-     carrega as barras de eixo. */
-  .ms { align-items: center; justify-content: center; }
-  .ms-wrap {
-    position: relative; z-index: 1; pointer-events: auto;
-    display: flex; flex-direction: column; gap: 22px;
-    width: min(1120px, 94vw); max-height: 92vh; padding: 4px;
-  }
-  .ms-head-top { display: flex; flex-direction: column; gap: 6px; text-align: center; }
-  .ms-eyebrow {
-    font-family: var(--mono); font-size: 13px; letter-spacing: 0.22em;
-    text-transform: uppercase; color: #ffd24a;
-  }
-  .ms-title {
-    font-size: clamp(30px, 4vw, 44px); font-weight: 800; line-height: 1;
-    letter-spacing: -0.01em; color: #f3ecff;
-  }
-  .ms-sub { font-size: 14px; color: #8b7fa3; text-wrap: pretty; }
-
-  /* Flex e nao grade de 3 colunas, porque a mesa nem sempre tem tres ofertas:
-     no fim da run o catalogo esgota e sobram duas, ou uma. Numa grade fixa a
-     unica sobrevivente ficaria encolhida no canto esquerdo com dois buracos ao
-     lado; aqui as colunas dividem o que existe e ficam centradas.
-     O `stretch` padrao iguala a altura: a coluna aberta (dois botoes) define e
-     as sorteadas acompanham — altura desigual dizia que uma das ofertas era
-     maior que as outras, que e exatamente o que esta tela NAO pergunta. */
-  .ms-rows {
-    display: flex; justify-content: center; gap: 14px; min-height: 0;
-  }
-  /* O bloco NAO e clicavel: o alvo e o botao, e sao dois. Por isso ele tambem
-     nao levanta no hover como a carta do level up — so acende a borda. */
+  /* Flex e nao grade de tres: no fim da run o catalogo esgota e sobram duas
+     ofertas, ou uma — numa grade fixa a sobrevivente ficaria encolhida no
+     canto esquerdo com dois buracos ao lado. */
+  .ms-rows { display:flex; flex-direction:column; gap:10px; min-height:0; }
+  /* Linha (8.7): min-height, NUNCA height. Com altura fixa uma descricao de
+     quatro linhas transborda e invade a linha vizinha. */
   .ms-row {
-    pointer-events: auto; flex: 1 1 0; min-width: 0; max-width: 372px;
-    display: flex; flex-direction: column; gap: 12px;
-    padding: 16px 17px; border-radius: 13px;
-    background: linear-gradient(165deg, var(--acc-wash), rgba(255, 255, 255, 0.015));
-    border: 1.5px solid var(--acc-dim);
-    border-left: 5px solid var(--acc);
-    transition: box-shadow 0.16s, border-color 0.16s;
+    pointer-events:auto; min-height:104px; display:flex; align-items:stretch;
+    background:var(--obs-700); box-shadow:var(--placa);
+    transition:background .12s;
   }
-  .ms-row:hover { border-color: var(--acc); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5); }
+  .ms-row:hover { background:var(--obs-600); }
+  .ms-eixo { flex:none; width:6px; background:var(--eixo); }
+  .ms-ic { flex:none; align-self:center; margin-left:var(--e5); width:88px; height:88px;
+           display:grid; place-items:center; background:var(--obs-600); box-shadow:var(--placa); color:var(--osso-500); }
+  .ms-txt { flex:1; min-width:0; padding:var(--e5); display:flex; flex-direction:column; gap:6px; justify-content:center; }
+  .ms-head { display:flex; align-items:center; gap:var(--e3); flex-wrap:wrap; }
+  .ms-axis { font-family:var(--fonte-display); font-size:var(--display-m); line-height:1.05;
+             font-weight:800; text-transform:uppercase; color:var(--osso-600); }
+  .ms-tag { font-family:var(--fonte-dado); font-size:var(--rotulo); font-weight:600;
+            letter-spacing:.14em; text-transform:uppercase; color:var(--eixo); }
+  .ms-desc { font-size:var(--texto-m); line-height:1.5; color:var(--osso-400); text-wrap:pretty; }
+  .ms-num { font-family:var(--fonte-dado); font-size:var(--dado-m); color:var(--osso-300); }
 
-  /* Duas formas de bloco, e o cabecalho e onde elas se separam.
-
-     ABERTA: a manchete e o EIXO — a pergunta e quanto investir nele, e a spell
-     e uma das duas maneiras de levar. SOLTA (`.loose`): a manchete e a SPELL,
-     porque e ela que esta sendo escolhida; o eixo vira consequencia e sai como
-     etiqueta abaixo, na cor dele. Por o eixo no topo de um bloco sorteado seria
-     anunciar como titulo algo que o jogador nao escolheu. */
-  .ms-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-  .ms-ic { font-size: 22px; line-height: 1; }
-  .ms-axis { font-size: 18px; font-weight: 700; color: var(--acc); line-height: 1.15; }
-  .ms-head.loose .ms-axis { color: #efe9fa; }
-  .ms-tag { flex-basis: 100%; font-size: 12px; color: #8b7fa3; }
-  .ms-head.loose .ms-tag { font-weight: 600; }
-  /* "aberto" e o unico selo desta tela, e ele marca a regra que mais importa:
-     este eixo nao depende mais do sorteio para reaparecer. */
-  .ms-open {
-    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
-    text-transform: uppercase; padding: 2px 7px; border-radius: 999px;
-    background: var(--acc); color: #14091f; font-weight: 700;
-  }
-  /* O BUFF, e ele e a manchete do bloco.
-
-     Esta e a unica parte da tela que diz o que a run vai GANHAR, e ate aqui era
-     texto cinza de 12.5px espremido entre o rotulo e os numeros — o jogador
-     comparava dois numeros sem ler o que estava comprando. Agora e caixa acesa
-     na cor do eixo, com o texto na altura de leitura que o `.lv-plain` tem na
-     outra tela.
-
-     Ela fica na altura do proprio texto e NAO estica para preencher a coluna:
-     quem alinha os numeros das tres na mesma linha e o `margin-top: auto` dos
-     botoes. Esticada, a oferta de frase curta virava um retangulo aceso meio
-     vazio — que lê como conteudo faltando, e nao como respiro. */
-  .ms-spell {
-    display: flex; align-items: flex-start; gap: 10px; min-width: 0;
-    padding: 12px 13px; border-radius: 11px;
-    background: var(--acc-wash);
-    border: 1px solid var(--acc-dim);
-  }
-  .ms-spell.empty { background: rgba(0, 0, 0, 0.16); border-color: rgba(255, 255, 255, 0.07); }
-  .ms-spell-ic { font-size: 24px; line-height: 1.1; }
-  .ms-spell-txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .ms-spell-kind {
-    display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
-    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 2px 7px; border-radius: 999px;
-    background: var(--acc); color: #14091f;
-  }
-  .ms-spell-kind i { font-style: normal; }
-  /* O nome perde para o EFEITO de proposito: no bloco aberto a manchete ja e o
-     eixo e o nome e so identificacao — quem decide a jogada e a frase abaixo. */
-  .ms-spell-name { font-size: 13.5px; font-weight: 600; color: #cfc4e2; }
-  .ms-spell-desc { font-size: 15px; line-height: 1.36; color: #f3ecff; text-wrap: pretty; }
-  .ms-spell.empty .ms-spell-name { color: #9b8fb0; }
-  .ms-spell.empty .ms-spell-desc { font-size: 12.5px; color: #8b7fa3; }
-
-  /* Os DOIS botoes sao o alvo, nao a linha. A linha e um eixo; o eixo tem duas
-     maneiras de ser levado, e a diferenca entre os dois numeros e a economia
-     inteira do jogo dita em um lugar so.
-
-     Eles ficam empilhados no pe do bloco em vez de lado a lado: os dois numeros
-     precisam ser lidos um SOBRE o outro para a diferenca aparecer, e um ao lado
-     do outro eles viram duas ofertas independentes.
-
-     Aqui, ao contrario do `.lv-pick`, os botoes sao solidos em repouso: eles
-     nao sao lembrete de que a linha e clicavel (ela nao e) — eles SAO a
-     decisao, e cada um carrega um numero diferente que o jogador precisa
-     comparar antes de mirar o mouse em qualquer lugar. */
-  .ms-takes { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+  /* bloco de commit: os dois botoes empilhados no pe. Os numeros precisam ser
+     lidos um SOBRE o outro para a diferenca aparecer — lado a lado eles viram
+     duas ofertas independentes. */
+  .ms-takes { flex:none; width:250px; padding:var(--e4) var(--e5) var(--e4) 0;
+              display:flex; flex-direction:column; justify-content:center; gap:var(--e2); }
+  /* O SELO e o unico botao do jogo pintado com cor de eixo, e ele so existe
+     aqui: preenchimento e custo, e esta e a unica tela que cobra um ponto que
+     nao volta. */
   .ms-take {
-    cursor: pointer; pointer-events: auto; text-align: left; font: inherit;
-    display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
-    padding: 10px 13px; border-radius: 10px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1.5px solid var(--acc-dim);
-    transition: background 0.14s, border-color 0.14s, transform 0.14s;
+    cursor:pointer; pointer-events:auto; font:inherit; text-align:left;
+    min-height:52px; padding:0 14px; display:flex; align-items:center; justify-content:space-between; gap:var(--e3);
+    border:0; background:var(--eixo); color:var(--obs-800);
+    box-shadow:inset 0 -3px 0 rgba(0,0,0,.28);
+    font-family:var(--fonte-display); font-size:var(--display-s); font-weight:900;
+    letter-spacing:.10em; text-transform:uppercase;
+    transition:background .12s, border-color .12s, color .12s;
   }
-  .ms-take:hover { transform: translateY(-2px); border-color: var(--acc); background: var(--acc-wash); }
-  .ms-take-l { font-size: 13.5px; font-weight: 600; color: #efe9fa; }
-  .ms-take-n {
-    grid-row: span 2; align-self: center;
-    font-family: var(--mono); font-size: 24px; font-weight: 700; color: var(--acc);
-  }
-  .ms-take-s { font-size: 11.5px; color: #8b7fa3; }
-  /* Levar a spell e a opcao que ANDA MENOS: o ambar do bau marca ela como o
-     lado do arsenal, sem sugerir que e a errada — as duas sao jogadas legitimas
-     e o jogo esta na mistura. */
-  .ms-take.wet .ms-take-n { color: #ffd24a; }
-  .ms-take.wet:hover { border-color: #ffd24a; }
-  /* Eixo no teto ou pool no fim: o botao continua clicavel quando traz spell,
-     mas para de prometer avanco. Apagar e mais honesto que exibir "+0" aceso. */
-  .ms-take.dead { opacity: 0.55; }
-  .ms-take.dead .ms-take-n { color: #7c6f92; }
+  .ms-take:hover { background:var(--eixo-300); }
+  .ms-take > em { font-style:normal; font-family:var(--fonte-dado); font-size:var(--dado-l);
+                  font-weight:600; letter-spacing:0; }
+  /* Mesma familia, pesos diferentes: a opcao que leva MAIS coisa pesa mais.
+     "So o eixo" e contornada na cor do eixo; "com a spell" e cheia. */
+  .ms-take.seco { background:none; color:var(--eixo); box-shadow:inset 0 0 0 1px var(--eixo); }
+  .ms-take.seco:hover { background:rgba(255,255,255,.12); }
+  .ms-take-note { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.14em;
+                  text-transform:uppercase; text-align:center; color:var(--osso-300); }
+  .ms-take.dead { opacity:.55; }
 
-  /* O rodape e o unico bloco que o hover re-renderiza: barras dos tres eixos
-     com a previa do ganho, e o capstone mais proximo. E o que transforma "+3"
-     num destino em vez de um numero solto. */
-  .ms-foot {
-    display: flex; flex-direction: column; gap: 12px;
-    padding: 16px 18px; border-radius: 13px;
-    background: rgba(0, 0, 0, 0.34); border: 1px solid rgba(255, 255, 255, 0.07);
-  }
-  .ms-pool { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .ms-cap { font-size: 13.5px; color: #cfc6e0; text-wrap: pretty; }
-  .ms-cap i { font-style: normal; color: #7c6f92; }
-  .ms-cap.closer { color: #7fdc4a; }
-  .ms-cap.open { color: #ffd24a; font-weight: 600; }
-  .ms-cap.none { color: #7c6f92; }
+  /* 9.8 — o slot do eixo ja comprometido. E a UNICA linha do jogo com moldura:
+     "isto ja e seu" e dito por peso, nao por cor nova. */
+  .ms-row.aberta { min-height:132px; background:var(--obs-600); box-shadow:var(--placa), inset 0 0 0 1px var(--osso-200); }
+  .ms-row.aberta .ms-eixo { width:8px; }
+  .ms-row.aberta .ms-ic { width:104px; height:104px; }
+  .ms-row.aberta .ms-takes { width:440px; }
 
-  @media (max-width: 980px) {
-    .ms-rows { flex-direction: column; align-items: stretch; }
-    .ms-row { max-width: none; }
-    .ms-pool { grid-template-columns: 1fr; }
-  }
-  /* Overlay de jogo nao rola. Em tela baixa o bloco aperta o proprio padding e
-     o numero desce um degrau — nada some, porque tudo aqui e a decisao. */
-  @media (max-height: 700px) {
-    .ms-wrap { gap: 14px; }
-    .ms-title { font-size: 30px; }
-    .ms-row { padding: 12px 14px; gap: 10px; }
-    .ms-spell { padding: 9px 11px; }
-    .ms-spell-desc { font-size: 13.5px; }
-    .ms-take { padding: 8px 12px; }
-    .ms-take-n { font-size: 21px; }
-  }
+  /* O rodape e o que transforma "+2" num DESTINO: as tres barras com previa e
+     o capstone mais proximo. Sem ele, alocar e decisao de rota longa com
+     feedback so no fim da run. */
+  .ms-foot { margin-top:auto; display:flex; align-items:flex-end; gap:40px; padding-top:var(--e5); }
+  .ms-pool { flex:1; display:grid; grid-template-columns:repeat(3,1fr); gap:40px; }
+  .ms-capwrap { flex:none; max-width:360px; text-align:right; }
+  .ms-cap { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.14em;
+            text-transform:uppercase; color:var(--osso-200); }
+  .ms-cap b { color:var(--osso-500); font-weight:500; }
+  .ms-cap.open b { color:var(--osso-600); }
 
-  /* --- barras de eixo -------------------------------------------------------
-     Vivem aqui desde o painel lateral do level-up, que nao existe mais: hoje
-     quem as desenha e o rodape da tela de ETAPA, via `UI.axesHtml`. O prefixo
-     `lv-` ficou porque renomear classe usada em duas telas so troca o nome do
-     lugar onde a duvida mora. */
-  .lv-ax { display: flex; flex-direction: column; gap: 4px; }
-  .lv-ax-head { display: flex; align-items: baseline; gap: 7px; }
-  .lv-ax-ic { font-size: 12px; }
-  .lv-ax-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; color: #cfc4e2; }
-  .lv-ax-num { font-family: var(--mono); font-size: 12px; color: #8b7fa3; }
-  .lv-ax-num.lit { color: var(--acc); }
-  .lv-ax-track {
-    position: relative; height: 6px; border-radius: 3px; overflow: hidden;
-    background: rgba(255, 255, 255, 0.06);
-  }
-  .lv-ax-track > i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--acc); }
-  /* Previa: a barra fantasma mostra onde o eixo PARA se a oferta sob o mouse
-     for comprada. E o unico jeito de ver o custo antes de pagar. */
-  .lv-ax-track > i.ghost { opacity: 0.45; transition: width 0.2s; }
-  /* A tela foi desenhada em 1440x810. Abaixo disso as cartas apertam antes do
-     texto: encolhe a manchete e o tile e, no fim, as tres viram uma coluna so
-     (`.lv-cards` na media query de 860px). A tira de build nao some — ela e uma
-     linha, entao ela quebra em vez de disputar espaco. */
-  @media (max-width: 1200px) {
-    .lv-title { font-size: 34px; }
-    .lv-kind { letter-spacing: 0.07em; padding: 3px 7px 3px 6px; }
-    .lv-plain { font-size: 18px; }
-  }
-  @media (max-height: 700px) {
-    .lv-wrap { gap: 13px; }
-    .lv-title { font-size: 30px; }
-    .lv-tile { width: 40px; height: 40px; font-size: 18px; border-radius: 10px; }
-    .lv-name { font-size: 14.5px; }
-    .lv-plain { font-size: 17px; }
-    .lv-card { gap: 9px; padding: 14px 14px 13px; }
-  }
+  .lv-ax { display:flex; flex-direction:column; gap:6px; }
+  .lv-ax-head { display:flex; align-items:center; gap:var(--e2); }
+  .lv-ax-ic { flex:none; width:10px; height:10px; background:var(--eixo); }
+  .lv-ax-ic.vazio { background:none; box-shadow:inset 0 0 0 2px var(--osso-100); }
+  .lv-ax-name { flex:1; min-width:0; font-family:var(--fonte-dado); font-size:var(--rotulo);
+                letter-spacing:.14em; text-transform:uppercase; color:var(--osso-300); }
+  .lv-ax-name.off { color:var(--osso-200); }
+  .lv-ax-num { font-family:var(--fonte-dado); font-size:var(--dado-m); color:var(--osso-400); }
+  .lv-ax-num.lit { color:var(--eixo); }
+  .lv-ax-track { position:relative; height:8px; background:var(--obs-600); overflow:hidden; }
+  .lv-ax-track > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--eixo); }
+  .lv-ax-track > i.ghost { background:var(--eixo-900); }
 
-  /* ---------- painel de pausa: caminhos ---------- */
-  .pp-row {
-    display: flex; align-items: center; gap: 7px;
-    font-size: 11px; color: #b8a8d0; margin-top: 3px;
-  }
-  .pp-row.locked { opacity: 0.4; }
-  .pp-name { width: 74px; flex: none; color: #d8cce8; }
-  .pp-pips { display: flex; gap: 2px; flex: none; }
-  .pp-pips i {
-    width: 9px; height: 9px; border-radius: 2px;
-    background: rgba(255,255,255,0.13);
-  }
-  .pp-pips i.on { background: var(--fel); }
-  .pp-next { flex: 1; min-width: 0; color: #9a8ab0; }
-  .pause-axis { margin-bottom: 6px; }
+  /* --- 9.6 PAUSA — silhueta: bloco largo a esquerda + pilha estreita ------- */
+  .tela-pausa { background:rgba(4,3,8,.96); padding:56px 80px 48px; }
+  .pa-wrap { flex:1; min-height:0; display:flex; flex-direction:column; gap:var(--e5); pointer-events:auto; }
+  .pa-head { display:flex; align-items:flex-end; justify-content:space-between; gap:var(--e5); }
+  .pa-head h2 { font-family:var(--fonte-display); font-size:64px; line-height:.98; font-weight:900;
+                text-transform:uppercase; color:var(--osso-600); }
+  .pa-body { flex:1; min-height:0; display:flex; gap:var(--e5); }
+  .pa-pecas { flex:1; min-width:0; }
+  .pa-pecas .painel-b { display:grid; grid-template-columns:repeat(2,1fr); gap:var(--e2) var(--e5); align-content:start; }
+  .pa-side { flex:none; width:520px; display:flex; flex-direction:column; gap:var(--e5); min-height:0; }
+  .pa-side .painel { flex:1; min-height:0; }
+  .pa-side .painel:first-child { flex:none; }
+  /* linha compacta de 52px: glifo 40 + nome truncado + pips. Os tres galhos de
+     cada peca vao para o hover — antes cada peca gastava ~100px e a lista era
+     cortada. Se a build crescer, e a coluna que ganha uma terceira. */
+  .pa-pw { height:52px; display:flex; align-items:center; gap:var(--e3); min-width:0; }
+  .pa-pw-ic { flex:none; width:40px; height:40px; display:grid; place-items:center;
+              background:var(--obs-600); box-shadow:var(--placa); color:var(--osso-500); }
+  .pa-pw-nome { flex:1; min-width:0; font-family:var(--fonte-display); font-size:22px; line-height:1.1;
+                font-weight:800; text-transform:uppercase; color:var(--osso-500);
+                white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pa-pw:hover .pa-pw-nome { color:var(--osso-600); }
+  .pa-vazio { font-size:var(--texto-m); color:var(--osso-300); }
+  .pa-dmg { display:flex; align-items:center; gap:var(--e3); margin-bottom:var(--e2); }
+  .pa-dmg-nome { flex:none; width:150px; font-family:var(--fonte-display); font-size:20px;
+                 font-weight:800; text-transform:uppercase; color:var(--osso-500);
+                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pa-dmg .barra { flex:1; height:14px; background:var(--obs-700); }
+  .pa-dmg-val { flex:none; width:64px; text-align:right; font-family:var(--fonte-dado);
+                font-size:var(--dado-m); color:var(--osso-400); }
+  .pa-linha { display:flex; align-items:baseline; justify-content:space-between; gap:var(--e3);
+              padding:6px 0; font-size:var(--texto-m); color:var(--osso-400); }
+  .pa-linha b { font-family:var(--fonte-dado); font-size:var(--dado-m); font-weight:500; color:var(--osso-600); }
+  .pa-foot { display:flex; align-items:center; justify-content:flex-end; gap:var(--e3); }
 
+  /* --- 9.7 BAU — silhueta: coluna estreita sobre preto --------------------
+     640px contra os 1360 da placa de Etapa: mesma familia, silhueta diferente.
+     Raridade e dita por ESPESSURA DA LUZ no topo da placa e por numero de
+     linhas — sem matiz novo. O ciano saiu. */
+  .tela-bau { align-items:center; justify-content:center; }
+  .bau-col { width:640px; max-width:92vw; display:flex; flex-direction:column; gap:var(--e5); pointer-events:auto; }
+  .bau-head { display:flex; align-items:center; gap:var(--e4); }
+  .bau-selo { flex:none; width:34px; height:34px; background:var(--osso-600); }
+  .bau-rar { margin-left:54px; display:flex; align-items:center; gap:var(--e3); }
+  .rar-pips { display:flex; gap:var(--e1); }
+  .rar-pips i { width:18px; height:6px; background:var(--osso-100); }
+  .rar-pips i.on { background:var(--osso-600); }
+  .bau-lista { display:flex; flex-direction:column; gap:var(--e2); }
+  .chest-row { min-height:72px; padding:var(--e3) var(--e4); display:flex; align-items:center; gap:var(--e4);
+               background:var(--obs-700); }
+  .chest-row.r1 { box-shadow:inset 0 1px 0 rgba(237,231,218,.08); }
+  .chest-row.r3 { box-shadow:inset 0 2px 0 rgba(237,231,218,.16); }
+  .chest-row.r5 { box-shadow:inset 0 3px 0 #EDE7DA; }
+  .bau-ic { flex:none; width:44px; height:44px; display:grid; place-items:center;
+            background:var(--obs-600); box-shadow:var(--placa); color:var(--osso-500); }
+  .bau-txt { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .bau-nome { font-family:var(--fonte-display); font-size:26px; line-height:1.05; font-weight:800;
+              text-transform:uppercase; color:var(--osso-600); }
+  .bau-galho { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.14em;
+               text-transform:uppercase; color:var(--osso-300); }
+  .bau-step { flex:none; font-family:var(--fonte-dado); font-size:var(--dado-m); color:var(--osso-400); }
+  .bau-col .btn { align-self:stretch; }
+  .bau-nota { text-align:center; color:var(--osso-100); }
+
+  /* --- 9.5 GAME OVER — silhueta: cabecalho largo + duas colunas ------------
+     Altura FIXA por construcao: a lista de dano e slice(0,5) e o resto colapsa
+     numa linha, entao uma build de 30 pecas ocupa exatamente a mesma altura de
+     uma de 6. O botao esta fora do fluxo que crescia — o transbordo deixa de
+     ser possivel em vez de ser evitado. */
+  .tela-go { padding:72px 120px 56px; }
+  .go-wrap { flex:1; min-height:0; display:flex; flex-direction:column; gap:var(--e6); pointer-events:auto; }
+  .go-head { display:flex; align-items:flex-start; justify-content:space-between; gap:var(--e5); }
+  /* o UNICO uso de vermelho fora da barra de vida e do dano recebido */
+  .go-eyebrow { color:var(--vida); }
+  .go-title { margin-top:var(--e3);
+              font-family:var(--fonte-display); font-size:110px; line-height:.86; font-weight:900;
+              letter-spacing:.04em; text-transform:uppercase; color:var(--osso-600); }
+  /* a marca vira marca d'agua: obsidiana sobre obsidiana, sem brilho */
+  .go-marca { position:relative; flex:none; width:96px; height:96px; }
+  .go-marca::before { content:""; position:absolute; inset:12px; border:8px solid var(--obs-500); transform:rotate(45deg); }
+  .go-marca::after { content:""; position:absolute; left:0; right:0; top:calc(50% - 5px); height:10px; background:var(--obs-900); }
+
+  .go-faixa { display:flex; }
+  .go-cel { flex:1; padding:var(--e5); display:flex; flex-direction:column; gap:var(--e2);
+            border-left:1px solid var(--obs-500); }
+  .go-cel:first-child { border-left:0; }
+  .go-cel b { font-family:var(--fonte-dado); font-size:52px; font-weight:500; line-height:1; color:var(--osso-600); }
+  .go-cel b i { font-style:normal; }
+  .go-body { flex:1; min-height:0; display:flex; gap:var(--e6); }
+  .go-dmg { flex:1; min-width:0; display:flex; flex-direction:column; gap:var(--e4); }
+  .go-dmg h3, .go-resumo h3 { color:var(--osso-300); }
+  .go-row { display:flex; align-items:center; gap:var(--e4); }
+  .go-row-nome { flex:none; width:220px; font-family:var(--fonte-display); font-size:24px;
+                 font-weight:800; text-transform:uppercase; color:var(--osso-600);
+                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .go-row .barra { flex:1; height:20px; }
+  .go-row.mais .barra { height:8px; }
+  .go-row.mais .go-row-nome { color:var(--osso-200); }
+  .go-row-val { flex:none; width:88px; text-align:right; font-family:var(--fonte-dado); font-size:18px; color:var(--osso-500); }
+  .go-row-pct { flex:none; width:52px; text-align:right; font-family:var(--fonte-dado); font-size:var(--dado-m); color:var(--osso-200); }
+  .go-resumo { flex:none; width:420px; display:flex; flex-direction:column; gap:var(--e4); }
+  .go-resumo .painel { padding:var(--e5); }
+  .go-acoes { margin-top:auto; display:flex; align-items:center; gap:var(--e3); }
+  .go-acoes .btn-osso { flex:1; }
+
+  /* --- respiro ------------------------------------------------------------
+     A tela foi desenhada em 1600x900. Abaixo disso o que encolhe e o cromo
+     (padding, display grande), nunca o piso de 14px nem o alvo de 44. */
+  @media (max-width:1400px) {
+    .marca-nome { font-size:120px; }
+    .selo-partido { width:56px; height:56px; }
+    .menu-col { margin-left:120px; }
+    .menu-rodape { left:120px; }
+    .ms { padding:56px 64px 48px; }
+    .ms-title { font-size:56px; }
+    .ms-row.aberta .ms-takes, .ms-takes { width:220px; }
+    .lv { padding:56px 64px; }
+    .lv-base { left:64px; right:64px; bottom:40px; }
+    .tela-go { padding:56px 64px 40px; }
+    .go-title { font-size:80px; }
+    .go-cel b { font-size:40px; }
+    .go-resumo { width:360px; }
+    .tela-pausa { padding:40px 48px 32px; }
+    .pa-side { width:420px; }
+  }
+  @media (max-height:820px) {
+    .lv-card { min-height:0; }
+    .lv-title { font-size:44px; }
+    .ms-title { font-size:52px; }
+    .ms-row { min-height:88px; }
+    .ms-row.aberta { min-height:112px; }
+    .ms-ic { width:72px; height:72px; }
+    .ms-row.aberta .ms-ic { width:88px; height:88px; }
+    .go-title { font-size:72px; }
+  }
+  @media (max-width:1000px) {
+    .lv-cards { flex-wrap:wrap; }
+    .pa-body, .go-body { flex-direction:column; }
+    .pa-side, .go-resumo { width:auto; }
+    .pa-pecas .painel-b { grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
@@ -1015,62 +692,73 @@
     <canvas id="canvas"></canvas>
   </div>
 
-  <!-- HUD overlay (HTML sobre o canvas) -->
+  <!-- 9.4 HUD — cinco lugares, margem de 24 em todos, nada no meio. -->
   <div id="hud" class="hidden">
-    <div class="hud-top">
-      <div id="timer">00:00</div>
-      <div id="msClock" class="hidden">◆ 01:00</div>
-      <div id="kills">☠ 0</div>
+    <div id="pieceBar" class="hud-tl"></div>
+    <div class="hud-tc">
+      <div id="timer" class="dado-l">00:00</div>
+      <div id="hudCtx" class="rotulo"></div>
     </div>
-    <div id="pieceBar"></div>
-    <div id="axisBar"></div>
-    <div id="toasts"></div>
-    <div id="dmgHud"></div>
-    <div class="bars">
-      <div class="bar">
-        <div id="hpFill" class="fill"></div>
-        <div id="shieldFill"></div>
-        <div class="label" id="hpLabel">100 / 100</div>
+    <div id="axisBar" class="hud-tr"></div>
+    <div class="hud-bc">
+      <div class="barra-vida"><i id="hpFill"></i><i id="shieldFill"></i></div>
+      <div class="barra-xp"><i id="xpFill"></i></div>
+      <div class="hud-vit rotulo"><span id="hpLabel">100 / 100</span><span id="xpLabel">Nível 1</span></div>
+    </div>
+    <div id="toasts" class="hud-br"></div>
+  </div>
+
+  <!-- 9.1 Menu — cartaz alinhado a esquerda, ancorado na regua de x=120. -->
+  <div id="menu" class="screen tela-menu">
+    <div class="menu-regua"></div>
+    <div class="menu-col">
+      <div class="marca">
+        <span class="selo-partido"></span>
+        <h1 class="marca-nome">PACTO</h1>
       </div>
-      <div class="bar"><div id="xpFill" class="fill"></div><div class="label" id="xpLabel">Nível 1</div></div>
+      <div class="menu-apoio">
+        <b class="ax-corr">Corrupção</b><s></s><b class="ax-dom">Domínio</b><s></s><b class="ax-cat">Cataclismo</b>
+      </div>
+      <p class="menu-tag">Você só se move. Tudo dispara sozinho. A build decide o resto — e uma decisão por etapa não volta.</p>
+      <div id="classGrid"></div>
+      <div class="menu-trancado rotulo">Mago e Caçador · trancados</div>
+      <div class="menu-acao">
+        <button class="btn btn-osso ch1" id="startBtn">Iniciar</button>
+        <span class="rotulo dim">Enter</span>
+      </div>
     </div>
+    <div class="menu-rodape rotulo">Mover <b>WASD</b> · Pausa <b>ESC</b> · Som <b>M</b> · Música <b>N</b></div>
+    <div class="menu-versao">v0.9</div>
   </div>
 
-  <!-- Menu inicial -->
-  <div id="menu" class="screen">
-    <div class="title">WoW Survivors</div>
-    <div class="subtitle">Corrupção · Domínio · Cataclismo</div>
-    <div class="class-grid" id="classGrid"></div>
-    <button class="btn" id="startBtn">Iniciar</button>
-    <div class="hint">Mover: WASD / Setas &nbsp;·&nbsp; Pausa: ESC &nbsp;·&nbsp; Som: M &nbsp;·&nbsp; Música: N</div>
-    <div class="hint">Você só se move — tudo dispara sozinho. A build decide o resto.</div>
-  </div>
-
-  <!-- Level up -->
+  <!-- 9.3 Level up — tres cartas verticais sobre o mundo VIVO. O relogio fica
+       em 32%: isto e uma batida dentro da run, nao um capitulo. -->
   <div id="levelup" class="screen lv hidden">
-    <div class="lv-glow"></div>
+    <div class="lv-timer">
+      <div id="lvClock">00:00</div>
+      <div class="rotulo" id="lvCtx"></div>
+    </div>
     <div class="lv-wrap">
       <div class="lv-head">
         <div class="lv-eyebrow" id="lvEyebrow">Nível 1 → 2</div>
         <div class="lv-title">Aprofunde uma</div>
       </div>
       <div id="lvRows" class="lv-cards"></div>
+    </div>
+    <div class="lv-base">
       <div id="lvBuild" class="lv-strip"></div>
-      <div class="lv-foot">Nada aqui custa ponto de eixo — isso é assunto das etapas.</div>
+      <div class="lv-foot">Nada aqui custa ponto de eixo · a próxima escolha corrige esta</div>
     </div>
   </div>
 
-  <!-- Etapa: a batida lenta. Tres LINHAS com as mesmas tres colunas (que eixo /
-       que spell / quanto anda) — a estrutura se repete nas tres, entao comparar
-       e correr uma coluna. O eixo aberto nunca e sorteado; o que o sorteio
-       decide e o CONTEUDO das linhas que sobram. -->
+  <!-- 9.2 / 9.8 Etapa — a unica tela que APAGA o canvas, e e isso, mais que
+       qualquer cor, que faz o jogador saber que a pergunta mudou. -->
   <div id="milestone" class="screen ms hidden">
-    <div class="lv-glow"></div>
     <div class="ms-wrap">
       <div class="ms-head-top">
-        <div class="ms-eyebrow" id="msEyebrow">Etapa 1 de 7 · 01:00</div>
+        <div class="ms-eyebrow" id="msEyebrow"></div>
         <div class="ms-title">Para onde esta run vai?</div>
-        <div class="ms-sub">O único ponto que não volta. Escolha o eixo — a spell vem junto, cobrando um ponto.</div>
+        <div class="ms-sub" id="msSub">O único ponto que não volta. Escolha o eixo — a spell vem junto, cobrando um ponto.</div>
       </div>
       <div id="msRows" class="ms-rows"></div>
       <div class="ms-foot">
@@ -1080,32 +768,90 @@
     </div>
   </div>
 
-  <!-- Pausa -->
-  <div id="pause" class="screen hidden">
-    <div class="title" style="font-size:clamp(28px,5vw,48px)">Pausado</div>
-    <div class="subtitle">ESC para voltar</div>
-    <div id="pausePanel" class="pause-panel"></div>
-    <div class="btn-row">
-      <button class="btn btn-sm" id="resumeBtn">Continuar</button>
-      <button class="btn btn-sm" id="pauseRestartBtn">Reiniciar</button>
-      <button class="btn btn-sm" id="quitBtn">Sair</button>
+  <!-- 9.6 Pausa — bloco largo a esquerda, pilha estreita a direita. -->
+  <div id="pause" class="screen tela-pausa hidden">
+    <div class="pa-wrap">
+      <div class="pa-head">
+        <div>
+          <h2>Pausado</h2>
+          <div class="rotulo dim">ESC para voltar</div>
+        </div>
+        <div class="rotulo" id="pauseMeta"></div>
+      </div>
+      <div class="pa-body" id="pauseBody">
+        <section class="painel ch3 pa-pecas">
+          <header class="painel-h"><h3>Peças</h3><span class="dado-m" id="pauseCount"></span></header>
+          <div class="painel-b" id="pausePieces"></div>
+        </section>
+        <div class="pa-side">
+          <section class="painel ch3">
+            <header class="painel-h"><h3>Eixos</h3><span class="dado-m" id="pausePool"></span></header>
+            <div class="painel-b" id="pauseAxes"></div>
+          </section>
+          <section class="painel ch3">
+            <header class="painel-h"><h3>Dano por peça</h3><span class="dado-m" id="pauseDmgTot"></span></header>
+            <div class="painel-b" id="pauseDmg"></div>
+          </section>
+        </div>
+      </div>
+      <div class="pa-foot">
+        <button class="btn btn-recuado ch1" id="quitBtn">Sair</button>
+        <button class="btn btn-recuado ch1" id="pauseRestartBtn">Reiniciar</button>
+        <button class="btn btn-osso ch1 btn-56" id="resumeBtn">Continuar</button>
+      </div>
     </div>
   </div>
 
-  <!-- Baú (boss) -->
-  <div id="chest" class="screen hidden">
-    <div class="title" style="font-size:clamp(28px,5vw,46px)">📦 Baú do Dreadlord</div>
-    <div class="subtitle" id="chestRarity">Poderes amplificados</div>
-    <div id="chestList" class="chest-list"></div>
-    <button class="btn" id="chestBtn">Continuar</button>
+  <!-- 9.7 Bau — coluna de 640 sobre preto. Nada esta sendo cobrado aqui,
+       entao o botao e OSSO e nunca selo. -->
+  <div id="chest" class="screen tela-bau hidden">
+    <div class="bau-col">
+      <div class="bau-head">
+        <span class="bau-selo ch1"></span>
+        <h2 class="display-l">Baú do Dreadlord</h2>
+      </div>
+      <div class="bau-rar">
+        <span class="rotulo" id="chestRarity">Raro</span>
+        <span class="rar-pips" id="chestPips"></span>
+        <span class="rotulo dim" id="chestCount"></span>
+      </div>
+      <div id="chestList" class="bau-lista"></div>
+      <button class="btn btn-osso ch1 btn-64" id="chestBtn">Continuar</button>
+      <div class="rotulo bau-nota">Nada a escolher · já é seu</div>
+    </div>
   </div>
 
-  <!-- Game over -->
-  <div id="gameover" class="screen hidden">
-    <div class="title" style="background:linear-gradient(180deg,#fff,#c1272d);-webkit-background-clip:text;background-clip:text;">Você Tombou</div>
-    <div class="subtitle" style="color:#ff5a5f;">A Legião prevaleceu</div>
-    <div id="stats" class="stats-box"></div>
-    <button class="btn" id="restartBtn">Tentar de novo</button>
+  <!-- 9.5 Game over — altura fixa por construcao: cinco linhas, resto
+       colapsado, botao fora do fluxo que crescia. -->
+  <div id="gameover" class="screen tela-go hidden">
+    <div class="go-wrap">
+      <header class="go-head">
+        <div>
+          <div class="rotulo go-eyebrow">A Legião prevaleceu</div>
+          <h2 class="go-title">Você tombou</h2>
+        </div>
+        <span class="go-marca"></span>
+      </header>
+      <div class="go-faixa placa ch3" id="goNums"></div>
+      <div class="go-body">
+        <section class="go-dmg">
+          <h3 class="display-s">Dano por peça</h3>
+          <div id="goDmg"></div>
+        </section>
+        <aside class="go-resumo">
+          <h3 class="display-s">A run em uma linha</h3>
+          <div class="painel ch3">
+            <p class="texto-l" id="goLine"></p>
+            <div class="painel-div"></div>
+            <div id="goExtra"></div>
+          </div>
+          <div class="go-acoes">
+            <button class="btn btn-osso ch1 btn-64" id="restartBtn">Tentar de novo</button>
+            <button class="btn btn-recuado ch1" id="goMenuBtn">Menu</button>
+          </div>
+        </aside>
+      </div>
+    </div>
   </div>
 
 <!-- Scripts classicos, em ordem de dependencia. NAO usar type="module": um
@@ -1141,6 +887,7 @@
 <script src="js/render/debris.js"></script>
 <script src="js/render/scenery.js"></script>
 <script src="js/render/vfx.js"></script>
+<script src="js/ui-glyph.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/game.js"></script>
 </body>
