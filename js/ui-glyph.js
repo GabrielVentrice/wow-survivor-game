@@ -89,6 +89,7 @@ const PRIMITIVA_DE = {
   corruption: "anel",
   agony: "duasBarrasH",
   unstableAffliction: "losango",
+  soulRupture: "quadrado",
   seedOfCorruption: "circulo",
   haunt: "losangoVazado",
   maleficRapture: "barra",

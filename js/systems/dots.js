@@ -64,6 +64,7 @@ class DotSystem {
       color: spec.color || c.color,
       removable: spec.removable, permanent: spec.permanent,
       onExpire: spec.onExpire || null,
+      expireOnDeath: spec.expireOnDeath,
       spreadOnContact: spec.spreadOnContact,
     });
     enemy.dots.push(inst);
@@ -104,9 +105,14 @@ class DotSystem {
     this.pool.sweep(DEAD);
   }
 
-  _expire(d, now) {
+  /* `dead` marca a expiracao que veio da MORTE do alvo e nao do prazo. Ela
+     roda os `onExpire` da instancia — e so eles: DOT_EXPIRED continua sendo o
+     fato "a conta venceu num alvo vivo", que e o que Contagio e Chamador
+     escutam, e emiti-lo aqui os faria disparar duas vezes no mesmo corpo,
+     junto com ENEMY_KILLED. */
+  _expire(d, now, dead) {
     const game = this.game;
-    if (d.onExpire && d.enemy && d.enemy.hp > 0) {
+    if (d.onExpire && d.enemy && (d.enemy.hp > 0 || dead)) {
       const c = pushCtx(game);
       c.key = d.ownerKey; c.color = d.color; c.now = now;
       c.target = d.enemy; c.x = d.enemy.x; c.y = d.enemy.y;
@@ -116,7 +122,7 @@ class DotSystem {
       popCtx(game);
     }
     // Ceifador, Contagio e Chamador escutam isto — nenhum deles vive aqui.
-    game.events.emit(EVENTS.DOT_EXPIRED, { enemy: d.enemy, dot: d, now });
+    if (!dead) game.events.emit(EVENTS.DOT_EXPIRED, { enemy: d.enemy, dot: d, now });
   }
 
   _detach(d) {
@@ -129,11 +135,24 @@ class DotSystem {
     d.dead = true;
   }
 
-  // Chamado antes de devolver o inimigo ao pool: sem isto um DoT orfao
-  // apontaria para um Enemy reciclado e danificaria o alvo errado.
+  /* Chamado antes de devolver o inimigo ao pool: sem isto um DoT orfao
+     apontaria para um Enemy reciclado e danificaria o alvo errado.
+
+     `expireOnDeath` e o que faz a conta vencer TAMBEM quando o corpo cai antes
+     do prazo. Sem ele, um DoT cuja graca inteira e a detonacao final so paga
+     quando o alvo sobrevive ao proprio tique — e com a horda densa e fragil
+     deste jogo isso quase nunca acontece: a peca seria uma promessa que o
+     campo cancela sozinho. Roda aqui, e nao no `update`, porque o inimigo
+     morto e limpo por `killDeadEnemies` no mesmo frame — o DoT nunca chega a
+     ser visto de novo pelo laco de update. */
   clear(enemy) {
     const list = enemy.dots;
-    for (let i = list.length - 1; i >= 0; i--) list[i].dead = true;
+    const now = this.game.clock;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const d = list[i];
+      if (d.expireOnDeath && !d.dead) this._expire(d, now, true);
+      d.dead = true;
+    }
     list.length = 0;
   }
 

@@ -679,6 +679,8 @@ class DotInstance {
     this.removable = o.removable !== false;
     this.permanent = !!o.permanent;
     this.onExpire = o.onExpire || null;
+    // a conta vence tambem se o corpo cair antes do prazo (Soul Rupture)
+    this.expireOnDeath = !!o.expireOnDeath;
     this.spreadOnContact = !!o.spreadOnContact;
     this.dead = false;
   }

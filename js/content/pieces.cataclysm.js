@@ -11,8 +11,8 @@ Object.assign(PIECES, {
     id: "incinerate", key: "incinerate", name: "Incinerate",
     color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "bolt"], vfx: "ember",
-    desc: "Tiro rápido e teimoso. O arroz com feijão do Cataclismo.",
-    stats: { cooldown: 0.75, range: 520, targets: 1, damage: 22, count: 1,
+    desc: "Mira sozinha e lança um projétil teleguiado no inimigo mais próximo. Dano direto, sem condição nenhuma.",
+    stats: { cooldown: 0.75, range: 520, targets: 1, damage: 44, count: 1,
              speed: 560, pierce: 0, projRadius: 6 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
@@ -54,9 +54,9 @@ Object.assign(PIECES, {
     id: "immolate", key: "immolate", name: "Immolate",
     color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "dot"],
-    desc: "Põe fogo no alvo. Queima devagar — até você decidir que não.",
-    stats: { cooldown: 2, range: 440, targets: 1, damage: 14,
-             dotDps: 9, duration: 6, tickInterval: 1, radius: 0, crit: 0, stacks: 1 },
+    desc: "Mira sozinha: dano na hora mais um DoT de fogo no alvo. É ela que dá às peças de detonação o que elas precisam.",
+    stats: { cooldown: 2, range: 440, targets: 1, damage: 28,
+             dotDps: 18, duration: 6, tickInterval: 1, radius: 0, crit: 0, stacks: 1 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
       { type: "damage_instant", amount: "@damage", crit: "@crit" },
@@ -101,9 +101,9 @@ Object.assign(PIECES, {
     id: "conflagrate", key: "conflagrate", name: "Conflagrate",
     color: "#ffb54a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "reactive"], vfx: "ember",
-    desc: "Detona quem já está queimando. Não funciona sozinha — e é esse o ponto.",
+    desc: "Sempre que um DoT é aplicado em alguém, detona aquele alvo em área. Precisa de outra peça que aplique DoT.",
     requires: { tag: "dot" },
-    stats: { damage: 90, radius: 120, cooldown: 0.9, range: 460 },
+    stats: { damage: 180, radius: 120, cooldown: 0.9, range: 460 },
     /* Detona QUALQUER DoT, não só o de Immolate. Amarrada ao Immolate ela
        nunca chegava à mesa: a peça habilitadora aparecia em 2 de 12 runs, e
        Conflagrate foi a única do catálogo com zero escolhas em 32 runs. */
@@ -152,10 +152,10 @@ Object.assign(PIECES, {
     id: "rainOfFire", key: "rainOfFire", name: "Rain of Fire",
     color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "area", "rooted"], vfx: "meteor",
-    desc: "Fique parado e o céu desaba onde você está. Zona de negação pura.",
+    desc: "Enquanto você fica parado, carrega e derruba fogo em volta: zonas que causam dano contínuo em quem estiver dentro.",
     // Peca `rooted` dispara muito menos que uma `auto_target`, entao cada
     // ativacao precisa valer o tempo parado: dano por queda quase dobrado.
-    stats: { chargeTime: 1.0, radius: 125, dps: 74, duration: 4,
+    stats: { chargeTime: 1.0, radius: 125, dps: 148, duration: 4,
              tickInterval: 0.3, drops: 2, jitter: 80 },
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: 0 },
     effects: [
@@ -195,8 +195,8 @@ Object.assign(PIECES, {
     id: "infernal", key: "infernal", name: "Infernal",
     color: "#e0521a", axis: "cataclysm", axisPoints: 3,
     tags: ["fire", "summon"],
-    desc: "Um colosso de pedra e fogo cai no campo e martela tudo em volta.",
-    stats: { count: 1, respawn: 10, duration: 16, damage: 55, radius: 130, range: 300, attackInterval: 0.7 },
+    desc: "Invoca um infernal que fica plantado onde caiu e martela em área tudo que se aproximar dele.",
+    stats: { count: 1, respawn: 10, duration: 16, damage: 110, radius: 130, range: 300, attackInterval: 0.7 },
     trigger: { type: "autonomous", count: "@count", interval: "@respawn" },
     effects: [
       { type: "summon", kind: "infernal", ai: "turret", count: 1, cap: "@count", big: true,
@@ -241,8 +241,8 @@ Object.assign(PIECES, {
     id: "shadowburn", key: "shadowburn", name: "Shadowburn",
     color: "#ffb54a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "shadow", "reactive", "execute"],
-    desc: "Encontra quem está quase morto e termina o serviço. Limpeza de campo.",
-    stats: { damage: 40, threshold: 0.2, executeMul: 6, cooldown: 0.4, range: 420, radius: 0 },
+    desc: "Sempre que você acerta um inimigo já abaixo do limiar de vida, dispara um golpe de execução com dano multiplicado.",
+    stats: { damage: 80, threshold: 0.2, executeMul: 6, cooldown: 0.4, range: 420, radius: 0 },
     trigger: { type: "reactive", event: "enemy_hit", condition: "enemy_below",
                pct: "@threshold", cooldown: "@cooldown", needsTarget: true },
     effects: [
@@ -284,8 +284,8 @@ Object.assign(PIECES, {
     id: "burningTrail", key: "burningTrail", name: "Burning Trail",
     color: "#e0521a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "trail", "area"],
-    desc: "O chão pega fogo por onde você passa. Correr vira ataque.",
-    stats: { distance: 70, radius: 66, dps: 34, duration: 3, tickInterval: 0.35 },
+    desc: "Enquanto você anda, o chão pega fogo atrás de você: zonas que causam dano contínuo em quem pisa.",
+    stats: { distance: 70, radius: 66, dps: 68, duration: 3, tickInterval: 0.35 },
     trigger: { type: "trail", distance: "@distance" },
     effects: [
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
@@ -328,9 +328,9 @@ Object.assign(PIECES, {
     id: "chaosBolt", key: "incinerate", name: "Chaos Bolt",
     color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "bolt", "rooted"], evolutionOnly: true, vfx: "ember",
-    desc: "Um só projétil. Carregado parado, atravessa a horda inteira.",
-    stats: { chargeTime: 1.0, range: 700, damage: 330, speed: 620, pierce: 20,
-             projRadius: 15, count: 1, blast: 160 },
+    desc: "Enquanto você fica parado, carrega e dispara um projétil único que atravessa a horda e explode em cada inimigo que fura.",
+    stats: { chargeTime: 1.0, range: 700, damage: 660, speed: 620, pierce: 20,
+             projRadius: 15, count: 1, blast: 320 },
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: "@range", needsTarget: true },
     effects: [
       { type: "projectile", damage: "@damage", speed: "@speed", count: "@count",
@@ -366,9 +366,9 @@ Object.assign(PIECES, {
     id: "wither", key: "immolate", name: "Wither",
     color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "dot", "shadow"], evolutionOnly: true,
-    desc: "A chama esfria e vira podridão: não queima, definha — e não sai mais.",
-    stats: { cooldown: 1.6, range: 480, targets: 2, damage: 18,
-             dotDps: 22, duration: 14, tickInterval: 0.7, radius: 90, stacks: 4 },
+    desc: "Mira sozinha em vários alvos: dano em área mais um definhamento longo, que empilha e não pode ser removido.",
+    stats: { cooldown: 1.6, range: 480, targets: 2, damage: 36,
+             dotDps: 44, duration: 14, tickInterval: 0.7, radius: 90, stacks: 4 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius" },
@@ -409,9 +409,9 @@ Object.assign(PIECES, {
     id: "cataclysm", key: "rainOfFire", name: "Cataclysm",
     color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "area", "directional"], evolutionOnly: true, vfx: "meteor",
-    desc: "Um meteoro lançado na direção em que você corre. A chuva virou artilharia.",
-    stats: { cooldown: 1.5, distance: 240, radius: 150, damage: 220,
-             dps: 40, duration: 4, tickInterval: 0.35 },
+    desc: "Lança um meteoro na direção em que você corre: dano pesado no impacto e uma cratera em chamas que fica queimando.",
+    stats: { cooldown: 1.5, distance: 240, radius: 150, damage: 440,
+             dps: 80, duration: 4, tickInterval: 0.35 },
     trigger: { type: "directional", cooldown: "@cooldown", distance: "@distance" },
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius", big: true },

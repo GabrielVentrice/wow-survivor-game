@@ -153,21 +153,31 @@ console.log(`  ok ${CLASSES.warlock.forms.length} formas com grade de cast, mesm
 
 /* E a pose tem que DISPARAR de verdade numa run: e o unico funil por onde toda
    peca passa, entao se ela nao acender aqui, nao acende em lugar nenhum. */
+/* O piloto ANDA, e o laco para quando a run acaba. As duas coisas pelo mesmo
+   motivo: `castTime` so anda dentro de `player.update`, que so roda com o jogo
+   em PLAYING. Um warlock parado no meio desta horda morre em ~9s, e os 81s de
+   gameover que vinham depois entravam na conta como um unico trecho de pose
+   acesa — o teste reprovava a tela de game over, nao a cadencia da pose. */
 g.start();
-let viuCast = false, maxSeguido = 0, seguido = 0;
-for (let i = 0; i < 60 * 90 && !0; i++) {
+let viuCast = false, maxSeguido = 0, seguido = 0, vivo = 0;
+g.input.keys = new Set(["d"]);
+for (let i = 0; i < 60 * 90; i++) {
   g.update(1 / 60);
+  if (g.state !== STATE.PLAYING) break;
+  vivo = i;
   if (g.player.castTime > 0) { viuCast = true; seguido++; maxSeguido = Math.max(maxSeguido, seguido); }
   else seguido = 0;
 }
-if (!viuCast) fail("90s de run e a pose de cast nunca acendeu");
+g.input.keys = new Set();
+if (!viuCast) fail(`${(vivo / 60).toFixed(0)}s de run e a pose de cast nunca acendeu`);
 /* E ela tem que APAGAR. Com uma build madura as pecas disparam quase o tempo
    todo; sem cadencia a pose de cast vira o estado normal do personagem e quem
    passa a ser evento e a caminhada. */
 else if (maxSeguido > 60 * (CAST_POSE + 0.05)) {
   fail(`pose de cast ficou ${(maxSeguido / 60).toFixed(2)}s seguidos (teto ${CAST_POSE}s)`);
 } else {
-  console.log(`  ok a pose acende na run e volta (maior trecho ${(maxSeguido / 60).toFixed(2)}s, cadencia ${CAST_GAP}s)`);
+  console.log(`  ok a pose acende na run e volta (maior trecho ${(maxSeguido / 60).toFixed(2)}s, ` +
+              `cadencia ${CAST_GAP}s, ${(vivo / 60).toFixed(0)}s de run medidos)`);
 }
 
 /* --- 3. aura so com spell concluida --------------------------------------- */
