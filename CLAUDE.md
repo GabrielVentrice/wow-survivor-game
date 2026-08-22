@@ -1,99 +1,188 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guia para o Claude Code (claude.ai/code) trabalhar neste repositório.
 
 ## O que é
 
-Survivors-like (Vampire Survivors) com tema WoW, classe Warlock. **Todo o jogo vive em um único `index.html`** (~2.6k linhas): CSS, markup e o JS inteiro num `<script>` inline. Sem build, sem dependências, sem package.json, sem testes, sem git.
+Survivors-like (Vampire Survivors) com tema WoW, classe Warlock, e um sistema de
+build roguelike inspirado em Bloons TD 6 (caminhos de upgrade que trocam a
+identidade da peça) e Echoes of Mystralia (composição livre de efeitos).
+
+**O único input em combate é movimento.** Nada é conjurado à mão; toda peça
+dispara sozinha pelo seu trigger. Posicionamento é a única decisão em tempo real.
+
+Sem build, sem dependências, sem package.json, sem testes no repo.
 
 ## Rodar
 
 ```bash
-open index.html                 # abre direto no browser (file:// funciona, zero deps)
+open index.html                 # abre direto no browser (file:// funciona)
 python3 -m http.server 8000     # alternativa se precisar de http://
 ```
 
-Não há build/lint/test. Verificação = abrir no browser e jogar. Reload manual após cada edit.
+Verificação = abrir no browser e jogar. Reload manual após cada edit.
 
-## Layout do arquivo
+**Scripts são clássicos (`<script src>`), nunca `type="module"`.** Módulo ES é
+buscado com CORS e `file://` tem origem opaca — o browser bloquearia e "abrir o
+index.html direto" pararia de funcionar. O preço é escopo global compartilhado e
+ordem dos `<script>` significativa (ver o fim do `index.html`).
 
-O `<script>` é dividido em 5 blocos marcados por banners `/* ===== NOME ===== */` (linhas aproximadas, vão driftar):
+## Mapa dos arquivos
 
-| Bloco | ~Linha | Conteúdo |
-|---|---|---|
-| `CONFIG` | 516 | `BALANCE`, `ENEMIES`, `CLASSES`, `SPELLS`, `BUFFS`, `ITEMS`, `COMBOS` — data pura |
-| `ASSETS` | 1005 | `SPRITE_DATA` + `makeSprite`/`makeGroundTile` — pixel-art gerada em runtime |
-| `ENGINE` | 1218 | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera` |
-| `ENTIDADES` | 1389 | `Player`, `Enemy`, `Projectile`, `XPOrb`, `Pickup`, `Particle`, `AreaEffect`, `SpawnManager`, e os 4 systems (`Ability`, `Buff`, `Upgrade`, `Combo`) |
-| `GAME` | 1836 | `class Game` — estado, loop, máquina de estados, HUD |
+| Arquivo | Conteúdo |
+|---|---|
+| `index.html` | CSS, markup e a lista ordenada de `<script src>` |
+| `js/util.js` | helpers puros (`xpForLevel`, `fmtNum`, `hexRgb`, `deepClone`, `setPath`) |
+| `js/balance.js` | `BALANCE`, `ENEMIES`, `AXES`, `AXIS_RULES`, `PATH_RULES`, `CLASSES`, `ITEMS` |
+| `js/sprites.js` | `SPRITE_DATA` + geração de pixel-art e do tile de chão em runtime |
+| `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
+| `js/entities.js` | `Player`, `Enemy`, `Projectile`, `Minion`, `AreaEffect`, `DotInstance`, `XPOrb`, `Pickup`, `Particle`, `SpawnManager` |
+| `js/systems/resolve.js` | registries (`PIECES`, `PASSIVES`, `CAPSTONES`, `MINIONS`) + pipeline de stats |
+| `js/systems/effects.js` | `EFFECTS` — o que acontece |
+| `js/systems/dots.js` | `DotSystem` — DoT genérico com scheduler por timestamp |
+| `js/systems/minions.js` | `MINION_AI` + `MinionSystem` |
+| `js/systems/triggers.js` | `TRIGGERS` — quando dispara |
+| `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
+| `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
+| `js/content/*.js` | o catálogo: 31 peças, passivas, capstones, demônios |
+| `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
+| `js/ui.js` | `UI` — HUD, cartas de level-up, pausa, baú, game over |
+| `js/game.js` | `Game` — estado, loop, funil de dano, colisões |
 
-Ponto de entrada: `new Game()` no `DOMContentLoaded`, no fim do arquivo.
+Ponto de entrada: `new Game()` no `DOMContentLoaded`, fim de `js/game.js`.
 
 ## Arquitetura
 
-### Conteúdo é data, não código
+### Conteúdo é dado, motor é genérico
 
-Adicionar uma spell = uma entrada em `SPELLS`; um inimigo = uma entrada em `ENEMIES`; um buff = uma entrada em `BUFFS`. Nada mais precisa mudar — os systems iteram sobre esses objetos. Toda constante de tuning (velocidade do player, curva de spawn, quando o boss entra) mora em `BALANCE`.
+Adicionar peça = adicionar entrada em `PIECES` (num arquivo de `js/content/`).
+Zero mudança no motor. Mesma coisa para passiva, capstone e tipo de demônio.
 
-Uma spell é `{ id, name, tags, icon, color, maxLevel, stats(l), desc(l), tick(dt, api, inst) }`. O `tick` é o auto-cast — não existe input de ataque, tudo dispara sozinho por cooldown em `inst.timer`.
+Schema de uma peça:
 
-### O pipeline de stats é o contrato central
+```js
+{
+  id, key, name, icon, color, axis, axisPoints, tags, desc,
+  requires?,      // { piece: "<key>" } ou { tag: "<tag>" } — gate de oferta
+  vfx?,           // nome em PIECE_VFX
+  evolutionOnly?, // true = só chega por evolução, não entra no sorteio
+  stats:   { ... },              // ÚNICA fonte de números
+  trigger: { type, ...params },  // só referências "@stat"
+  effects: [ { type, ... } ],    // efeitos aninham efeitos
+  paths: { a: { name, evolvesInto?, tiers: [T(), T(), T(), T(), T()] }, b, c },
+}
+```
+
+### `key` é a identidade estável, `id` é a aparência
+
+`id`, `name`, `icon`, `trigger` e `effects` mudam na evolução. **`key` nunca.**
+É a `key` que serve de `source` no funil de dano, e ela tem três papéis:
+chave do medidor de dano, guarda anti-recursão e origem dos eventos. Uma
+evolução com `key` diferente da forma base zera o medidor e quebra os efeitos
+ligados à fonte — o validador do harness rejeita isso.
+
+### O pipeline de stats
 
 ```
-def.stats(level)                    // números base, crus
-  → Game.buffedStats()              // multiplica pelos BuffSystem.mods
-    → aplica COMBOS[].empower       // multiplicadores do combo, se desbloqueado
+piece.stats (base)
+  → mods dos tiers comprados, na ordem dos tiers
+    → mods das passivas globais que casam com `match`
+      → mods do capstone ativo
+        → patches estruturais em trigger e effects
+          → resolução das referências "@stat" para números
 ```
 
-Duas consequências que quebram tudo se ignoradas:
+Roda **uma vez por aquisição**, não por tick; o resultado fica em `inst.r`.
+Em runtime nenhuma string é parseada e nenhum objeto é alocado por frame.
 
-1. **Dentro de `tick`, sempre `api.stats(this, inst.level)` — nunca `this.stats(level)`.** Chamar `stats` direto pula buffs e combos silenciosamente; a spell simplesmente para de escalar.
-2. **Os nomes dos campos são a interface.** `buffedStats` só conhece `damage`, `dps`, `cooldown`, `tickInterval`, `count`, `radius`, `duration`. Um stat com outro nome é invisível para os buffs. Dano vai em `damage` (instantâneo) ou `dps` (contínuo) — não invente `hitDamage`.
+Duas consequências:
 
-`BuffSystem.recompute()` reconstrói o objeto de modifiers do zero a partir dos buffs possuídos a cada aquisição; `apply(m, level)` recebe o nível **acumulado**, não o incremento.
+1. **Números só existem em `stats`.** Trigger e efeitos apontam com `"@nome"`,
+   `"@nome*3"`, `"@nome+2"`. Escrever um número cru em `trigger`/`effects` faz o
+   tier que mexeria naquele valor deixar de ter efeito.
+2. **Cada caminho de upgrade escreve em índices reservados.** Dois caminhos que
+   escrevem `effects.1` colidem e o último comprado vence. Reserve faixas
+   (caminho A → `effects.2`, B → `effects.4`, C → `effects.6`) e lembre que a
+   lista fica **esparsa**: qualquer laço sobre `effects` precisa de `if (!e) continue`.
 
-### Combos: dois canais de efeito
+### Trigger é o que diferencia as peças
 
-Combo = par SPELL+BUFF em níveis mínimos (`requires`). `ComboSystem.check()` roda após cada escolha de level-up e devolve os recém-desbloqueados (viram toast). O efeito chega de duas formas, e a maioria dos combos usa as duas:
+Com input só de movimento, é o trigger que decide como a peça reage ao
+jogador — `rooted` pune andar, `trail` premia andar, `aura` premia ficar no
+meio da horda, `auto_target` não pede nada. Trocar `trigger.type` por dado muda
+o comportamento sem tocar em código: é literalmente o que a evolução faz.
 
-- **Declarativo** — `empower: { spell, damage, cooldown, area, duration }` multiplica os stats via `buffedStats`.
-- **Imperativo** — `if (api.hasCombo("id"))` dentro do `tick` da spell (muda o comportamento: perfura, cai em dobro, cura mais), ou dentro de `Game.damageEnemy` (Demonic Pact, Unstable Affliction).
+Todo agendamento usa `game.clock` (relógio de simulação). **`update(dt)` roda
+várias vezes por frame** (sub-stepping) — um trigger que contasse frames
+dispararia 2–4× por frame em timeScale 3x.
 
-### `damageEnemy(e, amount, source)` é o funil de dano
+### `damageEnemy(e, amount, key, big, dotKey)` é o funil
 
-Todo dano passa por aqui, e o `source` (id da spell) tem três papéis: chave do medidor de dano (`abilities.record`), guarda anti-recursão, e trigger de efeitos.
+Todo dano em inimigo passa por aqui. Enquanto os eventos de um acerto estão
+sendo despachados, a `key` fica em `game._chain` e um trigger reativo daquela
+mesma key não dispara. É a generalização do antigo `source !== "corruption"`:
+sem ela, um DoT que aplica DoT trava o browser. `MAX_FX_DEPTH` é o backstop.
 
-Corruption é um **DoT passivo**: seu `tick()` é vazio e ela é aplicada dentro de `damageEnemy` sempre que qualquer outra spell acerta. Por isso `source !== "corruption"` é o guard que impede o DoT de se re-aplicar em loop. Ao criar uma spell nova, passe um `source` correto ou ela some do medidor e não propaga Corruption.
+### Marcar e varrer, nunca remover no meio do laço
 
-### Loop e sub-stepping
+Um efeito disparado durante a varredura de um pool pode acrescentar entidades
+**ao mesmo pool** — DoT que aplica DoT, projétil que gera projétil, demônio que
+invoca demônio. Com `release()` dentro de um laço que cresce, o índice nunca
+alcança o fim e o frame trava.
 
-`requestAnimationFrame` → `dt` clampado em 0.1s → multiplicado por `timeScale` (1x/2x/3x escolhido no menu) → consumido em passos de no máximo 0.025s. **`update(dt)` roda várias vezes por frame.** Qualquer coisa temporal usa `dt`; contar frames quebra nas velocidades 2x/3x.
+Padrão obrigatório nesses laços: congelar `const n = list.length`, iterar até
+`n` marcando `dead = true`, e no fim chamar `pool.sweep(DEAD)`. Vale para
+`dots`, `projectiles`, `areas`, `minions` e `enemies`.
 
-`update()` faz early-return se `state !== PLAYING` — pause, level-up, baú e game over congelam a simulação sem parar o `render()`.
+### Consultas espaciais
 
-### Pooling e grid
+`SpatialGrid` é limpo e reconstruído dentro de `updateEnemies`, que roda **antes**
+de `build.tick`. A ordem das chamadas em `Game.update` é significativa.
 
-Toda entidade transiente (`enemies`, `projectiles`, `orbs`, `areas`, `particles`, `pickups`) vem de um `Pool` com free-list; `release(i)` faz **swap-and-pop**, então loops que liberam elementos precisam iterar de trás pra frente. O objetivo é zero alocação no loop — evite criar objetos/arrays por frame em código quente.
-
-O `SpatialGrid` é limpo e reconstruído a cada frame dentro de `updateEnemies`; `api.forEnemiesInRadius` usa ele. Já `api.nearestEnemy`/`nearestEnemies` são varredura linear sobre todos os inimigos — barato o bastante hoje, mas não chame em loop aninhado.
+`nearestEnemy`/`nearestEnemies`/`nearestRangedEnemy`/`nearestEnemyExcept` passam
+todas pelo grid — nada de varredura linear sobre `enemies.active`.
 
 ### Canvas desenha o mundo, DOM desenha a UI
 
-O canvas só renderiza mundo. HUD, menus, cartas de level-up, toasts de combo, medidor de dano e tela de baú são HTML no `<body>`, mostrados/escondidos pela classe `.hidden` e atualizados por `Game.updateHUD()` / `updateAbilityBar()` / `updateDamageHud()` (esse último throttled a 4x/s). Elemento novo de UI = markup no `<body>` + ref em `this.ui`.
+O sistema de efeitos **nunca** chama `ctx.`: ele emite `game.emitVfx(kind, x, y,
+r, color)` e `js/render/vfx.js` consome. HUD, cartas, pausa, baú e medidor de
+dano são HTML, atualizados por `js/ui.js`. Elemento novo de UI = markup no
+`index.html` + ref em `UI.el`.
 
-A ordem das chamadas em `render()` **é** a ordem de profundidade (chão → áreas → orbes → pickups → inimigos → partículas → player → projéteis → overlays de habilidade).
+A ordem das chamadas em `Game.render()` **é** a ordem de profundidade.
+
+### Regras estruturais que forçam comprometimento
+
+- Pool de **20** pontos de eixo, teto de **15** por eixo → impossível maximizar dois.
+- No máximo **2** caminhos por peça passam do tier 2 → impossível maximizar três.
+- Passivas podem declarar `exclusive` → `Fúria Contida` e `Pés de Cinza` nunca coexistem.
+- Peça com `requires` só é oferecida depois que a habilitadora está na build.
+- O kit inicial da classe entra **de graça** (`acquirePiece(id, true)`), para o
+  pool de 20 ficar inteiro para as escolhas do jogador.
 
 ### Zero assets externos
 
-Sprites saem de grids ASCII em `SPRITE_DATA` (`pal` mapeia char→hex, `.` e espaço = transparente); `makeSprite` também gera uma silhueta branca usada no flash de dano. O chão é um tile procedural repetido via `CanvasPattern`. O som é WebAudio procedural (`Sfx`, toggle com M). Não adicione arquivos de imagem/áudio — mantenha tudo gerado em runtime.
+Sprites saem de grids ASCII em `SPRITE_DATA`; o chão é um tile procedural
+repetido via `CanvasPattern`; o som é WebAudio procedural. Não adicione arquivos
+de imagem ou áudio.
 
 ## Convenções
 
-- Nomes de domínio e comentários existentes estão em pt-BR (é um projeto pessoal). **Comentários novos, porém, sempre em inglês** — regra global.
-- `"use strict"`, sem módulos, sem `export`. Tudo em escopo global do `<script>`.
-- Spells nunca tocam o `Game` direto — só o objeto `api` (`buildApi()`). Se uma spell precisa de algo novo, adicione o método em `api`, não referencie `game` no `tick`.
-- `CLASSES` já tem Mage e Hunter como `available: false` (placeholder de UI). O `spellPool` da classe define quais spells entram no sorteio de level-up.
+- Nomes de domínio e comentários existentes estão em pt-BR (projeto pessoal).
+  **Comentários novos, porém, sempre em inglês** — regra global do usuário.
+- `"use strict"`, sem módulos, sem `export`. Tudo em escopo global.
+- Peça nunca referencia `game` direto: só o contexto `c` que o efeito recebe.
+  Se uma peça precisa de algo novo, adicione um efeito em `EFFECTS` ou um método
+  em `Game`, não um acesso a `game` dentro do dado.
+- Comportamento genuinamente imperativo vai para `js/hooks.js`, nomeado, e é
+  referenciado por string — nunca `if` espalhado dentro das peças.
 
-## Nota
+## Como adicionar uma peça nova
 
-Encontrei config do Gemini CLI em `~/.gemini`. Se quiser importar (MCP servers, comandos, skills, instruções), responda `/import` — ele lista o que é importável e depois você aplica com `/import --yes=<digest>`.
+1. Escolha o arquivo de `js/content/` pelo eixo.
+2. Adicione a entrada em `Object.assign(PIECES, { ... })` seguindo o schema.
+3. `key` igual ao `id`, a menos que seja evolução de outra peça.
+4. Todo número em `stats`; trigger e efeitos só com `"@ref"`.
+5. Três caminhos, cinco tiers cada. Reserve índices distintos por caminho.
+6. Se depende de outra peça, declare `requires`.
+7. Recarregue o browser. Não há mais nada a mudar.
