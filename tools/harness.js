@@ -205,6 +205,11 @@ sandbox.__argv = process.argv.slice(2);
 sandbox.__page = PAGE;
 sandbox.__exit = (code) => process.exit(code);
 sandbox.__now = () => Date.now();
+// Acesso a arquivos do repo, para o driver que PRODUZ artefato em vez de so
+// medir (driver_preview monta a previa da tela de level-up com o CSS real do
+// index.html). Caminhos sao relativos a raiz do jogo, nunca absolutos.
+sandbox.__read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
+sandbox.__write = (rel, text) => fs.writeFileSync(path.join(ROOT, rel), text);
 try {
   vm.runInContext(driver, sandbox, { filename: "driver.js" });
 } catch (e) {

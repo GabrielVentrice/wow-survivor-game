@@ -15,7 +15,9 @@ class UI {
       hpLabel: $("hpLabel"), xpLabel: $("xpLabel"),
       pieceBar: $("pieceBar"), axisBar: $("axisBar"), dmgHud: $("dmgHud"),
       toasts: $("toasts"),
-      levelup: $("levelup"), cards: $("cards"), lvSub: $("lvSub"),
+      levelup: $("levelup"), lvRows: $("lvRows"), lvBuild: $("lvBuild"),
+      lvEyebrow: $("lvEyebrow"), lvBudget: $("lvBudget"),
+      lvWas: $("lvWas"), lvFree: $("lvFree"), lvTotal: $("lvTotal"),
       pause: $("pause"), pausePanel: $("pausePanel"),
       chest: $("chest"), chestList: $("chestList"), chestRarity: $("chestRarity"),
       gameover: $("gameover"), stats: $("stats"),
@@ -179,7 +181,14 @@ class UI {
 
   /* --- level up ------------------------------------------------------------
      Um unico pool de ofertas: peca nova, tier de caminho ou passiva global.
-     A carta e a unica hora em que o jogador decide algo que nao e posicao. */
+     E a unica hora em que o jogador decide algo que nao e posicao — e a unica
+     decisao IRREVERSIVEL, porque ponto de eixo nao volta.
+
+     A tela sao TRES LINHAS com as mesmas tres colunas (o que e / o que muda /
+     custo) mais um painel com a build de agora. Nada aqui e texto novo por
+     tier: a frase sai do `desc` que ja existe, o "antes -> depois" sai dos
+     MODS do tier aplicados aos stats resolvidos da instancia, e o painel
+     inteiro e derivado do `Build`. Conteudo continua sendo dado. */
 
   openLevelUp() {
     const g = this.game;
@@ -191,78 +200,393 @@ class UI {
       g.state = STATE.PLAYING;
       return;
     }
-    this.el.lvSub.textContent = `${g.build.axisLeft} pontos de eixo restantes`;
-    this.el.cards.innerHTML = "";
-    for (const o of offers) {
-      const card = document.createElement("div");
-      card.className = "card card-" + o.kind + (o.isEvo ? " card-evo" : "");
-      // The card body wears the axis color (which build it feeds); only the top
-      // ribbon wears the offer-kind color.
-      const acc = o.axis ? o.axis.color : o.def.color;
-      card.style.setProperty("--acc", acc);
-      card.style.setProperty("--acc-dim", acc + "66");
-      card.style.setProperty("--acc-wash", acc + "1c");
-      card.style.setProperty("--acc-glow", acc + "7a");
-      card.innerHTML = this.cardHtml(o);
-      card.onclick = () => this.applyOffer(o);
-      this.el.cards.appendChild(card);
+
+    /* O nivel que ESTA escolha paga. Com varios niveis na fila o jogador
+       escolhe uma vez por nivel, entao o rotulo anda com a fila em vez de
+       repetir o nivel ja alcancado tres vezes seguidas. */
+    const lv = g.player.level - g.player.pendingLevels;
+    this.el.lvEyebrow.textContent = `Nível ${lv} → ${lv + 1}`;
+    this.el.lvTotal.textContent = `/ ${AXIS_RULES.pool} pontos de eixo`;
+    this.updateBudget(null);
+
+    this.lvOffers = offers;
+    this.lvViews = offers.map((o) => this.offerView(o));
+    this.lvHover = -1;
+    this.el.lvRows.innerHTML = "";
+    for (let i = 0; i < offers.length; i++) {
+      const v = this.lvViews[i];
+      const row = document.createElement("div");
+      row.className = "lv-row";
+      row.style.setProperty("--acc", v.color);
+      row.style.setProperty("--acc-dim", v.color + "55");
+      row.style.setProperty("--acc-wash", v.color + "1c");
+      row.innerHTML = this.rowHtml(v);
+      row.onclick = () => this.applyOffer(offers[i]);
+      // O hover so re-renderiza o PAINEL: mexer nas linhas mataria a transicao
+      // de `transform` que o CSS esta rodando naquele instante.
+      row.onmouseenter = () => this.lvHoverTo(i);
+      row.onmouseleave = () => this.lvHoverTo(-1);
+      this.el.lvRows.appendChild(row);
     }
+    this.el.lvBuild.innerHTML = this.buildPanelHtml(-1);
     this.el.levelup.classList.remove("hidden");
   }
 
-  cardHtml(o) {
+  lvHoverTo(i) {
+    if (this.lvHover === i) return;
+    this.lvHover = i;
+    this.updateBudget(i >= 0 ? this.lvViews[i] : null);
+    this.el.lvBuild.innerHTML = this.buildPanelHtml(i);
+  }
+
+  /* Previa do gasto no chip de orcamento: o saldo cai para o que sobraria e o
+     chip vira alarme. Ponto de eixo nao volta — e o unico numero desta tela
+     que o jogador nao pode desfazer depois, entao ele e o unico que se antecipa
+     ao clique. Sem custo real (passiva, tier livre, eixo no teto) nada muda:
+     alarme que acende sempre para de alarmar. */
+  updateBudget(v) {
+    const left = this.game.build.axisLeft;
+    const spend = !!(v && v.gain > 0);
+    this.el.lvWas.textContent = left;
+    this.el.lvFree.textContent = spend ? left - v.gain : left;
+    this.el.lvBudget.classList.toggle("spend", spend);
+  }
+
+  /* Tudo o que a linha mostra, derivado do que a oferta ja carrega. Roda uma
+     vez por oferta (nao por hover): o resultado fica em `this.lvViews`. */
+  offerView(o) {
+    const b = this.game.build;
+    const axis = o.axis || null;
+    const v = {
+      color: axis ? axis.color : o.def.color,
+      axis, gain: 0, pips: null, delta: [], rec: "",
+    };
+
     if (o.kind === "piece") {
-      const cost = o.def.axisPoints != null ? o.def.axisPoints : 2;
-      return `
-        <div class="card-type card-type-piece">◈ Nova spell</div>
-        <div class="card-icon" style="color:${o.def.color}">${o.def.icon}</div>
-        <div class="card-name">${o.def.name}</div>
-        <div class="card-level">${TRIGGER_LABEL[o.def.trigger.type] || "Automática"}</div>
-        <div class="card-sub">Entra na build e dispara sozinha</div>
-        <div class="card-desc">${o.def.desc}</div>
-        <div class="card-meta">
-          ${this.chip(o.axis.color, `${o.axis.icon} ${o.axis.name} +${cost}`)}
-        </div>`;
+      const trig = TRIGGER_LABEL[o.def.trigger.type] || "Automática";
+      v.kind = "Spell nova";
+      v.glyph = "◈";
+      v.icon = o.def.icon;
+      v.name = o.def.name;
+      v.subtitle = `${trig.toLowerCase()} · dispara sozinha`;
+      v.plain = o.def.desc;
+      v.why = `${axis.icon} ${axis.name} — ${axis.tag}.`;
+      v.delta = [["não está na build", trig]];
+      v.progress = "spell nova";
+      v.cost = o.def.axisPoints != null ? o.def.axisPoints : 2;
+    } else if (o.kind === "passive") {
+      v.kind = "Passiva";
+      v.glyph = "✦";
+      v.round = true;       // circulo: a mesma forma que a passiva tem no HUD
+      v.icon = o.def.icon;
+      v.name = o.def.name;
+      v.subtitle = "não dispara · afeta a build inteira";
+      v.plain = o.def.desc;
+      v.why = o.def.exclusive
+        ? `Escolher esta fecha a porta de ${PASSIVES[o.def.exclusive].name} — a build tem que optar.`
+        : "Vale para a build inteira, não para uma peça só.";
+      v.progress = "passiva";
+      v.cost = 0;
+    } else {
+      const evo = o.isEvo && o.evo ? o.evo : null;
+      /* Evolucao ganha etiqueta propria em vez de "Melhoria · evolução": ela
+         nao e um degrau a mais, e conversao — a peca troca de nome, arte,
+         trigger e efeitos. Chamar as duas coisas de melhoria some com o
+         climax justamente na linha em que ele acontece. */
+      v.kind = evo ? "Evolução" : "Melhoria";
+      v.glyph = evo ? "⭐" : "▲";
+      // O icone de uma melhoria e o de uma spell que voce JA tem: sem o selo
+      // ele e indistinguivel do icone de uma spell nova.
+      v.badge = o.tierIndex + 1;
+      v.icon = evo ? evo.icon : o.def.icon;
+      v.name = o.tier.name;
+      v.subtitle = `${o.def.name} · ${o.path.name} · tier ${o.tierIndex + 1} de ${PATH_RULES.tiers}`;
+      /* O `desc` dos sete tiers de evolucao comeca com "EVOLUÇÃO — ", de quando
+         a carta nao tinha onde marcar isso. Agora a etiqueta marca, entao o
+         prefixo repetiria a palavra tres vezes na mesma linha (etiqueta, frase
+         e porque). Tirado na exibicao, nao no dado: o `desc` continua servindo
+         a quem le o catalogo direto. */
+      const plain = o.tier.desc.replace(/^EVOLUÇÃO\s*[—-]\s*/, "");
+      v.plain = plain.charAt(0).toUpperCase() + plain.slice(1);
+      v.why = evo
+        ? `⭐ ${o.def.name} vira ${evo.name} — ${evo.desc}`
+        : `${o.def.icon} ${o.def.name} — ${o.def.desc}`;
+      v.delta = this.tierDelta(o);
+      v.progress = o.path.name;
+      v.pips = o.tierIndex + 1;
+      v.cost = o.tierIndex + 1 > PATH_RULES.freeTier ? 1 : 0;
     }
-    if (o.kind === "passive") {
-      return `
-        <div class="card-type card-type-passive">✦ Passiva</div>
-        <div class="card-icon" style="color:${o.def.color}">${o.def.icon}</div>
-        <div class="card-name">${o.def.name}</div>
-        <div class="card-level">Bônus permanente</div>
-        <div class="card-sub">Não dispara — afeta a build inteira</div>
-        <div class="card-desc">${o.def.desc}</div>
-        ${o.def.exclusive ? `<div class="card-warn">Bloqueia ${PASSIVES[o.def.exclusive].name}</div>` : ""}
-        <div class="card-meta">
-          ${this.chip("#6fdc4a", "Custa 0 ponto de eixo")}
-        </div>`;
+
+    /* Custo REAL, nao o de tabela: com o eixo no teto ou o pool no fim,
+       `addAxis` entrega menos do que a oferta pede — e dizer "custa 2" quando
+       vai custar 0 e a mentira mais cara possivel nesta tela. */
+    if (axis && v.cost) {
+      v.gain = Math.max(0, Math.min(v.cost,
+        AXIS_RULES.capPerAxis - b.axis[axis.id], b.axisLeft));
     }
-    // path tier: upgrades a spell already in the build
-    const deep = o.tierIndex + 1 > PATH_RULES.freeTier;
-    const evo = o.isEvo && o.evo;
-    let pips = "";
-    for (let i = 0; i < PATH_RULES.tiers; i++) {
-      pips += `<i class="${i < o.tierIndex ? "on" : i === o.tierIndex ? "nxt" : ""}"></i>`;
+    if (!v.cost) {
+      v.costFree = true;
+      v.costLine = o.kind === "passive"
+        ? "Não gasta ponto — passivas são livres"
+        : `Não gasta ponto — até o tier ${PATH_RULES.freeTier} é livre`;
+    } else if (!v.gain) {
+      v.costFree = true;
+      v.costLine = `Não gasta ponto — ${axis.name} já no teto`;
+    } else {
+      v.costFree = false;
+      const cur = b.axis[axis.id];
+      v.costLine = `Custa ${v.gain} · ${axis.name} ${cur} → ${cur + v.gain}`;
+    }
+
+    v.rec = this.recFor(o, v);
+    return v;
+  }
+
+  /* "antes -> depois" saido dos MODS do tier, aplicados aos stats JA
+     resolvidos da instancia (com passivas e capstone dentro). E o numero que o
+     jogador vai passar a ter, nao o numero da tabela — e nunca desatualiza
+     quando o balanceamento muda.
+
+     Tier so-estrutural (mods nulo, `patch` presente) nao tem delta numerico: a
+     frase do tier ja E a mudanca. Um tier pode escrever `was`/`now` a mao
+     quando o texto disser mais que o numero. */
+  tierDelta(o) {
+    const t = o.tier;
+    if (t.was && t.now) return [[t.was, t.now]];
+    if (!t.mods) return [];
+    const before = o.inst.r.stats;
+    const after = Object.assign({}, before);
+    applyMods(after, t.mods);
+    const out = [];
+    for (const k in t.mods) {
+      const a = before[k], z = after[k];
+      if (typeof a !== "number" || typeof z !== "number" || a === z) continue;
+      const s = STAT_FMT[k];
+      if (!s) continue;
+      out.push([`${s.name} ${s.fmt(a)}`, s.fmt(z)]);
+      // Duas linhas e o teto: a terceira empurraria o "porque" para fora da
+      // altura da linha, e o porque e o que explica a compra.
+      if (out.length === 2) break;
+    }
+    return out;
+  }
+
+  /* O chip verde so aparece quando a oferta muda a corrida por um MARCO —
+     abrir ou aproximar um capstone, ou acender a aura fechando um caminho.
+     Sem gancho real ele nao aparece: recomendacao decorativa vira ruido e o
+     jogador para de ler o chip que importa. */
+  recFor(o, v) {
+    const b = this.game.build;
+    if (o.kind === "path" && o.tierIndex + 1 === PATH_RULES.tiers && !b.isComplete(o.inst)) {
+      return "acende a aura";
+    }
+    if (!v.axis || !v.gain) return "";
+    const before = this.nearestCapstone();
+    const after = this.nearestCapstone(v.axis.id, v.gain);
+    if (!after) return "";
+    // Sem artigo de proposito: os capstones tem generos diferentes ("a
+    // Tirania", "o Ceifador") e um artigo fixo erra metade dos nomes.
+    if (!after.missing) return `abre ${after.cap.name}`;
+    if (before && after.missing < before.missing) return `aproxima ${after.cap.name}`;
+    return "";
+  }
+
+  /* Capstone mais perto de abrir, contando `extra` pontos que ainda nao foram
+     gastos. Capstone que nao cabe mais no pool nao entra: apontar para um alvo
+     inalcancavel e pior que nao apontar nenhum. */
+  nearestCapstone(extraAxis, extra) {
+    const b = this.game.build;
+    const left = b.axisLeft - (extra || 0);
+    let best = null;
+    for (const id in CAPSTONES) {
+      if (b.capstones.has(id)) continue;
+      const c = CAPSTONES[id];
+      let missing = 0;
+      const gaps = [], paid = [];
+      for (const a in c.req) {
+        const have = b.axis[a] + (a === extraAxis ? extra : 0);
+        const need = c.req[a] - have;
+        if (need > 0) { missing += need; gaps.push({ axis: AXES[a], need }); }
+        else paid.push(AXES[a]);
+      }
+      if (missing > left) continue;
+      if (!best || missing < best.missing) best = { cap: c, missing, gaps, paid };
+    }
+    return best;
+  }
+
+  rowHtml(v) {
+    let delta = "";
+    for (const d of v.delta) {
+      delta += `<div class="lv-delta"><span class="was">${d[0]}</span>` +
+               `<span class="arrow">→</span><span class="now">${d[1]}</span></div>`;
     }
     return `
-      <div class="card-type card-type-path">▲ Melhoria${evo ? " · evolução" : ""}</div>
-      <div class="card-icon" style="color:${o.def.color}">${evo ? o.evo.icon : o.def.icon}</div>
-      <div class="card-name">${o.tier.name}</div>
-      <div class="card-level">${o.path.name} · tier ${o.tierIndex + 1}/${PATH_RULES.tiers}</div>
-      <div class="card-sub">Melhora a spell <b>${o.def.name}</b></div>
-      <div class="card-desc">${o.tier.desc}</div>
-      ${evo ? `<div class="card-evo-tag" style="color:${o.evo.color};border-color:${o.evo.color}">
-                 ⭐ Evolui para ${o.evo.name}</div>` : ""}
-      ${deep && !evo ? `<div class="card-warn">Caminho profundo · +1 ${o.axis.name}</div>` : ""}
-      <div class="card-meta">
-        ${this.chip(o.def.color, `${o.def.icon} <span class="card-pips">${pips}</span>`)}
-        ${this.chip(o.axis.color, `${o.axis.icon} ${o.axis.name}${deep ? " +1" : ""}`)}
+      <div class="lv-what">
+        <div class="lv-tile${v.round ? " round" : ""}">${v.icon}${
+          v.badge ? `<b>${v.badge}</b>` : ""}</div>
+        <div class="lv-what-txt">
+          <div class="lv-kind"><i>${v.glyph}</i>${v.kind}</div>
+          <div class="lv-name">${v.name}</div>
+          <div class="lv-subtitle">${v.subtitle}</div>
+        </div>
+      </div>
+      <div class="lv-change">
+        <div class="lv-plain">${v.plain}</div>
+        ${delta}
+        <div class="lv-why">${v.why}</div>
+      </div>
+      <div class="lv-cost">
+        <div class="lv-cost-line ${v.costFree ? "free" : "pay"}">${v.costLine}</div>
+        <div class="lv-prog"><span class="lv-prog-lbl">${v.progress}</span>${
+          v.pips != null ? this.pipsHtml(v.pips) : ""}</div>
+        ${v.rec ? `<div class="lv-rec">${v.rec}</div>` : ""}
+        <div class="lv-pick">Escolher</div>
       </div>`;
   }
 
-  // Colored chip at the card footer: axis cost, source spell, path progress.
-  chip(color, inner) {
-    return `<span class="card-chip" style="color:${color};border-color:${color}55;background:${color}18">${inner}</span>`;
+  pipsHtml(n) {
+    let s = `<span class="lv-pips">`;
+    for (let i = 0; i < PATH_RULES.tiers; i++) s += `<i class="${i < n ? "on" : ""}"></i>`;
+    return s + `</span>`;
+  }
+
+  /* Painel da build: o contexto sem o qual "melhoria" e "spell nova" sao
+     palavras abstratas. Tudo derivado do Build — nenhum estado novo alem do
+     indice da oferta sob o mouse.
+
+     Ele nao rola: quando a build cresce, ele muda de DENSIDADE e depois
+     RESUME. Eixos e capstone ficam presos embaixo porque sao a informacao que
+     decide a compra; quem cede espaco e a lista de spells. */
+  buildPanelHtml(hoverIdx) {
+    const g = this.game, b = g.build;
+    const o = hoverIdx >= 0 && this.lvOffers ? this.lvOffers[hoverIdx] : null;
+    const v = hoverIdx >= 0 && this.lvViews ? this.lvViews[hoverIdx] : null;
+
+    /* Quais spells a oferta sob o mouse mexe: o tier melhora a instancia dele;
+       a spell nova destaca quem a habilitou (`requires`), que e o unico
+       vinculo real que ela tem com a build de agora. */
+    const hit = new Set();
+    if (o && o.kind === "path") hit.add(o.inst.key);
+    if (o && o.kind === "piece" && o.def.requires) {
+      const r = o.def.requires;
+      if (r.piece && b.pieces.has(r.piece)) hit.add(r.piece);
+      if (r.tag) {
+        for (const inst of b.pieces.values()) {
+          if (inst.def.tags && inst.def.tags.indexOf(r.tag) >= 0) hit.add(inst.key);
+        }
+      }
+    }
+
+    const start = (CLASSES[g.selectedClass] && CLASSES[g.selectedClass].starting) || [];
+    const rows = [];
+    for (const inst of b.pieces.values()) {
+      const d = inst.def;
+      const paths = [];
+      for (const pid in inst.paths) {
+        if (inst.paths[pid] > 0) paths.push({ name: d.paths[pid].name, n: inst.paths[pid] });
+      }
+      paths.sort((x, y) => y.n - x.n);
+      rows.push({
+        def: d, paths, hit: hit.has(inst.key),
+        meta: start.indexOf(inst.key) >= 0
+          ? "kit inicial"
+          : `${AXES[d.axis].name} · ${d.axisPoints != null ? d.axisPoints : 2} pts`,
+      });
+    }
+    // A spell afetada sobe para o topo, para nunca cair dentro do contador.
+    rows.sort((a, z) => (z.hit ? 1 : 0) - (a.hit ? 1 : 0));
+
+    const compact = rows.length > PANEL.fullRows;
+    const maxRows = compact ? PANEL.slimRows : PANEL.fullRows;
+    let list = "";
+    for (let i = 0; i < rows.length && i < maxRows; i++) {
+      const r = rows[i], c = r.def.color;
+      const style = `--acc:${c};--acc-dim:${c}55` +
+        (r.hit ? `;background:${c}1f;border-color:${c}aa` : "");
+      if (compact) {
+        const top = r.paths[0];
+        list += `<div class="lv-sp slim" style="${style}">
+          <span class="lv-sp-ic">${r.def.icon}</span>
+          <span class="lv-sp-name">${r.def.name}</span>
+          ${top ? this.pipsHtml(top.n) : ""}
+          ${r.hit ? `<span class="lv-sp-tag">↑ afetada</span>` : ""}</div>`;
+      } else {
+        let pr = "";
+        for (const p of r.paths) {
+          pr += `<div class="lv-sp-path"><span>${p.name}</span>${this.pipsHtml(p.n)}</div>`;
+        }
+        list += `<div class="lv-sp full" style="${style}">
+          <div class="lv-sp-top">
+            <span class="lv-sp-ic">${r.def.icon}</span>
+            <span class="lv-sp-txt">
+              <span class="lv-sp-name">${r.def.name}</span>
+              <span class="lv-sp-meta">${r.meta}</span>
+            </span>
+          </div>
+          ${pr}
+          ${r.hit ? `<div class="lv-sp-hint">↑ a linha em destaque melhora esta spell</div>` : ""}
+        </div>`;
+      }
+    }
+    const overflow = rows.length - maxRows;
+
+    let chips = "";
+    let np = 0;
+    for (const id of b.passives.keys()) {
+      if (np >= PANEL.chips) break;
+      const p = PASSIVES[id];
+      chips += `<span class="lv-chip" style="--acc-dim:${p.color}55;--acc-wash:${p.color}16">
+        <i>${p.icon}</i><span>${p.name}</span></span>`;
+      np++;
+    }
+    if (b.passives.size > np) {
+      chips += `<span class="lv-chip more">+${b.passives.size - np}</span>`;
+    }
+
+    let axes = "";
+    for (const id in AXES) {
+      const a = AXES[id], val = b.axis[id];
+      const add = v && v.axis && v.axis.id === id ? v.gain : 0;
+      const pct = (n) => Math.min(100, n / AXIS_RULES.capPerAxis * 100);
+      axes += `<div class="lv-ax" style="--acc:${a.color}">
+        <div class="lv-ax-head">
+          <span class="lv-ax-ic">${a.icon}</span>
+          <span class="lv-ax-name">${a.name}</span>
+          <span class="lv-ax-num ${add ? "lit" : ""}">${
+            add ? `${val} → ${val + add}` : val} / ${AXIS_RULES.capPerAxis}</span>
+        </div>
+        <div class="lv-ax-track">
+          <i class="ghost" style="width:${pct(val + add)}%"></i>
+          <i style="width:${pct(val)}%"></i>
+        </div></div>`;
+    }
+
+    let cap = "";
+    const near = this.nearestCapstone();
+    if (near && near.gaps.length) {
+      const falta = near.gaps.map((x) => `${x.need} de ${x.axis.name}`).join(" e ");
+      const pago = near.paid.map((x) => `${x.name} ${near.cap.req[x.id]}`).join(" e ");
+      cap = `<div class="lv-cap">${near.cap.icon}
+        <b style="color:${near.cap.color}">${near.cap.name}</b> a ${falta}${
+        pago ? ` — ${pago} já pago.` : "."}</div>`;
+    }
+
+    const nS = rows.length, nP = b.passives.size;
+    return `
+      <div class="lv-b-head">
+        <span class="lv-b-lbl">Sua build agora</span>
+        <span class="lv-b-count">${nS} spell${nS === 1 ? "" : "s"} · ${nP} passiva${nP === 1 ? "" : "s"}</span>
+      </div>
+      <div class="lv-b-list">${list}</div>
+      ${overflow > 0 ? `<div class="lv-b-more">+${overflow} spell${
+        overflow === 1 ? "" : "s"} — abra a pausa para ver tudo</div>` : ""}
+      ${nP ? `<div class="lv-b-sec">
+        <div class="lv-b-lbl">Passivas</div>
+        <div class="lv-b-chips">${chips}</div></div>` : ""}
+      <div class="lv-b-div"></div>
+      <div class="lv-b-axes">${axes}</div>
+      ${cap}`;
   }
 
   applyOffer(o) {
@@ -527,6 +851,91 @@ class UI {
     this.el.gameover.classList.remove("hidden");
   }
 }
+
+/* Tetos do painel de build da tela de level-up. Sao TETOS DE LEITURA, nao de
+   dados: o overlay nao rola, entao o que passa disso vira contador. Com quatro
+   spells cada uma cabe inteira (icone, custo e uma linha por caminho); da
+   quinta em diante a linha encolhe e so a trilha mais funda mostra pips. */
+const PANEL = { fullRows: 4, slimRows: 8, chips: 6 };
+
+/* Como cada stat vira texto no "antes -> depois" da linha de oferta.
+
+   Existe porque o numero cru mente sobre a unidade: `duration: 6` e seis
+   SEGUNDOS, `frac: 0.06` e seis POR CENTO e `radius: 440` nao tem sufixo
+   nenhum. Stat sem entrada aqui simplesmente nao aparece no delta — melhor
+   omitir a linha do que imprimir "limiar 0.35 → 0.5". `driver_cards` reprova
+   mod que mexa em stat fora desta tabela, entao o silencio nao passa batido. */
+const SF = {
+  n:   (v) => "" + (Math.abs(v) < 10 ? Math.round(v * 10) / 10 : Math.round(v)),
+  i:   (v) => "" + Math.round(v),
+  s:   (v) => (Math.abs(v) < 10 ? Math.round(v * 10) / 10 : Math.round(v)) + "s",
+  ps:  (v) => (Math.abs(v) < 10 ? Math.round(v * 10) / 10 : Math.round(v)) + "/s",
+  pct: (v) => Math.round(v * 100) + "%",
+  x:   (v) => (Math.round(v * 10) / 10) + "x",
+};
+const STAT_FMT = {
+  // dano e cura
+  damage:      { name: "dano", fmt: SF.n },
+  dps:         { name: "dano", fmt: SF.ps },
+  dotDps:      { name: "dano do DoT", fmt: SF.ps },
+  impDamage:   { name: "dano do imp", fmt: SF.n },
+  heal:        { name: "cura", fmt: SF.n },
+  shield:      { name: "escudo", fmt: SF.n },
+  drain:       { name: "dreno", fmt: SF.ps },
+  executeMul:  { name: "execução", fmt: SF.x },
+  crit:        { name: "crítico", fmt: SF.pct },
+  amp:         { name: "amplificação", fmt: SF.pct },
+  ramp:        { name: "crescimento", fmt: SF.pct },
+  frac:        { name: "fração", fmt: SF.pct },
+  threshold:   { name: "limiar de vida", fmt: SF.pct },
+  // tempo
+  cooldown:       { name: "recarga", fmt: SF.s },
+  interval:       { name: "intervalo", fmt: SF.s },
+  tickInterval:   { name: "tick", fmt: SF.s },
+  attackInterval: { name: "ataque", fmt: SF.s },
+  chargeTime:     { name: "carga", fmt: SF.s },
+  duration:       { name: "duração", fmt: SF.s },
+  dotTime:        { name: "duração do DoT", fmt: SF.s },
+  impDuration:    { name: "duração do imp", fmt: SF.s },
+  respawn:        { name: "renascer em", fmt: SF.s },
+  spawnEvery:     { name: "invoca a cada", fmt: SF.s },
+  markTime:       { name: "marca", fmt: SF.s },
+  // espaco
+  radius:      { name: "raio", fmt: SF.i },
+  blast:       { name: "raio da explosão", fmt: SF.i },
+  blastRadius: { name: "raio da explosão", fmt: SF.i },
+  pullRadius:  { name: "raio da atração", fmt: SF.i },
+  projRadius:  { name: "raio do projétil", fmt: SF.i },
+  orbitRadius: { name: "raio da órbita", fmt: SF.i },
+  checkRadius: { name: "raio de leitura", fmt: SF.i },
+  range:       { name: "alcance", fmt: SF.i },
+  portalRange: { name: "alcance do portal", fmt: SF.i },
+  reach:       { name: "alcance", fmt: SF.i },
+  distance:    { name: "distância", fmt: SF.i },
+  jitter:      { name: "dispersão", fmt: SF.i },
+  // movimento e empurrao
+  speed:      { name: "velocidade", fmt: SF.i },
+  speedMul:   { name: "velocidade", fmt: SF.pct },
+  orbitSpeed: { name: "giro", fmt: SF.n },
+  turnRate:   { name: "curva", fmt: SF.n },
+  force:      { name: "empurrão", fmt: SF.i },
+  pullForce:  { name: "força da atração", fmt: SF.i },
+  factor:     { name: "velocidade do alvo", fmt: SF.pct },
+  // contagens
+  targets:    { name: "alvos", fmt: SF.i },
+  maxTargets: { name: "alvos no máximo", fmt: SF.i },
+  count:      { name: "quantidade", fmt: SF.i },
+  drops:      { name: "quedas", fmt: SF.i },
+  stacks:     { name: "acúmulos", fmt: SF.i },
+  cap:        { name: "teto", fmt: SF.i },
+  impCount:   { name: "imps", fmt: SF.i },
+  revives:    { name: "renascimentos", fmt: SF.i },
+  pierce:     { name: "perfuração", fmt: SF.i },
+  cleave:     { name: "corte em arco", fmt: SF.i },
+  charges:    { name: "cargas", fmt: SF.i },
+  minEnemies: { name: "mínimo de alvos", fmt: SF.i },
+  pct:        { name: "proporção", fmt: SF.pct },
+};
 
 // Rotulo curto de cada trigger, para a carta dizer COMO a peca dispara — que
 // e a informacao que decide a compra numa build sem input de ataque.

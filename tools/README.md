@@ -16,11 +16,12 @@ DRIVER=driver_audio.js node tools/harness.js .   # som de morte: grafo, throttle
 DRIVER=driver_music.js node tools/harness.js .   # trilha: andamento, camadas, estados
 DRIVER=driver_render.js node tools/harness.js .  # cenário, demônios e explosão: render e caches
 DRIVER=driver_track.js node tools/harness.js .   # trilha em arquivo: loop, fallback, estados
-DRIVER=driver_cards.js node tools/harness.js .   # cartas de level up: faixa de tipo, pips, custo
+DRIVER=driver_cards.js node tools/harness.js .   # level up: tipo, pips, custo real, teto do painel
 DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas, abertura
 DRIVER=driver_chest.js node tools/harness.js .   # baú: cadência de aparição e tamanho do prêmio
 DRIVER=driver_form.js  node tools/harness.js .   # metamorfose por capstone e aura por spell concluída
 DRIVER=driver_pixel.js node tools/harness.js .   # grid de pixel: buffer, câmera, escala de sprite, laje
+DRIVER=driver_preview.js node tools/harness.js . # escreve tools/levelup-preview.html (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
 DRIVER=driver_balance.js node tools/harness.js . 5 16   # balanceamento (5 runs x 4 políticas)
@@ -53,6 +54,39 @@ Estado medido (20 runs):
 A política `agressivo` marca 1.2x: ela ignora defesa e controle por construção,
 morre cedo, e o terço inicial curto distorce a razão. É arquétipo glass cannon
 falhando, não regressão.
+
+`driver_preview` também não mede nada: escreve `tools/levelup-preview.html`, a
+tela de level-up montada com builds de verdade. Os quatro estados que valem
+revisão são **caçados na simulação**, não fixados por número de rodada: linha
+completa, linha compacta, compacta com excedente e **evolução na mesa** — esse
+último é o mais raro de encontrar jogando e o que tem etiqueta própria. O hover
+cai na linha que cobra ponto (para o chip de orçamento aparecer em alarme), ou
+na evolução quando há uma.
+O HTML sai do mesmo `UI.rowHtml`/`UI.buildPanelHtml` do jogo e o CSS é lido do
+`index.html`, então prévia que diverge do jogo não existe. Mesmo argumento do
+`sprites.html`: tela que só aparece por segundos, em estados sorteados, não se
+revisa jogando.
+
+## Galerias
+
+`PAGE` escolhe a página que o harness carrega — `index.html` (padrão) é o jogo,
+`sprites.html` e `vfx.html` são as galerias. Os `<script>` rodam na **ordem do
+documento**, `src` e inline misturados, igual ao browser: `sprites.html` declara
+`MINIONS` num inline antes de carregar quem usa, e inverter isso quebra.
+
+`driver_gallery` monta TODO card, roda 6 segundos de relógio nele e desenha
+quadro a quadro com o canvas stub contando traço. Ele reprova três coisas:
+
+- card que estoura no `setup`, no `tick` ou no desenho;
+- card **mudo** — que monta e não desenha nada além do fundo;
+- (só em `vfx.html`) registry que passou na frente da galeria: efeito, trigger,
+  hook, peça, passiva, capstone, demônio ou evento visual **sem card**, e card
+  marcado "sem demo nesta galeria".
+
+Esse terceiro item é o que mantém a galeria honesta. Conteúdo novo entra no
+registry e aparece na galeria na mesma leva, ou o driver reclama. A tarja
+laranja "sem animação própria", ao contrário, **não** é falha: é a lista do que
+o jogo muda sem avisar em tela — hoje 25 mecânicas.
 
 `make_track.py` não é driver: é o gerador da trilha de fundo
 (`audio/gothic-lofi.mp3`). Precisa de numpy e scipy, roda em ~7 s e imprime o

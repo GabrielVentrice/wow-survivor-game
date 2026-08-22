@@ -38,6 +38,11 @@ sem tell em tela ganha tarja laranja, e o filtro "só o que não anima" lista as
 25 que hoje mudam o jogo em silêncio. `driver_gallery` reprova card que estoura,
 card mudo e registry que passou na frente da galeria.
 
+`DRIVER=driver_preview.js node tools/harness.js .` escreve
+`tools/levelup-preview.html`, a **tela de level-up** montada com builds de
+verdade em três tamanhos (2, 6 e 11 spells). Mesmo argumento da galeria: tela
+que só aparece por segundos, em estados sorteados, não se revisa jogando.
+
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
 Antes de commitar, rode a bateria headless: veja `tools/README.md`.
 
@@ -71,7 +76,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/content/*.js` | o catálogo: 31 peças, passivas, capstones, demônios |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
-| `js/ui.js` | `UI` — HUD, cartas de level-up, pausa, baú, game over |
+| `js/ui.js` | `UI` — HUD, tela de level-up, pausa, baú, game over |
 | `js/game.js` | `Game` — estado, loop, funil de dano, colisões |
 
 Ponto de entrada: `new Game()` no `DOMContentLoaded`, fim de `js/game.js`.
@@ -358,6 +363,99 @@ e que peça comprada sem caminho fechado não acende nada. Medido em 20 runs:
   1, 3 ou 5, com `lateWeight` trocando os pesos depois de `hardAt`, quando um
   tier avulso não muda mais o jogo. Mexer nesses números é mexer na velocidade
   em que a build fecha; `driver_chest` mede as duas pontas.
+
+### A tela de level-up compara linhas, não cartas
+
+É a única tela em que o jogador decide algo que não é posição, e a decisão é
+**irreversível** — ponto de eixo não volta. Ela é três **linhas** com as mesmas
+três colunas (o que é / o que muda no jogo / custo) mais um painel com a build
+de agora, e não três cartas verticais. Cartas obrigam a ler três blocos
+separados para comparar um mesmo campo; linhas deixam o olho correr na vertical.
+
+O que caiu junto com as cartas: a legenda de tipos do topo (o tipo agora vive na
+própria linha) e o chip minúsculo de custo no rodapé (custo virou coluna).
+
+**O tipo da oferta é carregado por forma, nunca por cor.** A cor da linha é a do
+**eixo** — qual build ela alimenta —, então uma melhoria verde e uma spell nova
+verde são a mesma cor: cor já está ocupada. Quem separa as três é:
+
+- **etiqueta sólida com glifo** (`◈` spell nova, `▲` melhoria, `✦` passiva) em
+  vez de legenda solta na cor do eixo, que lia como comentário e não como rótulo;
+- **tile redondo quando é passiva** — a mesma convenção que a barra de peças do
+  HUD já usa (`.pb-icon.pb-passive`);
+- **selo com o tier no canto do tile quando é melhoria**, porque aí o ícone
+  *mente*: ele é o ícone de uma spell que o jogador já tem, idêntico ao de uma
+  spell nova com aquele mesmo ícone. O número é o que diz "isto é profundidade,
+  não largura".
+- **evolução tem etiqueta própria** (`⭐ Evolução`), não `Melhoria · evolução`:
+  ela não é um degrau a mais, é conversão — a peça troca de nome, arte, trigger
+  e efeitos. Chamar as duas coisas de melhoria some com o clímax justamente na
+  linha em que ele acontece. Os sete `desc` de evolução começam com
+  `"EVOLUÇÃO — "`, de quando a carta não tinha onde marcar isso; o prefixo é
+  removido **na exibição**, não no dado.
+
+Os glifos são os mesmos da legenda que a tela perdeu: o vocabulário não mudou,
+só saiu do topo e entrou na linha. `driver_cards` cobra os três marcadores em
+toda oferta.
+
+**Nenhum texto novo por tier.** São 645 tiers no catálogo — escrever "antes →
+depois" à mão em cada um seria conteúdo que envelhece no primeiro rebalanceamento.
+Tudo o que a linha mostra sai do que já existe:
+
+| Campo da linha | De onde vem |
+|---|---|
+| frase principal | `tier.desc` / `def.desc` — já são frases em pt-BR |
+| antes → depois | `tier.mods` aplicado a `inst.r.stats` (`UI.tierDelta`) |
+| porquê | a peça que o tier melhora, ou o eixo que a spell alimenta |
+| custo | `Math.min(custo, teto do eixo, pool livre)` — o que `addAxis` vai cobrar |
+| chip verde | abre/aproxima um capstone, ou fecha um caminho (acende a aura) |
+| painel inteiro | `build.pieces`, `build.passives`, `build.axis`, `CAPSTONES` |
+
+Consequências:
+
+- **O delta sai dos stats RESOLVIDOS da instância**, com passivas e capstone
+  dentro — é o número que o jogador vai passar a ter, não o da tabela. Tier
+  só-estrutural (`mods` nulo, `patch` presente) não tem delta numérico e a
+  frase do tier carrega sozinha; um tier pode escrever `was`/`now` à mão quando
+  o texto disser mais que o número.
+- **`STAT_FMT` (`js/ui.js`) é quem sabe a unidade.** `duration: 6` é seis
+  segundos, `frac: 0.06` é seis por cento e `radius: 440` não tem sufixo — sem
+  a tabela o delta imprimiria "limiar 0.35 → 0.5". Stat sem entrada não aparece,
+  e `driver_cards` reprova mod que mexa em stat fora da tabela: o silêncio não
+  passa batido.
+- **O custo anunciado é o custo real.** Com o eixo no teto ou o pool no fim,
+  `addAxis` entrega menos do que a oferta pede; dizer "custa 2" quando vai
+  custar 0 é a mentira mais cara que esta tela pode contar. O driver compara os
+  dois em toda oferta de toda rodada.
+- **Chip de recomendação só com gancho real.** Recomendação decorativa vira
+  ruído e o jogador para de ler o chip que importa.
+
+**O painel não rola — ele resume.** Overlay de jogo não tem barra de rolagem, e
+a build cresce a run inteira. Em ordem: densidade automática (`PANEL.fullRows`
+spells → linha inteira; acima disso → linha única), teto de linhas visíveis
+(`PANEL.slimRows`) com o excedente virando contador, passivas sempre em chips
+(elas não têm tier, só existência), e a spell afetada pela oferta sob o mouse
+sobe para o topo para nunca cair dentro do contador. **Eixos e capstone são
+`flex-shrink: 0`**: são a informação que decide a compra, então são a última
+que pode sumir — quem cede espaço é a lista de spells.
+
+Estado novo é **um só**: o índice da oferta sob o mouse. O hover re-renderiza
+só o painel (`lvBuild`) e o chip de orçamento; mexer nas linhas mataria a
+transição de `transform` que o CSS está rodando naquele instante.
+
+**O chip de orçamento antecipa o gasto.** No hover o saldo cai para o que
+sobraria (`20 → 18`) e o chip vira alarme. Ponto de eixo é o único número desta
+tela que não se desfaz depois, então é o único que se antecipa ao clique — e o
+número mostrado é `v.gain`, o custo real, não o de tabela. Sem custo (passiva,
+tier livre, eixo no teto) nada muda: alarme que acende sempre para de alarmar.
+O vermelho é `#ff6b8a`, o mesmo que o relógio assume na fase dura — o laranja
+de "custa" não serve aqui porque ele **é** a cor do eixo Cataclismo, e numa
+oferta de Cataclismo o alarme sumiria dentro da própria linha.
+
+Tipografia: **Outfit** e **IBM Plex Mono**, vindas do Google Fonts. É a exceção
+à regra de "nenhum asset novo" — baixar os `.woff2` adicionaria arquivo ao repo.
+Offline as pilhas de fallback em `--ui`/`--mono` assumem e a tela continua
+legível, só perde o desenho da fonte.
 
 ### Uma build, uma família de cor
 
