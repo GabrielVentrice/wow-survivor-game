@@ -802,15 +802,29 @@ class SpawnManager {
       game.enemies.spawn(this.pickType(game.elapsed), x, y, this.scale);
     }
   }
+  /* Quem e o chefe da vez sai do dado, nao de um id cravado: todo tipo com
+     `boss: true` cujo `minTime` ja passou entra no sorteio. Enquanto era
+     `ENEMIES.dreadlord` na mao, acrescentar um segundo chefe era mudar o
+     motor; agora e acrescentar uma entrada. */
+  bossPool(elapsed) {
+    const pool = [];
+    for (const id in ENEMIES) {
+      const t = ENEMIES[id];
+      if (t.boss && elapsed >= t.minTime) pool.push(t);
+    }
+    return pool;
+  }
   spawnBoss(game) {
     const reach = this._reach(game);
     const n = this.bossCount(game.elapsed);
+    const pool = this.bossPool(game.elapsed);
+    if (!pool.length) return;
     const base = Math.random() * Math.PI * 2;
     for (let i = 0; i < n; i++) {
       const a = base + (Math.PI * 2 / n) * i;
       const x = game.player.x + Math.cos(a) * reach;
       const y = game.player.y + Math.sin(a) * reach;
-      game.enemies.spawn(ENEMIES.dreadlord, x, y, this.scale);
+      game.enemies.spawn(pool[(Math.random() * pool.length) | 0], x, y, this.scale);
     }
     game.onBossSpawn(n);
   }

@@ -822,11 +822,35 @@ class Game {
         }
         this.player.kills++;
         this.dropLoot(e);
+        if (e.type.deathBlast) this.deathBlast(e);
       }
       e.noReward = false;
       e.dead = true;
     }
     this.enemies.sweep(DEAD);
+  }
+
+  /* Inimigo que cobra ao MORRER. E dado (`type.deathBlast`), nao um if com o id
+     do sapador dentro: qualquer casta futura declara o campo e ganha o mesmo
+     comportamento.
+
+     Duas coisas nao obvias moram aqui. O estouro NAO chama damageEnemy — se
+     chamasse, um sapador matando o vizinho dispararia o estouro dele no meio
+     da varredura de `killDeadEnemies`, que e exatamente o laco que cresce
+     enquanto e percorrido. Ele so cobra do JOGADOR, que e onde a ameaca esta.
+     E o hitstop e o tremor entram pela cadencia normal, sem `force`: numa
+     leva inteira explodindo junto, um stop por corpo viraria apresentacao de
+     slides. */
+  deathBlast(e) {
+    const b = e.type.deathBlast;
+    this.emitVfx("burst", e.x, e.y, b.radius, e.type.color);
+    this.spawnParticles(e.x, e.y, e.type.color, 10);
+    const dx = this.player.x - e.x, dy = this.player.y - e.y;
+    const reach = b.radius + this.player.radius;
+    if (dx * dx + dy * dy > reach * reach) return;
+    this.damagePlayer(b.damage, "blast");
+    this.addShake(9, -dx, -dy);
+    this.addHitstop(BALANCE.camera.hitstop.hurt);
   }
 
   // Um único ponto de entrada para o baú: o boss larga o dele, o spawner solta
