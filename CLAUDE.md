@@ -990,7 +990,8 @@ parado ao lado de três cartas que não o tocam. `driver_cards` reprova `lv-ax` 
 volta na tira.
 
 Sobrou a única pergunta que a tira responde, e ela é a desta tela: **em que
-degrau estão as minhas outras spells?** Ícone, nome, pips do caminho mais fundo,
+degrau estão as minhas outras spells — e qual delas parou?** Ícone, nome, pips
+do caminho mais fundo, o `have/need` do gate de eixo quando a spell travou,
 e a spell que a carta sob o mouse melhora acende — é o que liga a decisão ao
 estado da build sem a tira ter que explicar nada por escrito. `STRIP.spells` é o
 teto e o excedente vira contador, porque overlay de jogo não rola.
