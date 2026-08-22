@@ -60,6 +60,11 @@
 
     /* vital — reservados, e so aqui */
     --vida:#C9302C; --vida-vazia:#7A1A18;
+    /* XP e o unico azul do jogo, e existe por LEGIBILIDADE: a gota no chao era
+       verde e sumia dentro de toda spell de Corrupcao. Azul claro nao colide
+       com nenhum dos tres eixos (100 / 271 / 29) e nao e osso cheio, que e
+       reserva do warlock. */
+    --xp:#7FD8FF; --xp-nucleo:#DFF6FF;
 
     --fonte-display:"Big Shoulders Display", Impact, "Haettenschweiler", "Arial Narrow", sans-serif;
     --fonte-texto:"Eczar", Georgia, "Times New Roman", serif;
@@ -259,7 +264,7 @@
   .barra-vida > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--vida); }
   .barra-vida > i#shieldFill { background:var(--osso-400); }
   .barra-xp { position:relative; height:4px; margin-top:var(--e1); background:var(--obs-600); overflow:hidden; }
-  .barra-xp > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--osso-600); }
+  .barra-xp > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--xp); }
   .hud-vit { margin-top:6px; display:flex; justify-content:space-between; }
 
   /* toast (8.9) — 340x44, teto de TRES, e a tarja de 4x20 na cor do eixo e a
