@@ -164,6 +164,28 @@ dano são HTML, atualizados por `js/ui.js`. Elemento novo de UI = markup no
 
 A ordem das chamadas em `Game.render()` **é** a ordem de profundidade.
 
+### Hierarquia de leitura: o personagem primeiro
+
+Com mil inimigos, trinta zonas e a build inteira acesa, brilho vira ruído e o
+jogador perde de vista a única coisa que ele controla. A ordem de prioridade é
+fixa e vale para qualquer adorno novo:
+
+1. **O warlock.** Contorno escuro (`drawSpriteRim`) para a arte não se dissolver
+   dentro do próprio brilho, e luz **no chão** — elipse achatada aos pés, nunca
+   disco centrado no corpo.
+2. **O que decide a jogada:** inimigo, zona de dano, projétil. Zona tem aro no
+   raio exato; o preenchimento é fraco de propósito, quem informa é a borda.
+3. **Feedback de estado** (DoT, controle, invocação) — decoração proporcional à
+   informação: o anel de podridão só aparece em quem carrega 3+ DoTs, e no
+   máximo `MAX_PIECE_VFX` peças desenham adorno em volta do jogador.
+4. **Cenário.** Vive numa faixa de luz abaixo de tudo que o jogador conjura. Se
+   o chão brilha tanto quanto uma explosão, a explosão não significa nada.
+
+Regra prática ao acrescentar efeito: pergunte quantos deles cabem na tela ao
+mesmo tempo. Bonito com um e ilegível com cinquenta significa que a alpha
+divide por quantidade (`1/sqrt(n)`), que existe um teto, ou que o efeito só
+aparece acima de um limiar.
+
 ### Regras estruturais que forçam comprometimento
 
 - Pool de **20** pontos de eixo, teto de **15** por eixo → impossível maximizar dois.

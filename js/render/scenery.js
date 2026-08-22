@@ -25,12 +25,17 @@ const SCENERY = {
   chunk: 620,          // lado do bloco de mundo que recebe props
   tileVariants: 8,
   maxChunkCache: 512,
-  embers: 46,
+  embers: 24,
 };
 
 /* Peso de cada tipo de destroço. Os que brilham e se mexem (braseiro, sigilo,
    cristal) competem com as habilidades do jogador pela atenção, então são
-   raros; o que carrega o cenário são as peças escuras e paradas. */
+   raros; o que carrega o cenário são as peças escuras e paradas.
+
+   Mesma regra vale para o brilho de cada um: o cenário é lido de relance e
+   nunca é decisão de jogo, então tudo aqui vive numa faixa de luz abaixo do
+   que o jogador conjura. Quando o chão brilha tanto quanto uma explosão, a
+   explosão para de significar alguma coisa. */
 const PROP_WEIGHTS = [
   ["bones", 26], ["spike", 22], ["pillar", 18], ["fissure", 14],
   ["crystal", 9], ["brazier", 6], ["sigil", 5],
@@ -100,7 +105,7 @@ function makeFelTile(variant) {
 
   // veios de fel: o brilho vem de duas passadas, uma larga e turva por baixo
   // e uma fina e clara por cima — é o que faz parecer luz e não risco verde
-  const veins = rnd() < 0.42 ? 0 : 1 + Math.floor(rnd() * 2);
+  const veins = rnd() < 0.58 ? 0 : 1;
   for (let v = 0; v < veins; v++) {
     const pts = [];
     let cx = rnd() * T, cy = rnd() * T;
@@ -112,8 +117,8 @@ function makeFelTile(variant) {
       cy += Math.sin(a) * (T * 0.18);
     }
     for (const pass of [
-      { w: 5, s: "rgba(90,200,60,0.055)" },
-      { w: 1.5, s: "rgba(170,240,115,0.19)" },
+      { w: 5, s: "rgba(90,200,60,0.035)" },
+      { w: 1.5, s: "rgba(170,240,115,0.10)" },
     ]) {
       x.strokeStyle = pass.s;
       x.lineWidth = pass.w;
@@ -290,7 +295,7 @@ class Scenery {
       if (sx < -40) { e.x += cam.w + 80; sx += cam.w + 80; }
       else if (sx > cam.w + 40) { e.x -= cam.w + 80; sx -= cam.w + 80; }
       const k = 0.35 + Math.sin(t * 2 + i * 1.7) * 0.3;
-      ctx.globalAlpha = k * (0.24 + this.corruption * 0.34);
+      ctx.globalAlpha = k * (0.11 + this.corruption * 0.17);
       ctx.fillStyle = i % 5 === 0 ? "#c88aff" : "#a8ff6a";
       ctx.beginPath();
       ctx.arc(sx, sy, e.size, 0, Math.PI * 2);
@@ -308,8 +313,8 @@ class Scenery {
       this._vig = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.34,
                                            w / 2, h / 2, Math.max(w, h) * 0.78);
       this._vig.addColorStop(0, "rgba(0,0,0,0)");
-      this._vig.addColorStop(0.65, "rgba(6,2,10,0.34)");
-      this._vig.addColorStop(1, "rgba(3,1,6,0.76)");
+      this._vig.addColorStop(0.65, "rgba(6,2,10,0.42)");
+      this._vig.addColorStop(1, "rgba(3,1,6,0.84)");
     }
     ctx.fillStyle = this._vig;
     ctx.fillRect(0, 0, w, h);
@@ -318,7 +323,7 @@ class Scenery {
     if (k > 0.02) {
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      ctx.globalAlpha = 0.05 + k * 0.09;
+      ctx.globalAlpha = 0.03 + k * 0.06;
       if (!this._fel || this._felW !== w) {
         this._felW = w;
         this._fel = ctx.createRadialGradient(w / 2, h * 1.15, h * 0.2,
@@ -343,7 +348,7 @@ const PROPS = {
     const s = p.s, k = 0.6 + Math.sin(t * 1.4 + p.seed * 9) * 0.4;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.1 + k * 0.09;
+    ctx.globalAlpha = 0.06 + k * 0.05;
     const w = 26 * s;
     ctx.drawImage(glowBlob("#7fdc4a"), sx - w, sy - w * 0.8, w * 2, w * 1.6);
     ctx.restore();
@@ -449,13 +454,13 @@ const PROPS = {
       const k = (ph + i * 0.55) % 1;
       const fy = sy - 15 * s - k * 22 * s;
       const fw = (5.5 - k * 4) * s;
-      ctx.globalAlpha = (1 - k) * 0.75;
+      ctx.globalAlpha = (1 - k) * 0.5;
       ctx.fillStyle = i % 2 ? "#d8ff9e" : "#6fdc4a";
       ctx.beginPath();
       ctx.ellipse(sx + Math.sin(ph * 2 + i) * 2.5 * s, fy, fw, fw * 1.7, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.globalAlpha = 0.15;
+    ctx.globalAlpha = 0.09;
     const w = 24 * s;
     ctx.drawImage(glowBlob("#7fdc4a"), sx - w, sy - 22 * s - w, w * 2, w * 2);
     ctx.restore();
@@ -469,11 +474,11 @@ const PROPS = {
     ctx.translate(sx, sy);
     ctx.scale(1, 0.42);
     ctx.rotate(p.a + t * 0.12);
-    ctx.strokeStyle = `rgba(122,60,255,${(0.1 + k * 0.09 + corr * 0.08).toFixed(3)})`;
+    ctx.strokeStyle = `rgba(122,60,255,${(0.07 + k * 0.06 + corr * 0.05).toFixed(3)})`;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.arc(0, 0, r * 0.62, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = `rgba(160,255,120,${(0.07 + k * 0.1).toFixed(3)})`;
+    ctx.strokeStyle = `rgba(160,255,120,${(0.05 + k * 0.06).toFixed(3)})`;
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2;
       ctx.beginPath();
@@ -501,14 +506,14 @@ const PROPS = {
     ctx.lineTo(len * 0.2, 4 * s);
     ctx.lineTo(len / 2, -2 * s);
     ctx.stroke();
-    ctx.strokeStyle = `rgba(170,255,110,${(0.18 + k * 0.2 + corr * 0.14).toFixed(3)})`;
+    ctx.strokeStyle = `rgba(170,255,110,${(0.12 + k * 0.12 + corr * 0.1).toFixed(3)})`;
     ctx.lineWidth = 2.2 * s;
     ctx.stroke();
     ctx.restore();
 
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.06 + k * 0.07;
+    ctx.globalAlpha = 0.04 + k * 0.045;
     const w = 30 * s;
     ctx.drawImage(glowBlob("#7fdc4a"), sx - w, sy - w * 0.45, w * 2, w * 0.9);
     ctx.restore();

@@ -176,7 +176,8 @@ class Player {
       ctx.stroke();
     }
 
-    for (let i = 0; i < fx.length; i++) {
+    const shown = Math.min(fx.length, MAX_PIECE_VFX);
+    for (let i = 0; i < shown; i++) {
       p.lvl = fx[i].lvl; p.color = fx[i].color; p.rgb = fx[i].rgb;
       fx[i].under?.(ctx, p);
     }
@@ -194,7 +195,7 @@ class Player {
         c.color, 0.06 + k * 0.08);
     }
 
-    for (let i = 0; i < fx.length; i++) {
+    for (let i = 0; i < shown; i++) {
       p.lvl = fx[i].lvl; p.color = fx[i].color; p.rgb = fx[i].rgb;
       fx[i].over?.(ctx, p);
     }

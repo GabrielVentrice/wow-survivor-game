@@ -8,6 +8,11 @@ const DEV_MODE = new URLSearchParams(location.search).get("mode") === "dev";
 
 const EMPTY_ARR = [];            // sentinela p/ render nao alocar por frame
 const PULSE_LIFE = 0.9;          // duracao da onda de choque de desbloqueio
+// Quantas pecas desenham adorno em volta do warlock ao mesmo tempo. Cada uma
+// custa luz no chao e uma nuvem de particulas; passando disso o personagem
+// some dentro da propria build e o jogador perde a unica coisa que ele
+// precisa achar na tela. As demais continuam existindo na cor do halo.
+const MAX_PIECE_VFX = 3;
 const DEFAULT_FORMS = [{ sprite: "warlock", at: 0, scale: 2.9 }];
 
 /* XP para sair do nível `l`.
