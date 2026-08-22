@@ -16,7 +16,7 @@ DRIVER=driver_audio.js node tools/harness.js .   # som de morte: grafo, throttle
 DRIVER=driver_music.js node tools/harness.js .   # trilha: andamento, camadas, estados
 DRIVER=driver_render.js node tools/harness.js .  # cenário, demônios e explosão: render e caches
 DRIVER=driver_track.js node tools/harness.js .   # trilha em arquivo: loop, fallback, estados
-DRIVER=driver_cards.js node tools/harness.js .   # level up: so profundidade, pips, progresso, teto do painel
+DRIVER=driver_cards.js node tools/harness.js .   # level up: gate de eixo, pips, progresso, teto do painel
 DRIVER=driver_milestone.js node tools/harness.js .  # etapa: tabela, tres eixos, ganho real, quem mira fecha capstone
 DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas, abertura
 DRIVER=driver_chest.js node tools/harness.js .   # baú: cadência de aparição e tamanho do prêmio
@@ -29,6 +29,7 @@ DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homin
 DRIVER=driver_preview.js node tools/harness.js . # escreve tools/telas-preview.html: as 6 telas de UI (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
+PAGE=icons.html   DRIVER=driver_gallery.js node tools/harness.js .  # folha de contato dos ícones: idem
 DRIVER=driver_balance.js node tools/harness.js . 5 16   # balanceamento (5 runs x 4 políticas)
 DRIVER=driver_perf.js node tools/harness.js . 12        # custo de frame com a horda no teto
 ```
@@ -264,9 +265,11 @@ laranja "sem animação própria", ao contrário, **não** é falha: é a lista 
 o jogo muda sem avisar em tela — hoje 25 mecânicas.
 
 `make_track.py` não é driver: é o gerador da trilha de fundo
-(`audio/gothic-lofi.mp3`). Precisa de numpy e scipy, roda em ~7 s e imprime o
-nível de cada barramento e o degrau no ponto de volta do loop. Como reencodar
-está em `audio/README.md`.
+(`audio/rain-lofi.mp3`, o lofi de chuva). Precisa de numpy e scipy, roda em ~7 s
+e imprime o nível de cada barramento e o degrau no ponto de volta do loop —
+degrau menor que o típico entre amostras é a prova de que a faixa emenda e pode
+rodar com `loop` nativo. Como reencodar, e por que a chuva entra depois da
+fita, está em `audio/README.md`.
 
 O stub de `AudioContext` monta o grafo de verdade e explode em rampa
 exponencial com alvo <= 0, então erro de WebAudio aparece aqui e não só no

@@ -34,6 +34,11 @@ sprite e os botões copiam a referência pronta (`SPRITE_DATA.ghoul
 (js/sprites.js)`) para pedir um ajuste. Sprite sem dono aparece na seção
 "Sem uso" — é lá que arte órfã fica visível antes de virar peso morto.
 
+`open icons.html` abre a **folha de contato dos ícones**: as 59 grades em osso
+nos três tamanhos em que o jogo as desenha, e a tira de cada eixo acima dos
+cards — é na tira que a repetição aparece, e foi ela que denunciou as
+primitivas. Peça sem desenho próprio nasce com tarja vermelha.
+
 `open vfx.html` abre a **galeria de animações**: o que cada mecânica DESENHA em
 tela. Cada card monta um mundo minúsculo com as mesmas classes do jogo
 (`Player`, `Enemy`, `Projectile`, `AreaEffect`, `Minion`, `VfxLayer`) e desenha
@@ -73,7 +78,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
 | `js/voices.js` | `VOICES` — o que cada evento visual SOA (o irmão de `js/render/vfx.js`) |
 | `js/music.js` | `MUSIC` + `Music` — trilha procedural (a **reserva**) |
-| `js/track.js` | `Track` + `Soundtrack` — toca `audio/gothic-lofi.mp3`, com fallback |
+| `js/track.js` | `Track` + `Soundtrack` — toca `audio/rain-lofi.mp3`, com fallback |
 | `js/assets/sfx-bone.js` | amostra de osso quebrando embutida em base64 |
 | `js/entities.js` | `Player`, `Enemy`, `Projectile`, `Minion`, `AreaEffect`, `DotInstance`, `XPOrb`, `Pickup`, `Particle`, `SpawnManager` |
 | `js/systems/resolve.js` | registries (`PIECES`, `PASSIVES`, `CAPSTONES`, `MINIONS`) + pipeline de stats |
@@ -88,6 +93,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
+| `js/ui-icons.js` | `UI_ICONS` — a grade 16x16 de cada peça, passiva e capstone |
 | `js/ui-glyph.js` | `UI_PAL` + `Glyph` — a paleta da UI e o que substitui todo emoji |
 | `js/ui.js` | `UI` — HUD, tela de level-up, tela de etapa, pausa, baú, game over |
 | `js/game.js` | `Game` — estado, loop, funil de dano, colisões |
@@ -254,29 +260,48 @@ Um `grep -nE 'border-radius|text-shadow|blur|gradient|backdrop' index.html` é
 metade da verificação. A única `border-radius` permitida é o tile **redondo da
 passiva**, que é a forma que separa "não dispara" de "spell" sem usar cor.
 
-#### O glifo: sprite em osso, ou uma das dez primitivas
+#### O glifo: um desenho por peça, e a primitiva só para o que não tem
 
-`Glyph.svg(id, size)` (`js/ui-glyph.js`) devolve SVG em linha, em duas fontes e
-nesta ordem:
+`Glyph.svg(id, size)` (`js/ui-glyph.js`) devolve SVG em linha, em três fontes e
+**nesta ordem**:
 
-1. **O gerador do mundo.** Se a peça invoca um demônio que já existe em
-   `SPRITE_DATA`, o ícone é aquela grade desenhada em osso monocromático — a
-   arte do jogo, sem cor própria, com a silhueta fazendo o trabalho.
-2. **Uma das dez primitivas** de traço 4 (`quadrado`, `placa`, `círculo`,
-   `anel`, `losango`, `losango vazado`, `barra`, `duas barras`, `barra
-   horizontal`, `duas barras horizontais`). Não há grade em osso para as trinta
-   e poucas spells que não invocam nada, e inventar uma ilustração por spell
-   seria arte que envelhece na primeira mudança de catálogo. A primitiva não
-   *ilustra* a spell: ela a **distingue**, que é o único trabalho que um ícone
-   de 32px faz de verdade.
+1. **A grade própria da peça** (`UI_ICONS`, `js/ui-icons.js`): 16×16 em osso
+   monocromático, `#` cheio e `.` vazio.
+2. **O gerador do mundo.** Se a peça invoca um demônio que já existe em
+   `SPRITE_DATA`, o ícone é a grade *dele* — o único caso em que o ícone pode
+   ser a coisa em vez de um símbolo dela.
+3. **Uma das dez primitivas** de traço 4. É **fallback**, não acervo.
+
+**A ordem custou uma regressão para ser aprendida.** Por um tempo as dez
+primitivas *foram* o acervo, e o resultado, medido na tira do HUD: nove peças,
+**quatro marcas distintas** — dois `|`, dois `●`, dois `=` — e duas peças
+diferentes caindo na mesma forma. O emoji que elas substituíram era pior
+esteticamente e **melhor em reconhecimento**, e trocar reconhecimento por
+estética num elemento cuja única função é ser reconhecido é uma troca ruim.
+`driver_cards` agora **reprova peça sem desenho próprio**: primitiva sem dono é
+dívida, não acervo.
+
+Regras da grade, e as três primeiras são o que separa ícone legível de mancha:
+
+- **O vazio dentro da silhueta é que a torna legível a 30px** — buraco de olho,
+  vão de costela, miolo de anel. Desenho sem furo vira borrão.
+- **Traço de 2 células onde puder.** Traço de 1 célula some quando o ícone é
+  desenhado a 24px na linha compacta da pausa.
+- **Família importa tanto quanto distinção.** As de fogo compartilham a chama,
+  as de podridão o crânio, as de defesa o escudo. Na tira o jogador lê o eixo
+  pela cor, a família pela silhueta e a peça pelo detalhe — nessa ordem.
+- Uma peça, uma ideia: a 16px não cabe cena, cabe um objeto.
+
+`open icons.html` é a **folha de contato** do acervo, e ela existe pelo mesmo
+motivo que `sprites.html`: um ícone sozinho sempre parece bom, e o defeito só
+aparece no conjunto. Cada peça aparece nos três tamanhos em que o jogo desenha
+(24 na pausa, 30 no HUD, 56 na carta) e, acima dos cards, **a tira** — os ícones
+enfileirados do jeito que o HUD os enfileira, que é onde a repetição aparece.
+Card bonito e tira ilegível é acervo ruim.
 
 Saída é SVG e não canvas porque a UI é DOM: um `<svg>` entra em qualquer
 `innerHTML` que já existe, herda `currentColor` e escala com a moldura sem
 borrar. Continua sendo arte gerada em runtime — zero arquivo de imagem.
-
-Peça nova sem entrada em `PRIMITIVA_DE` **não cai num quadrado genérico**: o
-hash do `id` espalha entre as dez, então ela nasce distinguível antes de alguém
-escolher a forma dela à mão.
 
 #### As quatro espécies de botão: preenchimento é custo
 
@@ -319,6 +344,13 @@ acrescentar:
 - **O relógio perde a terceira linha e as três cores.** Eram tempo, etapa e
   abates em branco, âmbar e verde — e etapa e abates não são estados de eixo,
   então não podem falar em cor de eixo. Viraram uma linha só, em osso.
+
+**Os pips da tira contam o caminho MAIS FUNDO**, os cinco degraus, como em toda
+outra tela. Já foram três — um por caminho, aceso acima do tier gratuito —, e
+isso responde "tem caminho investido?" quando a pergunta que a tira faz é "quão
+fundo está a minha build?". O trilho deles é `rgba(237,231,218,.18)` e não
+`--osso-100`: dois quase-pretos encostados fazem a tira dizer **posse** em vez
+de progresso.
 
 **Toast tem teto de três**, a opacidade do fundo cai por idade
 (`.92` → `.82` → `.70`) e o excedente vira uma linha `+N eventos`. Cinco toasts
@@ -676,6 +708,11 @@ inércia.
 - **Ponto de eixo só vem de etapa.** Level-up não cobra nada e o baú entrega tier
   — as duas moedas nunca mais disputam a mesma escolha (ver "As duas batidas").
 - No máximo **2** caminhos por peça passam do tier 2 → impossível maximizar três.
+- **Tier 3, 4 e 5 pedem 5, 10 e 15 pontos no eixo DA PEÇA** (`PATH_RULES.axisGate`)
+  → impossível ter uma spell fechada sem ter escolhido um eixo. Os três números
+  são os limiares de capstone (`hybridSide`/`hybridMain`/`pureAt`), então o tier
+  5 custa a mesma pureza que o capstone puro, e `freeTier` deixa de ser uma
+  segunda regra: os dois tiers de graça são exatamente os que o gate não cobra.
 - Passivas podem declarar `exclusive` → `Fúria Contida` e `Pés de Cinza` nunca coexistem.
 - Peça com `requires` só é oferecida depois que a habilitadora está na build.
 - **O kit inicial é UMA peça só**, e ela entra **de graça**
@@ -694,6 +731,10 @@ inércia.
   1, 3 ou 5, com `lateWeight` trocando os pesos depois de `hardAt`, quando um
   tier avulso não muda mais o jogo. Mexer nesses números é mexer na velocidade
   em que a build fecha; `driver_chest` mede as duas pontas.
+  **A largura da tela acompanha o prêmio** (480 / 560 / 640): a 640 fixos, um
+  baú comum entrega uma linha só e o `CONTINUAR` — 64px de altura, largura
+  inteira — vira o elemento mais pesado de uma tela que quase não tem conteúdo,
+  e o botão passa a ser o assunto.
 
 ### As duas batidas: level-up aprofunda, etapa compromete
 
@@ -727,6 +768,22 @@ Consequências que valem para qualquer coisa nova:
 - **Nada no level-up pode chamar `addAxis`.** `driver_cards` compara o pool
   antes e depois de toda escolha. Um tier que voltasse a cobrar eixo
   recolocaria o imposto sobre profundidade sem que a tela dissesse isso.
+- **Mas o level-up CONSULTA o eixo, e é isso que faz as duas telas
+  conversarem.** Depois que o tier deixou de custar ponto, profundidade virou
+  de graça e a etapa passou a decidir só a largura da run. O gate de eixo
+  (`PATH_RULES.axisGate`, cobrado em `canUpgradePath`) devolve a conversa sem
+  devolver o imposto: **a etapa decide QUAIS spells podem ficar fundas, o
+  level-up decide qual delas fica.** Espalhar eixo continua sendo uma escolha —
+  ela só passou a ter preço, e o preço é uma build inteira presa no tier 2.
+- **A trava vale para TODA fonte de tier**, porque quem pergunta é
+  `canUpgradePath`: level-up, baú e o que vier depois. Isentar o baú faria dele
+  a brecha que desmonta a regra — ele é a única fonte de tier grátis.
+- **Oferta travada some do bolo, então a tela tem que dizer por quê.** A tira da
+  build marca a spell parada (`lv-sp-lock`, `have/need` na cor do eixo, pip
+  vazado no degrau bloqueado) e o nível sem oferta troca "Arsenal completo" por
+  "Trilha travada" com o número que falta — `build.nearestGate()`. Sumir com a
+  trilha em silêncio é a tela cobrando atenção e devolvendo vazio, que é o
+  mesmo defeito que o fôlego já conserta do outro lado.
 - **Passiva fica no level-up, e não é exceção.** Ela não tem tier, não tem eixo
   e não pede investimento depois: só multiplica o que a build já tem
   (`pieceMods` sobre um `match`). Isso é aprofundar, não alargar — e é a mesma
@@ -835,12 +892,23 @@ da morte não entrega nada**.
 - **`min-height`, nunca `height`.** Com altura fixa uma descrição que quebra em
   quatro linhas transborda e invade a linha vizinha. Vale para toda linha que
   contém texto.
+- **A largura da tela vira distância entre a descrição e o selo**, então o
+  conteúdo é travado em **1200px** e a coluna de texto em **720px**. Com os 1360
+  da tela inteira sobrava um vão de quase 500px no meio da linha, e o selo — o
+  único botão preenchido do jogo — encostava na borda direita lendo como
+  etiqueta em vez de botão. Coluna de texto mais larga que 720 também deixa de
+  ser lida de relance.
 - **A mesa nem sempre tem três.** No fim da run o catálogo esgota e sobram duas
   ofertas, ou uma — e como são linhas empilhadas, a sobrevivente ocupa a largura
   inteira em vez de encolher num canto com dois buracos ao lado.
 - **O número anunciado é o creditado.** Com o eixo no teto ou o pool no fim,
   `addAxis` entrega menos; `getMilestoneOffers` devolve `gain` real ao lado do
   `want` de tabela, e o driver compara os dois em toda oferta de toda etapa.
+- **O slot do eixo aberto sai da mesa quando o eixo não anda mais.** A regra
+  abaixo valia só para as cartas sorteadas: com o eixo comprometido no teto de
+  15, o slot fixo continuava oferecendo `SÓ O EIXO +0 · eixo no teto` — um botão
+  clicável que não faz nada, na única tela cujo clique não se desfaz. Se as duas
+  maneiras zeram, o slot inteiro sai e o sorteio ocupa o lugar dele.
 - **E carta que credita +0 não é oferta, é botão morto.** O sorteio pula spell
   cujo eixo não anda mais, e se ainda assim a mesa inteira ficar em zero — todo
   eixo com espaço já teve o catálogo esgotado — o fallback seco entra no lugar
@@ -849,6 +917,11 @@ da morte não entrega nada**.
   spells, três cartas mortas na mesma etapa paravam a pool com ponto por gastar,
   e como quem para as etapas é a POOL, o jogo devolvia uma tela por marco até o
   fim da run sem nunca entregar o ponto. Media: 3 em 60 runs de quem mira.
+- **A barra de eixo carrega os traços do gate.** Em 5, 10 e 15 — os tiers que o
+  ponto destrava — e não em texto: a barra tem 8px de altura, então quem quer o
+  número passa o mouse e quem quer a distância vê a prévia cravar antes ou
+  depois do traço. Sem eles a barra diz quanto o eixo cresceu e não o que o
+  crescimento compra, que é justamente por que esta tela importa.
 - **O rodapé é o que transforma "+2" num destino**: as três barras de eixo com
   prévia (`UI.axesHtml`, compartilhada com o painel do level-up) e o capstone
   mais próximo. Sem ele, alocar é uma decisão de rota longa com feedback só no
@@ -986,7 +1059,8 @@ parado ao lado de três cartas que não o tocam. `driver_cards` reprova `lv-ax` 
 volta na tira.
 
 Sobrou a única pergunta que a tira responde, e ela é a desta tela: **em que
-degrau estão as minhas outras spells?** Ícone, nome, pips do caminho mais fundo,
+degrau estão as minhas outras spells — e qual delas parou?** Ícone, nome, pips
+do caminho mais fundo, o `have/need` do gate de eixo quando a spell travou,
 e a spell que a carta sob o mouse melhora acende — é o que liga a decisão ao
 estado da build sem a tira ter que explicar nada por escrito. `STRIP.spells` é o
 teto e o excedente vira contador, porque overlay de jogo não rola.
@@ -1260,12 +1334,13 @@ junto com a run — veios mais vivos, mais brasa no ar, vinheta mais fechada.
 Sprites, chão, efeitos sonoros e a trilha de reserva são gerados em runtime.
 **Não adicione arquivos de imagem.** Os dois assets de áudio que existem seguem
 regras diferentes, e a diferença é `file://`. Nenhum dos dois vem de banco de
-sons: a trilha é sintetizada por `tools/make_track.py` e o estalo de osso está
-embutido — não há licença de terceiro a conferir em nada que o jogo toca.
+sons: a trilha é sintetizada por `tools/make_track.py` — **inclusive a chuva**,
+que é ruído modelado no espectro e não gravação de campo — e o estalo de osso
+está embutido; não há licença de terceiro a conferir em nada que o jogo toca.
 
 | Asset | Como carrega | Por quê |
 |---|---|---|
-| `audio/gothic-lofi.mp3` (trilha) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
+| `audio/rain-lofi.mp3` (trilha) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
 | osso quebrando (efeito) | base64 → `atob` → `decodeAudioData` | Precisa sobrepor e variar de tom dezenas de vezes por segundo; `<audio>` não dá isso. Base64 não passa por rede, então funciona em `file://`. 21 KB. |
 
 **Os dois têm fallback e o jogo nunca fica mudo:** `Soundtrack` cai para a
@@ -1276,8 +1351,9 @@ decodificar. Os drivers `driver_track` e `driver_audio` testam esses caminhos.
 **Modo de repetição da trilha.** `Track` tem dois, e escolher errado estraga a
 faixa. `seamless` (padrão) usa `loop = true` nativo, para faixa montada para
 emendar — é o caso da atual, que fecha em si mesma por construção (32 compassos
-exatos, caudas dobradas de volta no começo, LFOs com período que divide o loop,
-filtros de master circulares). `{ crossfade: 3.5 }`
+exatos, caudas dobradas de volta no começo, LFOs com número inteiro de ciclos
+dentro do loop, filtros de master circulares, e a camada de chuva gerada no
+domínio da frequência, que é periódica por construção). `{ crossfade: 3.5 }`
 usa dois elementos que se cruzam no fim, para faixa que *não* emenda. Cruzar uma
 faixa que já emenda é pior que não fazer nada: o cruzamento sobrepõe a faixa
 com ela mesma e dobra a batida na volta.

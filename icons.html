@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Ícones — folha de contato</title>
+<!-- A folha de contato do ACERVO DE ICONE. Vale o mesmo argumento do
+     sprites.html: um icone sozinho sempre parece bom, e o defeito so aparece
+     no conjunto — foi olhando a tira do HUD que ficou claro que nove pecas
+     davam quatro marcas. Aqui eles aparecem nos tres tamanhos em que o jogo
+     desenha (24 na pausa, 30 no HUD, 56 na carta) e lado a lado com os
+     vizinhos de eixo, que e como o jogador os ve. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --obs-900:#040308; --obs-800:#0A0910; --obs-700:#14121B; --obs-600:#1E1A26; --obs-500:#2A2533;
+    --osso-100:#3A3446; --osso-200:#4B4655; --osso-300:#67626E; --osso-400:#98928A;
+    --osso-500:#C9C3BA; --osso-600:#EDE7DA;
+    --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --disp:"Big Shoulders Display", Impact, sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--obs-900); color:var(--osso-500); font-family:var(--mono);
+         font-size:13px; padding:32px 40px 80px; }
+  h1 { font-family:var(--disp); font-size:44px; font-weight:900; text-transform:uppercase;
+       color:var(--osso-600); letter-spacing:.04em; }
+  .sub { color:var(--osso-300); letter-spacing:.14em; text-transform:uppercase; margin:6px 0 28px; }
+  h2 { font-family:var(--disp); font-size:24px; font-weight:800; text-transform:uppercase;
+       color:var(--osso-600); letter-spacing:.08em; margin:34px 0 14px;
+       border-bottom:1px solid var(--obs-500); padding-bottom:8px; }
+  .grid { display:flex; flex-wrap:wrap; gap:10px; }
+  .card { width:132px; padding:12px 10px; background:var(--obs-700);
+          box-shadow:inset 0 1px 0 rgba(237,231,218,.10), inset 0 -1px 0 rgba(0,0,0,.6);
+          display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .card.falta { background:var(--obs-800); box-shadow:inset 0 0 0 1px #7A1A18; }
+  .tiles { display:flex; align-items:flex-end; gap:8px; }
+  .t { display:grid; place-items:center; background:var(--obs-600); color:var(--osso-500);
+       box-shadow:inset 0 1px 0 rgba(237,231,218,.10); }
+  .nome { font-family:var(--disp); font-size:15px; font-weight:800; text-transform:uppercase;
+          color:var(--osso-600); text-align:center; line-height:1.1; }
+  .meta { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--osso-300); }
+  .meta.falta { color:#C9302C; }
+  /* A TIRA: os icones do jeito que o HUD os enfileira, que e onde a
+     repeticao aparece. Card bonito e tira ilegivel = acervo ruim. */
+  .tira { display:flex; gap:6px; flex-wrap:wrap; padding:14px; background:rgba(20,18,27,.92);
+          box-shadow:inset 0 1px 0 rgba(237,231,218,.10); }
+  .tira .t { width:56px; height:56px; }
+  .gl { display:block; }
+</style>
+</head>
+<body>
+<h1>Ícones</h1>
+<div class="sub" id="resumo"></div>
+<div id="out"></div>
+<script src="js/util.js"></script>
+<script src="js/balance.js"></script>
+<script src="js/assets/sfx-bone.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/systems/resolve.js"></script>
+<script src="js/content/minions.js"></script>
+<script src="js/content/pieces.corruption.js"></script>
+<script src="js/content/pieces.dominion.js"></script>
+<script src="js/content/pieces.cataclysm.js"></script>
+<script src="js/content/pieces.defense.js"></script>
+<script src="js/content/pieces.control.js"></script>
+<script src="js/content/passives.js"></script>
+<script src="js/content/capstones.js"></script>
+<script src="js/ui-icons.js"></script>
+<script src="js/ui-glyph.js"></script>
+<script>
+(function () {
+  const out = document.getElementById("out");
+  const secoes = [
+    ["Corrupção", Object.values(PIECES).filter((p) => p.axis === "corruption")],
+    ["Domínio", Object.values(PIECES).filter((p) => p.axis === "dominion")],
+    ["Cataclismo", Object.values(PIECES).filter((p) => p.axis === "cataclysm")],
+    ["Passivas", Object.values(PASSIVES)],
+    ["Capstones", Object.values(CAPSTONES)],
+  ];
+  let temos = 0, total = 0;
+  for (const [titulo, lista] of secoes) {
+    const h = document.createElement("h2");
+    h.textContent = titulo + " · " + lista.length;
+    out.appendChild(h);
+    const tira = document.createElement("div");
+    tira.className = "tira";
+    const g = document.createElement("div");
+    g.className = "grid";
+    for (const def of lista) {
+      total++;
+      const fonte = Glyph.temDesenho(def.id);
+      if (fonte) temos++;
+      const c = document.createElement("div");
+      c.className = "card" + (fonte ? "" : " falta");
+      c.innerHTML =
+        '<div class="tiles">' +
+          '<span class="t" style="width:24px;height:24px">' + Glyph.svg(def.id, 15) + '</span>' +
+          '<span class="t" style="width:32px;height:32px">' + Glyph.svg(def.id, 20) + '</span>' +
+          '<span class="t" style="width:56px;height:56px">' + Glyph.svg(def.id, 34) + '</span>' +
+        '</div>' +
+        '<div class="nome">' + def.name + '</div>' +
+        '<div class="meta' + (fonte ? '' : ' falta') + '">' + (fonte || "primitiva") + '</div>';
+      g.appendChild(c);
+      const t = document.createElement("span");
+      t.className = "t";
+      t.innerHTML = Glyph.svg(def.id, 30);
+      t.title = def.name;
+      tira.appendChild(t);
+    }
+    out.appendChild(tira);
+    out.appendChild(g);
+  }
+  document.getElementById("resumo").textContent =
+    temos + " de " + total + " com desenho próprio · " + (total - temos) + " ainda na primitiva";
+})();
+</script>
+</body>
+</html>

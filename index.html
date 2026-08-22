@@ -230,7 +230,7 @@
      oposto (a tira de pecas) sempre teve a dela — o mesmo conteudo tinha que
      sobreviver nos dois cantos. */
   .hud-tr { position:absolute; top:var(--e5); right:var(--e5); width:260px;
-            padding:10px 12px; background:rgba(20,18,27,.88); box-shadow:var(--placa);
+            padding:10px 12px; background:rgba(20,18,27,.92); box-shadow:var(--placa);
             display:flex; flex-direction:column; gap:var(--e2); }
   .hud-bc { position:absolute; bottom:var(--e5); left:50%; transform:translateX(-50%); width:min(720px,86vw); }
   .hud-br { position:absolute; bottom:var(--e5); right:var(--e5); display:flex; flex-direction:column; gap:var(--e2); }
@@ -245,7 +245,7 @@
   /* tira de pecas: glifo + pips embaixo. O excedente vira tile contador. */
   .pb {
     position:relative; width:56px; height:56px; display:grid; place-items:center;
-    background:rgba(20,18,27,.88); box-shadow:var(--placa); color:var(--osso-500);
+    background:rgba(20,18,27,.92); box-shadow:var(--placa); color:var(--osso-500);
   }
   /* Spell CONCLUIDA: adorno em volta do warlock e privilegio dela, e a tira
      precisa dizer qual peca esta ardendo la. Uma linha na cor do eixo no topo
@@ -253,7 +253,9 @@
   .pb.aura { box-shadow:var(--placa), inset 0 3px 0 var(--eixo); color:var(--osso-600); }
   .pb.mais { background:rgba(20,18,27,.6); font-family:var(--fonte-dado); font-size:var(--rotulo); color:var(--osso-300); }
   .pb-pips { position:absolute; left:4px; right:4px; bottom:4px; display:flex; gap:2px; }
-  .pb-pips i { flex:1; height:5px; background:var(--osso-100); }
+/* O trilho era `--osso-100` sobre a propria placa: dois tons de quase-preto
+     encostados, entao a tira dizia POSSE e nao progresso. */
+  .pb-pips i { flex:1; height:5px; background:rgba(237,231,218,.18); }
   .pb-pips i.on { background:var(--eixo); }
 
   /* barras de eixo do HUD */
@@ -426,6 +428,9 @@
   /* cinco cheios = OSSO: a peca sai do sistema de eixo, porque nao ha mais
      decisao ali. Vale nas duas telas e na tira. */
   .lv-pips.max i.on { background:var(--osso-600); }
+  /* O pip TRAVADO nao e o pip vazio: vazio e "ainda nao comprei", travado e
+     "nao posso comprar". Vazado na cor do eixo, porque quem destrava e o eixo. */
+  .lv-pips i.lock { background:transparent; box-shadow:inset 0 0 0 1px var(--eixo-900); }
   .lv-rec { align-self:flex-start; }
   /* A carta INTEIRA e clicavel, entao o botao e lembrete e nao alvo — vazado
      em repouso, enche no hover. Na tela de ETAPA e o contrario, e de
@@ -452,6 +457,11 @@
   .lv-sp.hit { box-shadow:inset 0 1px 0 rgba(237,231,218,.08), inset 0 0 0 1px var(--eixo); }
   .lv-sp.hit .lv-sp-name { color:var(--osso-600); }
   .lv-sp.done .lv-sp-name { color:var(--osso-500); }
+  /* Trava de eixo: o unico numero da tira, e ele so aparece quando a spell
+     parou. Cor de eixo porque e do eixo que ele fala (R2). */
+  .lv-sp.lock .lv-sp-name { color:var(--osso-300); }
+  .lv-sp-lock { font-family:var(--fonte-dado); font-size:var(--rotulo); color:var(--eixo);
+                white-space:nowrap; }
   .lv-sp.more, .lv-chip.more { flex:none; font-family:var(--fonte-dado);
                               font-size:var(--rotulo); color:var(--osso-200); white-space:nowrap; }
   .lv-chip { flex:none; width:32px; height:32px; display:grid; place-items:center; border-radius:50%;
@@ -464,7 +474,11 @@
      Fundo obs-900 CHAPADO: o mundo sai. E a unica tela que apaga o canvas, e e
      isso, mais que qualquer cor, que faz o jogador saber que a pergunta mudou.
      Titulo alinhado a ESQUERDA, contra o centralizado do Level up. */
-  .ms { background:var(--obs-900); padding:88px 120px 72px; }
+/* 1200 de conteudo, e nao 1360: a linha e uma so faixa horizontal, entao a
+     largura da tela vira distancia entre a descricao e o selo. Com 1360 sobrava
+     um vao de quase 500px no meio da linha, e o selo — o unico botao preenchido
+     do jogo — encostava na borda direita lendo como etiqueta. */
+  .ms { background:var(--obs-900); padding:72px 200px 64px; }
   .ms-wrap { position:relative; pointer-events:auto; flex:1; min-height:0;
              display:flex; flex-direction:column; gap:var(--e5); }
   .ms-head-top { display:flex; flex-direction:column; gap:var(--e3); }
@@ -472,7 +486,7 @@
                 font-family:var(--fonte-dado); font-size:var(--rotulo); font-weight:500;
                 letter-spacing:.18em; text-transform:uppercase; color:var(--osso-300); }
   .ms-eyebrow s { width:24px; height:1px; background:var(--obs-500); text-decoration:none; }
-  .ms-title { font-family:var(--fonte-display); font-size:76px; line-height:.94; font-weight:800;
+  .ms-title { font-family:var(--fonte-display); font-size:68px; line-height:.94; font-weight:800;
               text-transform:uppercase; color:var(--osso-600); }
   .ms-sub { max-width:840px; font-size:22px; line-height:1.45; color:var(--osso-400); }
 
@@ -483,7 +497,7 @@
   /* Linha (8.7): min-height, NUNCA height. Com altura fixa uma descricao de
      quatro linhas transborda e invade a linha vizinha. */
   .ms-row {
-    pointer-events:auto; min-height:104px; display:flex; align-items:stretch;
+    pointer-events:auto; min-height:96px; display:flex; align-items:stretch;
     background:var(--obs-700); box-shadow:var(--placa);
     transition:background .12s;
   }
@@ -491,7 +505,10 @@
   .ms-eixo { flex:none; width:6px; background:var(--eixo); }
   .ms-ic { flex:none; align-self:center; margin-left:var(--e5); width:88px; height:88px;
            display:grid; place-items:center; background:var(--obs-600); box-shadow:var(--placa); color:var(--osso-500); }
-  .ms-txt { flex:1; min-width:0; padding:var(--e5); display:flex; flex-direction:column; gap:6px; justify-content:center; }
+/* Teto de 720: linha de texto mais larga que isso deixa de ser lida de
+     relance, e o que sobra vira o vao que separava a descricao do selo. */
+  .ms-txt { flex:1; min-width:0; max-width:720px; padding:18px var(--e5);
+            display:flex; flex-direction:column; gap:6px; justify-content:center; }
   .ms-head { display:flex; align-items:center; gap:var(--e3); flex-wrap:wrap; }
   .ms-axis { font-family:var(--fonte-display); font-size:var(--display-m); line-height:1.05;
              font-weight:800; text-transform:uppercase; color:var(--osso-600); }
@@ -503,7 +520,7 @@
   /* bloco de commit: os dois botoes empilhados no pe. Os numeros precisam ser
      lidos um SOBRE o outro para a diferenca aparecer — lado a lado eles viram
      duas ofertas independentes. */
-  .ms-takes { flex:none; width:250px; padding:var(--e4) var(--e5) var(--e4) 0;
+  .ms-takes { flex:none; width:280px; margin-left:auto; padding:var(--e3) var(--e5) var(--e3) 0;
               display:flex; flex-direction:column; justify-content:center; gap:var(--e2); }
   /* O SELO e o unico botao do jogo pintado com cor de eixo, e ele so existe
      aqui: preenchimento e custo, e esta e a unica tela que cobra um ponto que
@@ -530,10 +547,10 @@
 
   /* 9.8 — o slot do eixo ja comprometido. E a UNICA linha do jogo com moldura:
      "isto ja e seu" e dito por peso, nao por cor nova. */
-  .ms-row.aberta { min-height:132px; background:var(--obs-600); box-shadow:var(--placa), inset 0 0 0 1px var(--osso-200); }
+  .ms-row.aberta { min-height:120px; background:var(--obs-600); box-shadow:var(--placa), inset 0 0 0 1px var(--osso-200); }
   .ms-row.aberta .ms-eixo { width:8px; }
   .ms-row.aberta .ms-ic { width:104px; height:104px; }
-  .ms-row.aberta .ms-takes { width:440px; }
+  .ms-row.aberta .ms-takes { width:280px; }
 
   /* O rodape e o que transforma "+2" num DESTINO: as tres barras com previa e
      o capstone mais proximo. Sem ele, alocar e decisao de rota longa com
@@ -558,6 +575,10 @@
   .lv-ax-track { position:relative; height:8px; background:var(--obs-600); overflow:hidden; }
   .lv-ax-track > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--eixo); }
   .lv-ax-track > i.ghost { background:var(--eixo-900); }
+  /* Os tiers que o ponto destrava, marcados na propria barra: 1px de osso por
+     cima do preenchimento, entao o traco continua legivel cheio ou vazio. */
+  .lv-ax-track > b.lv-ax-gate { position:absolute; top:0; width:1px; height:100%;
+                                background:var(--osso-200); }
 
   /* --- 9.6 PAUSA — silhueta: bloco largo a esquerda + pilha estreita ------- */
   .tela-pausa { background:rgba(4,3,8,.96); padding:56px 80px 48px; }
@@ -599,7 +620,11 @@
      Raridade e dita por ESPESSURA DA LUZ no topo da placa e por numero de
      linhas — sem matiz novo. O ciano saiu. */
   .tela-bau { align-items:center; justify-content:center; }
-  .bau-col { width:640px; max-width:92vw; display:flex; flex-direction:column; gap:var(--e5); pointer-events:auto; }
+/* A largura acompanha o PREMIO. Com uma linha so, 640px deixavam o
+     CONTINUAR — 64px de altura e a largura inteira — como o elemento mais
+     pesado de uma tela que quase nao tem conteudo: o botao virava o assunto. */
+  .bau-col { width:var(--bau-w,640px); max-width:92vw; display:flex; flex-direction:column;
+             gap:var(--e5); pointer-events:auto; }
   .bau-head { display:flex; align-items:center; gap:var(--e4); }
   .bau-selo { flex:none; width:34px; height:34px; background:var(--osso-600); }
   .bau-rar { margin-left:54px; display:flex; align-items:center; gap:var(--e3); }
@@ -906,6 +931,7 @@
 <script src="js/render/debris.js"></script>
 <script src="js/render/scenery.js"></script>
 <script src="js/render/vfx.js"></script>
+<script src="js/ui-icons.js"></script>
 <script src="js/ui-glyph.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/game.js"></script>

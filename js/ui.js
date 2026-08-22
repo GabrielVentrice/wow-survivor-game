@@ -184,9 +184,15 @@ class UI {
       if (n >= STRIP.hud) break;
       n++;
       const d = inst.def;
+      /* Os pips contam o caminho MAIS FUNDO, os cinco degraus, como em toda
+         outra tela. Antes eram tres — um por caminho, aceso acima do tier
+         gratuito —, e isso responde "tem caminho investido?" quando a pergunta
+         que a tira faz e "quao fundo esta a minha build?". */
+      let top = 0;
+      for (const pid in inst.paths) if (inst.paths[pid] > top) top = inst.paths[pid];
       let pips = "";
-      for (const pid in inst.paths) {
-        pips += `<i class="${inst.paths[pid] > PATH_RULES.freeTier ? "on" : ""}"></i>`;
+      for (let i = 0; i < PATH_RULES.tiers; i++) {
+        pips += `<i class="${i < top ? "on" : ""}"></i>`;
       }
       /* Spell CONCLUIDA: ela e a unica que ganha adorno em volta do warlock, e
          a tira precisa dizer QUAL esta ardendo la. Uma linha na cor do eixo no
@@ -246,13 +252,27 @@ class UI {
     g.state = STATE.LEVELUP;
     g.sfx.levelUp();
     const offers = g.build.getOffers(3);
-    /* Bolo vazio: toda trilha fechada e toda passiva tomada. O nivel vira cura
-       em vez de sumir em silencio — subir de nivel e nao receber nada e o jogo
-       cobrando atencao e devolvendo vazio. */
+    /* Bolo vazio: o nivel vira cura em vez de sumir em silencio — subir de
+       nivel e nao receber nada e o jogo cobrando atencao e devolvendo vazio.
+
+       Mas vazio tem DOIS motivos desde o gate de eixo, e eles pedem coisas
+       opostas do jogador: "todo caminho fechado" e fim de linha, "trilha
+       travada" e um ponto de eixo que ele ainda vai ganhar na etapa. Dizer
+       "arsenal completo" com tres spells no tier 2 seria mentira, e a pior
+       delas: a que faz o jogador parar de procurar o que destrava. */
     if (!offers.length) {
       g.player.pendingLevels = 0;
       g.player.hp = Math.min(g.player.maxHp, g.player.hp + g.player.maxHp * 0.35);
-      this.toast({ head: "Arsenal completo", name: "Todo caminho fechado — o nível virou fôlego." });
+      /* O toast tem 340px e uma linha so: a frase inteira ("ponto de eixo so
+         vem de etapa") sairia cortada por reticencias, e frase cortada nao
+         ensina nada. O numero vai no campo `value`, que e mono e alinhado a
+         direita — e ele e o que o jogador precisa levar para a etapa. */
+      const gate = g.build.nearestGate();
+      this.toast(gate
+        ? { head: "Trilha travada", axis: gate.axisId,
+            name: `Tier ${gate.tier} · ${AXES[gate.axisId].name}`,
+            value: `${gate.have}/${gate.need}` }
+        : { head: "Arsenal completo", name: "Todo caminho fechado — o nível virou fôlego." });
       g.state = STATE.PLAYING;
       return;
     }
@@ -461,10 +481,11 @@ class UI {
   /* Cinco pips. O degrau que ACABOU DE SUBIR sai na brasa (`-300`), e cinco
      cheios saem em OSSO: a peca deixa o sistema de eixo, porque nao ha mais
      decisao ali. */
-  pipsHtml(n) {
+  pipsHtml(n, lockAt) {
     let s = `<span class="lv-pips${n >= PATH_RULES.tiers ? " max" : ""}">`;
     for (let i = 0; i < PATH_RULES.tiers; i++) {
-      s += `<i class="${i < n ? (i === n - 1 ? "on brasa" : "on") : ""}"></i>`;
+      const cls = i < n ? (i === n - 1 ? "on brasa" : "on") : (i === lockAt ? "lock" : "");
+      s += `<i class="${cls}"></i>`;
     }
     return s + `</span>`;
   }
@@ -477,6 +498,23 @@ class UI {
   axesHtml(axisId, add) {
     const b = this.game.build;
     const pct = (n) => Math.min(100, n / AXIS_RULES.capPerAxis * 100);
+
+    /* Os tracos na barra sao os tiers que o ponto DESTRAVA. Sem eles a barra
+       diz quanto o eixo cresceu e nao o que o crescimento compra — e o gate de
+       profundidade e justamente a razao de a etapa importar. Sao marca e nao
+       texto porque a barra tem 8px de altura: quem quer o numero passa o mouse,
+       quem quer a distancia ve a previa cravar antes ou depois do traco. */
+    let marcos = "";
+    for (let t = 0; t < PATH_RULES.axisGate.length; t++) {
+      const need = PATH_RULES.axisGate[t];
+      if (!need) continue;
+      // O traco do tier 5 cai no teto do eixo, e `left:100%` num filho de um
+      // `overflow:hidden` desenha fora da barra. Encostar pela direita.
+      const p = pct(need);
+      marcos += `<b class="lv-ax-gate" style="${p >= 100 ? "right:0" : `left:${p}%`}"` +
+                ` title="tier ${t + 1} das spells deste eixo · ${need} pontos"></b>`;
+    }
+
     let out = "";
     for (const id in AXES) {
       const a = AXES[id], val = b.axis[id];
@@ -491,6 +529,7 @@ class UI {
         <div class="lv-ax-track">
           <i class="ghost" style="width:${pct(val + gain)}%"></i>
           <i style="width:${pct(val)}%"></i>
+          ${marcos}
         </div></div>`;
     }
     return out;
@@ -512,7 +551,8 @@ class UI {
       for (const pid in inst.paths) {
         if (inst.paths[pid] > top) { top = inst.paths[pid]; nome = inst.def.paths[pid].name; }
       }
-      rows.push({ def: inst.def, top, nome, hit: inst.key === alvo, done: b.isComplete(inst) });
+      rows.push({ def: inst.def, top, nome, hit: inst.key === alvo,
+                  done: b.isComplete(inst), gate: b.pieceGate(inst) });
     }
     // A spell afetada vai para a frente: numa tira ela nunca pode cair no "+N".
     rows.sort((a, z) => (z.hit ? 1 : 0) - (a.hit ? 1 : 0));
@@ -521,11 +561,18 @@ class UI {
     let list = "";
     for (let i = 0; i < rows.length && i < teto; i++) {
       const r = rows[i];
-      list += `<div class="lv-sp${r.hit ? " hit" : ""}${r.done ? " done" : ""}"
+      /* A trava vem NUMERADA e na cor do eixo. Pip apagado diz que a spell
+         parou; so o numero diz onde ela volta a andar, e e ele que liga esta
+         tela a etapa, que e a unica que entrega ponto de eixo. */
+      const trava = r.gate
+        ? `<span class="lv-sp-lock">${r.gate.have}/${r.gate.need}</span>` : "";
+      list += `<div class="lv-sp${r.hit ? " hit" : ""}${r.done ? " done" : ""}${
+        r.gate ? " lock" : ""}"
         style="${this.eixoVars(r.def.axis)}" title="${r.def.name}${
-        r.nome ? ` — ${r.nome} tier ${r.top}` : ""}">
+        r.nome ? ` — ${r.nome} tier ${r.top}` : ""}${
+        r.gate ? ` · tier ${r.gate.tier} pede ${r.gate.need} de ${AXES[r.gate.axisId].name}` : ""}">
         <span class="lv-sp-name">${r.def.name}</span>
-        ${this.pipsHtml(r.top)}</div>`;
+        ${this.pipsHtml(r.top, r.gate ? r.top : -1)}${trava}</div>`;
     }
     /* O contador fica FORA da lista: ela corta o que nao cabe (`overflow`
        hidden, porque a tira e uma linha so), e o contador cortado pela metade
@@ -867,6 +914,12 @@ class UI {
     g.addShake(rarity.shake);
 
     const luz = results.length >= 5 ? "r5" : results.length >= 3 ? "r3" : "r1";
+    /* Bau comum entrega UMA linha; a 640px o botao de continuar virava o
+       elemento mais largo e mais pesado de uma tela quase vazia. A coluna
+       estreita junto com o premio, entao a proporcao entre o que caiu e o que
+       se faz com isso continua a mesma nas tres raridades. */
+    this.el.chest.style.setProperty("--bau-w",
+      results.length >= 5 ? "640px" : results.length >= 3 ? "560px" : "480px");
     this.el.chestList.innerHTML = results.length
       ? results.map((r) => `<div class="chest-row ${luz}" style="${this.eixoVars(r.def.axis)}">
           <span class="bau-ic">${Glyph.svg(r.def.id, 28)}</span>
@@ -971,20 +1024,8 @@ class UI {
     if (!rows.length) dmg = `<div class="pa-vazio">Nada causou dano ainda.</div>`;
 
     dmg += `<div class="painel-div"></div>`;
-    const caps = [];
-    for (const id of b.capstones) caps.push(CAPSTONES[id].name);
     const prox = this.nearestCapstone();
-    /* Uma linha, e ela diz em que FORMA o warlock esta. Ela ja foi a escada
-       inteira, e a escada deixou de existir: com uma forma por capstone as dez
-       sao irmas e nao degraus, entao listar as outras nove seria listar rotas
-       que esta run nao tomou. Quanto falta para a proxima e o que a linha
-       "Proximo" logo abaixo ja responde, e ela responde melhor — pelo capstone,
-       que e o que o jogador de fato persegue. */
-    const f = g.player.forms[g.player.formIdx];
-    dmg += `<div class="pa-linha"><span>Metamorfose</span><b>${
-      f && f.name ? f.name : "nenhuma"}</b></div>`;
-    dmg += `<div class="pa-linha"><span>Capstones</span><b>${
-      caps.length ? caps.join(" · ") : "nenhum"}</b></div>`;
+    dmg += this.marcosHtml();
     dmg += `<div class="pa-linha"><span>Próximo</span><b>${
       prox ? (prox.missing
         ? `${prox.cap.name} a ${prox.gaps.map((x) => `${x.need} de ${x.axis.name}`).join(" e ")}`
@@ -997,6 +1038,26 @@ class UI {
   }
 
   hidePause() { this.el.pause.classList.add("hidden"); }
+
+  /* Metamorfose e capstones em duas linhas — ou uma so, quando a segunda
+     repetiria a primeira.
+
+     Desde que cada capstone ganhou a SUA forma, o nome da forma e o nome do
+     capstone sao a mesma palavra: um game over de Colheita mostrava
+     "Metamorfose: Colheita" e "Capstones: Colheita" empilhados, e duas linhas
+     dizendo a mesma coisa leem como bug de dado, nao como reforco. A linha da
+     forma so aparece quando ela ACRESCENTA: e o caso do Iniciado, que vem de
+     spell concluida e nao de capstone, e o de quem nao fechou capstone nenhum. */
+  marcosHtml() {
+    const g = this.game, b = g.build;
+    const f = g.player.forms[g.player.formIdx];
+    const caps = [];
+    for (const id of b.capstones) caps.push(CAPSTONES[id].name);
+    const linha = (rot, val) => `<div class="pa-linha"><span>${rot}</span><b>${val}</b></div>`;
+    const repete = f && f.name && caps.includes(f.name);
+    return (repete ? "" : linha("Metamorfose", f && f.name ? f.name : "nenhuma")) +
+      linha("Capstones", caps.length ? caps.join(" · ") : "nenhum");
+  }
 
   /* Dano por peca, ordenado. Peca com 0 de dano NAO aparece: linha zerada numa
      lista ordenada por dano so ocupa o lugar de quem tem o que dizer. */
@@ -1057,14 +1118,9 @@ class UI {
 
     this.el.goLine.textContent = this.runLine(rows, total);
 
-    const f = g.player.forms[g.player.formIdx];
-    const caps = [];
-    for (const id of b.capstones) caps.push(CAPSTONES[id].name);
     let auras = 0;
     for (const inst of b.pieces.values()) if (b.isComplete(inst)) auras++;
-    this.el.goExtra.innerHTML =
-      `<div class="pa-linha"><span>Metamorfose</span><b>${f && f.name ? f.name : "nenhuma"}</b></div>` +
-      `<div class="pa-linha"><span>Capstones</span><b>${caps.length ? caps.join(" · ") : "nenhum"}</b></div>` +
+    this.el.goExtra.innerHTML = this.marcosHtml() +
       `<div class="pa-linha"><span>Auras acesas</span><b>${auras}</b></div>`;
 
     this.el.gameover.classList.remove("hidden");

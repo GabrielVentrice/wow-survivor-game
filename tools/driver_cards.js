@@ -46,6 +46,81 @@ g.player.pendingLevels = 0;
 let problems = 0;
 const bad = (m) => { problems++; console.log("X   " + m); };
 
+/* --- o gate de eixo -------------------------------------------------------
+   Profundidade voltou a cobrar comprometimento, e a moeda e o eixo DA PECA:
+   tier 3 pede 5 pontos, tier 4 pede 10, tier 5 pede 15 — os mesmos limiares do
+   capstone. O que este bloco cobra sao as tres pontas que podem mentir:
+
+     - a trava fecha e abre no ponto exato (nem antes, nem depois);
+     - ela e do eixo DA PECA, e nao do eixo mais alto da run — senao investir
+       em Cataclismo aprofundaria uma spell de Corrupcao e o gate deixaria de
+       significar comprometimento;
+     - e a tela DIZ que travou. Oferta bloqueada some do bolo, e bolo vazio sem
+       explicacao e a tela cobrando atencao e devolvendo silencio. */
+const primeira = () => g.build.pieces.values().next().value;
+{
+  // [pontos no eixo, tier em que a trilha para]
+  for (const [pontos, teto] of [[0, 2], [4, 2], [5, 3], [9, 3], [10, 4], [14, 4], [15, 5]]) {
+    g.start();
+    const inst = primeira();
+    g.build.axis[inst.def.axis] = pontos;
+    const pathId = Object.keys(inst.def.paths)[0];
+    let guard = 0;
+    while (g.build.upgradePath(inst, pathId) && guard++ < 20);
+    if (inst.paths[pathId] !== teto) {
+      bad(`com ${pontos} de ${inst.def.axis} a trilha parou no tier ` +
+          `${inst.paths[pathId]}, esperado ${teto}`);
+    }
+  }
+
+  // eixo cheio no eixo ERRADO nao destrava nada
+  g.start();
+  const inst = primeira();
+  const outro = Object.keys(g.build.axis).find((a) => a !== inst.def.axis);
+  g.build.axis[outro] = AXIS_RULES.pureAt;
+  const pid0 = Object.keys(inst.def.paths)[0];
+  let guard = 0;
+  while (g.build.upgradePath(inst, pid0) && guard++ < 20);
+  if (inst.paths[pid0] !== PATH_RULES.freeTier) {
+    bad(`${AXIS_RULES.pureAt} pontos em ${outro} levaram uma spell de ` +
+        `${inst.def.axis} ao tier ${inst.paths[pid0]}`);
+  }
+
+  // com tudo travado o bolo esvazia, e a tira precisa dizer por que
+  g.start();
+  const trancada = primeira();
+  for (const pid in trancada.paths) { let n = 0; while (g.build.upgradePath(trancada, pid) && n++ < 20); }
+  if (g.build.getOffers(9).some((o) => o.kind === "path")) {
+    bad("gate fechado e o level up ainda oferece tier");
+  }
+  const gate = g.build.nearestGate();
+  if (!gate || gate.need !== PATH_RULES.axisGate[PATH_RULES.freeTier]) {
+    bad(`nearestGate() nao aponta a trava: ${JSON.stringify(gate)}`);
+  }
+  g.ui.lvOffers = [];
+  const tira = g.ui.buildStripHtml(-1);
+  if (!tira.includes("lv-sp-lock")) {
+    bad("a tira nao diz que a spell travou — nada na tela liga o level up a etapa");
+  }
+  if (gate && !tira.includes(`${gate.have}/${gate.need}`)) bad("a tira nao diz quanto falta de eixo");
+  // e com o eixo cheio a trava some da tira
+  g.build.axis[trancada.def.axis] = AXIS_RULES.pureAt;
+  if (g.build.nearestGate()) bad("eixo no teto e a peca continua reportando trava");
+  if (g.ui.buildStripHtml(-1).includes("lv-sp-lock")) bad("eixo no teto e a tira ainda mostra trava");
+}
+
+/* O resto do driver mede a CARTA, e carta de tier 5 (evolucao, chip de marco)
+   so existe com o eixo aberto. O gate ja foi medido acima; aqui ele sai da
+   frente. */
+g.start();
+g.player.level = BALANCE.levelup.passiveAt;
+g.player.pendingLevels = 0;
+for (const inst of g.build.pieces.values()) g.build.axis[inst.def.axis] = AXIS_RULES.pureAt;
+// O bloco acima sorteia, entao o fluxo de RNG do laco principal depende de
+// quantas vezes ele sorteou. Recravar a semente mantem a cobertura das cartas
+// estavel quando alguem mexer no gate.
+s = 7;
+
 const seen = { path: 0, passive: 0, evo: 0, delta: 0, rec: 0 };
 // A etiqueta de tipo e a unica coisa que separa as ofertas sem depender de
 // cor — a cor da linha e a do eixo, nao a do tipo.
@@ -166,6 +241,32 @@ for (let round = 0; round < 400; round++) {
 if (noFmt.size) bad(`stats sem rotulo em STAT_FMT: ${[...noFmt].join(", ")}`);
 const missing = Object.entries(seen).filter(([, n]) => !n).map(([k]) => k);
 if (missing.length) bad(`nunca aconteceu: ${missing.join(", ")}`);
+/* --- o acervo de icone -------------------------------------------------
+   As dez primitivas sao FALLBACK. Quando elas viraram o acervo, nove pecas na
+   tira do HUD davam quatro marcas distintas e duas pecas diferentes caiam na
+   mesma forma — o icone parou de identificar, que e a unica coisa que ele faz.
+   Peca sem desenho proprio e divida, entao ela reprova aqui em vez de aparecer
+   como um losango a mais no meio de outros cinco. */
+{
+  const fora = [];
+  for (const id in UI_ICONS) {
+    const r = UI_ICONS[id];
+    if (r.length !== 16) { fora.push(`${id}: ${r.length} linhas`); continue; }
+    for (let i = 0; i < 16; i++) {
+      if (r[i].length !== 16) fora.push(`${id} linha ${i}: ${r[i].length} colunas`);
+    }
+  }
+  if (fora.length) bad(`grade de icone fora de 16x16: ${fora.slice(0, 4).join(", ")}`);
+
+  const semDesenho = [];
+  for (const id in PIECES) if (!Glyph.temDesenho(id)) semDesenho.push(id);
+  if (semDesenho.length) {
+    bad(`peca(s) so com primitiva: ${semDesenho.join(", ")} — o acervo e por peca`);
+  } else {
+    console.log(`ok  acervo de icone: ${Object.keys(PIECES).length} pecas com desenho proprio`);
+  }
+}
+
 console.log(problems ? `X   ${problems} problemas na tela de level-up`
   : `ok  level-up validado — ${seen.path} caminho (${seen.evo} evolucao), ` +
     `${seen.passive} passiva, ${seen.delta} com antes/depois, ${seen.rec} com chip de marco`);

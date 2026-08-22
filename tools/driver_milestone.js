@@ -81,12 +81,19 @@ function simular(seed, alvo, sempreSpell) {
       if (new Set(eixos).size < eixos.length) viuSolto3 = true;
     }
 
-    // 4. todo eixo aberto tem slot fixo, e ele tem os dois lados.
+    /* 4. todo eixo aberto tem slot fixo — a menos que ele nao ande mais. Eixo
+          no teto nao tem pergunta a fazer, e oferecer "+0" nesta tela e por um
+          botao morto na unica decisao que nao se desfaz. */
     for (const a of abertos) {
       const fixa = offers.find((o) => o.locked && o.axisId === a);
-      if (!fixa) { bad(`etapa ${i}: eixo aberto ${a} sumiu da mesa`); continue; }
-      if (!fixa.dry) bad(`etapa ${i}: eixo aberto ${a} sem carta seca`);
-      else if (fixa.dry.want !== M.axisPoints) {
+      const anda = Math.min(AXIS_RULES.capPerAxis - g.build.axis[a], g.build.axisLeft) > 0;
+      if (!fixa) {
+        if (anda) bad(`etapa ${i}: eixo aberto ${a} sumiu da mesa`);
+        continue;
+      }
+      if (!anda) bad(`etapa ${i}: eixo ${a} no teto e ainda assim na mesa`);
+      if (!fixa.dry && !fixa.wet) bad(`etapa ${i}: slot de ${a} sem maneira nenhuma`);
+      if (fixa.dry && fixa.dry.want !== M.axisPoints) {
         bad(`etapa ${i}: carta seca de ${a} pede ${fixa.dry.want}, dado diz ${M.axisPoints}`);
       }
       if (fixa.wet && fixa.wet.want !== M.spellPoints) {
@@ -125,7 +132,7 @@ function simular(seed, alvo, sempreSpell) {
        tras e por isso e quem prova que a cauda alcanca. */
     const fixa = offers.find((o) => o.locked && o.axisId === alvo);
     let pick = null, wet = false;
-    if (fixa && !sempreSpell && fixa.dry.gain > 0) { pick = fixa; wet = false; }
+    if (fixa && !sempreSpell && fixa.dry && fixa.dry.gain > 0) { pick = fixa; wet = false; }
     else if (fixa && sempreSpell && fixa.wet && fixa.wet.gain > 0) { pick = fixa; wet = true; }
     if (!pick) {
       pick = offers.find((o) => o.axisId === alvo && o.wet && o.wet.gain > 0)
