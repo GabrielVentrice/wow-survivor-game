@@ -376,7 +376,14 @@ class BuildSystem {
       pool.push({ kind: "piece", id, def, axis: AXES[def.axis] });
     }
 
-    // 2. tiers de caminho das pecas possuidas
+    /* 2. tiers de caminho das pecas possuidas.
+
+       Caminho ja comecado entra no sorteio com PESO MAIOR. Sem isso, terminar
+       um caminho e loteria: sao 5 compras seguidas na mesma trilha, disputando
+       com dezenas de outras ofertas, e o resultado medido foi zero evolucoes
+       em 20 runs. O peso nao entrega nada de graca — a carta ainda precisa ser
+       escolhida — mas faz "continuar o que ja comecou" ser uma opcao real em
+       vez de um acidente estatistico. */
     for (const inst of this.pieces.values()) {
       for (const pathId in inst.def.paths) {
         if (!this.canUpgradePath(inst, pathId)) continue;
@@ -384,12 +391,14 @@ class BuildSystem {
         const idx = inst.paths[pathId];
         const tier = path.tiers[idx];
         const isEvo = idx + 1 === PATH_RULES.tiers && !!path.evolvesInto;
-        pool.push({
+        const offer = {
           kind: "path", inst, pathId, path, tier, tierIndex: idx,
           def: inst.def, isEvo,
           evo: isEvo ? PIECES[path.evolvesInto] : null,
           axis: AXES[inst.def.axis],
-        });
+        };
+        const peso = idx >= 3 ? 4 : idx >= 1 ? 2 : 1;
+        for (let w = 0; w < peso; w++) pool.push(offer);
       }
     }
 
@@ -410,17 +419,32 @@ class BuildSystem {
        quatro tiers anteriores. */
     pool.sort((a, b) => (b.isEvo ? 1 : 0) - (a.isEvo ? 1 : 0));
 
-    // Deixa até 2 caminhos da mesma peça no mesmo saque: com o limite de 1,
-    // aprofundar dependia de a peça certa cair de novo no sorteio seguinte.
-    const out = [], perPiece = new Map();
+    /* Monta o saque. Duas travas:
+       - no maximo 2 caminhos da mesma peca (com 1, aprofundar dependia de a
+         peca certa cair de novo no sorteio seguinte);
+       - o mesmo caminho nunca aparece duas vezes, ja que agora ele entra no
+         pool repetido para ganhar peso. */
+    const out = [], perPiece = new Map(), vistos = new Set();
     for (let i = 0; i < pool.length && out.length < count; i++) {
       const o = pool[i];
       if (o.kind === "path") {
+        const tag = o.inst.key + ":" + o.pathId;
+        if (vistos.has(tag)) continue;
         const n = perPiece.get(o.inst.key) || 0;
         if (n >= 2) continue;
+        vistos.add(tag);
         perPiece.set(o.inst.key, n + 1);
       }
       out.push(o);
+    }
+
+    /* Se o saque ficou so de caminhos, a pool de eixos nunca enche e nenhum
+       capstone abre. Troca a ultima carta por uma peca nova quando ainda ha
+       ponto de eixo sobrando. Medido antes desta regra: pool parava em 13/20 e
+       1 em 20 runs via um capstone. */
+    if (this.axisLeft > 0 && out.length === count && out.every((o) => o.kind === "path")) {
+      const nova = pool.find((o) => o.kind === "piece");
+      if (nova) out[count - 1] = nova;
     }
     return out;
   }

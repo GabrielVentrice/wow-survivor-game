@@ -99,14 +99,21 @@ const TRIGGERS = {
     },
   },
 
-  /* Acumula carga enquanto o player esta PARADO; zera ao andar.
-     A unica mecanica que pune movimento — e o que faz a build "torre"
-     jogar diferente da build "corredor". */
+  /* Acumula carga enquanto o player esta parado. Andar DRENA a carga em vez
+     de zera-la.
+
+     O zero era uma regra elegante e um desastre medido: `rainOfFire` fez 0% de
+     dano em 9 de 9 runs, e `maleficRapture` idem. Num survivors voce corrige a
+     posicao o tempo todo, e cada meio passo apagava a carga inteira — a peca
+     nunca disparava. Com dreno a 2x, parar continua sendo a mecanica (fica
+     pronta em 1 chargeTime), mas um ajuste de meio segundo custa um segundo de
+     carga em vez da barra toda. A identidade "torre" sobrevive; a punicao
+     binaria, nao. */
   rooted: {
     init(s) { s.charge = 0; },
     tick(game, inst, dt, now) {
       const s = inst.s, t = inst.r.trigger, p = game.player;
-      if (p.moving) { s.charge = 0; return; }
+      if (p.moving) { s.charge = Math.max(0, s.charge - dt * 2); return; }
       s.charge += dt;
       if (s.charge < cd(game, t.chargeTime)) return;
       s.charge = 0;
