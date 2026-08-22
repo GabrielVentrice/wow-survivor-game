@@ -21,6 +21,7 @@ DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas,
 DRIVER=driver_chest.js node tools/harness.js .   # baú: cadência de aparição e tamanho do prêmio
 DRIVER=driver_form.js  node tools/harness.js .   # metamorfose por capstone e aura por spell concluída
 DRIVER=driver_pixel.js node tools/harness.js .   # grid de pixel: buffer, câmera, escala de sprite, laje
+DRIVER=driver_palette.js node tools/harness.js . # paleta mestre: cor fora da PAL, rampa chapada, corpo aceso
 DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câmera, curvas de evento
 DRIVER=driver_preview.js node tools/harness.js . # escreve tools/levelup-preview.html (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha

@@ -564,6 +564,74 @@ Tipografia: **Outfit** e **IBM Plex Mono**, vindas do Google Fonts. É a exceç�
 Offline as pilhas de fallback em `--ui`/`--mono` assumem e a tela continua
 legível, só perde o desenho da fonte.
 
+### A paleta mestre: uma paleta, não dezenove
+
+Antes da `PAL` (`js/sprites.js`) havia **108 hexes distintos em 18 sprites, com
+quase zero reuso**: cada criatura tinha inventado o próprio roxo, o próprio
+osso, o próprio quase-preto. Um conjunto pintado assim lê como dezoito assets
+avulsos e não como a arte de um jogo — e o defeito é invisível olhando um
+sprite por vez, que é exatamente como se acrescenta um sprite.
+
+Hoje são **47 cores**, organizadas em rampas compartilhadas, e três regras que
+`driver_palette` cobra:
+
+**1. Matéria é dessaturada, energia é saturada.** A ponta saturada da paleta
+(`fel`/`arc`/`pyr` — que vêm *referenciadas* de `AXIS_PALETTE`, não copiadas)
+é de olho, runa e fogo. **Nunca de corpo.** É a metade de sprite da hierarquia
+de leitura acima: com quarenta corpos em tela, a spell só se destaca se os
+corpos não estiverem competindo com ela. O driver cobra o teto de **14% dos
+pixels** por grid. Corpo pintado em verde-fel é corpo que parece spell — foi o
+que o felhunter era, com 38%, e por isso as antenas dele viraram matéria.
+
+Duas exceções declaradas, e as duas são a mesma exceção — *o brilho é o
+assunto*: o `portal` (a boca **é** a magia) e o `darkglare` (o olho **é** a
+criatura). Elas moram nomeadas no driver, com o motivo escrito. Qualquer
+terceira precisa do mesmo argumento.
+
+**2. Rampa desloca matiz, não só escurece.** Toda rampa escurece **em direção
+ao violeta** e clareia **em direção ao creme**. Rampa de matiz fixo que só
+perde brilho é o tell mais claro de pixel art amadora: lê como a mesma tinta
+sob menos luz, e não como superfície iluminada. O driver reprova rampa com
+menos de 8° de deslocamento — e isenta as três famílias de eixo, que são
+identidade de build e não são nossas para re-matizar.
+
+**3. Rampa é compartilhada, a fatia não.** Uma criatura toma três passos
+consecutivos de uma rampa; duas criaturas do mesmo material diferem por
+**quais** três. O ghoul pega `rot0..rot2` e o vilefiend `rot1..rot3`, então
+leem como a mesma carne em estágios diferentes em vez de dois verdes sem
+parentesco. Mesma coisa com voidwalker (`void0..2`) e felhunter (`void1..3`).
+
+Junto disso:
+
+- **Contorno é uma das três tintas** (`inkCold`/`inkDeep`/`inkWarm`), escolhida
+  pela temperatura do corpo — nunca o passo mais escuro da própria rampa, senão
+  a sombra desaparece dentro da silhueta.
+- **A luz vem de cima-à-esquerda, em todo sprite.** É a única regra de arte com
+  assinatura mensurável, e o driver a mede: a metade de cima da rampa tem que
+  ser mais clara que a de baixo. O esqueleto é a exceção tolerada — membro de
+  1px de espessura é todo borda, e o sombreamento não tem onde acontecer.
+- **Cor de matéria sem uso é peso morto** e o driver reprova: a paleta estaria
+  dizendo que o conjunto tem uma cor que ele não tem.
+
+**O vocabulário de char é compartilhado entre todos os grids**, então qualquer
+grade se lê sem consultar a chave dela: `o` contorno, `d`/`m`/`l` a rampa
+principal (sombra/base/luz), `D`/`M`/`L` uma segunda rampa, `b`/`B` osso,
+`s`/`S` metal, `e`/`E` energia e seu núcleo, `f`/`F` fogo.
+
+**Volume vem de duas coisas, e nenhuma é cor.** Luz de borda (a fileira que
+toca o vazio por cima ou pela esquerda sobe um passo) **e oclusão** (as duas
+fileiras de baixo de uma massa descem um passo). Sem a segunda, corpo largo
+continua um retângulo chapado por mais bonita que seja a rampa — foi o que
+manteve o voidwalker e o dreadlord como blocos até a oclusão entrar.
+
+**E quando nem isso salva, o problema é a grade.** Dois sprites não tinham
+conserto por cor: o esqueleto (órbitas pintadas *por cima* do osso em vez de
+serem buracos, costelas sem vão) e o dreadlord, que é **chefe** e ocupava 16×14
+— menor que o dreadstalker que o próprio jogador invoca. Ameaça se lê como
+tamanho e silhueta antes de se ler como cor: ele foi redesenhado em 22×19, com
+asas abertas, e o `art` dele subiu de `2.21` para `3.0` — o degrau exato para
+19 linhas, pela mesma regra de `ENEMIES.art`.
+
 ### Uma build, uma família de cor
 
 Cada eixo é uma família de cor, e as três ficam longe uma da outra em matiz:

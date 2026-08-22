@@ -130,7 +130,7 @@ const ENEMIES = {
     deathSfx: "flesh",
   },
   skeleton: {
-    id: "skeleton", art: 2.8, name: "Skeleton Warrior",
+    id: "skeleton", art: 3.2, name: "Skeleton Warrior",
     radius: 15, hp: 26, speed: 92, touchDps: 12, xp: 3,
     color: "#cfc8b0", weight: 3, lateWeight: 4, minTime: 45,
     deathSfx: "bone",       // esqueleto estala mais e esmaga menos
@@ -142,7 +142,7 @@ const ENEMIES = {
     deathSfx: "rot",        // massa de carne: grave e molhado
   },
   dreadlord: {
-    id: "dreadlord", art: 2.21, name: "Dreadlord",
+    id: "dreadlord", art: 3.0, name: "Dreadlord",
     radius: 38, hp: 1400, speed: 48, touchDps: 30, xp: 120,
     color: "#b23cff", weight: 0, minTime: 300,
     deathSfx: "flesh",
