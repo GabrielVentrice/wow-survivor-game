@@ -52,8 +52,6 @@ const DIVIDA_COR = {
   "rgba(122,60,255": "parada do gradiente do projetil: todo tiro de fogo desbota para roxo na borda",
   "#7a3cff": "cor de classe de fallback",
   "#ff7a2c": "cor de fallback da zona",
-  "#6fdc4a": "halo do orbe de XP",
-  "#d8ffb0": "nucleo do orbe de XP",
   "#ffe6b0": "orbe generico de demonio (kind sem sprite)",
   "#a8ff6a": "veio de fel do cenario",
   "#c88aff": "veio arcano do cenario",
