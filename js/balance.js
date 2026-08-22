@@ -272,14 +272,47 @@ const CLASSES = {
        ponto de fechar as outras portas — é ele que separa o aprendiz do
        mestre. Com pool 20 e teto 15, cabem no máximo dois numa run: são
        exatamente as duas formas abaixo da base. */
+    /* METAMORFOSE: uma forma por CAPSTONE, nao por contagem de capstones.
+
+       A versao anterior indexava por quantos capstones estavam fechados, e com
+       teto de dois por run isso dava duas formas para oito finais diferentes:
+       o corpo dizia que a run tinha chegado longe, mas nao dizia para ONDE.
+       Uma forma por capstone faz a silhueta responder a pergunta que a tela de
+       etapa passa a run inteira fazendo — e ela responde de longe, sem texto.
+
+       `spells` cobre o degrau do meio, e o gatilho dele nao podia ser ponto de
+       eixo: ponto entra sozinho a cada compra e a forma chegaria por inercia,
+       que e o defeito que ja tirou a metamorfose do acumulo uma vez. Fechar um
+       caminho ate o tier 5 e a outra conquista merecida que o jogo tem. */
     forms: [
-      { sprite: "warlock", caps: 0, scale: 3.375 },
-      { sprite: "warlockFel", caps: 1, scale: 3.56, dy: -0.33, color: "#aaff5a",
-        icon: "👹", name: "Corrompido",
-        desc: "O primeiro capstone cobra o corpo: chifres despontam e a mandíbula acende." },
-      { sprite: "warlockDemon", caps: 2, scale: 3.75, dy: -0.48, color: "#ff8a3c",
-        icon: "😈", name: "Metamorfose Demoníaca",
-        desc: "Dois capstones fechados. Asas se abrem, os olhos viram brasa — pouco resta do humano." },
+      { sprite: "warlock", scale: 3.375 },
+      { sprite: "warlockAdept", spells: 1, scale: 3.5625, dy: -0.33, color: "#aaff5a",
+        icon: "\u{1F480}", name: "Iniciado",
+        desc: "Uma spell levada ate o fim cobra o corpo: chifres rompem a testa e um antebraco ja e osso." },
+      { sprite: "warlockColheita", cap: "colheita", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.corruption.light,
+        icon: "\u{1F33E}", name: "Colheita",
+        desc: "O manto apodreceu em raizes e a caixa toracica esta escancarada." },
+      { sprite: "warlockCeifador", cap: "ceifador", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.corruption.base,
+        icon: "\u26B0", name: "Ceifador",
+        desc: "Caveira dentro do capuz, garras longas, cranios de imp pendurados na barra." },
+      { sprite: "warlockVoraz", cap: "voraz", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.corruption.base,
+        icon: "\u{1F988}", name: "Voraz",
+        desc: "O tronco abriu numa boca de presas que vai do peito a cintura." },
+      { sprite: "warlockTirania", cap: "tirania", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.dominion.light,
+        icon: "\u{1F451}", name: "Tirania",
+        desc: "Coroa de ferro, ombreiras douradas, e os pes nao tocam mais o chao." },
+      { sprite: "warlockDiabolista", cap: "diabolista", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.dominion.base,
+        icon: "\u{1F4DC}", name: "Diabolista",
+        desc: "Selo de latao as costas, mascara com chifres, e nenhum passo." },
+      { sprite: "warlockEnxame", cap: "enxame", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.dominion.base,
+        icon: "\u{1F41D}", name: "Enxame",
+        desc: "O peito e os ombros racharam em celulas de colmeia sob placas de quitina." },
+      { sprite: "warlockNihilam", cap: "nihilam", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.cataclysm.light,
+        icon: "\u{1F480}", name: "Nihilam",
+        desc: "Queimado ate a casca: o cranio a mostra e o tronco rachado de brasa." },
+      { sprite: "warlockChamador", cap: "chamador", scale: 3.75, dy: -0.48, color: AXIS_PALETTE.cataclysm.base,
+        icon: "\u{1F514}", name: "Chamador",
+        desc: "Coroa de ferro negro e um sino rachado pendurado no peito." },
     ],
   },
   mage:   { id: "mage",   name: "Mage",   tag: "Em breve", color: "#3fa9f5", available: false },

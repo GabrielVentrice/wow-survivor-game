@@ -591,12 +591,18 @@ class UI {
      causou, e nao numa cor generica de forma. */
   checkForm(cause) {
     const g = this.game, p = g.player;
-    const idx = p.formIndex(g.build.capstones.size);
+    let done = 0;
+    for (const inst of g.build.pieces.values()) if (g.build.isComplete(inst)) done++;
+    const idx = p.formIndex(g.build.capstones, cause && cause.id, done);
     if (idx === p.formIdx) return;
-    const grew = idx > p.formIdx;
     p.formIdx = idx;
     const f = p.forms[idx];
-    if (!grew || !f.name) return;
+    /* Antes o toast so saia quando o INDICE subia, porque a lista era uma
+       escada. Ela nao e mais: as oito formas de capstone sao irmas, e trocar da
+       de Colheita para a de Tirania anda para tras no array sem andar para tras
+       na run. Quem decide agora e ter nome — a forma base nao tem, e e a unica
+       que nao anuncia nada. */
+    if (!f.name) return;
     const color = (cause && cause.color) || f.color;
     g.sfx.combo();
     g.addShake(22);

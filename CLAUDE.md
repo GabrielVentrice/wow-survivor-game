@@ -416,7 +416,8 @@ São dois marcos, com dois donos, e não podem trocar de dono:
 
 | Marco | Gatilho | O que muda | Onde mora |
 |---|---|---|---|
-| **Metamorfose** | um capstone fechado | troca o sprite do personagem, a escala e a cor da luz no chão | `CLASSES.<id>.forms[].caps` |
+| **Metamorfose** | **qual** capstone fechou | troca o sprite do personagem, a escala e a cor da luz no chão | `CLASSES.<id>.forms[].cap` |
+| **Iniciado** | a primeira spell concluída | a forma do meio, entre o aprendiz e os capstones | `CLASSES.<id>.forms[].spells` |
 | **Aura** | uma spell concluída (qualquer caminho no tier 5) | acende o `PIECE_VFX` daquela peça em volta do warlock | `BuildSystem.isComplete` → `rebuildVfx` |
 
 A versão antiga amarrava as duas coisas no **acúmulo de pontos de eixo**: a
@@ -428,9 +429,21 @@ justo quando a build ficava grande.
 
 Consequências que valem para conteúdo novo:
 
-- **Forma é indexada por capstone, não por ponto.** Com pool 20 e teto 15 cabem
-  no máximo **2** capstones numa run — então uma classe tem sentido com 3
-  formas (`caps: 0, 1, 2`). Uma quarta seria arte morta.
+- **Forma é indexada por QUAL capstone, não por quantos.** A versão anterior
+  contava — dois capstones cabem numa run, então eram três formas. Mas contagem
+  dá **duas** formas para **oito** finais diferentes: o corpo dizia que a run
+  chegou longe e não dizia para ONDE. Hoje são dez formas: aprendiz, Iniciado, e
+  uma por capstone, e `driver_form` cobra **cobertura** — capstone sem forma é um
+  final que o corpo não sabe contar, e quem fechou justo aquele fica com a
+  silhueta de quem não fechou nada.
+- **O degrau do meio não podia sair de ponto de eixo.** Ponto entra sozinho a
+  cada compra, e a forma voltaria a chegar por inércia — que é o defeito que
+  tirou a metamorfose do acúmulo em primeiro lugar. O gatilho é `spells`: fechar
+  um caminho até o tier 5, a outra conquista merecida que o jogo tem.
+- **As oito formas de capstone são IRMÃS, não uma escada.** Trocar da forma de
+  Colheita para a de Tirania anda para trás no array sem andar para trás na run,
+  então quem decide se o toast sai é a forma **ter nome** — só a base não tem.
+  Comparar índices ali fazia a segunda metamorfose chegar calada.
 - **A conclusão da peça é que acende a aura, não a compra.** `upgradePath`
   devolve `completed` **só na primeira** vez que a peça fecha um caminho:
   fechar o segundo caminho da mesma peça não acende uma segunda aura.
@@ -438,6 +451,22 @@ Consequências que valem para conteúdo novo:
   no tier 5 e o halo continua aceso, agora com o `vfx` da forma evoluída.
 - **Peça nova sem `vfx` simplesmente não tem aura para dar.** Se a spell é de
   assinatura, dê a ela uma entrada em `PIECE_VFX`.
+- **Toda forma tem uma segunda grade, `cast`, e ela não se deriva da idle.**
+  `walkFrames` tira um passo de uma grade só porque passo é a perna se mexendo
+  *dentro* da grade que já existe; nenhum deslocamento de linha produz um braço
+  que foi para outro lugar. A `cast` tem que ter as **mesmas linhas** da idle (o
+  degrau sai de `drawH / (PIXEL_UNIT × linhas)`), e costuma ser mais **larga** —
+  braço aberto não cabe na largura do corpo, e largura não entra na conta do
+  degrau. Por isso `drawSprite` mede o **quadro resolvido**, não o sprite base.
+- **Quem acende a pose é quem DISPARA, não quem desenha.** `firePiece` é o único
+  funil por onde toda peça passa; o desenho roda uma vez por frame e o disparo
+  várias (sub-stepping), então amarrar a pose ao render perderia os disparos que
+  caem no mesmo frame. `reactive` fica de fora: é o tique de um DoT que já está
+  no ar, não um conjuro novo.
+- **A pose tem cadência (`CAST_GAP`), pela mesma razão que o hitstop tem.** Uma
+  build madura dispara quase continuamente; sem intervalo a pose de cast deixa
+  de ser evento e vira o estado normal do personagem — e quem passa a ser
+  exceção é a caminhada.
 - **Quem avança `player.formIdx` é `UI.checkForm`, e mais ninguém.** Enquanto
   `BuildSystem.afterChange` também adiantava o índice, o `idx === formIdx` de
   lá nunca dava falso e a metamorfose chegava calada — sprite novo, sem toast,

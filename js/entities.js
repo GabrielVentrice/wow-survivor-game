@@ -37,6 +37,12 @@ class Player {
     // hexRgb aloca. Forma sem cor propria cai na cor da classe.
     this.formRgb = this.forms.map((f) => hexRgb(f.color || cls.color || "#7a3cff"));
     this.vfxTime = 0;
+    // Quanto tempo REAL de simulacao ainda resta da pose de cast. O unico input
+    // em combate e movimento e nenhuma peca e conjurada a mao, entao sem isto o
+    // warlock atravessa a run inteira com o mesmo braco caido enquanto trinta
+    // spells disparam sozinhas — o corpo nao participa do que a build faz.
+    this.castTime = 0;
+    this.castGap = 0;
     this.pulses.length = 0;
 
     // --- estado de movimento: base dos triggers rooted/trail/directional e
@@ -81,6 +87,8 @@ class Player {
     }
     this.animTime += dt * (this.moving ? 1 : 0.25);
     this.vfxTime += dt;
+    if (this.castTime > 0) this.castTime -= dt;
+    if (this.castGap > 0) this.castGap -= dt;
     for (let i = this.pulses.length - 1; i >= 0; i--) {
       this.pulses[i].t += dt;
       if (this.pulses[i].t >= PULSE_LIFE) this.pulses.splice(i, 1);
@@ -104,15 +112,42 @@ class Player {
     const lim = this.maxShield > 0 ? this.maxShield : this.maxHp;
     this.shield = Math.min(lim, this.shield + amount);
   }
-  // forma atual pelo numero de capstones fechados
-  formIndex(capstones) {
-    let idx = 0;
+  /* Forma atual. A regra mudou de CONTAGEM para IDENTIDADE: nao e mais "quantos
+     capstones fechei" e sim "QUAL capstone eu fechei". Contagem dava duas
+     formas para oito finais diferentes — o corpo dizia que a run tinha chegado
+     longe, mas nao dizia para ONDE. Com uma forma por capstone a silhueta passa
+     a ser a resposta da pergunta que a tela de etapa faz a run inteira.
+
+     `spells` cobre o degrau do meio: nao existe capstone para dar, e a unica
+     outra conquista merecida do jogo e fechar um caminho ate o tier 5. Ponto de
+     eixo nao serve — ele entra sozinho a cada compra e a forma chegaria por
+     inercia, que e exatamente o defeito que tirou a metamorfose do acumulo. */
+  formIndex(caps, lastCap, spellsDone) {
+    let idx = 0, capIdx = -1;
     for (let i = 0; i < this.forms.length; i++) {
-      if (capstones >= this.forms[i].caps) idx = i;
+      const f = this.forms[i];
+      if (f.spells != null && spellsDone >= f.spells) idx = i;
+      if (!f.cap || !caps || !caps.has(f.cap)) continue;
+      // O ultimo capstone fechado manda; sem ele, o primeiro que casar.
+      if (f.cap === lastCap) return i;
+      if (capIdx < 0) capIdx = i;
     }
-    return idx;
+    return capIdx >= 0 ? capIdx : idx;
   }
   comboPulse(color) { this.pulses.push({ t: 0, rgb: hexRgb(color) }); }
+
+  /* Poe o corpo na pose de cast. Chamado por quem DISPARA, nunca por quem
+     desenha: com sub-stepping o draw roda uma vez por frame e o disparo varias,
+     e amarrar a pose ao desenho perderia os disparos que caem no mesmo frame.
+
+     `Math.max` e nao soma: numa build grande meia duzia de pecas dispara no
+     mesmo instante, e somar a duracao deixaria o warlock travado de bracos
+     para cima o tempo todo — a pose so significa alguma coisa se ela voltar. */
+  castPulse(dur) {
+    if (this.castGap > 0) return;
+    this.castTime = dur || CAST_POSE;
+    this.castGap = CAST_GAP;
+  }
 
   /* `auras` = as spells CONCLUIDAS (build.vfx). Peca comprada nao acende nada:
      o halo em volta do warlock e o que se ganha por fechar um caminho ate o
@@ -129,6 +164,7 @@ class Player {
     const spr = SPRITES[form.sprite];
     const drawH = r * form.scale;
     const anim = walkAnim(this.animTime, this.moving);
+    anim.cast = this.castTime > 0;
     if (form.dy) anim.bob += form.dy * r; // formas mais altas: pes no chao
 
     const p = this._vp;

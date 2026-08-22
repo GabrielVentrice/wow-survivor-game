@@ -24,17 +24,28 @@ console.log("--- formas ---");
 for (const cid in CLASSES) {
   const cls = CLASSES[cid];
   if (!cls.forms) continue;
-  let prev = -1;
+  const covered = new Set();
   for (const f of cls.forms) {
-    if (typeof f.caps !== "number") fail(`${cid}: forma "${f.sprite}" sem \`caps\` (o gatilho e capstone, nao ponto de eixo)`);
+    if (f.caps != null) fail(`${cid}: forma "${f.sprite}" ainda usa \`caps\` — o gatilho e QUAL capstone, nao quantos`);
     if (f.at != null) fail(`${cid}: forma "${f.sprite}" ainda carrega \`at\` — sobra do sistema antigo de poder`);
     if (f.aura != null) fail(`${cid}: forma "${f.sprite}" declara \`aura\` — aura agora vem de spell concluida`);
-    if (f.caps <= prev) fail(`${cid}: forma "${f.sprite}" nao avanca o limiar (${f.caps} apos ${prev})`);
-    prev = f.caps;
     if (!SPRITE_DATA[f.sprite]) fail(`${cid}: forma aponta para o sprite inexistente "${f.sprite}"`);
+    if (f.cap) {
+      if (!CAPSTONES[f.cap]) fail(`${cid}: forma "${f.sprite}" aponta para o capstone inexistente "${f.cap}"`);
+      if (covered.has(f.cap)) fail(`${cid}: duas formas para o capstone "${f.cap}"`);
+      covered.add(f.cap);
+    }
   }
-  if (cls.forms[0].caps !== 0) fail(`${cid}: a forma base tem que valer com 0 capstone`);
-  console.log(`  ok ${cls.name}: ${cls.forms.length} formas em ${cls.forms.map((f) => f.caps).join("/")} capstones`);
+  const base = cls.forms[0];
+  if (base.cap || base.spells != null) fail(`${cid}: a forma base tem que valer sem capstone e sem spell`);
+  /* A promessa nova e COBERTURA: um capstone sem forma e um final que o corpo
+     nao sabe contar, e o jogador que fechou justo aquele fica com a silhueta
+     de quem nao fechou nada. */
+  for (const id in CAPSTONES) {
+    if (!covered.has(id)) fail(`${cid}: capstone "${id}" nao tem forma`);
+  }
+  const meio = cls.forms.filter((f) => f.spells != null).length;
+  console.log(`  ok ${cls.name}: ${cls.forms.length} formas — 1 base, ${meio} por spell, ${covered.size} por capstone`);
 }
 
 /* --- 2. capstone move a forma, ponto de eixo nao ------------------------- */
@@ -51,9 +62,8 @@ while (b.axisLeft > 0 && guard++ < 200) {
   if (!offers.length) break;
   const o = offers[volta++ % offers.length];
   const antes = b.axisTotal;
-  // Carta sorteada so tem o lado com spell; a de eixo aberto tem os dois.
   b.applyMilestone(o, !o.dry);
-  if (b.axisTotal === antes) break;   // todo eixo no teto: nao ha mais o que dar
+  if (b.axisTotal === antes) break;
 }
 /* E confere que level up NAO move o pool: se ele voltar a cobrar eixo, a forma
    volta a chegar por inercia — que e o defeito que a separacao consertou. */
@@ -66,26 +76,34 @@ for (let i = 0; i < 12; i++) {
 if (b.axisTotal !== poolAntesLv) {
   fail(`level up moveu o pool de eixo (${poolAntesLv} -> ${b.axisTotal})`);
 }
-if (b.capstones.size === 0 && p.formIdx !== 0) {
-  fail(`forma avancou para ${p.formIdx} com ${b.axisTotal} pontos e nenhum capstone`);
-} else {
-  console.log(`  ok pool em ${b.axisTotal}/${AXIS_RULES.pool}, ${b.capstones.size} capstone(s), forma ${p.formIdx}`);
-}
+console.log(`  ok pool em ${b.axisTotal}/${AXIS_RULES.pool}, ${b.capstones.size} capstone(s), forma ${p.formIdx}`);
 
-// agora forca capstone a capstone e confere que cada um traz uma forma
-const capIds = Object.keys(CAPSTONES);
-for (let n = 1; n < p.forms.length; n++) {
+/* Ponto de eixo sozinho nao move a forma: enche o pool inteiro SEM capstone e
+   confere que o corpo ficou parado no aprendiz. */
+g.start();
+g.build.axis.corruption = AXIS_RULES.cap - 1;
+g.build.axis.dominion = AXIS_RULES.pool - AXIS_RULES.cap;
+g.build.afterChange();
+g.ui.checkForm(null);
+if (g.player.formIdx !== 0) fail(`ponto de eixo sozinho moveu a forma para ${g.player.formIdx}`);
+else console.log("  ok pool cheio sem capstone deixa a forma no aprendiz");
+
+/* Cada capstone traz A SUA forma, e anuncia. Antes o teste era por contagem —
+   n capstones davam a forma n. Agora e por identidade, e e mais forte: fechar
+   `nihilam` tem que dar a forma de nihilam, e nao "a segunda forma". */
+for (const id in CAPSTONES) {
   g.start();
-  for (let i = 0; i < n; i++) g.build.capstones.add(capIds[i]);
+  g.build.capstones.add(id);
   g.build.afterChange();
   const antes = g.ui.el.toasts.children.length;
-  g.ui.checkForm(CAPSTONES[capIds[n - 1]]);
-  if (g.player.formIdx !== n) fail(`${n} capstone(s) deveriam dar a forma ${n}, deu ${g.player.formIdx}`);
+  g.ui.checkForm(CAPSTONES[id]);
+  const f = g.player.forms[g.player.formIdx];
+  if (f.cap !== id) fail(`capstone "${id}" deu a forma "${f.sprite}" (cap ${f.cap})`);
   // A metamorfose nao pode chegar calada: se a build adiantar o formIdx, o
   // checkForm vira no-op e o clima do momento some.
-  else if (g.ui.el.toasts.children.length === antes) fail(`a forma ${n} chegou sem anunciar nada`);
-  else console.log(`  ok ${n} capstone(s) -> ${g.player.forms[n].name} (anunciada)`);
+  else if (g.ui.el.toasts.children.length === antes) fail(`a forma de "${id}" chegou sem anunciar nada`);
 }
+console.log(`  ok ${Object.keys(CAPSTONES).length} capstones, cada um com a sua forma anunciada`);
 
 // e o caminho de verdade: capstone entrando por applyOffer tambem anuncia
 g.start();
@@ -94,9 +112,56 @@ g.build.axis.dominion = AXIS_RULES.pureAt;
 const antesReal = g.ui.el.toasts.children.length;
 g.ui.applyOffer({ kind: "path", inst: inst0, pathId: Object.keys(inst0.def.paths)[0] });
 if (!g.build.capstones.size) fail("Tirania nao abriu com 15 de dominio");
-else if (g.player.formIdx !== 1) fail(`capstone por applyOffer nao trocou a forma (formIdx ${g.player.formIdx})`);
+else if (g.player.forms[g.player.formIdx].cap !== "tirania") fail(`capstone por applyOffer nao trocou a forma (formIdx ${g.player.formIdx})`);
 else if (g.ui.el.toasts.children.length <= antesReal + 1) fail("applyOffer nao anunciou capstone + metamorfose");
 else console.log("  ok capstone por applyOffer troca a forma e anuncia");
+
+/* --- 2b. pose de cast ------------------------------------------------------
+   O unico input em combate e movimento e nenhuma peca e conjurada a mao. Sem
+   uma segunda grade o warlock atravessa a run inteira de bracos caidos
+   enquanto trinta spells disparam sozinhas, e o corpo nao participa do que a
+   build faz. Tres coisas tem que valer, e as tres ja quebraram uma vez. */
+console.log("--- cast ---");
+for (const cid in CLASSES) {
+  const cls = CLASSES[cid];
+  if (!cls.forms) continue;
+  for (const f of cls.forms) {
+    const d = SPRITE_DATA[f.sprite];
+    if (!d.cast) fail(`${f.sprite}: sem grade de cast — a pose nao se deriva da idle`);
+    // MESMAS linhas: o degrau sai de drawH / (PIXEL_UNIT * linhas), entao uma
+    // cast com outra altura desenharia a mesma criatura em outra escala.
+    else if (d.cast.length !== d.rows.length) {
+      fail(`${f.sprite}: cast com ${d.cast.length} linhas contra ${d.rows.length} da idle`);
+    }
+    // Largura PODE (e costuma) diferir: braco aberto nao cabe na largura do
+    // corpo, e largura nao entra na conta do degrau.
+    const spr = SPRITES[f.sprite];
+    if (!spr.cast) fail(`${f.sprite}: buildSprites nao montou o canvas de cast`);
+    else if (animFrame(spr, { cast: true, frame: 2 }) !== spr.cast) {
+      fail(`${f.sprite}: a caminhada ganhou do cast — duas poses no mesmo quadro`);
+    }
+  }
+}
+console.log(`  ok ${CLASSES.warlock.forms.length} formas com grade de cast, mesma altura da idle`);
+
+/* E a pose tem que DISPARAR de verdade numa run: e o unico funil por onde toda
+   peca passa, entao se ela nao acender aqui, nao acende em lugar nenhum. */
+g.start();
+let viuCast = false, maxSeguido = 0, seguido = 0;
+for (let i = 0; i < 60 * 90 && !0; i++) {
+  g.update(1 / 60);
+  if (g.player.castTime > 0) { viuCast = true; seguido++; maxSeguido = Math.max(maxSeguido, seguido); }
+  else seguido = 0;
+}
+if (!viuCast) fail("90s de run e a pose de cast nunca acendeu");
+/* E ela tem que APAGAR. Com uma build madura as pecas disparam quase o tempo
+   todo; sem cadencia a pose de cast vira o estado normal do personagem e quem
+   passa a ser evento e a caminhada. */
+else if (maxSeguido > 60 * (CAST_POSE + 0.05)) {
+  fail(`pose de cast ficou ${(maxSeguido / 60).toFixed(2)}s seguidos (teto ${CAST_POSE}s)`);
+} else {
+  console.log(`  ok a pose acende na run e volta (maior trecho ${(maxSeguido / 60).toFixed(2)}s, cadencia ${CAST_GAP}s)`);
+}
 
 /* --- 3. aura so com spell concluida --------------------------------------- */
 console.log("--- auras ---");
@@ -165,7 +230,7 @@ for (const id in PIECES) {
 }
 for (const id of Object.keys(CAPSTONES)) g.build.capstones.add(id);
 g.build.afterChange();
-g.player.formIdx = g.player.formIndex(g.build.capstones.size);
+g.player.formIdx = g.player.formIndex(g.build.capstones, null, 0);
 try {
   for (let i = 0; i < 30; i++) { g.player.vfxTime += 1 / 60; g.render(); }
   console.log(`  ok render com ${g.build.vfx.length} auras e a forma ${g.player.formIdx} (teto de adorno ${MAX_PIECE_VFX})`);
