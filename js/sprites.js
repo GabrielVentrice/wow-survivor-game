@@ -510,22 +510,29 @@ const SPRITE_DATA = {
       ".....R.oooldddddooo.R.....",
     ],
   },
+  /* Ghoul — o lixo da horda. A 13px o que precisa chegar e "isso e muitos e
+     morre rapido": chifre de osso claro para a silhueta se destacar do chao,
+     orbita como buraco com uma brasa dentro, e uma banda escura de queixo
+     separando a cabeca do ombro — sem ela a massa verde le como um bicho so.
+     A pa do desenho de referencia ficou de fora: nesta largura ela vira uma
+     barra de osso atravessando o sprite inteiro, e sao dezenas deles em tela. */
   ghoul: {
-    pal: { o: PAL.inkWarm, d: PAL.rot0, m: PAL.rot1, l: PAL.rot2, B: PAL.bone1, e: PAL.blood1 },
+    pal: { o: PAL.inkWarm, d: PAL.rot0, m: PAL.rot1, l: PAL.rot2,
+           D: PAL.bone0, M: PAL.bone1, L: PAL.bone2, e: PAL.blood1 },
     rows: [
-      "...oooooo.....",
-      "..ollllllo....",
-      ".olddddddlo...",
-      ".oleldddelo...",
-      ".ollddddldo...",
-      ".oldooooldo...",
-      "olmmllllmmlo..",
-      "BldmmmmmmddlB.",
-      "BldmmddmmdddB.",
-      ".olddddddddo..",
-      "..oldddddo....",
-      "..old..ldo....",
-      "..oo...oo.....",
+      ".LM........ML.",
+      "..MDooooooDM..",
+      "...ollllllo...",
+      "...odeddedo...",
+      "...ommddmmo...",
+      ".oloLddddLolo.",
+      ".ollllllllllo.",
+      ".omolmmmmlomo.",
+      ".omomllllmomo.",
+      ".omommmmmmomo.",
+      "...ommmmmmo...",
+      "..ommo..ommo..",
+      ".ommmo..ommmo.",
     ],
   },
   skeleton: {
