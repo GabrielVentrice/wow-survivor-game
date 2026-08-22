@@ -1,0 +1,1710 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Galeria de animações — WoW Survivor</title>
+<style>
+  :root {
+    --bg: #0a0610;
+    --panel: #140c20;
+    --line: #2a1b3d;
+    --ink: #e8dcf6;
+    --dim: #9d8bb8;
+    --accent: #b23cff;
+    --warn: #ffb54a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(10,6,16,0.94);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(6px);
+    padding: 10px 16px;
+  }
+  h1 { font-size: 14px; margin: 0 0 6px; letter-spacing: 0.08em; text-transform: uppercase; }
+  h1 small { color: var(--dim); font-weight: normal; letter-spacing: 0; text-transform: none; margin-left: 8px; }
+  #coverage { color: #6f6088; margin: 0 0 8px; }
+  #coverage b { color: var(--dim); font-weight: normal; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+  .controls label { display: inline-flex; align-items: center; gap: 5px; color: var(--dim); cursor: pointer; }
+  .controls input[type="range"] { width: 110px; }
+  .controls input[type="search"] {
+    background: #0d0716; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 4px; padding: 4px 8px; font: inherit; width: 190px;
+  }
+  .controls select {
+    background: #0d0716; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 4px; padding: 3px 6px; font: inherit;
+  }
+
+  main { padding: 18px 16px 60px; }
+
+  section { margin-bottom: 34px; }
+  section > h2 {
+    font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--dim); margin: 0 0 4px; display: flex; align-items: baseline; gap: 10px;
+  }
+  section > p.note { margin: 0 0 12px; color: #6f6088; max-width: 78ch; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.12s, transform 0.12s;
+  }
+  .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .card canvas { display: block; width: 100%; height: 210px; image-rendering: pixelated; }
+  .card .info { padding: 7px 9px 9px; border-top: 1px solid var(--line); }
+  .card .id { color: var(--ink); font-weight: bold; word-break: break-all; }
+  .card .name { color: var(--dim); }
+  .card .meta { color: #6f6088; font-size: 11px; margin-top: 3px; }
+  .card .refs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+  .card .refs button {
+    background: #1d1230; color: var(--dim); border: 1px solid var(--line);
+    border-radius: 4px; padding: 2px 7px; font: 11px/1.4 inherit; cursor: pointer;
+  }
+  .card .refs button:hover { color: var(--ink); border-color: var(--accent); }
+  .card .badge {
+    display: inline-block; margin-top: 6px; padding: 1px 6px; border-radius: 3px;
+    font-size: 11px; border: 1px solid var(--warn); color: var(--warn);
+  }
+  .card.gap { border-color: #4a3a1c; }
+  .card .swatches { display: flex; gap: 3px; margin-top: 6px; }
+  .card .swatches i { width: 11px; height: 11px; border-radius: 2px; border: 1px solid #00000055; }
+
+  .sec-copy {
+    background: none; border: 1px solid var(--line); color: var(--dim);
+    border-radius: 4px; padding: 1px 7px; font: 11px/1.5 inherit; cursor: pointer;
+  }
+  .sec-copy:hover { color: var(--ink); border-color: var(--accent); }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(14px);
+    background: #1d1230; border: 1px solid var(--accent); color: var(--ink);
+    padding: 8px 14px; border-radius: 6px; opacity: 0; pointer-events: none;
+    transition: opacity 0.15s, transform 0.15s; max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Galeria de animações <small>o que cada mecânica DESENHA em tela · clique num card para copiar o id</small></h1>
+  <p id="coverage"></p>
+  <div class="controls">
+    <label><input type="checkbox" id="play" checked /> tocando</label>
+    <label>velocidade <input type="range" id="speed" min="0.1" max="2" step="0.1" value="1" /><span id="speedVal">1x</span></label>
+    <label>zoom <input type="range" id="zoom" min="0.4" max="4" step="0.1" value="1.3" /><span id="zoomVal">1.3x</span></label>
+    <label>eixo
+      <select id="axis">
+        <option value="corruption">corrupção (verde)</option>
+        <option value="dominion">domínio (roxo)</option>
+        <option value="cataclysm">cataclismo (laranja)</option>
+      </select>
+    </label>
+    <label>fundo
+      <select id="bg">
+        <option value="dark">escuro</option>
+        <option value="floor">chão do jogo</option>
+        <option value="checker">xadrez</option>
+        <option value="light">claro</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="walk" checked /> player andando</label>
+    <label><input type="checkbox" id="gaps" /> só o que não anima</label>
+    <input type="search" id="filter" placeholder="filtrar por id/nome/tell…" />
+  </div>
+</header>
+
+<main id="gallery"></main>
+<div id="toast"></div>
+
+<script src="js/util.js"></script>
+<script src="js/balance.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/systems/resolve.js"></script>
+<script src="js/systems/effects.js"></script>
+<script src="js/systems/dots.js"></script>
+<script src="js/systems/minions.js"></script>
+<script src="js/systems/triggers.js"></script>
+<script src="js/hooks.js"></script>
+<script src="js/content/minions.js"></script>
+<script src="js/content/pieces.corruption.js"></script>
+<script src="js/content/pieces.dominion.js"></script>
+<script src="js/content/pieces.cataclysm.js"></script>
+<script src="js/content/pieces.defense.js"></script>
+<script src="js/content/pieces.control.js"></script>
+<script src="js/content/passives.js"></script>
+<script src="js/content/capstones.js"></script>
+<script src="js/render/scenery.js"></script>
+<script src="js/render/vfx.js"></script>
+
+<script>
+"use strict";
+/* =========================================================================
+   GALERIA DE ANIMAÇÕES — a irmã da sprites.html. Lá está a arte PARADA; aqui
+   está o que se MEXE: o que cada peça, gatilho, efeito, debuff, buff, passiva,
+   capstone e demônio desenha em tela enquanto o jogo roda.
+
+   Regra da página, igual à da galeria de sprites: nada é redesenhado
+   "parecido". Cada card monta um mundo minúsculo com as MESMAS classes do
+   jogo (Player, Enemy, Projectile, AreaEffect, Minion, Particle, VfxLayer) e
+   chama os MESMOS métodos de desenho, na mesma ordem de profundidade que
+   Game.render usa. Se aparece aqui, é o que o jogador vê.
+
+   O valor não está só no que anima: está no que NÃO anima. Efeito, passiva ou
+   peça sem nenhum tell em tela ganha a tarja "sem animação própria" — é a
+   lista do que uma mecânica invisível está cobrando do jogador sem avisar.
+   ========================================================================= */
+
+buildSprites();
+
+const S = {
+  zoom: 1.3, bg: "dark", play: true, speed: 1,
+  axis: "corruption", walk: true, gaps: false, filter: "",
+};
+
+const CARD_H = 210;
+const CAM = { left: 0, top: 0 };          // cada card desenha no próprio centro
+const ONE = { hp: 1, speed: 1, dmg: 1 };  // escala de fase neutra
+const STUB_BUILD = { collectMods() {}, collectPatches() {} };
+
+const PIECE_FILES = {
+  "js/content/pieces.corruption.js": ["corruption", "agony", "unstableAffliction", "seedOfCorruption", "haunt", "maleficRapture", "vileTaint", "soulRot"],
+  "js/content/pieces.dominion.js": ["wildImps", "dreadstalkers", "felguard", "voidwalker", "doom", "implosion", "netherPortal", "demonicTyrant", "grimoireOfSacrifice"],
+  "js/content/pieces.cataclysm.js": ["incinerate", "immolate", "conflagrate", "rainOfFire", "infernal", "shadowburn", "burningTrail", "chaosBolt", "wither", "cataclysm"],
+  "js/content/pieces.defense.js": ["drainLife", "soulLeech", "unendingResolve", "demonSkin", "healthstone", "netherWard", "soulstone"],
+  "js/content/pieces.control.js": ["burningRush", "demonicCircle", "shadowfury", "curseOfExhaustion", "curseOfTongues", "howlOfTerror", "mortalCoil", "banish", "enslaveDemon"],
+};
+function pieceFile(id) {
+  for (const f in PIECE_FILES) if (PIECE_FILES[f].indexOf(id) >= 0) return f;
+  return "js/content/";
+}
+
+function axc(tone) { return (AXIS_PALETTE[S.axis] || AXIS_PALETTE.corruption)[tone || "base"]; }
+
+/* ---- clipboard ----------------------------------------------------------
+   navigator.clipboard exige contexto seguro e a página roda em file://, então
+   o caminho que sempre funciona é o textarea escondido + execCommand. */
+function copy(text, label) {
+  const done = (ok) => toast(ok ? "copiado: " + (label || text)
+                                : "não deu para copiar — selecione o texto do card");
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => done(true), () => done(fallbackCopy(text)));
+    return;
+  }
+  done(fallbackCopy(text));
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.cssText = "position:fixed;top:-1000px;opacity:0";
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+let toastTimer = 0;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("on"), 1600);
+}
+
+/* ---- fundo do card ------------------------------------------------------ */
+let FLOOR_TILES = null;
+function floorTile(i) {
+  if (!FLOOR_TILES) {
+    FLOOR_TILES = [];
+    for (let v = 0; v < SCENERY.tileVariants; v++) FLOOR_TILES.push(makeFelTile(v));
+  }
+  return FLOOR_TILES[i % FLOOR_TILES.length];
+}
+let CHECKER = null;
+function checkerPattern(ctx) {
+  if (!CHECKER) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 16;
+    const x = c.getContext("2d");
+    x.fillStyle = "#181022"; x.fillRect(0, 0, 16, 16);
+    x.fillStyle = "#221630"; x.fillRect(0, 0, 8, 8); x.fillRect(8, 8, 8, 8);
+    CHECKER = c;
+  }
+  return ctx.createPattern(CHECKER, "repeat");
+}
+function paintBg(ctx, w, h, seed) {
+  if (S.bg === "floor") {
+    const T = BALANCE.world.tile;
+    for (let y = 0; y < h; y += T) {
+      for (let x = 0; x < w; x += T) {
+        ctx.drawImage(floorTile(hash2(x / T + seed, y / T + seed) % SCENERY.tileVariants), x, y);
+      }
+    }
+    return;
+  }
+  ctx.fillStyle = S.bg === "checker" ? checkerPattern(ctx)
+                : S.bg === "light" ? "#cfc4dd"
+                : "#0d0716";
+  ctx.fillRect(0, 0, w, h);
+}
+
+/* =========================================================================
+   O MUNDO DE UM CARD
+
+   Um Game em miniatura: as entidades reais, o passo real e a ordem de
+   profundidade real de Game.render(). Cada card tem o seu, com relógio
+   próprio — pausar a galeria congela todos sem embaralhar fase nenhuma.
+   ========================================================================= */
+
+function dummyPlayer() {
+  const p = new Player();
+  p.reset(CLASSES.warlock);
+  p.x = -52; p.y = 14;
+  return p;
+}
+function dummyEnemy(id, x, y) {
+  const e = new Enemy();
+  e.reset(null, ENEMIES[id], x, y, ONE);
+  return e;
+}
+
+function makeWorld() {
+  return {
+    t: 0, next: {},
+    player: dummyPlayer(), showPlayer: true, auras: null, walkPlayer: false,
+    enemies: [], projs: [], areas: [], minions: [], parts: [], drops: [],
+    vfx: new VfxLayer(), overlay: null, inst: null,
+  };
+}
+
+// Agenda por relógio do card, nunca por frame: o passo varia com o slider de
+// velocidade e com o quanto o browser está engasgado.
+function every(w, key, period, fn) {
+  if (w.t >= (w.next[key] || 0)) { w.next[key] = w.t + period; fn(); }
+}
+
+// Reposiciona o inimigo SEMPRE a frente do player, num arco estreito: a horda
+// e infinita e o card nao. Espalhados em 360 graus, metade da acao acontecia
+// fora do quadro.
+function ringPlace(e, p, i) {
+  const a = ((i % 3) - 1) * 0.72 + (Math.random() - 0.5) * 0.3;
+  const d = 95 + (i % 3) * 18;
+  e.x = p.x + Math.cos(a) * d;
+  e.y = p.y + Math.sin(a) * d * 0.55;
+  e.hp = e.maxHp;
+}
+
+function addDot(w, e, color) {
+  if (!e) return;
+  if (e.dots.length >= 4) e.dots.shift();
+  e.dots.push({ color: color, key: "demo" });
+  e.dotColor = color;
+  e.dotPulse = 1;
+  e._dotDrop = w.t + 6;
+}
+
+function spawnProj(w, e, x, y, target, col, hostile) {
+  const sp = e.speed || 420;
+  const tx = target ? target.x : x + 200, ty = target ? target.y : y;
+  const a = Math.atan2(ty - y, tx - x);
+  const n = Math.max(1, Math.round(e.count || 1));
+  const spread = e.spread != null ? e.spread : 0.14;
+  for (let i = 0; i < n; i++) {
+    const ang = a + (i - (n - 1) / 2) * spread;
+    const pr = new Projectile();
+    pr.reset(null, {
+      x: x, y: y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, speed: sp,
+      radius: e.radius || 6, color: e.color || col, life: e.life || 1.4,
+      trail: e.trail || 0, hostile: !!hostile,
+    });
+    pr.onHitFx = e.onHit || null;
+    pr.fxColor = e.color || col;
+    w.projs.push(pr);
+  }
+}
+
+function spawnArea(w, e, x, y, col) {
+  const a = new AreaEffect();
+  a.reset(null, {
+    x: x, y: y, radius: e.radius || 60, life: Math.min(4, e.duration || 3),
+    color: e.color || col, follow: !!e.follow, dps: e.dps || 0,
+  });
+  w.areas.push(a);
+}
+
+function spawnMinion(w, kind, col, big) {
+  const def = MINIONS[kind] || MINIONS.imp;
+  const m = new Minion();
+  const a = Math.random() * 6.28;
+  m.reset(null, {
+    kind: kind, radius: def.radius, color: def.color, big: !!big,
+    x: w.player.x + Math.cos(a) * 60, y: w.player.y + Math.sin(a) * 34,
+    expiresAt: w.t + 6, spawnedAt: w.t, angle: a,
+  });
+  m.orbitR = 52 + Math.random() * 34;
+  w.minions.push(m);
+  w.vfx.emit("summon", m.x, m.y, def.radius * 3, col || def.color);
+  return m;
+}
+
+/* O interpretador de efeitos da galeria. Ele NÃO é o motor: não causa dano,
+   não conta cooldown. Ele traduz a mesma árvore declarativa de `effects` no
+   que aquele efeito faz aparecer na tela — que é a pergunta desta página. */
+function playEffects(w, list, x, y, target, col, depth) {
+  if (!list || depth > 2) return;
+  for (let i = 0; i < list.length; i++) {
+    // a lista é esparsa de propósito: cada caminho escreve num índice reservado
+    if (list[i]) playEffect(w, list[i], x, y, target, col, depth);
+  }
+}
+
+function playEffect(w, e, x, y, target, col, depth) {
+  const c = e.color || col;
+  const tx = target ? target.x : x, ty = target ? target.y : y;
+  switch (e.type) {
+    case "projectile":
+      spawnProj(w, e, w.player.x, w.player.y, target, c, false);
+      break;
+    case "damage_instant":
+      if (target) target.hitFlash = 0.1;
+      if (e.radius > 0) w.vfx.emit("burst", tx, ty, Math.min(150, e.radius), c);
+      playEffects(w, e.onHit, tx, ty, target, c, depth + 1);
+      break;
+    case "execute":
+      if (target) { target.hitFlash = 0.1; w.vfx.emit("execute", tx, ty, target.radius * 2, c); }
+      break;
+    case "damage_over_time":
+      addDot(w, target || w.enemies[0], c);
+      break;
+    case "area_persistent":
+      spawnArea(w, e, e.follow ? w.player.x : (e.atTarget && target ? target.x : x),
+                e.follow ? w.player.y : (e.atTarget && target ? target.y : y), c);
+      break;
+    case "summon":
+      spawnMinion(w, e.kind || "imp", c, e.big);
+      break;
+    case "vfx":
+      w.vfx.emit(e.kind || "burst", x, y, e.radius || 40, c);
+      break;
+    case "stun":
+      if (target) target.stunUntil = w.t + (e.duration || 1);
+      if (e.radius > 0) w.vfx.emit("shock", x, y, Math.min(150, e.radius), c);
+      break;
+    case "slow":
+      if (target) { target.slowUntil = w.t + (e.duration || 2); target.slowFactor = e.factor || 0.6; }
+      break;
+    case "fear":
+      if (target) target.fearUntil = w.t + (e.duration || 1.5);
+      break;
+    case "weaken":
+      if (target) { target.weakUntil = w.t + (e.duration || 3); target.weakFactor = e.factor || 0.6; }
+      break;
+    case "mark":
+      if (target) { target.marked = e.amp || 0.25; target.markedUntil = w.t + (e.duration || 4); }
+      break;
+    case "knockback": case "pull": {
+      const f = (e.force || 100) * (e.type === "pull" ? -1 : 1);
+      for (let i = 0; i < w.enemies.length; i++) {
+        const en = w.enemies[i];
+        const dx = en.x - x, dy = en.y - y, d = Math.hypot(dx, dy) || 1;
+        if (d > 190) continue;
+        en.x += (dx / d) * f; en.y += (dy / d) * f;
+      }
+      break;
+    }
+    case "heal":
+      w.player.hp = Math.min(w.player.maxHp, w.player.hp + 12);
+      break;
+    case "shield":
+      w.player.addShield(e.amount || 40, e.cap);
+      break;
+    case "self_speed":
+      w.player.speedBoost = e.factor || 1.2;
+      w.player.speedBoostUntil = w.t + (e.duration || 0.5);
+      break;
+    case "self_damage":
+      w.player.hp = Math.max(w.player.maxHp * 0.3, w.player.hp - 4);
+      break;
+    case "reflect":
+      w.vfx.emit("shock", w.player.x, w.player.y, Math.min(150, e.radius || 140), c);
+      for (let i = w.projs.length - 1; i >= 0; i--) if (w.projs[i].hostile) w.projs.splice(i, 1);
+      break;
+    case "spread_on_death":
+      if (target) {
+        w.vfx.emit("spread", target.x, target.y, e.radius || 80, target.dotColor || c);
+        for (let i = 0; i < w.enemies.length; i++) {
+          if (w.enemies[i] !== target) addDot(w, w.enemies[i], target.dotColor || c);
+        }
+      }
+      break;
+    case "chain": {
+      const other = w.enemies.find((en) => en !== target);
+      if (other) {
+        other.hitFlash = 0.1;
+        playEffects(w, e.effects, other.x, other.y, other, c, depth + 1);
+      }
+      break;
+    }
+    case "convert":
+      if (target) {
+        w.vfx.emit("summon", target.x, target.y, 40, c);
+        spawnMinion(w, target.radius > 13 ? "felguard" : "imp", c, false);
+        ringPlace(target, w.player, w.enemies.indexOf(target));
+      }
+      break;
+    case "hook":
+      playHook(w, e.name, x, y, target, c);
+      break;
+  }
+}
+
+/* Hooks são código imperativo: aqui mora o que CADA UM faz aparecer. */
+function playHook(w, name, x, y, target, col) {
+  const p = w.player;
+  switch (name) {
+    case "darkPact": case "grimoire": {
+      const m = w.minions.pop() || spawnMinion(w, "imp", col, false);
+      w.vfx.emit("burst", m.x, m.y, name === "grimoire" ? 80 : 50, col);
+      p.addShield(50, 120);
+      break;
+    }
+    case "soulstone": case "healthstone":
+      w.vfx.emit("heal", p.x, p.y, name === "soulstone" ? 40 : 50, col);
+      break;
+    case "blink": {
+      w.vfx.emit("blink", p.x, p.y, 40, col);
+      p.x = -p.x; p.y = 14;
+      w.vfx.emit("blink", p.x, p.y, 40, col);
+      break;
+    }
+    case "voraz":
+      if (target) { target.dots.length = 0; w.vfx.emit("burst", target.x, target.y, 70, CAPSTONES.voraz.color); }
+      break;
+    case "contagion": {
+      const other = w.enemies.find((en) => en !== target);
+      if (target) w.vfx.emit("jump", target.x, target.y, 20, target.dotColor || col);
+      if (other) addDot(w, other, target ? target.dotColor : col);
+      break;
+    }
+    case "voidEcho":
+      if (target) {
+        const ex = target.x, ey = target.y;
+        w.echoes = w.echoes || [];
+        w.echoes.push({ at: w.t + 3, x: ex, y: ey });
+      }
+      break;
+    case "colheita":
+      if (target) {
+        w.vfx.emit("spread", target.x, target.y, 130, target.dotColor || col);
+        for (let i = 0; i < w.enemies.length; i++) {
+          if (w.enemies[i] !== target) addDot(w, w.enemies[i], target.dotColor || col);
+        }
+      }
+      break;
+    case "ceifador":
+      spawnMinion(w, "imp", CAPSTONES.ceifador.color, false);
+      break;
+    case "chamador":
+      if (target) { target.hitFlash = 0.1; w.vfx.emit("burst", target.x, target.y, 110, CAPSTONES.chamador.color); }
+      break;
+    case "diabolista": {
+      const m = w.minions[0] || spawnMinion(w, "felguard", CAPSTONES.diabolista.color, true);
+      w.vfx.emit("burst", m.x, m.y, 90, CAPSTONES.diabolista.color);
+      break;
+    }
+    case "enxame":
+      for (let i = 0; i < w.enemies.length; i++) addDot(w, w.enemies[i], col);
+      break;
+  }
+}
+
+function stepWorld(w, dt) {
+  w.t += dt;
+  const p = w.player;
+
+  p.moving = w.walkPlayer && S.walk;
+  p.animTime += dt * (p.moving ? 1 : 0.25);
+  p.vfxTime += dt;
+  if (p.moving) { p.moveTime += dt; p.stillTime = 0; p.trailDist += 170 * dt; }
+  else { p.stillTime += dt; p.moveTime = 0; }
+  for (let i = p.pulses.length - 1; i >= 0; i--) {
+    p.pulses[i].t += dt;
+    if (p.pulses[i].t >= PULSE_LIFE) p.pulses.splice(i, 1);
+  }
+  if (p.speedBoostUntil && w.t > p.speedBoostUntil) p.speedBoost = 1;
+
+  for (let i = 0; i < w.enemies.length; i++) {
+    const e = w.enemies[i];
+    e.update(dt, p, w.t);
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (d < 34 || d > 155) ringPlace(e, p, i);   // fugindo (medo) ele sai do card
+    if (e.hp < e.maxHp * 0.15) e.hp = e.maxHp;
+    if (e.dots.length) {
+      if (w.t >= (e._dotTick || 0)) { e._dotTick = w.t + 0.5; e.dotPulse = 1; }
+      if (e.dots.length > 1 && w.t >= (e._dotDrop || 0)) { e._dotDrop = w.t + 6; e.dots.shift(); }
+    }
+  }
+
+  for (let i = w.projs.length - 1; i >= 0; i--) {
+    const pr = w.projs[i];
+    pr.update(dt);
+    let hit = null;
+    if (pr.hostile) {
+      if (Math.hypot(pr.x - p.x, pr.y - p.y) < p.radius + pr.radius) hit = p;
+    } else {
+      for (let j = 0; j < w.enemies.length; j++) {
+        const e = w.enemies[j];
+        if (Math.hypot(pr.x - e.x, pr.y - e.y) < e.radius + pr.radius) { hit = e; break; }
+      }
+    }
+    if (hit) {
+      if (!pr.hostile) {
+        hit.hitFlash = 0.1;
+        w.vfx.emit("burst", pr.x, pr.y, 44, pr.fxColor || pr.color);
+        playEffects(w, pr.onHitFx, pr.x, pr.y, hit, pr.fxColor || pr.color, 1);
+      }
+      pr.dead = true;
+    }
+    if (pr.dead || pr.life <= 0) w.projs.splice(i, 1);
+  }
+
+  for (let i = w.areas.length - 1; i >= 0; i--) {
+    const a = w.areas[i];
+    a.life -= dt;
+    if (a.follow) { a.x = p.x; a.y = p.y; }
+    if (a.life <= 0) w.areas.splice(i, 1);
+  }
+
+  for (let i = w.minions.length - 1; i >= 0; i--) {
+    const m = w.minions[i];
+    m.animTime += dt * 4;
+    m.angle += dt * 0.9;
+    const r = m.orbitR || 56;
+    const nx = p.x + Math.cos(m.angle) * r, ny = p.y + Math.sin(m.angle) * r * 0.5;
+    m.facing = nx < m.x ? -1 : 1;
+    m.x = nx; m.y = ny;
+    if (w.t > m.expiresAt) {
+      w.vfx.emit("unsummon", m.x, m.y, m.radius * 2.5, m.color);
+      w.minions.splice(i, 1);
+    }
+  }
+
+  for (let i = w.parts.length - 1; i >= 0; i--) if (w.parts[i].update(dt)) w.parts.splice(i, 1);
+
+  if (w.echoes) {
+    for (let i = w.echoes.length - 1; i >= 0; i--) {
+      if (w.t >= w.echoes[i].at) {
+        w.vfx.emit("burst", w.echoes[i].x, w.echoes[i].y, 70, PASSIVES.ecoDoVazio.color);
+        w.vfx.emit("echo", w.echoes[i].x, w.echoes[i].y, 70, PASSIVES.ecoDoVazio.color);
+        w.echoes.splice(i, 1);
+      }
+    }
+  }
+
+  w.vfx.update(dt);
+}
+
+// A ordem daqui é a ordem de Game.render(): ela É a profundidade.
+function drawWorld(ctx, w) {
+  for (let i = 0; i < w.areas.length; i++) w.areas[i].draw(ctx, CAM);
+  if (w.overlay) w.overlay(ctx, w);
+  for (let i = 0; i < w.drops.length; i++) w.drops[i].draw(ctx, CAM);
+  for (let i = 0; i < w.enemies.length; i++) w.enemies[i].draw(ctx, CAM, w.t);
+  drawMinions(ctx, w.minions, CAM, w.t);
+  for (let i = 0; i < w.parts.length; i++) w.parts[i].draw(ctx, CAM);
+  if (w.showPlayer) w.player.draw(ctx, CAM, w.auras);
+  for (let i = 0; i < w.projs.length; i++) w.projs[i].draw(ctx, CAM);
+  w.vfx.draw(ctx, CAM);
+}
+
+// Overlay real de peça: o mesmo drawPieceOverlays que o jogo chama.
+function pieceOverlay(inst) {
+  const build = { pieces: new Map([["demo", inst]]) };
+  return (ctx, w) => drawPieceOverlays(ctx, build, w.player, CAM);
+}
+
+function fakeInst(def, r) {
+  return { def: def, key: def.key || def.id, paths: {}, s: { charge: 0 }, r: r, casts: 0 };
+}
+
+/* =========================================================================
+   ITENS
+   ========================================================================= */
+
+function ref(label, text) { return { label: label, text: text }; }
+
+/* ---- eventos visuais ---------------------------------------------------- */
+const VFX_EMITTER = {
+  burst: "damage_instant com radius · efeito vfx · hooks darkPact/grimoire/chamador/diabolista/voraz",
+  shock: "stun com radius · Nether Ward (reflect)",
+  spread: "DotSystem.spreadFrom — Contágio e capstone Colheita",
+  jump: "hook contagion (passiva Contágio)",
+  summon: "MinionSystem.summon · convertEnemy · baú caindo",
+  unsummon: "demônio expirando (MinionSystem)",
+  execute: "efeito execute abaixo do limiar (Shadowburn)",
+  echo: "hook voidEcho (passiva Eco do Vazio), 3s depois do golpe",
+  blink: "hook blink (Demonic Circle) — sai e chega",
+  heal: "hooks soulstone e healthstone",
+  portal: 'efeito vfx com kind:"portal" (Nether Portal)',
+};
+const VFX_RADIUS = {
+  burst: 70, shock: 100, spread: 85, jump: 18, summon: 44,
+  unsummon: 26, execute: 34, echo: 70, blink: 40, heal: 40, portal: 46,
+};
+const VFX_NAME = {
+  burst: "explosão", shock: "onda de choque", spread: "propagação", jump: "salto de DoT",
+  summon: "invocação", unsummon: "desinvocação", execute: "execução", echo: "eco",
+  blink: "teleporte", heal: "cura", portal: "portal rasgando",
+};
+
+function eventItems() {
+  return Object.keys(VFX_LIFE).map((kind) => {
+    const R = VFX_RADIUS[kind] || 50;
+    return {
+      id: kind,
+      name: VFX_NAME[kind] || kind,
+      meta: "vida " + VFX_LIFE[kind] + "s · raio de demo " + R,
+      tell: VFX_EMITTER[kind] || "",
+      size: Math.max(150, R * 3),
+      refs: [ref("vfx", 'VFX_LIFE.' + kind + ' + case "' + kind + '" (js/render/vfx.js)'),
+             ref("emissores", VFX_EMITTER[kind] || "—")],
+      setup(w) { w.showPlayer = false; },
+      tick(w) {
+        every(w, "e", VFX_LIFE[kind] + 0.25, () => w.vfx.emit(kind, 0, 0, R, axc()));
+      },
+    };
+  });
+}
+
+/* ---- auras de spell concluída ------------------------------------------- */
+function piecesUsingVfx(name) {
+  return Object.keys(PIECES).filter((id) => PIECES[id].vfx === name);
+}
+
+function auraItems() {
+  const items = Object.keys(PIECE_VFX).map((name) => {
+    const users = piecesUsingVfx(name);
+    const owner = users.length ? PIECES[users[0]] : null;
+    const color = owner ? owner.color : axc();
+    return {
+      id: name,
+      name: owner ? "aura de " + owner.name : name,
+      meta: users.length ? "usada por " + users.map((u) => PIECES[u].name).join(", ")
+                         : "nenhuma peça referencia",
+      tell: "halo em volta do warlock quando a spell fecha um caminho no tier 5",
+      badge: users.length ? null : "arte órfã — nenhuma peça usa",
+      size: 130,
+      swatches: [color],
+      refs: [ref("vfx", "PIECE_VFX." + name + " (js/render/vfx.js)"),
+             ref("acende em", "BuildSystem.isComplete + rebuildVfx (js/systems/build.js)")],
+      setup(w) {
+        w.walkPlayer = true;
+        const v = PIECE_VFX[name];
+        w.auras = [{ under: v.under, over: v.over, color: color, rgb: hexRgb(color), lvl: 3 }];
+      },
+      tick() {},
+    };
+  });
+
+  // O teto existe e precisa ser visível: com a build grande, o brilho de cada
+  // aura é dividido por sqrt(n) e só MAX_PIECE_VFX desenham de fato.
+  items.push({
+    id: "auras+3",
+    name: "três auras juntas",
+    meta: "alpha dividida por sqrt(n) · teto MAX_PIECE_VFX = " + MAX_PIECE_VFX,
+    tell: "é assim que a build acesa fica sem apagar o personagem",
+    size: 140,
+    refs: [ref("teto", "MAX_PIECE_VFX (js/util.js)"),
+           ref("desenho", "Player.draw (js/entities.js)")],
+    setup(w) {
+      w.walkPlayer = true;
+      w.auras = ["rot", "ember", "sigil"].map((n) => {
+        const users = piecesUsingVfx(n);
+        const col = users.length ? PIECES[users[0]].color : axc();
+        return { under: PIECE_VFX[n].under, over: PIECE_VFX[n].over, color: col, rgb: hexRgb(col), lvl: 3 };
+      });
+    },
+    tick() {},
+  });
+  return items;
+}
+
+/* ---- gatilhos ------------------------------------------------------------ */
+const TRIGGER_INFO = {
+  auto_target: { name: "mira automática", tell: "nenhum tell próprio: o que aparece é o efeito voando até o alvo mais próximo",
+    gap: true,
+    setup(w) { for (let i = 0; i < 3; i++) w.enemies.push(dummyEnemy("ghoul", 80 + i * 20, -20 + i * 25)); },
+    tick(w) { every(w, "c", 1.1, () => {
+      const e = w.enemies[0];
+      spawnProj(w, { radius: 6, speed: 420, trail: 60 }, w.player.x, w.player.y, e, axc());
+    }); } },
+  aura: { name: "pulso em área", tell: "anel no raio EXATO + preenchimento fraco (drawPieceOverlays): a borda é que informa",
+    setup(w) {
+      w.enemies.push(dummyEnemy("ghoul", 90, -14));
+      const def = { color: axc(), key: "demo" };
+      w.inst = fakeInst(def, { trigger: { type: "aura", interval: 1.2 }, stats: { radius: 120 }, effects: [] });
+      w.overlay = pieceOverlay(w.inst);
+    },
+    tick(w) {
+      w.inst.def.color = axc();
+      every(w, "c", 1.2, () => {
+        for (let i = 0; i < w.enemies.length; i++) w.enemies[i].hitFlash = 0.1;
+        w.vfx.emit("shock", w.player.x, w.player.y, 120, axc());
+      });
+    }, size: 300 },
+  orbital: { name: "órbita", tell: "o próprio demônio girando é o tell — dano por contato, sem marcação extra",
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 95, -10)); spawnMinion(w, "voidwalker", axc(), false); },
+    tick(w) { every(w, "c", 6.4, () => spawnMinion(w, "voidwalker", axc(), false)); } },
+  trail: { name: "rastro", tell: "zona caindo a cada N unidades ANDADAS — sem andar, nada aparece",
+    setup(w) { w.walkPlayer = true; },
+    tick(w) {
+      if (!w.player.moving) return;
+      every(w, "c", 0.55, () => {
+        const off = ((w.t * 60) % 200) - 100;
+        spawnArea(w, { radius: 34, duration: 2.4 }, w.player.x + off, w.player.y + 6, axc());
+      });
+    } },
+  rooted: { name: "carga parado", tell: "anel de carga em volta do player (drawPieceOverlays) — andar DRENA a carga",
+    size: 240,
+    setup(w) {
+      w.enemies.push(dummyEnemy("ghoul", 90, -14));
+      const def = { color: axc(), key: "demo" };
+      w.inst = fakeInst(def, { trigger: { type: "rooted", chargeTime: 2 }, stats: {}, effects: [] });
+      w.overlay = pieceOverlay(w.inst);
+    },
+    tick(w, dt) {
+      w.inst.def.color = axc();
+      const s = w.inst.s;
+      if (w.player.moving) s.charge = Math.max(0, s.charge - dt * 2);
+      else s.charge += dt;
+      if (s.charge >= 2) {
+        s.charge = 0;
+        const e = w.enemies[0];
+        w.vfx.emit("burst", e.x, e.y, 70, axc());
+        e.hitFlash = 0.1;
+      }
+    } },
+  directional: { name: "na direção do movimento", tell: "sai no vetor de movimento, à frente do player — sem tell de mira",
+    gap: true,
+    setup(w) { w.walkPlayer = true; w.enemies.push(dummyEnemy("ghoul", 110, -10)); },
+    tick(w) {
+      if (!w.player.moving) return;
+      every(w, "c", 1.3, () => spawnArea(w, { radius: 52, duration: 2 }, w.player.x + 110, w.player.y, axc()));
+    } },
+  autonomous: { name: "população autônoma", tell: "repõe população: o que se vê é a invocação nascendo e expirando",
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 100, -16)); },
+    tick(w) { every(w, "c", 3.2, () => spawnMinion(w, "wildImp", axc(), false)); } },
+  reactive: { name: "reativo a evento", tell: "dispara em EVENTO, não em cooldown — o tell é o efeito, no lugar do evento",
+    gap: true,
+    setup(w) { for (let i = 0; i < 2; i++) w.enemies.push(dummyEnemy("skeleton", 90 + i * 30, -20 + i * 40)); },
+    tick(w) { every(w, "c", 1.8, () => {
+      const e = w.enemies[(Math.random() * w.enemies.length) | 0];
+      e.hitFlash = 0.1;
+      w.vfx.emit("burst", e.x, e.y, 60, axc());
+    }); } },
+};
+
+function triggerItems() {
+  return Object.keys(TRIGGERS).map((id) => {
+    const info = TRIGGER_INFO[id];
+    if (!info) {
+      return { id: id, name: "(sem demo)", meta: "trigger novo — acrescente em TRIGGER_INFO",
+               tell: "", badge: "sem demo nesta galeria", size: 200, refs: [], setup() {}, tick() {} };
+    }
+    const users = Object.keys(PIECES).filter((p) => PIECES[p].trigger && PIECES[p].trigger.type === id);
+    return {
+      id: id, name: info.name, size: info.size || 240,
+      meta: users.length + " peça(s): " + users.slice(0, 4).map((u) => PIECES[u].name).join(", ") + (users.length > 4 ? "…" : ""),
+      tell: info.tell,
+      badge: info.gap ? "sem tell próprio" : null,
+      refs: [ref("trigger", "TRIGGERS." + id + " (js/systems/triggers.js)"),
+             ref("overlay", "drawPieceOverlays (js/render/vfx.js)")],
+      setup: info.setup, tick: info.tick,
+    };
+  });
+}
+
+/* ---- efeitos ------------------------------------------------------------- */
+const EFFECT_INFO = {
+  damage_instant: { name: "dano instantâneo", tell: "burst no raio do efeito + flash branco no alvo. Sem radius, SÓ o flash.",
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 85, -12)); },
+    tick(w) { every(w, "a", 1.5, () => { const e = w.enemies[0]; e.hitFlash = 0.1; w.vfx.emit("burst", e.x, e.y, 60, axc()); }); } },
+
+  execute: { name: "execução", tell: "estrela branca (execute) só quando o alvo está abaixo do limiar",
+    setup(w) { const e = dummyEnemy("dreadlord", 80, -6); e.hp = e.maxHp * 0.14; w.enemies.push(e); },
+    tick(w) { every(w, "a", 1.6, () => {
+      const e = w.enemies[0];
+      e.hp = e.maxHp * 0.14; e.hitFlash = 0.1;
+      w.vfx.emit("execute", e.x, e.y, e.radius * 2, axc());
+    }); } },
+
+  projectile: { name: "projétil", tell: "Projectile.draw — bola simples, ou cometa quando o efeito declara trail",
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 110, -14)); },
+    tick(w) { every(w, "a", 0.9, () => spawnProj(w, { radius: 7, speed: 400, trail: 70 }, w.player.x, w.player.y, w.enemies[0], axc())); } },
+
+  damage_over_time: { name: "DoT", tell: "névoa no chão + um orbe por stack girando; anel de podridão só com 3+ DoTs; flash a cada tick",
+    setup(w) { for (let i = 0; i < 2; i++) w.enemies.push(dummyEnemy("ghoul", 80 + i * 30, -20 + i * 40)); },
+    tick(w) { every(w, "a", 2.2, () => { for (let i = 0; i < w.enemies.length; i++) addDot(w, w.enemies[i], axc()); }); } },
+
+  area_persistent: { name: "zona persistente", tell: "AreaEffect.draw — aro no raio exato, preenchimento fraco de propósito",
+    size: 260,
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 95, -12)); },
+    tick(w) { every(w, "a", 3.4, () => spawnArea(w, { radius: 78, duration: 3 }, 20, 0, axc())); } },
+
+  summon: { name: "invocação", tell: "anel de summon fechando + o demônio andando; anel de unsummon ao expirar",
+    setup(w) {},
+    tick(w) { every(w, "a", 3.4, () => spawnMinion(w, "imp", axc(), false)); } },
+
+  vfx: { name: "vfx (puro visual)", tell: "o único efeito que só desenha: marca um momento sem mexer em estado",
+    size: 200,
+    setup(w) { w.showPlayer = false; },
+    tick(w) { every(w, "a", 1.6, () => w.vfx.emit("portal", 0, 10, 46, axc())); } },
+
+  heal: { name: "cura", tell: "nada no mundo: só a barra de vida da HUD se mexe. A cruz de cura vem dos hooks soulstone/healthstone.",
+    gap: true,
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 95, -12)); },
+    tick(w) { every(w, "a", 1.6, () => { w.player.hp = Math.min(w.player.maxHp, w.player.hp + 10); }); } },
+
+  shield: { name: "escudo", tell: "casca girando em volta do player, com espessura proporcional à carga",
+    setup(w) { w.player.maxShield = 120; },
+    tick(w) {
+      every(w, "a", 2.6, () => w.player.addShield(120, 120));
+      w.player.shield = Math.max(0, w.player.shield - 46 * (1 / 60));
+    } },
+
+  slow: { name: "lentidão", tell: "anel azul pequeno acima do inimigo + ele anda mais devagar",
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 100, -14)); },
+    tick(w) { const e = w.enemies[0]; e.slowUntil = w.t + 1; e.slowFactor = 0.35; } },
+
+  stun: { name: "atordoamento", tell: "anel amarelo + o inimigo para de andar; shock quando o efeito tem radius",
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 95, -14)); },
+    tick(w) { every(w, "a", 2.6, () => {
+      w.vfx.emit("shock", w.player.x, w.player.y, 110, axc());
+      for (let i = 0; i < w.enemies.length; i++) w.enemies[i].stunUntil = w.t + 1.4;
+    }); } },
+
+  fear: { name: "medo", tell: "anel roxo + o inimigo FOGE (o vetor inverte). Não há vfx no momento da aplicação.",
+    setup(w) { w.enemies.push(dummyEnemy("skeleton", 80, -12)); },
+    tick(w) { every(w, "a", 3, () => { w.enemies[0].fearUntil = w.t + 1.6; }); } },
+
+  weaken: { name: "enfraquecer", tell: "nenhuma marca: weakUntil/weakFactor não são desenhados em lugar nenhum",
+    gap: true,
+    setup(w) { w.enemies.push(dummyEnemy("skeleton", 90, -12)); },
+    tick(w) { w.enemies[0].weakUntil = w.t + 1; } },
+
+  knockback: { name: "empurrão", tell: "reposicionamento instantâneo, sem rastro nem vfx — só o inimigo aparecendo longe",
+    gap: true,
+    setup(w) { for (let i = 0; i < 3; i++) w.enemies.push(dummyEnemy("ghoul", 60 + i * 10, -20 + i * 22)); },
+    tick(w) { every(w, "a", 2, () => playEffect(w, { type: "knockback", force: 80 }, w.player.x, w.player.y, null, axc(), 0)); } },
+
+  mark: { name: "marca (Haunt)", tell: "amplifica todo dano recebido e NÃO desenha nada — o alvo marcado é invisível",
+    gap: true,
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 95, -12)); },
+    tick(w) { const e = w.enemies[0]; e.marked = 0.3; e.markedUntil = w.t + 2;
+      every(w, "a", 1.4, () => { e.hitFlash = 0.1; }); } },
+
+  pull: { name: "puxão", tell: "reposicionamento em direção ao ponto, sem vfx próprio",
+    gap: true,
+    setup(w) { for (let i = 0; i < 3; i++) w.enemies.push(dummyEnemy("ghoul", 90 + i * 14, -30 + i * 30)); },
+    tick(w) { every(w, "a", 1.6, () => playEffect(w, { type: "pull", force: 55 }, w.player.x, w.player.y, null, axc(), 0)); } },
+
+  convert: { name: "conversão", tell: "anel de summon no lugar do inimigo — ele sai da horda e volta como demônio",
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 90, -14)); },
+    tick(w) { every(w, "a", 3.6, () => playEffect(w, { type: "convert" }, w.player.x, w.player.y, w.enemies[0], axc(), 0)); } },
+
+  self_speed: { name: "velocidade própria", tell: "nada em tela: o player só anda mais rápido (Burning Rush)",
+    gap: true,
+    setup(w) { w.walkPlayer = true; },
+    tick(w) { w.player.speedBoost = 1.35; w.player.speedBoostUntil = w.t + 1; } },
+
+  self_damage: { name: "dreno em si mesmo", tell: "nada em tela: só a barra de vida caindo — e o piso que impede matar o jogador",
+    gap: true,
+    setup(w) { w.walkPlayer = true; },
+    tick(w) { every(w, "a", 0.5, () => { w.player.hp = Math.max(w.player.maxHp * 0.3, w.player.hp - 3); }); } },
+
+  reflect: { name: "reflexão (Nether Ward)", tell: "shock no raio quando desmancha projétil hostil; sem projétil por perto, nada acontece",
+    size: 280,
+    setup(w) { w.enemies.push(dummyEnemy("dreadlord", 120, -20)); },
+    tick(w) {
+      every(w, "shoot", 0.7, () => {
+        const e = w.enemies[0];
+        spawnProj(w, { radius: 7, speed: 190, color: "#ff5a6b" }, e.x, e.y, w.player, "#ff5a6b", true);
+      });
+      every(w, "ward", 2.1, () => playEffect(w, { type: "reflect", radius: 130 }, w.player.x, w.player.y, null, axc(), 0));
+    } },
+
+  spread_on_death: { name: "propagação na morte", tell: "anel de spread saindo do cadáver + os DoTs aparecendo nos vizinhos",
+    size: 280,
+    setup(w) { for (let i = 0; i < 3; i++) { const e = dummyEnemy("ghoul", 80 + i * 24, -30 + i * 30); w.enemies.push(e); } },
+    tick(w) {
+      every(w, "dot", 3, () => addDot(w, w.enemies[0], axc()));
+      every(w, "die", 3.2, () => playEffect(w, { type: "spread_on_death", radius: 90 }, 0, 0, w.enemies[0], axc(), 0));
+    } },
+
+  chain: { name: "salto (chain)", tell: "o efeito filho acontece no próximo alvo — NÃO há raio ligando os dois",
+    gap: true,
+    size: 280,
+    setup(w) { for (let i = 0; i < 3; i++) w.enemies.push(dummyEnemy("skeleton", 80 + i * 26, -34 + i * 34)); },
+    tick(w) { every(w, "a", 1.8, () => {
+      const e = w.enemies[0];
+      e.hitFlash = 0.1;
+      w.vfx.emit("burst", e.x, e.y, 44, axc());
+      playEffect(w, { type: "chain", effects: [{ type: "damage_instant", radius: 34 }] }, e.x, e.y, e, axc(), 0);
+    }); } },
+
+  hook: { name: "hook", tell: "o que aparece depende do hook — ver a seção Hooks abaixo",
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 90, -12)); },
+    tick(w) { every(w, "a", 2, () => playHook(w, "voraz", 0, 0, w.enemies[0], axc())); } },
+};
+
+function effectItems() {
+  return Object.keys(EFFECTS).map((id) => {
+    const info = EFFECT_INFO[id];
+    if (!info) {
+      return { id: id, name: "(sem demo)", meta: "efeito novo — acrescente em EFFECT_INFO",
+               tell: "", badge: "sem demo nesta galeria", size: 200, refs: [], setup() {}, tick() {} };
+    }
+    const users = Object.keys(PIECES).filter((p) => JSON.stringify(PIECES[p].effects || []).indexOf('"' + id + '"') >= 0);
+    return {
+      id: id, name: info.name, size: info.size || 240,
+      meta: "usado por " + users.length + " peça(s)",
+      tell: info.tell,
+      badge: info.gap ? "sem animação própria" : null,
+      refs: [ref("efeito", "EFFECTS." + id + " (js/systems/effects.js)")],
+      setup: info.setup, tick: info.tick,
+    };
+  });
+}
+
+/* ---- hooks --------------------------------------------------------------- */
+const HOOK_INFO = {
+  colheita: { owner: "capstone Colheita", tell: "anel de spread + DoTs aparecendo nos vizinhos", demo: "colheita", dots: true },
+  ceifador: { owner: "capstone Ceifador", tell: "anel de summon: um imp por DoT que expira", demo: "ceifador" },
+  chamador: { owner: "capstone Chamador", tell: "burst grande quando Immolate expira empilhado", demo: "chamador" },
+  diabolista: { owner: "capstone Diabolista", tell: "burst no lugar da invocação grande", demo: "diabolista" },
+  voraz: { owner: "capstone Voraz", tell: "burst + os DoTs do alvo somem de uma vez", demo: "voraz", dots: true },
+  enxame: { owner: "capstone Enxame", tell: "orbes de DoT aparecendo em quem o demônio acerta", demo: "enxame" },
+  contagion: { owner: "passiva Contágio", tell: "jump saindo do alvo + DoT nascendo no vizinho", demo: "contagion", dots: true },
+  voidEcho: { owner: "passiva Eco do Vazio", tell: "burst + echo 3 segundos DEPOIS do golpe grande", demo: "voidEcho" },
+  darkPact: { owner: "peça Dark Pact", tell: "burst no demônio devorado + casca de escudo no player", demo: "darkPact" },
+  grimoire: { owner: "peça Grimoire of Sacrifice", tell: "burst maior: o pet é consumido de vez", demo: "grimoire" },
+  soulstone: { owner: "peça Soulstone", tell: "cruz de cura no player a cada carga reposta", demo: "soulstone" },
+  blink: { owner: "peça Demonic Circle", tell: "blink na saída E na chegada — dois anéis, um teleporte", demo: "blink" },
+  healthstone: { owner: "peça Healthstone", tell: "cruz de cura quando a vida cai do limiar", demo: "healthstone" },
+};
+
+function hookItems() {
+  return Object.keys(HOOKS).map((id) => {
+    const info = HOOK_INFO[id] || { owner: "—", tell: "sem demo", demo: null };
+    return {
+      id: id, name: info.owner, meta: "HOOKS." + id, tell: info.tell,
+      badge: info.demo ? null : "sem demo nesta galeria",
+      size: 250,
+      refs: [ref("hook", "HOOKS." + id + " (js/hooks.js)")],
+      setup(w) {
+        for (let i = 0; i < 3; i++) w.enemies.push(dummyEnemy("ghoul", 80 + i * 22, -30 + i * 30));
+        if (info.dots) for (let i = 0; i < w.enemies.length; i++) addDot(w, w.enemies[i], axc());
+      },
+      tick(w) {
+        if (!info.demo) return;
+        if (info.dots) every(w, "dots", 2.4, () => { for (let i = 0; i < w.enemies.length; i++) addDot(w, w.enemies[i], axc()); });
+        every(w, "h", 2.6, () => playHook(w, info.demo, 0, 0, w.enemies[0], axc()));
+      },
+    };
+  });
+}
+
+/* ---- debuffs e marcadores no inimigo ------------------------------------- */
+function stateItems() {
+  const mk = (id, name, tell, badge, setup, tick, size) => ({
+    id: id, name: name, tell: tell, badge: badge || null, size: size || 200,
+    meta: "Enemy.draw (js/entities.js)",
+    refs: [ref("desenho", "Enemy.draw (js/entities.js)")],
+    setup: setup, tick: tick || function () {},
+  });
+  return [
+    mk("hitFlash", "flash de dano", "0.1s de branco por cima do sprite — o único retorno de acerto que TODO golpe dá",
+      null,
+      (w) => { w.showPlayer = false; w.enemies.push(dummyEnemy("ghoul", 0, 0)); },
+      (w) => every(w, "a", 0.7, () => { w.enemies[0].hitFlash = 0.1; })),
+    mk("dot×1", "1 DoT", "névoa fraca no chão + 1 orbe girando. Sem anel: anel é privilégio de 3+.",
+      null,
+      (w) => { w.showPlayer = false; const e = dummyEnemy("ghoul", 0, 0); w.enemies.push(e); addDot(w, e, "#7fdc4a"); },
+      (w) => { const e = w.enemies[0]; while (e.dots.length > 1) e.dots.shift(); }),
+    mk("dot×3", "3 DoTs", "aqui o anel de podridão liga: o alvo maduro passa a se anunciar sozinho",
+      null,
+      (w) => { w.showPlayer = false; const e = dummyEnemy("ghoul", 0, 0); w.enemies.push(e);
+               addDot(w, e, "#7fdc4a"); addDot(w, e, "#a8f05c"); addDot(w, e, "#4a9e2e"); },
+      (w) => { const e = w.enemies[0]; while (e.dots.length < 3) addDot(w, e, "#7fdc4a"); }),
+    mk("dotPulse", "tick de DoT", "pulso elíptico + clarão a cada tick: é a cadência do dano ficando visível",
+      null,
+      (w) => { w.showPlayer = false; const e = dummyEnemy("abomination", 0, 0); w.enemies.push(e);
+               addDot(w, e, "#7fdc4a"); addDot(w, e, "#a8f05c"); addDot(w, e, "#7fdc4a"); },
+      (w) => { const e = w.enemies[0]; while (e.dots.length < 3) addDot(w, e, "#7fdc4a"); }),
+    mk("stunUntil", "atordoado", "anel amarelo acima da cabeça + o bicho congela no lugar",
+      null,
+      (w) => { w.enemies.push(dummyEnemy("ghoul", 70, -10)); },
+      (w) => { w.enemies[0].stunUntil = w.t + 0.5; }),
+    mk("fearUntil", "amedrontado", "anel roxo + o vetor de perseguição inverte: ele foge de você",
+      null,
+      (w) => { w.enemies.push(dummyEnemy("skeleton", 60, -10)); },
+      (w) => { w.enemies[0].fearUntil = w.t + 0.5; }),
+    mk("slowUntil", "lento", "anel azul + a mesma caminhada, na metade da velocidade",
+      null,
+      (w) => { w.enemies.push(dummyEnemy("ghoul", 80, -10)); },
+      (w) => { const e = w.enemies[0]; e.slowUntil = w.t + 0.5; e.slowFactor = 0.35; }),
+    mk("marked", "marcado (Haunt)", "NADA. O alvo que recebe +30% de dano é idêntico ao que não recebe.",
+      "sem animação própria",
+      (w) => { w.showPlayer = false; w.enemies.push(dummyEnemy("ghoul", 0, 0)); },
+      (w) => { const e = w.enemies[0]; e.marked = 0.3; e.markedUntil = w.t + 1; }),
+    mk("weakUntil", "enfraquecido", "NADA. weakFactor corta o dano de contato e nenhum pixel avisa.",
+      "sem animação própria",
+      (w) => { w.showPlayer = false; w.enemies.push(dummyEnemy("skeleton", 0, 0)); },
+      (w) => { w.enemies[0].weakUntil = w.t + 1; }),
+    mk("boss", "barra de chefe", "só o chefe tem barra de vida — é o que separa ameaça de horda",
+      null,
+      (w) => { w.showPlayer = false; const e = dummyEnemy("dreadlord", 0, 6); w.enemies.push(e); },
+      (w) => { const e = w.enemies[0]; e.hp = e.maxHp * (0.2 + 0.8 * Math.abs(Math.sin(w.t * 0.5))); e.hitFlash = 0.05; },
+      260),
+  ];
+}
+
+/* ---- buffs e estado do jogador ------------------------------------------- */
+function playerItems() {
+  const forms = CLASSES.warlock.forms;
+  const items = forms.map((f, i) => ({
+    id: "forma" + i,
+    name: f.name || "Warlock",
+    meta: (f.caps === 0 ? "forma base" : f.caps + " capstone(s) fechado(s)") + " · scale " + f.scale,
+    tell: "o sprite, a escala e a COR DA LUZ NO CHÃO mudam — a metamorfose é o marco de progressão",
+    size: 120,
+    swatches: [f.color || CLASSES.warlock.color],
+    refs: [ref("forma", "CLASSES.warlock.forms[" + i + "] (js/balance.js)"),
+           ref("quem avança", "UI.checkForm (js/ui.js)")],
+    setup(w) { w.walkPlayer = true; w.player.formIdx = i; },
+    tick() {},
+  }));
+
+  items.push({
+    id: "pulses", name: "onda de desbloqueio",
+    meta: "Player.comboPulse · PULSE_LIFE = " + PULSE_LIFE + "s",
+    tell: "elipse abrindo nos pés: é o que anuncia peça nova, evolução e capstone",
+    size: 170,
+    refs: [ref("desenho", "Player.draw — this.pulses (js/entities.js)")],
+    setup(w) { w.player.formIdx = 1; },
+    tick(w) { every(w, "a", 1.6, () => w.player.comboPulse(axc())); },
+  });
+
+  items.push({
+    id: "shield", name: "escudo",
+    meta: "Player.addShield · casca em Player.draw",
+    tell: "anel ciano girando, espessura pela carga — some sozinho quando o escudo zera",
+    size: 140,
+    refs: [ref("desenho", "Player.draw — this.shield (js/entities.js)"),
+           ref("efeito", "EFFECTS.shield (js/systems/effects.js)")],
+    setup(w) { w.player.maxShield = 120; w.walkPlayer = true; },
+    tick(w) {
+      every(w, "a", 3, () => w.player.addShield(120, 120));
+      w.player.shield = Math.max(0, w.player.shield - 40 * 0.016);
+    },
+  });
+
+  items.push({
+    id: "heal", name: "cruz de cura",
+    meta: 'emitVfx("heal") — hooks soulstone e healthstone',
+    tell: "sobe e some. É a ÚNICA cura visível: EFFECTS.heal não desenha nada.",
+    size: 150,
+    refs: [ref("vfx", 'case "heal" (js/render/vfx.js)')],
+    setup(w) {},
+    tick(w) { every(w, "a", 1.4, () => w.vfx.emit("heal", w.player.x, w.player.y, 40, axc())); },
+  });
+
+  items.push({
+    id: "blink", name: "teleporte",
+    meta: "HOOKS.blink (Demonic Circle)",
+    tell: "dois anéis: um onde ele estava, outro onde chegou. Sem eles o player some e reaparece.",
+    size: 300,
+    refs: [ref("hook", "HOOKS.blink (js/hooks.js)")],
+    setup(w) { for (let i = 0; i < 5; i++) w.enemies.push(dummyEnemy("ghoul", 40 + i * 12, -40 + i * 20)); },
+    tick(w) { every(w, "a", 2.4, () => playHook(w, "blink", 0, 0, null, axc())); },
+  });
+
+  items.push({
+    id: "speedBoost", name: "velocidade (Burning Rush)",
+    meta: "player.speedBoost",
+    tell: "nada: nem rastro, nem cor, nem partícula. O jogador só sente pelo controle.",
+    badge: "sem animação própria",
+    size: 120,
+    refs: [ref("efeito", "EFFECTS.self_speed (js/systems/effects.js)")],
+    setup(w) { w.walkPlayer = true; },
+    tick(w) { w.player.speedBoost = 1.4; w.player.speedBoostUntil = w.t + 1; },
+  });
+
+  items.push({
+    id: "idle-vs-walk", name: "parado × andando",
+    meta: "walkAnim (js/sprites.js) · " + WALK_FRAMES + " quadros",
+    tell: "movimento é POSE, não rotação: quadros gerados da mesma grade, um pé por vez",
+    size: 120,
+    refs: [ref("anim", "walkAnim + walkFrames (js/sprites.js)")],
+    setup(w) { w.walkPlayer = true; },
+    tick(w) { w.walkPlayer = (w.t % 4) < 2; },
+  });
+
+  return items;
+}
+
+/* ---- peças --------------------------------------------------------------- */
+function pieceVis(def) {
+  const inst = { def: def, key: def.key || def.id, paths: {} };
+  try { return resolvePiece(inst, STUB_BUILD); }
+  catch (err) { return { stats: def.stats || {}, trigger: def.trigger || {}, effects: def.effects || [] }; }
+}
+
+// Resume, em texto, o que a peça FAZ APARECER. É a resposta curta da página.
+function tellOf(vis, def) {
+  const out = [];
+  const walk = (list, depth) => {
+    if (!list || depth > 2) return;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      if (!e) continue;
+      if (e.type === "projectile") out.push(e.trail ? "cometa" : "projétil");
+      else if (e.type === "damage_instant" && e.radius > 0) out.push("explosão");
+      else if (e.type === "damage_instant") out.push("flash no alvo");
+      else if (e.type === "damage_over_time") out.push("orbes de DoT");
+      else if (e.type === "area_persistent") out.push("zona no chão");
+      else if (e.type === "summon") out.push("demônio (" + (e.kind || "imp") + ")");
+      else if (e.type === "vfx") out.push(e.kind || "vfx");
+      else if (e.type === "stun") out.push(e.radius > 0 ? "onda de choque + anel de atordoado" : "anel de atordoado");
+      else if (e.type === "fear") out.push("anel de medo");
+      else if (e.type === "slow") out.push("anel de lentidão");
+      else if (e.type === "execute") out.push("execução");
+      else if (e.type === "shield") out.push("casca de escudo");
+      else if (e.type === "convert") out.push("conversão");
+      else if (e.type === "reflect") out.push("onda de choque");
+      else if (e.type === "spread_on_death") out.push("propagação");
+      else if (e.type === "hook" && HOOK_INFO[e.name]) out.push("hook " + e.name);
+      walk(e.onHit, depth + 1); walk(e.onTick, depth + 1);
+      walk(e.effects, depth + 1); walk(e.onEnd, depth + 1);
+    }
+  };
+  walk(vis.effects, 0);
+  if (def.vfx) out.push("aura " + def.vfx + " ao concluir");
+  if (vis.trigger.type === "aura") out.push("anel de aura");
+  if (vis.trigger.type === "rooted") out.push("anel de carga");
+  const uniq = [];
+  for (let i = 0; i < out.length; i++) if (uniq.indexOf(out[i]) < 0) uniq.push(out[i]);
+  return uniq;
+}
+
+function pieceItems() {
+  return Object.keys(PIECES).map((id) => {
+    const def = PIECES[id];
+    const vis = pieceVis(def);
+    const tell = tellOf(vis, def);
+    const tr = vis.trigger || {};
+    const radius = (vis.stats && vis.stats.radius) || 0;
+    const size = Math.max(240, radius * 2.6);
+    const period = Math.max(0.8, Math.min(3.2,
+      tr.cooldown || tr.interval || tr.respawn || tr.chargeTime || 1.6));
+
+    return {
+      id: id,
+      name: (def.icon || "") + " " + def.name,
+      meta: AXES[def.axis].name + " · trigger " + (tr.type || "?") +
+            (def.evolutionOnly ? " · só por evolução" : ""),
+      tell: tell.length ? tell.join(" · ") : "NADA aparece em tela quando ela dispara",
+      badge: tell.length ? null : "sem animação própria",
+      size: size,
+      swatches: [def.color],
+      refs: [ref("peça", "PIECES." + id + " (" + pieceFile(id) + ")"),
+             def.vfx ? ref("aura", "PIECE_VFX." + def.vfx + " (js/render/vfx.js)") : null].filter(Boolean),
+      setup(w) {
+        w.walkPlayer = tr.type === "trail" || tr.type === "directional";
+        for (let i = 0; i < 3; i++) w.enemies.push(dummyEnemy(i === 2 ? "skeleton" : "ghoul", 80 + i * 22, -34 + i * 34));
+        if (tr.type === "aura" || tr.type === "rooted") {
+          w.inst = fakeInst(def, vis);
+          w.overlay = pieceOverlay(w.inst);
+        }
+        if (def.vfx && PIECE_VFX[def.vfx]) {
+          const v = PIECE_VFX[def.vfx];
+          w.auras = [{ under: v.under, over: v.over, color: def.color, rgb: hexRgb(def.color), lvl: 3 }];
+        }
+      },
+      tick(w, dt) {
+        const cast = () => {
+          const target = w.enemies[(w.casts = ((w.casts || 0) + 1)) % w.enemies.length];
+          const x = tr.type === "directional" ? w.player.x + 110 : w.player.x;
+          const y = tr.type === "directional" ? w.player.y : w.player.y;
+          playEffects(w, vis.effects, x, y, target, def.color, 0);
+        };
+        if (tr.type === "rooted" && w.inst) {
+          const s = w.inst.s;
+          if (w.player.moving) s.charge = Math.max(0, s.charge - dt * 2);
+          else s.charge += dt;
+          if (s.charge >= (tr.chargeTime || 2)) { s.charge = 0; cast(); }
+          return;
+        }
+        if ((tr.type === "trail" || tr.type === "directional") && !w.player.moving) return;
+        every(w, "cast", period, cast);
+      },
+    };
+  });
+}
+
+/* ---- passivas e capstones ------------------------------------------------ */
+function moduleItems(reg, kind) {
+  return Object.keys(reg).map((id) => {
+    const def = reg[id];
+    const hookName = def.on ? Object.keys(def.on).map((k) => def.on[k])[0] : null;
+    const info = hookName ? HOOK_INFO[hookName] : null;
+    const tell = info ? info.tell
+      : def.global ? "nenhuma: mexe em números globais (nada é desenhado)"
+      : def.pieceMods || def.piecePatch ? "nenhuma: muda os números das peças que casam com o match"
+      : def.dynamic ? "nenhuma: multiplicador que varia com parado/andando"
+      : "nenhuma";
+    return {
+      id: id,
+      name: (def.icon || "") + " " + def.name,
+      meta: kind === "capstone"
+        ? (AXES[def.axis] ? AXES[def.axis].name : "") + " · req " + JSON.stringify(def.req)
+        : (def.exclusive ? "exclusiva com " + def.exclusive : "passiva global"),
+      tell: tell,
+      badge: info ? null : "sem animação própria",
+      size: 250,
+      swatches: [def.color],
+      refs: [ref(kind, (kind === "capstone" ? "CAPSTONES." : "PASSIVES.") + id +
+                 " (js/content/" + (kind === "capstone" ? "capstones" : "passives") + ".js)"),
+             hookName ? ref("hook", "HOOKS." + hookName + " (js/hooks.js)") : null].filter(Boolean),
+      setup(w) {
+        for (let i = 0; i < 3; i++) w.enemies.push(dummyEnemy("ghoul", 80 + i * 22, -30 + i * 30));
+        if (info && info.dots) for (let i = 0; i < w.enemies.length; i++) addDot(w, w.enemies[i], def.color);
+        if (kind === "capstone") w.player.formIdx = 1;   // capstone = metamorfose
+      },
+      tick(w) {
+        if (!info) return;
+        if (info.dots) every(w, "dots", 2.4, () => { for (let i = 0; i < w.enemies.length; i++) addDot(w, w.enemies[i], def.color); });
+        every(w, "h", 2.6, () => playHook(w, hookName, 0, 0, w.enemies[0], def.color));
+      },
+    };
+  });
+}
+
+/* ---- demônios ------------------------------------------------------------ */
+function minionItems() {
+  return Object.keys(MINIONS).map((kind) => {
+    const def = MINIONS[kind];
+    return {
+      id: kind,
+      name: "demônio invocado",
+      meta: "gait " + (def.gait || "walk") + " · scale " + def.scale + " · ai " + (def.ai || "chase") +
+            " · dura " + def.duration + "s",
+      tell: def.gait === "float" ? "paira: bob senoidal, quadro único"
+          : def.gait === "static" ? "plantado: um pixel de respiração, sem passo"
+          : "pisa: quadros de caminhada da mesma grade, um pé por vez",
+      size: Math.max(110, def.radius * def.scale * 1.5),
+      swatches: [def.color],
+      refs: [ref("tuning", "MINIONS." + kind + " (js/content/minions.js)"),
+             ref("anim", "minionAnim + drawMinions (js/render/vfx.js)")],
+      setup(w) {
+        w.showPlayer = false;
+        const m = new Minion();
+        m.reset(null, { kind: kind, radius: def.radius, color: def.color, big: def.radius >= 20,
+                        x: 0, y: 0, expiresAt: Infinity, spawnedAt: 0 });
+        w.minions.push(m);
+        m.orbitR = 0;
+      },
+      tick(w) {
+        const m = w.minions[0];
+        if (!m) return;
+        m.angle = 0; m.x = 0; m.y = 0;
+        m.facing = (w.t % 6) < 3 ? 1 : -1;
+        every(w, "s", 4, () => w.vfx.emit("summon", 0, 0, def.radius * 3, def.color));
+      },
+    };
+  });
+}
+
+/* ---- mundo --------------------------------------------------------------- */
+function worldItems() {
+  const items = [];
+
+  items.push({
+    id: "projectile-plain", name: "projétil simples",
+    meta: "Projectile.draw sem trail", tell: "gradiente radial: núcleo branco, borda na cor da peça",
+    size: 260, refs: [ref("desenho", "Projectile.draw (js/entities.js)")],
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 120, -10)); },
+    tick(w) { every(w, "a", 0.8, () => spawnProj(w, { radius: 7, speed: 380 }, w.player.x, w.player.y, w.enemies[0], axc())); },
+  });
+
+  items.push({
+    id: "projectile-comet", name: "projétil com rastro",
+    meta: "Projectile.drawComet — trail amostrado por DISTÂNCIA",
+    tell: "blobs cacheados ao longo das últimas posições + cabeça esticada na direção do voo",
+    size: 260, refs: [ref("desenho", "Projectile.drawComet (js/entities.js)")],
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 120, -10)); },
+    tick(w) { every(w, "a", 0.9, () => spawnProj(w, { radius: 8, speed: 330, trail: 90 }, w.player.x, w.player.y, w.enemies[0], axc())); },
+  });
+
+  items.push({
+    id: "projectile-hostile", name: "projétil do chefe",
+    meta: "hostile: true — o único que machuca o player",
+    tell: "mesmo desenho, cor vermelha do inimigo: a diferença é de cor, não de forma",
+    badge: "só a cor separa do seu",
+    size: 280, refs: [ref("desenho", "Projectile.draw (js/entities.js)")],
+    setup(w) { w.enemies.push(dummyEnemy("dreadlord", 120, -16)); },
+    tick(w) { every(w, "a", 0.9, () => spawnProj(w, { radius: 7, speed: 200, color: "#ff5a6b" }, w.enemies[0].x, w.enemies[0].y, w.player, "#ff5a6b", true)); },
+  });
+
+  items.push({
+    id: "particles", name: "partículas de morte",
+    meta: "Game.spawnParticles — 8 a 14 por morte",
+    tell: "pontos com atrito, encolhendo pela vida restante. É o que faz a morte ter peso.",
+    size: 200, refs: [ref("emissão", "Game.spawnParticles (js/game.js)"),
+                      ref("desenho", "Particle.draw (js/entities.js)")],
+    setup(w) { w.showPlayer = false; },
+    tick(w) {
+      every(w, "a", 1.1, () => {
+        for (let i = 0; i < 12; i++) {
+          const a = Math.random() * 6.28, sp = 40 + Math.random() * 120;
+          const p = new Particle();
+          p.reset(null, 0, 0, Math.cos(a) * sp, Math.sin(a) * sp,
+                  0.3 + Math.random() * 0.3, axc(), 2 + Math.random() * 2.5);
+          w.parts.push(p);
+        }
+      });
+    },
+  });
+
+  items.push({
+    id: "xporb", name: "orbe de XP",
+    meta: "XPOrb.draw — halo cacheado + núcleo sólido",
+    tell: "gota, não borrão: centenas ficam no chão ao mesmo tempo e o piso não pode virar mancha",
+    size: 120, refs: [ref("desenho", "XPOrb.draw (js/entities.js)")],
+    setup(w) {
+      w.showPlayer = false;
+      for (let i = 0; i < 7; i++) {
+        const o = new XPOrb();
+        o.reset(null, (i - 3) * 16, ((i * 37) % 5 - 2) * 9, 1);
+        w.drops.push(o);
+      }
+    },
+    tick() {},
+  });
+
+  Object.keys(ITEMS).forEach((id) => {
+    items.push({
+      id: "item-" + id, name: ITEMS[id].name || id,
+      meta: "Pickup.draw — emoji + halo",
+      tell: "bob senoidal e halo na cor do item; o ícone é texto, não pixel art",
+      badge: "fora do grid de pixel",
+      size: 90, swatches: [ITEMS[id].color],
+      refs: [ref("item", "ITEMS." + id + " (js/balance.js)"),
+             ref("desenho", "Pickup.draw (js/entities.js)")],
+      setup(w) {
+        w.showPlayer = false;
+        const p = new Pickup();
+        p.reset(null, 0, 0, id);
+        w.drops.push(p);
+        p._b = p.bob;
+      },
+      tick(w) { const p = w.drops[0]; if (p) p.bob = p._b + w.t * 2.4; },
+    });
+  });
+
+  items.push({
+    id: "explosion", name: "explosão (quadros)",
+    meta: EXPLO.FRAMES + " quadros × " + EXPLO.VARIANTS + " variantes · grades " + EXPLO.GRIDS.join("/"),
+    tell: "flash + quadros de pixel no tamanho final + onda de choque no RAIO REAL do dano",
+    size: 220, refs: [ref("quadros", "explosionFrames (js/sprites.js)"),
+                      ref("desenho", "drawExplosion (js/render/vfx.js)")],
+    setup(w) { w.showPlayer = false; },
+    tick(w) { every(w, "a", 1, () => w.vfx.emit("burst", 0, 0, 70, axc())); },
+  });
+
+  items.push({
+    id: "portal-open", name: "portal abrindo",
+    meta: 'emitVfx("portal") · vida ' + VFX_LIFE.portal + "s",
+    tell: "rasga como fresta, segura, desaba — a abertura É a animação (única escala contínua permitida)",
+    size: 200, refs: [ref("desenho", "drawPortal (js/render/vfx.js)")],
+    setup(w) { w.showPlayer = false; },
+    tick(w) { every(w, "a", 1.6, () => w.vfx.emit("portal", 0, 16, 46, axc())); },
+  });
+
+  return items;
+}
+
+/* =========================================================================
+   MONTAGEM
+   ========================================================================= */
+
+const SECTIONS = [
+  { title: "Eventos visuais", items: eventItems(),
+    note: "Tudo que a simulação pede via game.emitVfx(kind, x, y, r, color). O sistema de efeitos nunca chama ctx.: ele emite o fato e a camada de render decide o pixel. Cada card toca no ciclo de vida real (VFX_LIFE)." },
+  { title: "Auras de spell concluída", items: auraItems(),
+    note: "PIECE_VFX. NÃO acende ao comprar a peça: acende quando um caminho chega ao tier 5 (BuildSystem.isComplete). Nenhum vfx escolhe a própria cor — ela vem da peça, e é por isso que o warlock brilha na cor da build." },
+  { title: "Gatilhos", items: triggerItems(),
+    note: "Com input só de movimento, o gatilho é a mecânica. Só aura e rooted têm desenho próprio (drawPieceOverlays): os outros são invisíveis por si, e o jogador aprende pelo efeito." },
+  { title: "Efeitos", items: effectItems(),
+    note: "O que cada tipo de efeito faz APARECER. As tarjas laranja são a lista honesta do que muda o jogo sem avisar em tela." },
+  { title: "Hooks", items: hookItems(),
+    note: "A escotilha de escape. Como hook é código imperativo, é onde mora quase toda a animação de capstone e passiva." },
+  { title: "Debuffs e marcadores", items: stateItems(),
+    note: "O que aparece EM CIMA do inimigo. Anéis de controle são minúsculos de propósito — com mil corpos em tela, marcador grande vira tapete." },
+  { title: "Jogador", items: playerItems(),
+    note: "A hierarquia manda o personagem vir primeiro: contorno escuro, luz no CHÃO (nunca disco no corpo) e adorno só para spell concluída." },
+  { title: "Peças", items: pieceItems(),
+    note: "Cada peça montada com o pipeline real (resolvePiece) e tocada pelo gatilho dela. O texto embaixo lista tudo que a peça faz aparecer em tela." },
+  { title: "Passivas", items: moduleItems(PASSIVES, "passiva"),
+    note: "Passiva quase nunca desenha: ela mexe em número. As exceções são as que penduram hook." },
+  { title: "Capstones", items: moduleItems(CAPSTONES, "capstone"),
+    note: "Fechar um capstone troca a FORMA do warlock (o card mostra a forma corrompida). O resto da animação vem do hook de cada um." },
+  { title: "Demônios", items: minionItems(),
+    note: "gait separa quem pisa de quem paira e de quem está plantado. Kind sem sprite cai no orbe genérico — e driver_render reprova isso." },
+  { title: "Projéteis e mundo", items: worldItems(),
+    note: "O resto do que se mexe: projéteis, partículas, coletáveis, explosão e portal. Cenário parado e props estão na galeria de sprites." },
+];
+
+const CARDS = [];
+
+function buildCard(item) {
+  const el = document.createElement("div");
+  el.className = "card" + (item.badge ? " gap" : "");
+  el.title = "clique para copiar: " + item.id;
+
+  const cv = document.createElement("canvas");
+  el.appendChild(cv);
+
+  const info = document.createElement("div");
+  info.className = "info";
+  info.innerHTML = '<div class="id"></div><div class="name"></div><div class="meta"></div><div class="tell"></div>';
+  info.querySelector(".id").textContent = item.id;
+  info.querySelector(".name").textContent = item.name === item.id ? "" : item.name;
+  info.querySelector(".meta").textContent = item.meta || "";
+  const tell = info.querySelector(".tell");
+  tell.className = "meta";
+  tell.textContent = item.tell || "";
+
+  if (item.badge) {
+    const b = document.createElement("div");
+    b.className = "badge";
+    b.textContent = item.badge;
+    info.appendChild(b);
+  }
+
+  if (item.swatches && item.swatches.length) {
+    const sw = document.createElement("div");
+    sw.className = "swatches";
+    item.swatches.forEach((hex) => {
+      const i = document.createElement("i");
+      i.style.background = hex;
+      i.title = hex;
+      sw.appendChild(i);
+    });
+    info.appendChild(sw);
+  }
+
+  const refs = document.createElement("div");
+  refs.className = "refs";
+  (item.refs || []).forEach((r) => {
+    const b = document.createElement("button");
+    b.textContent = r.label;
+    b.title = r.text;
+    b.addEventListener("click", (ev) => { ev.stopPropagation(); copy(r.text, r.text); });
+    refs.appendChild(b);
+  });
+  info.appendChild(refs);
+  el.appendChild(info);
+
+  el.addEventListener("click", () => copy(item.id, item.id));
+
+  const card = { item: item, el: el, cv: cv, ctx: cv.getContext("2d"), visible: true, w: 0, h: 0, dpr: 1, world: null };
+  CARDS.push(card);
+  return el;
+}
+
+const gallery = document.getElementById("gallery");
+SECTIONS.forEach((sec) => {
+  if (!sec.items.length) return;
+  const s = document.createElement("section");
+  const h = document.createElement("h2");
+  h.textContent = sec.title + " (" + sec.items.length + ")";
+  const btn = document.createElement("button");
+  btn.className = "sec-copy";
+  btn.textContent = "copiar ids";
+  btn.addEventListener("click", () => copy(sec.items.map((i) => i.id).join(", "), sec.title));
+  h.appendChild(btn);
+  s.appendChild(h);
+  const p = document.createElement("p");
+  p.className = "note";
+  p.textContent = sec.note;
+  s.appendChild(p);
+  const g = document.createElement("div");
+  g.className = "grid";
+  sec.items.forEach((it) => g.appendChild(buildCard(it)));
+  s.appendChild(g);
+  gallery.appendChild(s);
+});
+
+/* ---- cobertura ----------------------------------------------------------- */
+(function coverage() {
+  const pieceIds = Object.keys(PIECES);
+  const withAura = pieceIds.filter((id) => PIECES[id].vfx).length;
+  const gaps = CARDS.filter((c) => c.item.badge).length;
+  const silentPieces = SECTIONS.find((s) => s.title === "Peças").items.filter((i) => i.badge).length;
+  document.getElementById("coverage").innerHTML =
+    "<b>" + CARDS.length + "</b> cards · " +
+    "<b>" + withAura + "/" + pieceIds.length + "</b> peças com aura própria · " +
+    "<b>" + silentPieces + "</b> peça(s) sem nada em tela · " +
+    "<b>" + gaps + "</b> mecânica(s) marcada(s) como sem animação própria";
+})();
+
+// Só o que está na tela desenha: com cem canvas animados, o resto é trabalho
+// jogado fora.
+const io = new IntersectionObserver((entries) => {
+  entries.forEach((e) => {
+    const card = CARDS.find((c) => c.el === e.target);
+    if (card) card.visible = e.isIntersecting;
+  });
+}, { rootMargin: "200px" });
+CARDS.forEach((c) => io.observe(c.el));
+
+function resize() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  CARDS.forEach((c) => {
+    const w = c.el.clientWidth || 230;
+    c.w = w; c.h = CARD_H;
+    c.cv.width = Math.round(w * dpr);
+    c.cv.height = Math.round(CARD_H * dpr);
+    c.dpr = dpr;
+  });
+}
+window.addEventListener("resize", resize);
+
+function cardScale(item) {
+  return (CARD_H * 0.86 / (item.size || 240)) * S.zoom;
+}
+
+function drawCard(c, dt, i) {
+  const item = c.item;
+  if (!c.world) {
+    c.world = makeWorld();
+    try { item.setup(c.world); } catch (err) { c.broken = true; }
+  }
+  const w = c.world;
+  if (!c.broken) {
+    try { item.tick(w, dt); } catch (err) { c.broken = true; }
+    stepWorld(w, dt);
+  }
+
+  const ctx = c.ctx;
+  ctx.setTransform(c.dpr, 0, 0, c.dpr, 0, 0);
+  paintBg(ctx, c.w, c.h, i);
+  ctx.save();
+  ctx.translate(c.w / 2, c.h * 0.55);
+  const k = cardScale(item);
+  ctx.scale(k, k);
+  ctx.imageSmoothingEnabled = false;
+  // Enquadramento: com horda em campo o assunto é o vão entre o player e ela,
+  // e o vão está na origem. Sem horda, o assunto é o próprio warlock.
+  const fx = w.enemies.length || !w.showPlayer ? 0 : w.player.x;
+  const fy = w.enemies.length || !w.showPlayer ? 0 : w.player.y;
+  ctx.translate(-fx, -fy * 0.5);
+  try { drawWorld(ctx, w); } catch (err) { c.broken = true; }
+  ctx.restore();
+}
+
+let last = 0;
+function frame(now) {
+  const dtReal = last ? Math.min(0.05, (now - last) / 1000) : 0;
+  last = now;
+  const dt = S.play ? dtReal * S.speed : 0;
+  for (let i = 0; i < CARDS.length; i++) {
+    const c = CARDS[i];
+    if (!c.visible || c.el.style.display === "none") continue;
+    drawCard(c, dt, i);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---- controles ----------------------------------------------------------- */
+function bind(id, key, kind) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const read = () => (kind === "check" ? el.checked : kind === "num" ? parseFloat(el.value) : el.value);
+  el.addEventListener("input", () => {
+    S[key] = read();
+    if (id === "zoom") document.getElementById("zoomVal").textContent = S.zoom + "x";
+    if (id === "speed") document.getElementById("speedVal").textContent = S.speed + "x";
+    if (id === "filter" || id === "gaps") applyFilter();
+  });
+  // Le o valor inicial do controle, mas so quando ele existe de verdade: fora
+  // do browser (harness) o elemento e um stub e devolve "" / undefined, e
+  // adotar isso apagaria os defaults de S — a galeria abriria sem eixo e sem
+  // relogio andando.
+  const v0 = read();
+  const usable = kind === "check" ? typeof v0 === "boolean"
+               : kind === "num" ? !isNaN(v0)
+               : v0 !== "" && v0 != null;
+  if (usable) S[key] = v0;
+}
+bind("play", "play", "check");
+bind("speed", "speed", "num");
+bind("zoom", "zoom", "num");
+bind("axis", "axis", "value");
+bind("bg", "bg", "value");
+bind("walk", "walk", "check");
+bind("gaps", "gaps", "check");
+bind("filter", "filter", "value");
+
+function applyFilter() {
+  const q = S.filter.trim().toLowerCase();
+  CARDS.forEach((c) => {
+    const hay = (c.item.id + " " + c.item.name + " " + (c.item.meta || "") + " " + (c.item.tell || "")).toLowerCase();
+    const hit = (!q || hay.indexOf(q) >= 0) && (!S.gaps || !!c.item.badge);
+    c.el.style.display = hit ? "" : "none";
+  });
+  document.querySelectorAll("section").forEach((s) => {
+    const any = Array.prototype.some.call(s.querySelectorAll(".card"), (el) => el.style.display !== "none");
+    s.style.display = any ? "" : "none";
+  });
+  resize();
+}
+
+// ?filter=… abre a galeria já filtrada — link direto para o que se quer ver.
+const q0 = new URLSearchParams(location.search).get("filter");
+if (q0) {
+  const el = document.getElementById("filter");
+  el.value = q0;
+  S.filter = q0;
+  applyFilter();
+}
+
+// exposto para o driver headless conferir card a card
+window.GALLERY = { SECTIONS: SECTIONS, CARDS: CARDS, S: S, drawCard: drawCard, makeWorld: makeWorld };
+
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

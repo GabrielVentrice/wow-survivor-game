@@ -28,6 +28,16 @@ sprite e os botões copiam a referência pronta (`SPRITE_DATA.ghoul
 (js/sprites.js)`) para pedir um ajuste. Sprite sem dono aparece na seção
 "Sem uso" — é lá que arte órfã fica visível antes de virar peso morto.
 
+`open vfx.html` abre a **galeria de animações**: o que cada mecânica DESENHA em
+tela. Cada card monta um mundo minúsculo com as mesmas classes do jogo
+(`Player`, `Enemy`, `Projectile`, `AreaEffect`, `Minion`, `VfxLayer`) e desenha
+na mesma ordem de profundidade de `Game.render()` — evento visual, aura de
+spell, gatilho, efeito, hook, debuff, buff, peça, passiva, capstone, demônio e
+projétil, cada um tocando sozinho. O valor não está só no que anima: mecânica
+sem tell em tela ganha tarja laranja, e o filtro "só o que não anima" lista as
+25 que hoje mudam o jogo em silêncio. `driver_gallery` reprova card que estoura,
+card mudo e registry que passou na frente da galeria.
+
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
 Antes de commitar, rode a bateria headless: veja `tools/README.md`.
 
@@ -42,6 +52,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 |---|---|
 | `index.html` | CSS, markup e a lista ordenada de `<script src>` |
 | `sprites.html` | galeria de toda a arte gerada em runtime — revisão visual, fora do jogo |
+| `vfx.html` | galeria de tudo que se mexe: uma cena viva por mecânica, com o que não anima marcado |
 | `js/util.js` | helpers puros (`xpForLevel`, `fmtNum`, `hexRgb`, `deepClone`, `setPath`) |
 | `js/balance.js` | `BALANCE`, `ENEMIES`, `AXES`, `AXIS_RULES`, `PATH_RULES`, `CLASSES`, `ITEMS` |
 | `js/sprites.js` | `SPRITE_DATA` + geração de pixel-art e do tile de chão em runtime |

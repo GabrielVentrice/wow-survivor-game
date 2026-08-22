@@ -41,6 +41,10 @@ function stubEl(id) {
     appendChild(c) { this.children.push(c); return c; },
     remove() {},
     querySelectorAll: () => [],
+    querySelector: () => stubEl("q"),
+    addEventListener: () => {},
+    getBoundingClientRect: () => ({ width: 0, height: 0, top: 0, left: 0 }),
+    clientWidth: 0, clientHeight: 0, title: "",
     getContext: () => stubCtx(),
     onclick: null,
   };
@@ -56,6 +60,8 @@ const document = {
   },
   createElement: (tag) => stubEl(tag),
   addEventListener: () => {},
+  querySelectorAll: () => [],
+  body: stubEl("body"),
 };
 
 const sandbox = {
@@ -70,6 +76,11 @@ const sandbox = {
   atob: (b64) => Buffer.from(b64, "base64").toString("binary"),
   Buffer,
   setTimeout: () => 0,
+  clearTimeout: () => {},
+  performance: { now: () => 0 },
+  // as galerias so desenham o card visivel; sem observer, todos ficam visiveis
+  IntersectionObserver: function () { return { observe: () => {}, disconnect: () => {} }; },
+  navigator: { clipboard: null },
   // AudioContext falso: o codigo de som constroi o grafo de verdade, entao
   // erro de API (createBuffer, rampa exponencial partindo de zero) aparece aqui
   // em vez de so no browser.
@@ -152,27 +163,46 @@ sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
-const FILES = fs.readFileSync(path.join(ROOT, "index.html"), "utf8")
-  .split("\n")
-  .map((l) => (l.match(/<script src="([^"]+)"/) || [])[1])
-  .filter(Boolean);
+// PAGE escolhe a pagina: index.html e o jogo, sprites.html/vfx.html sao as
+// galerias. Os <script> rodam na ORDEM DO DOCUMENTO, src e inline misturados —
+// e o que o browser faz, e sprites.html depende disso (ela declara MINIONS
+// num inline antes de carregar quem usa).
+const PAGE = process.env.PAGE || "index.html";
+const HTML = fs.readFileSync(path.join(ROOT, PAGE), "utf8");
 
-for (const f of FILES) {
-  const code = fs.readFileSync(path.join(ROOT, f), "utf8");
+const TAGS = [];
+const RE = /<script\b([^>]*)>([\s\S]*?)<\/script>/g;
+let m;
+while ((m = RE.exec(HTML))) {
+  const src = (m[1].match(/src="([^"]+)"/) || [])[1];
+  if (src) TAGS.push({ src });
+  else if (m[2].trim()) TAGS.push({ code: m[2] });
+}
+
+let files = 0, inline = 0;
+for (const tag of TAGS) {
+  const name = tag.src || `${PAGE}#inline${++inline}`;
+  let code;
+  if (tag.src) {
+    files++;
+    code = fs.readFileSync(path.join(ROOT, tag.src), "utf8");
+  } else code = tag.code;
   try {
-    vm.runInContext(code, sandbox, { filename: f });
+    vm.runInContext(code, sandbox, { filename: name });
   } catch (e) {
-    console.error(`\nERRO AO CARREGAR ${f}:\n${e.stack}`);
+    console.error(`\nERRO AO CARREGAR ${name}:\n${e.stack}`);
     process.exit(1);
   }
 }
-console.log(`ok  ${FILES.length} arquivos carregados`);
+
+console.log(`ok  ${PAGE}: ${files} arquivos + ${inline} inline`);
 
 // Declaracoes lexicais (const/class) de cada <script> NAO viram propriedades do
 // objeto de contexto — vivem no escopo lexical global dele, exatamente como no
 // browser. Entao o driver de teste tambem precisa rodar dentro do contexto.
 const driver = fs.readFileSync(path.join(__dirname, process.env.DRIVER || "driver.js"), "utf8");
 sandbox.__argv = process.argv.slice(2);
+sandbox.__page = PAGE;
 sandbox.__exit = (code) => process.exit(code);
 sandbox.__now = () => Date.now();
 try {
