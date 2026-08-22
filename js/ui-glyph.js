@@ -34,6 +34,8 @@ const UI_PAL = {
   ossoDim: "#67626E",
   obs:     "#0A0910",
   vida:    "#C9302C",
+  xp:      "#7FD8FF",
+  xpNucleo:"#DFF6FF",
 };
 
 /* REGRA — reserva do warlock: osso puro (`UI_PAL.osso`) e exclusividade dele no

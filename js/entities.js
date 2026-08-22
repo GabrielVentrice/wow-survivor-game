@@ -660,17 +660,20 @@ class XPOrb {
     return d < player.radius + 6; // true = coletado
   }
   // Uma gota, nao um borrao. Centenas de orbes ficam no chao ao mesmo tempo:
-  // com um gradiente largo por orbe o piso inteiro vira uma mancha verde (e um
+  // com um gradiente largo por orbe o piso inteiro vira uma mancha (e um
   // gradiente novo alocado por orbe por frame). Halo fraco cacheado + nucleo
   // solido le como pingo de alma e some do caminho do resto.
+  // The drop is blue, not green: green was the Corruption hue, so on a
+  // Corruption build the XP on the floor dissolved into the player's own
+  // spells. Blue is the one hue no axis owns.
   draw(ctx, cam) {
     const sx = this.x - cam.left, sy = this.y - cam.top;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     ctx.globalAlpha = 0.34;
-    ctx.drawImage(glowBlob("#6fdc4a"), sx - 7, sy - 7, 14, 14);
+    ctx.drawImage(glowBlob(UI_PAL.xp), sx - 7, sy - 7, 14, 14);
     ctx.restore();
-    ctx.fillStyle = "#d8ffb0";
+    ctx.fillStyle = UI_PAL.xpNucleo;
     ctx.beginPath(); ctx.arc(sx, sy, 2.1, 0, Math.PI * 2); ctx.fill();
   }
 }

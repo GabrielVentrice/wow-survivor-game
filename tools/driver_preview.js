@@ -197,6 +197,16 @@ const frame = (cap, cls, inner) => {
   <div class="frame"><div class="screen ${cls}">${inner}</div></div>`;
 };
 
+/* Antes de capturar HUD, pausa e game over, a simulacao RODA. As tres telas
+   sao sobre o que a run produziu — dano por peca, abates, tempo — e capturadas
+   logo depois das escolhas elas saiam com "nada causou dano ainda" nos dois
+   paineis que mais importam. Numero vazio numa previa nao e um estado raro: e
+   uma tela que nao existe no jogo. */
+g.ui.openLevelUp = function () { g.player.pendingLevels = 0; g.state = STATE.PLAYING; };
+g.ui.openMilestone = function () { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
+g.ui.openChest = function () {};
+for (let i = 0; i < 60 * 90; i++) g.update(1 / 60);
+
 // a run continua de onde as previas de level up pararam: build carregada
 g.ui.updatePieceBar();
 g.ui.updateHUD();

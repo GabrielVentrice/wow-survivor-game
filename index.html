@@ -60,6 +60,11 @@
 
     /* vital — reservados, e so aqui */
     --vida:#C9302C; --vida-vazia:#7A1A18;
+    /* XP e o unico azul do jogo, e existe por LEGIBILIDADE: a gota no chao era
+       verde e sumia dentro de toda spell de Corrupcao. Azul claro nao colide
+       com nenhum dos tres eixos (100 / 271 / 29) e nao e osso cheio, que e
+       reserva do warlock. */
+    --xp:#7FD8FF; --xp-nucleo:#DFF6FF;
 
     --fonte-display:"Big Shoulders Display", Impact, "Haettenschweiler", "Arial Narrow", sans-serif;
     --fonte-texto:"Eczar", Georgia, "Times New Roman", serif;
@@ -220,7 +225,13 @@
 
   .hud-tl { position:absolute; top:var(--e5); left:var(--e5); display:flex; gap:6px; max-width:44vw; flex-wrap:wrap; }
   .hud-tc { position:absolute; top:var(--e5); left:50%; transform:translateX(-50%); text-align:center; }
-  .hud-tr { position:absolute; top:var(--e5); right:var(--e5); width:260px; display:flex; flex-direction:column; gap:var(--e2); }
+  /* A placa nao e decoracao: sem ela o painel fica em osso sobre a HORDA, e uma
+     pilha de esqueletos atras de um numero de 14px apaga o numero. O canto
+     oposto (a tira de pecas) sempre teve a dela — o mesmo conteudo tinha que
+     sobreviver nos dois cantos. */
+  .hud-tr { position:absolute; top:var(--e5); right:var(--e5); width:260px;
+            padding:10px 12px; background:rgba(20,18,27,.88); box-shadow:var(--placa);
+            display:flex; flex-direction:column; gap:var(--e2); }
   .hud-bc { position:absolute; bottom:var(--e5); left:50%; transform:translateX(-50%); width:min(720px,86vw); }
   .hud-br { position:absolute; bottom:var(--e5); right:var(--e5); display:flex; flex-direction:column; gap:var(--e2); }
 
@@ -250,8 +261,12 @@
   .hud-ax > b { flex:none; width:10px; height:10px; background:var(--eixo); }
   .hud-ax > b.vazio { background:none; box-shadow:inset 0 0 0 2px var(--osso-100); }
   .hud-ax .barra { flex:1; }
-  .hud-ax > span { flex:none; width:34px; text-align:right; font-family:var(--fonte-dado);
-                   font-size:var(--rotulo); color:var(--osso-400); }
+  /* Coluna FIXA e larga o bastante para "15 / 15": com `min-width:auto` (o
+     padrao de item de flex) o numero crescia com o digito e a barra ao lado
+     encolhia junto, entao as tres barras mudavam de comprimento conforme os
+     pontos entravam. Barra que muda de tamanho sem o valor mudar mente. */
+  .hud-ax > span { flex:none; width:52px; min-width:0; text-align:right;
+                   font-family:var(--fonte-dado); font-size:var(--rotulo); color:var(--osso-400); }
   .hud-pool { text-align:right; letter-spacing:.10em; }
 
   /* vitais */
@@ -259,7 +274,7 @@
   .barra-vida > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--vida); }
   .barra-vida > i#shieldFill { background:var(--osso-400); }
   .barra-xp { position:relative; height:4px; margin-top:var(--e1); background:var(--obs-600); overflow:hidden; }
-  .barra-xp > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--osso-600); }
+  .barra-xp > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--xp); }
   .hud-vit { margin-top:6px; display:flex; justify-content:space-between; }
 
   /* toast (8.9) — 340x44, teto de TRES, e a tarja de 4x20 na cor do eixo e a
@@ -618,7 +633,10 @@
   .go-head { display:flex; align-items:flex-start; justify-content:space-between; gap:var(--e5); }
   /* o UNICO uso de vermelho fora da barra de vida e do dano recebido */
   .go-eyebrow { color:var(--vida); }
-  .go-title { margin-top:var(--e3);
+  /* O acento do "Ê" sobe acima da altura de caixa, e com line-height .86 a
+     caixa do titulo nao cobre ele: com 12px o circunflexo encostava no
+     eyebrow. */
+  .go-title { margin-top:var(--e5);
               font-family:var(--fonte-display); font-size:110px; line-height:.86; font-weight:900;
               letter-spacing:.04em; text-transform:uppercase; color:var(--osso-600); }
   /* a marca vira marca d'agua: obsidiana sobre obsidiana, sem brilho */
