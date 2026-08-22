@@ -596,14 +596,19 @@ class XPOrb {
     }
     return d < player.radius + 6; // true = coletado
   }
+  // Uma gota, nao um borrao. Centenas de orbes ficam no chao ao mesmo tempo:
+  // com um gradiente largo por orbe o piso inteiro vira uma mancha verde (e um
+  // gradiente novo alocado por orbe por frame). Halo fraco cacheado + nucleo
+  // solido le como pingo de alma e some do caminho do resto.
   draw(ctx, cam) {
     const sx = this.x - cam.left, sy = this.y - cam.top;
-    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 7);
-    g.addColorStop(0, "#d8ffb0");
-    g.addColorStop(0.5, "#6fdc4a");
-    g.addColorStop(1, "rgba(58,122,38,0)");
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(sx, sy, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.34;
+    ctx.drawImage(glowBlob("#6fdc4a"), sx - 7, sy - 7, 14, 14);
+    ctx.restore();
+    ctx.fillStyle = "#d8ffb0";
+    ctx.beginPath(); ctx.arc(sx, sy, 2.1, 0, Math.PI * 2); ctx.fill();
   }
 }
 
@@ -672,6 +677,7 @@ class SpawnManager {
     this.hard = false;    // has BALANCE.spawn.hardAt been crossed yet?
     this.nextWaveAt = BALANCE.spawn.waveEvery;
     this.nextBossAt = BALANCE.spawn.bossAt;
+    this.nextChestAt = BALANCE.spawn.chestAt;
   }
   // true past the 5 min mark — the hard phase uses a different set of numbers
   isHard(elapsed) { return elapsed >= BALANCE.spawn.hardAt; }
@@ -734,6 +740,11 @@ class SpawnManager {
     if (game.elapsed >= this.nextBossAt) {
       this.nextBossAt += hard ? B.hardBossEvery : B.bossEvery;
       this.spawnBoss(game);
+    }
+    // baú avulso: prêmio que não depende de matar boss
+    if (game.elapsed >= this.nextChestAt) {
+      this.nextChestAt += hard ? B.hardChestEvery : B.chestEvery;
+      this.spawnChest(game);
     }
 
     if (game.enemies.active.length >= (hard ? B.hardMaxAlive : B.maxAlive)) return;

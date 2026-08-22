@@ -622,11 +622,19 @@ class Game {
     this.enemies.sweep(DEAD);
   }
 
+  // Um único ponto de entrada para o baú: o boss larga o dele, o spawner solta
+  // os avulsos, e os dois passam pelo mesmo aviso de que há prêmio no chão.
+  spawnChestAt(x, y) {
+    this.pickups.spawn(x, y, "chest");
+    this.spawnParticles(x, y, ITEMS.chest.color, 14);
+    this.emitVfx("summon", x, y, 44, ITEMS.chest.color);
+  }
+
   dropLoot(e) {
     if (e.type.boss) {
       if (this.elapsed - this.lastBossChestAt >= BALANCE.spawn.bossChestCooldown) {
         this.lastBossChestAt = this.elapsed;
-        this.pickups.spawn(e.x, e.y, "chest");
+        this.spawnChestAt(e.x, e.y);
       } else {
         for (let k = 0; k < 6; k++) {
           const a = (Math.PI * 2 / 6) * k;
@@ -668,6 +676,9 @@ class Game {
                           name: pk.item.name, desc: pk.item.desc });
         }
         this.pickups.release(i); i--;
+        // Dois baús no mesmo frame: o segundo openChest sobrescreveria a tela
+        // do primeiro. O que sobrou fica no chão para o frame seguinte.
+        if (this.state !== STATE.PLAYING) break;
       }
     }
   }
