@@ -15,18 +15,37 @@ g.sfx.init();
 if (!g.sfx.bone) fail("amostra de osso nao decodificou");
 else console.log(`  ok amostra de osso decodificada (${g.sfx.bone.duration.toFixed(3)}s)`);
 
+/* Piso por corpo: estalo + esmagamento + baque saem SEMPRE (3 fontes). Grunhido
+   e guincho de fel so sao garantidos acima de 0.3 de peso — abaixo disso eles
+   sao sorteados de proposito, para a horda inteira nao guinchar em coro. Exigir
+   4+ de um ghoul e exigir que o sorteio caia de um jeito so, e o teste passa a
+   quebrar quando qualquer outro codigo consome o gerador antes dele. */
 for (const id in ENEMIES) {
   const t = ENEMIES[id];
   const heft = t.boss ? 1 : Math.min(1, Math.max(0, (t.radius - 12) / 26));
+  const min = heft > 0.3 ? 5 : 3;
   __audio.nodes = 0; __audio.samples = 0;
   g.clock += 1;                       // afasta do throttle
   try { g.sfx.death(heft, t.deathSfx); }
   catch (e) { fail(`${id}: ${e.message}`); continue; }
-  if (__audio.nodes < 4) fail(`${id}: so ${__audio.nodes} fontes de som (esperado 4+)`);
+  if (__audio.nodes < min) fail(`${id}: so ${__audio.nodes} fontes de som (esperado ${min}+)`);
   else if (!__audio.samples) fail(`${id}: nao tocou a amostra de osso`);
   else console.log(`  ok ${t.name.padEnd(18)} timbre "${t.deathSfx}" peso ${heft.toFixed(2)} -> ` +
                    `${__audio.nodes} fontes (${__audio.samples} de osso)`);
 }
+
+/* E os extras sorteados precisam existir de fato: em 40 mortes de corpo leve,
+   pelo menos uma tem que passar de 3 fontes. Sem isto, um bug que apagasse
+   grunhido e guincho dos pequenos passaria batido pelo piso acima. */
+let extras = 0;
+for (let i = 0; i < 40; i++) {
+  __audio.nodes = 0;
+  g.clock += 1;
+  g.sfx.death(0.05, "flesh");
+  if (__audio.nodes > 3) extras++;
+}
+if (!extras) fail("corpo leve nunca sorteou grunhido nem guincho em 40 mortes");
+else console.log(`  ok extras sorteados no corpo leve: ${extras}/40 mortes`);
 
 // chacina: o throttle e o duck precisam segurar sem quebrar nem emudecer
 __audio.nodes = 0;
