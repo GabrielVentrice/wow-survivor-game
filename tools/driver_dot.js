@@ -105,6 +105,64 @@ else console.log("  ok clear() solta os DoTs antes do inimigo voltar ao pool");
   else console.log("  ok a morte nao emite dot_expired (Contagio e Chamador nao contam duas vezes)");
 }
 
+/* O prazo desenhado sai do relogio de SIMULACAO, nunca de `dotAnim`.
+
+   `dotAnim` e a fase da animacao — nasce sorteada por corpo e so anda enquanto
+   ha DoT. `endAt` vive no `game.clock`. Medir um contra o outro dava `left` na
+   casa das dezenas depois do primeiro minuto, e `left` grande vira `depth`
+   negativo: alpha negativo o canvas recusa em silencio (o orbe sai em
+   opacidade cheia sob `lighter`) e raio negativo no `arc` levanta excecao e
+   corta o resto do frame. Era a tela ficando branca com Soul Rupture e Doom.
+
+   As duas fatias que leem prazo sao `doom` e `unstable`; as outras tres nao
+   olham o relogio e por isso nunca quebraram. */
+{
+  const alphas = [], raios = [];
+  const spy = new Proxy({}, {
+    get(t, k) {
+      if (k === "arc") return (x, y, r) => { raios.push(r); };
+      if (k === "canvas") return { width: 640, height: 360 };
+      if (k === "measureText") return () => ({ width: 10 });
+      if (k === "createRadialGradient" || k === "createLinearGradient")
+        return () => ({ addColorStop: () => {} });
+      return () => {};
+    },
+    set(t, k, v) { if (k === "globalAlpha") alphas.push(v); return true; },
+  });
+  const cam = { left: 0, top: 0 };
+
+  g.start();
+  g.clock = 620;                                  // dez minutos de run
+  const alvo = g.enemies.spawn(ENEMIES.abomination, 0, 0, { hp: 1, dmg: 1, speed: 0 });
+  alvo.hp = alvo.maxHp = 1e9;
+  const cd = { key: "d", color: "#7fdc4a", now: g.clock, x: 0, y: 0, target: alvo };
+  for (const look of ["doom", "unstable"]) {
+    g.dots.apply(alvo, { key: look, dps: 1, duration: 6, tickInterval: 1, look: look,
+                         stacking: { mode: "refresh", max: 1 } }, cd);
+  }
+  g.clock += 2;                                   // parte do prazo ja correu
+  const d0 = g.dots.find(alvo, "doom");
+  const left = dotLeft(d0, g.clock);
+  // o relogio certo devolve a fracao que sobrou; um relogio errado (dotAnim,
+  // que anda de 0 a poucos segundos) estouraria o teto, e o clamp segura
+  const errado = dotLeft(d0, alvo.dotAnim);
+  if (Math.abs(left - 4 / 6) > 0.02)
+    fail(`dotLeft devolveu ${left.toFixed(2)}, esperado ~0.67`);
+  else if (errado > 1)
+    fail("dotLeft nao clampa: um relogio errado volta a pintar a tela de branco");
+  else console.log(`  ok o prazo do orbe sai do clock da simulacao (left ${left.toFixed(2)}, clampado)`);
+
+  alvo.draw(spy, cam, g.clock);
+  const aRuim = alphas.filter((v) => !(v >= 0 && v <= 1));
+  const rRuim = raios.filter((v) => !(v >= 0));
+  if (aRuim.length)
+    fail(`orbe de DoT pediu alpha fora de 0..1 (${aRuim[0]}) — sob \`lighter\` isso e a tela branca`);
+  else console.log(`  ok nenhum alpha fora de 0..1 em ${alphas.length} escritas`);
+  if (rRuim.length)
+    fail(`orbe de DoT pediu arc de raio ${rRuim[0]} — o browser levanta excecao e corta o frame`);
+  else console.log("  ok nenhum arc de raio negativo");
+}
+
 // expiracao natural com o alvo saindo de alcance (o caso do Ceifador/Contagio)
 g.start();
 g.build.acquirePiece("corruption");

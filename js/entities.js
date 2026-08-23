@@ -439,7 +439,7 @@ class Enemy {
       ctx.fillStyle = this.type.color;
       ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
     }
-    if (dotted) this.drawDotOver(ctx, sx, sy, r, spr, anim);
+    if (dotted) this.drawDotOver(ctx, sx, sy, r, spr, anim, now);
 
     /* UMA marca por corpo, a de maior prioridade. Duas marcas sobre o mesmo
        inimigo sao a mesma parede de informacao que o anel de podridao evita
@@ -497,8 +497,19 @@ class Enemy {
     }
     ctx.restore();
   }
-  // podridao sobre o inimigo: um orbe por DoT empilhado
-  drawDotOver(ctx, sx, sy, r, spr, anim) {
+  /* Podridao sobre o inimigo: um orbe por DoT empilhado.
+
+     DOIS relogios entram aqui, e confundi-los foi o bug que deixava a tela
+     branca. `t` (`dotAnim`) e a FASE da animacao: nasce sorteada por corpo e
+     so anda enquanto ha DoT, entao dois inimigos vizinhos nao giram em
+     sincronia. `now` e o relogio de SIMULACAO, e e nele que `d.endAt` vive.
+     Medir o prazo contra a fase dava `left` na casa das dezenas depois do
+     primeiro minuto de run — e `left` grande vira `depth` negativo, que vira
+     alpha negativo (ignorado pelo canvas, entao o orbe sai em opacidade cheia
+     sob `lighter`) e raio negativo no `arc`, que LEVANTA excecao e corta o
+     resto do frame. As duas fatias que leem prazo — `doom` (Soul Rupture,
+     Doom) e `unstable` — eram as unicas afetadas. */
+  drawDotOver(ctx, sx, sy, r, spr, anim, now) {
     const n = Math.min(3, this.dots.length);
     const fade = Math.min(1, n * 0.6);
     const pulse = this.dotPulse, t = this.dotAnim, col = this.dotColor;
@@ -537,13 +548,13 @@ class Enemy {
       } else if (d.look === "unstable") {
         // instavel: fica na fila da maldicao, mas TREME, e o tremor cresce
         // conforme o prazo acaba — o corpo avisa que vai estourar
-        const left = d.endAt ? Math.max(0, (d.endAt - t) / (d.duration || 1)) : 0.5;
+        const left = dotLeft(d, now);
         const j = (1 - left) * r * 0.22;
         px = sx + (i - (n - 1) / 2) * r * 0.6 + Math.sin(t * 21 + i) * j;
         py = sy - r * 1.2 + Math.cos(t * 17 + i * 2) * j;
         depth = 0.85 + (1 - left) * 0.4;
       } else if (d.look === "doom") {
-        const left = d.endAt ? Math.max(0, (d.endAt - t) / (d.duration || 1)) : 0.5;
+        const left = dotLeft(d, now);
         px = sx + Math.cos(a) * r * (0.35 + left * 1.3);
         py = sy - r * 0.1 + Math.sin(a) * r * (0.15 + left * 0.5);
         depth = 1.05 - left * 0.35;
@@ -551,6 +562,12 @@ class Enemy {
         px = sx + Math.cos(a) * r * 1.5;
         py = sy - r * 0.1 + Math.sin(a) * r * 0.55;
       }
+      /* Piso em zero, e nao e paranoia: alpha negativo o canvas RECUSA em
+         silencio (o valor anterior fica valendo, e sob `lighter` isso e um
+         orbe em opacidade cheia), e raio negativo no `arc` levanta excecao e
+         mata o resto do frame. Se uma fatia nova errar a conta do prazo, ela
+         some — nao pinta a tela. */
+      if (depth <= 0) continue;
       const w = r * 0.32 * depth * (1 + pulse * 0.3);
       ctx.globalAlpha = fade * 0.3 * depth;
       ctx.drawImage(blob, px - w, py - w, w * 2, w * 2);
@@ -788,6 +805,17 @@ class AreaEffect {
 
 /* Instancia de DoT. Vive no pool global do DotSystem e tambem no array
    `enemy.dots`. O tick e agendado por timestamp absoluto — nao roda por frame. */
+/* Quanto do prazo ainda falta, em 0..1. Vive fora da classe porque a galeria
+   (`vfx.html`) empurra objetos crus em `enemy.dots` para montar as cenas, e um
+   metodo nao alcancaria esses; e clampa em cima porque `endAt` e `duration`
+   sao dado de quem aplicou o DoT — quem desenha nao pode confiar neles para
+   nao passar de 1. Sem `endAt` (o caso da galeria) a resposta e meio prazo,
+   que e a pose neutra. */
+function dotLeft(d, now) {
+  if (!d.endAt) return 0.5;
+  return clamp((d.endAt - now) / (d.duration || 1), 0, 1);
+}
+
 class DotInstance {
   constructor() {}
   reset(obj, o) {
