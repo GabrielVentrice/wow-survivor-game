@@ -42,7 +42,7 @@ class Player {
     this.formIdx = 0;
     // Cor de cada forma, pre-resolvida: a luz de chao e desenhada por frame e
     // hexRgb aloca. Forma sem cor propria cai na cor da classe.
-    this.formRgb = this.forms.map((f) => hexRgb(f.color || cls.color || "#7a3cff"));
+    this.formRgb = this.forms.map((f) => hexRgb(f.color || cls.color || AXIS_PALETTE.dominion.base));
     this.vfxTime = 0;
     // Quanto tempo REAL de simulacao ainda resta da pose de cast. O unico input
     // em combate e movimento e nenhuma peca e conjurada a mao, entao sem isto o
@@ -447,7 +447,8 @@ class Enemy {
       const bw = r * 2, bh = 5, by = sy - r - 12;
       ctx.fillStyle = "rgba(0,0,0,0.6)";
       ctx.fillRect(sx - r, by, bw, bh);
-      ctx.fillStyle = "#ff3b6b";
+      // o vermelho da UI, e nao um segundo vermelho: duas listas divergem
+      ctx.fillStyle = UI_PAL.vida;
       ctx.fillRect(sx - r, by, bw * Math.max(0, this.hp / this.maxHp), bh);
     }
   }
@@ -625,7 +626,10 @@ class Projectile {
     const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 2);
     g.addColorStop(0, "#fff");
     g.addColorStop(0.4, this.color);
-    g.addColorStop(1, "rgba(122,60,255,0)");
+    // a borda e a PROPRIA cor indo a zero. Era um roxo cravado, entao todo
+    // tiro que nao fosse roxo desbotava para roxo no ultimo pixel — o cometa
+    // (a outra metade deste arquivo) sempre fez certo, e ninguem comparou.
+    g.addColorStop(1, `rgba(${this.rgb},0)`);
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(sx, sy, r * 2, 0, Math.PI * 2); ctx.fill();
   }
@@ -705,7 +709,7 @@ class AreaEffect {
     this.life = o.life; this.maxLife = o.life;
     this.tickInterval = o.tickInterval || 0.4;
     this.tickTimer = this.tickInterval;
-    this.color = o.color || "#ff7a2c";
+    this.color = o.color || AXIS_PALETTE.cataclysm.base;
     this.rgb = hexRgb(this.color);
     this.source = o.source;
     this.payload = o.payload || null;

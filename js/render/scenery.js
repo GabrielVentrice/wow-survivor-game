@@ -273,7 +273,11 @@ class Scenery {
       else if (sx > cam.w + 40) { e.x -= cam.w + 80; sx -= cam.w + 80; }
       const k = 0.35 + Math.sin(t * 2 + i * 1.7) * 0.3;
       ctx.globalAlpha = k * (0.11 + this.corruption * 0.17);
-      ctx.fillStyle = i % 5 === 0 ? "#c88aff" : "#a8ff6a";
+      /* A brasa no ar e do MUNDO, e o mundo e da Legiao: fel com uma em cada
+         cinco arcana. As duas saem de AXIS_PALETTE em vez de serem dois hexes
+         proprios — cenario que inventa a propria cor e a decima-nona paleta
+         que a `PAL` existe para nao deixar acontecer. */
+      ctx.fillStyle = i % 5 === 0 ? AXIS_PALETTE.dominion.light : AXIS_PALETTE.corruption.light;
       ctx.beginPath();
       ctx.arc(sx, sy, e.size, 0, Math.PI * 2);
       ctx.fill();
@@ -305,8 +309,9 @@ class Scenery {
         this._felW = w;
         this._fel = ctx.createRadialGradient(w / 2, h * 1.15, h * 0.2,
                                              w / 2, h * 1.15, h * 1.1);
-        this._fel.addColorStop(0, "rgba(120,255,90,0.55)");
-        this._fel.addColorStop(1, "rgba(60,180,40,0)");
+        // o veio no horizonte: a mesma familia da brasa, saindo da paleta
+        this._fel.addColorStop(0, `rgba(${hexRgb(AXIS_PALETTE.corruption.light)},0.55)`);
+        this._fel.addColorStop(1, `rgba(${hexRgb(AXIS_PALETTE.corruption.deep)},0)`);
       }
       ctx.fillStyle = this._fel;
       ctx.fillRect(0, 0, w, h);

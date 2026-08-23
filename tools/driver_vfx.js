@@ -43,18 +43,10 @@ Math.random = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147
    ========================================================================= */
 
 // Cor saturada cravada no codigo de render (fase 7).
-const DIVIDA_COR = {
-  "#ff3b6b": "barra de vida do chefe",
-  "rgba(122,60,255": "parada do gradiente do projetil: todo tiro de fogo desbota para roxo na borda",
-  "#7a3cff": "cor de classe de fallback",
-  "#ff7a2c": "cor de fallback da zona",
-  "#ffe6b0": "orbe generico de demonio (kind sem sprite)",
-  "#ffd24a": "olho do orbe generico de demonio (kind sem sprite)",
-  "#a8ff6a": "veio de fel do cenario",
-  "#c88aff": "veio arcano do cenario",
-  "rgba(120,255,90": "brasa do cenario",
-  "rgba(60,180,40": "brasa do cenario, tom baixo",
-};
+/* VAZIA. Nenhuma cor saturada cravada no codigo de render: toda cor que aparece
+   em tela sai de `PAL`, `AXIS_PALETTE` ou `UI_PAL`, ou entao veio do dado da
+   peca. A primeira que voltar reprova aqui. */
+const DIVIDA_COR = {};
 
 // Peca que dispara e nao desenha nada (fase 3).
 const DIVIDA_MUDA = {};

@@ -193,14 +193,14 @@ está ocupada.
 Ordenadas por dopamina-por-hora, não por elegância. Cada uma fecha sozinha,
 roda a bateria e commita.
 
-> **Estado:** fases 0 a 6 entregues (`feat/vfx-impacto`). Placar do
+> **Estado:** o plano acabou — fases 0 a 7 entregues (`feat/vfx-impacto`). Placar do
 > `driver_vfx`, do começo até aqui:
 >
 > | | fase 0 | fase 3 |
 > |---|---|---|
 > | assinaturas visuais distintas | 14 | **44 de 44** |
 > | peças que disparam sem desenhar nada | 8 | **0** |
-> | cores fora da paleta no render | 15 | **10** |
+> | cores fora da paleta no render | 15 | **0** |
 > | vozes | 0 | **20** |
 > | mecânicas sem tell (galeria) | 25 | **16** |
 
@@ -388,10 +388,16 @@ expira, marca expira, escudo decai), os alvos são reancorados e a vida do
 jogador fica presa — senão a horda fecha em cima dele e toda peça vira
 "desloca inimigo, drena vida".
 
-### Fase 7 — Limpeza de paleta (meia sessão)
-Ciano do escudo → `veil` na cor da peça. Anéis de controle → marcas em osso.
-Parada roxa do gradiente do projétil → cor do próprio tiro. Orbe genérico de
-demônio. Fecha o que a Fase 0 passou a reprovar.
+### ~~Fase 7 — Limpeza de paleta~~ ✅
+Zero cores cravadas. O ciano do escudo e os anéis de controle já tinham morrido
+nas fases 3 e 5; sobraram dez, e **duas eram bug e não estilo**: o projétil
+desbotava para roxo no último pixel (a parada final do gradiente era um roxo
+cravado, e o cometa no mesmo arquivo sempre fez certo) e a barra do chefe tinha
+um segundo vermelho, diferente do `UI_PAL.vida` que a identidade declara.
+
+O resto eram fallbacks e o cenário inventando a própria família de verde.
+
+`DIVIDA_COR` ficou **vazia** — a primeira cor cravada que voltar reprova.
 
 ---
 

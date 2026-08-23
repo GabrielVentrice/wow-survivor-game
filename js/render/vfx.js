@@ -753,12 +753,13 @@ function drawMinions(ctx, list, cam, now) {
     if (!spr) {
       const bob = anim.bob;
       const g = ctx.createRadialGradient(sx - r * 0.3, sy - r * 0.4 + bob, r * 0.15, sx, sy + bob, r);
-      g.addColorStop(0, "#ffe6b0");
+      g.addColorStop(0, PAL.bone2);
       g.addColorStop(0.55, m.color);
       g.addColorStop(1, "rgba(20,6,10,0.9)");
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(sx, sy + bob, r, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#ffd24a";
+      // olho de horda, nao de spell: a PAL reserva o rosa-sangue para isso
+      ctx.fillStyle = PAL.blood1;
       const ex = r * 0.32 * m.facing;
       ctx.beginPath();
       ctx.arc(sx - r * 0.3 + ex * 0.2, sy - r * 0.15 + bob, r * 0.16, 0, Math.PI * 2);

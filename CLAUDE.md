@@ -726,6 +726,33 @@ indistinguíveis de vizinhas até ganharem um segundo ponto:
 As três só existem porque `VfxLayer` aprendeu a carregar um segundo ponto na
 fase anterior — e nenhuma delas é uma forma nova.
 
+### Nenhuma cor cravada no render
+
+Toda cor que aparece em tela sai de `PAL`, `AXIS_PALETTE` ou `UI_PAL` — ou veio
+do dado da peça. `driver_vfx` varre `js/render/*.js` e `js/entities.js` e
+reprova qualquer literal com croma ≥ 24 que não esteja na paleta; neutro passa
+sozinho, porque contorno, sombra, vinheta e o branco de um flash não são
+decisão de identidade.
+
+**Cor de inimigo e de demônio NÃO entram na lista de autorizadas.** Elas são
+dado, e dado se referencia (`e.type.color`, `def.color`). O mesmo hex escrito à
+mão no render não é a cor daquele bicho, é coincidência — foi assim que o anel
+de stun virou o âmbar do Tirano e o de fear virou o roxo do Darkglare, e a
+coincidência passou anos lendo como intenção.
+
+Duas das quinze eram bug e não estilo:
+
+- **O projétil desbotava para roxo.** A última parada do gradiente era um roxo
+  cravado, então todo tiro que não fosse roxo terminava roxo no último pixel. O
+  cometa (a outra metade do mesmo arquivo) sempre usou a cor própria, e ninguém
+  comparou os dois.
+- **A barra do chefe tinha um segundo vermelho**, diferente do `UI_PAL.vida`
+  que a identidade declara. Duas listas divergem.
+
+O resto eram fallbacks (`cls.color || <hex>`) e o cenário inventando a própria
+família de verde — a décima-nona paleta que a `PAL` existe para não deixar
+acontecer.
+
 ### As quatro batidas: antecipação e resíduo
 
 Um evento tem quatro batidas — **antecipação, impacto, dissipação, resíduo** —
