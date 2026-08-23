@@ -285,7 +285,7 @@ Três defeitos motivaram o sistema, e cada regra abaixo conserta um deles:
 | R2 | **Cor é predicado** | Verde/roxo/laranja só aparecem quando aquele pixel está falando de Corrupção, Domínio ou Cataclismo. Vermelho existe só na barra de vida, no relógio da fase dura e no eyebrow do game over. Âmbar e ciano foram removidos. |
 | R3 | **Placa, não card** | Canto chanfrado — o jeito pixel de arredondar —, nunca `border-radius`. Fundo chapado. Profundidade é 1px claro em cima + 1px escuro embaixo: luz de cima-à-esquerda, a mesma regra do sprite. |
 | R4 | **Brilho é orçamento** | Uma tela tem um só emissor. No jogo é a build; na UI é nada. `filter:blur`, `text-shadow`, `backdrop-filter`, glow e `box-shadow` projetada estão proibidos. |
-| R5 | **Ícone sai do gerador do mundo** | Nenhum emoji, em lugar nenhum — nem no canvas (o item no chão também era `fillText` de emoji). |
+| R5 | **Ícone sai do gerador do mundo** | Nenhum emoji, em lugar nenhum — nem no canvas (o item no chão também era `fillText` de emoji, e depois um `fillRect`; hoje é grade, ver "Os dois drops"). |
 
 Quatro testes para tela que ainda não existe: **some a cor, ainda funciona?** ·
 **conte os elementos saturados** (mais de três, ou mais de um botão cheio, e a
@@ -634,6 +634,34 @@ acabou de acontecer". Consequências:
 - A voz dela é **o único som do jogo que sobe** em altura e brilho ao mesmo
   tempo. Todo o resto do combate cai (explosão, morte, execução, choque), e
   subir é o que faz o ouvido ler recompensa em vez de dano.
+
+### Os dois drops: objeto, não retângulo
+
+Baú e Ímã de Almas foram as duas últimas coisas do mundo desenhadas como
+geometria — `fillRect` dentro de `Pickup.draw`, um quadrado vazado e um
+quadrado chanfrado. Quadrado não é objeto: ele diz "tem alguma coisa aqui" e
+nada além disso, e estes dois são os únicos itens do jogo cujas respostas são
+**opostas** (um abre uma tela, o outro limpa o chão de XP). A diferença entre
+eles era matiz, entre osso e osso um pouco mais quente.
+
+Hoje são grade em `SPRITE_DATA` como o resto do elenco, e o dado é o mesmo par
+que inimigo e demônio carregam: `sprite` aponta para a grade e `art` é a altura
+desenhada em unidades de mundo — `linhas × PIXEL_UNIT`, que é o degrau 1.
+`driver_pixel` mede o degrau dos itens junto com o dos inimigos (é o único
+número do elenco digitado à mão, sem raio de onde cair) e `driver_render` cobra
+que todo item tenha grade, pelo mesmo motivo que cobra sprite de demônio.
+
+Três coisas que caem daí:
+
+- **A silhueta é que separa os dois**: caixa fechada com fecho contra ferradura
+  de duas pontas. Cor é a última variável, não a primeira.
+- **O drop ganhou o que todo corpo em tela já tinha** — contorno
+  (`drawSpriteRim`), para a arte não se dissolver dentro do próprio halo, e
+  sombra no chão. Sem a sombra, um objeto que flutua lê como adesivo colado na
+  câmera.
+- **A sombra sai do `y` SEM o hop**, e o hop mora em `anim.bob` (dentro de
+  `placeSprite`, então cai em pixel inteiro). É a diferença entre o objeto
+  subir e o desenho inteiro escorregar para cima.
 
 ### O gerador de formas: uma máquina, quatro eventos
 

@@ -1479,9 +1479,8 @@ function worldItems() {
   Object.keys(ITEMS).forEach((id) => {
     items.push({
       id: "item-" + id, name: ITEMS[id].name || id,
-      meta: "Pickup.draw — emoji + halo",
-      tell: "bob senoidal e halo na cor do item; o ícone é texto, não pixel art",
-      badge: "fora do grid de pixel",
+      meta: "Pickup.draw — luz no chão + sombra + sprite",
+      tell: "o objeto flutua em pixel inteiro sobre a própria sombra; a sombra não sobe junto, que é o que faz o hop ler como altura",
       size: 90, swatches: [ITEMS[id].color],
       refs: [ref("item", "ITEMS." + id + " (js/balance.js)"),
              ref("desenho", "Pickup.draw (js/entities.js)")],

@@ -103,6 +103,13 @@ for (const id in MINIONS) {
 for (const f of CLASSES.warlock.forms) {
   arts.push([f.sprite, "forma", SPRITE_DATA[f.sprite].rows.length, BALANCE.player.radius * f.scale]);
 }
+// The two drops are cell art too, and they are the ones with no radius to
+// derive a size from — the height is typed by hand in ITEMS, which is exactly
+// the number that drifts off the step without anyone seeing it.
+for (const id in ITEMS) {
+  const it = ITEMS[id];
+  if (it.sprite) arts.push([id, "item", SPRITE_DATA[it.sprite].rows.length, it.art]);
+}
 const steps = new Map();
 for (const [id, kind, rows, drawH] of arts) {
   const st = stepOf(rows, drawH);

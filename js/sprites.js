@@ -1522,6 +1522,58 @@ const SPRITE_DATA = {
       ".oo........oo.",
     ],
   },
+
+  /* --- Os dois drops -------------------------------------------------------
+     They were the last two things in the world still drawn as geometry: a
+     hollow square for the magnet and a bevelled square for the chest, both
+     `ctx.fillRect` inside `Pickup.draw`. A square is not an object — it says
+     "something is here" and nothing else, and these two are the only pickups
+     in the game whose two answers are opposite ("this opens a screen" vs
+     "this eats the floor"). Telling them apart by hue on a 12-unit square,
+     between bone and slightly-warmer bone, was never going to work.
+
+     They obey every rule the cast obeys: PAL ramps, one of the three inks,
+     light from the top-left, step 1. */
+
+  // Chest: stone body, gold straps and lock plate, and the keyhole is the one
+  // lit pixel — the Dreadlord's colour, on the thing his corpse leaves behind.
+  chest: {
+    pal: { o: PAL.inkWarm, d: PAL.stone0, m: PAL.stone1, l: PAL.stone2,
+           D: PAL.gold0, M: PAL.gold1, L: PAL.gold2, e: PAL.arc1 },
+    rows: [
+      "...oooooooo...",
+      "..olllLMlllo..",
+      ".ommmmMDmmmmo.",
+      ".oooooMDooooo.",
+      ".oMmmMLLMmmDo.",
+      ".oMddMeeMddDo.",
+      ".oMdddMMdddDo.",
+      ".oMddddddddDo.",
+      ".oooooooooooo.",
+      "..oo......oo..",
+    ],
+  },
+  /* Magnet: the horseshoe, because in this genre that shape IS the pickup that
+     drags the floor to you — the player reads it before he reads anything we
+     could invent. What makes it ours is the material: cold iron for the arch
+     and bone for the pole faces, so the contrast that says "these two ends are
+     the business end" is the same bone/iron pair the rest of the world uses.
+     No axis colour: a neutral reward belongs to no build. */
+  magnet: {
+    pal: { o: PAL.inkCold, d: PAL.steel0, m: PAL.steel1, l: PAL.steel2,
+           b: PAL.bone1, B: PAL.bone2 },
+    rows: [
+      "...ooooooo...",
+      ".olllmmmmmdo.",
+      "ollllmmmmmddo",
+      "ollllmmmmmddo",
+      "ollmo...ommdo",
+      "ollmo...ommdo",
+      "oBBBo...obbbo",
+      "oBBBo...obbbo",
+      "ooooo...ooooo",
+    ],
+  },
 };
 
 /* --- Marcas de estado ------------------------------------------------------

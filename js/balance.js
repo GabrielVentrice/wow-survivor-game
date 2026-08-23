@@ -498,7 +498,13 @@ const CLASSES = {
 };
 
 /* ITEMS: drops raros dos inimigos. dropChance por abate (x10 em bosses).
-   onPickup(game) aplica o efeito imediato ao coletar. */
+   onPickup(game) aplica o efeito imediato ao coletar.
+
+   `sprite` names a grid in SPRITE_DATA and `art` is the drawn height in world
+   units — the same pair ENEMIES and MINIONS carry, for the same reason: sprite
+   size is a step, and the author picks the step, not Math.round. Both numbers
+   below are `rows x PIXEL_UNIT`, which is the step 1 the whole cast draws at;
+   driver_pixel checks the items alongside the enemies. */
 const ITEMS = {
   magnet: {
     /* Per kill, and a run kills thousands: at 1.2% the magnet showed up so
@@ -506,13 +512,13 @@ const ITEMS = {
 
        Osso, nao ciano: recompensa neutra nao pertence a eixo nenhum, e o ciano
        era a cor que a raridade do bau usava — as duas sairam juntas. */
-    id: "magnet", name: "Ímã de Almas", art: "anel", color: "#98928A",
+    id: "magnet", name: "Ímã de Almas", sprite: "magnet", art: 27, color: "#98928A",
     dropChance: 0.004,
     desc: "Atrai todo o XP do chão para você.",
     onPickup(game) { for (const o of game.orbs.active) o.magnet = true; },
   },
   chest: {
-    id: "chest", name: "Baú do Dreadlord", art: "placa", color: "#C9C3BA",
+    id: "chest", name: "Baú do Dreadlord", sprite: "chest", art: 30, color: "#C9C3BA",
     dropChance: 0,        // só dropa de boss (garantido)
     silent: true,         // abre tela própria em vez de toast
     onPickup(game) { game.openChest(); },

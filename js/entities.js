@@ -879,40 +879,39 @@ class Pickup {
     this.item = ITEMS[itemId];
     this.bob = Math.random() * 6.28;
   }
-  /* Era um EMOJI desenhado com `fillText` em cima da pixel art: fonte do
-     sistema operacional, fora da grade de pixel, e trazendo paleta propria
-     (ciano e ambar, as duas cores que a identidade extinguiu). Agora e uma
-     das mesmas primitivas geometricas que a UI usa para os icones.
+  /* It was an EMOJI drawn with `fillText`, then a rectangle drawn with
+     `fillRect` — a hollow square for the magnet, a bevelled one for the chest.
+     The emoji was the worse crime, but the square was the longer-lived one:
+     two rewards that do opposite things (one opens a screen, the other eats
+     the floor) told apart by hue, between bone and slightly warmer bone, on a
+     shape that is not an object at all.
 
-     O tamanho e dado em unidades de MUNDO e so as bordas passam por
-     `snapUnit`: assim ele tem o mesmo tamanho aparente onde `PIXEL_GRID` nao
-     esta ligado (a galeria) e continua preso a grade dentro do jogo, que e
-     onde a camera anda em float e uma borda solta fervilha.
+     Now they are grids like everything else in the world, which means the drop
+     gets what every body on screen already had: the outline that keeps it from
+     dissolving inside its own halo, and a shadow on the floor that says the
+     thing is lying THERE and not floating in front of the camera.
 
-     Osso, e nunca `--osso-600` cheio: o branco puro e reserva do warlock. */
+     Three layers, in depth order: light on the ground, shadow, object. The hop
+     rides `anim.bob` — inside placeSprite, so it lands on whole pixels — and
+     the shadow is drawn off the unbobbed y, which is what makes the hop read
+     as height instead of as the whole drop sliding up and down. */
   draw(ctx, cam) {
     const sx = snapUnit(this.x - cam.left);
-    const sy = snapUnit(this.y - cam.top - Math.sin(this.bob) * 3);
-    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 18);
+    const sy = snapUnit(this.y - cam.top);
+    const spr = SPRITES[this.item.sprite];
+    const h = this.item.art;
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, h * 0.8);
     g.addColorStop(0, this.item.color);
     g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.globalAlpha = 0.55;
+    ctx.globalAlpha = 0.4;
     ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(sx, sy, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, h * 0.8, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
-    ctx.fillStyle = this.item.color;
-    const r = snapUnit(12), t = PIXEL_GRID * 2;
-    if (this.item.art === "anel") {
-      ctx.fillRect(sx - r, sy - r, r * 2, t);
-      ctx.fillRect(sx - r, sy + r - t, r * 2, t);
-      ctx.fillRect(sx - r, sy - r, t, r * 2);
-      ctx.fillRect(sx + r - t, sy - r, t, r * 2);
-    } else {
-      // placa: quadrado com o mesmo chanfro da UI, topo-esq e base-dir
-      const c = snapUnit(r * 0.5);
-      ctx.fillRect(sx - r + c, sy - r, r * 2 - c, r * 2 - c);
-      ctx.fillRect(sx - r, sy - r + c, r * 2 - c, r * 2 - c);
-    }
+    if (!spr) return;
+    drawShadow(ctx, sx, sy + h * 0.2, h * 0.3);
+    const anim = { bob: -(Math.sin(this.bob) + 1) * 3, frame: 0, cast: false, sclX: 1, sclY: 1, rot: 0 };
+    drawSpriteRim(ctx, spr, sx, sy, h, false, anim, PAL.inkDeep, 0.9);
+    drawSprite(ctx, spr, sx, sy, h, false, 0, anim);
   }
 }
 

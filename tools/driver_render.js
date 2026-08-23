@@ -79,6 +79,15 @@ for (const kind in MINIONS) {
   else if (!SPRITES[d.sprite]) fail(`demonio "${kind}" aponta para sprite inexistente "${d.sprite}"`);
   else if (!d.scale) fail(`demonio "${kind}" sem escala de desenho`);
 }
+/* Mesma regra para os drops, pelo mesmo motivo. Eles foram quadrado desenhado
+   com `fillRect` por tempo demais: um item sem grade propria e um premio que o
+   jogador so identifica depois de encostar nele. */
+for (const id in ITEMS) {
+  const it = ITEMS[id];
+  if (!it.sprite) fail(`item "${id}" sem sprite`);
+  else if (!SPRITES[it.sprite]) fail(`item "${id}" aponta para sprite inexistente "${it.sprite}"`);
+  else if (!it.art) fail(`item "${id}" sem altura de desenho`);
+}
 // e todos precisam desenhar: um de cada, cobrindo flip, `big` e o fade final
 const demos = Object.keys(MINIONS).map((kind, i) => ({
   kind, defKind: MINIONS[kind], x: i * 40, y: 0,
@@ -90,6 +99,17 @@ try {
   drawMinions(g.ctx, demos, g.camera, 1);
   console.log(`  ok ${demos.length} tipos de demonio desenham com sprite proprio`);
 } catch (e) { fail("drawMinions: " + e.message); console.error(e.stack); }
+
+// e os dois drops precisam desenhar de verdade, em todo ponto do hop
+try {
+  const drops = Object.keys(ITEMS).map((id, i) => {
+    const pk = new Pickup();
+    pk.reset(pk, i * 40, 0, id);
+    return pk;
+  });
+  for (let f = 0; f < 8; f++) for (const pk of drops) { pk.bob += 0.7; pk.draw(g.ctx, g.camera); }
+  console.log(`  ok ${drops.length} drop(s) desenham com grade propria, sombra e contorno`);
+} catch (e) { fail("Pickup.draw: " + e.message); console.error(e.stack); }
 
 // explosao: os quadros sao gerados uma vez por cor e a animacao precisa ter
 // forma — acender, abrir, esvaziar. Contar celulas pintadas e o jeito de ver

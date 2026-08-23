@@ -379,6 +379,33 @@ function minionItems() {
   });
 }
 
+// Os dois drops. Eles ficam ao lado do resto do elenco de propósito: o defeito
+// que eles tinham (um quadrado onde devia haver um objeto) é invisível no card
+// sozinho e óbvio na fileira em que a arte do jogo inteiro está.
+function dropItems() {
+  return Object.keys(ITEMS).filter((id) => ITEMS[id].sprite).map((id) => {
+    const it = ITEMS[id];
+    return {
+      id: it.sprite,
+      name: it.name,
+      meta: "altura " + it.art + "un · grid " + spriteDims(it.sprite) +
+            (it.dropChance ? " · drop " + (it.dropChance * 100).toFixed(1) + "%" : " · só de chefe"),
+      size: it.art * 1.6,
+      swatches: paletteOf(it.sprite),
+      refs: [spriteRef(it.sprite), { label: "item", text: "ITEMS." + id + " (js/balance.js)" },
+             { label: "desenho", text: "Pickup.draw (js/entities.js)" }],
+      draw(ctx, t) {
+        const spr = SPRITES[it.sprite], h = it.art;
+        const anim = { bob: -(Math.sin((S.anim ? t : 0) * 4) + 1) * 3, frame: 0, cast: false, sclX: 1, sclY: 1, rot: 0 };
+        if (S.shadow) drawShadow(ctx, 0, h * 0.2, h * 0.3);
+        if (S.rim) drawSpriteRim(ctx, spr, 0, 0, h, false, anim, "#05020a", 0.9);
+        paintSprite(ctx, spr, 0, 0, h, false, anim);
+        if (S.glow) drawSpriteGlow(ctx, spr, 0, 0, h, false, anim, it.color, 0.08);
+      },
+    };
+  });
+}
+
 // Sprites que existem no SPRITE_DATA mas que ninguém usa — a galeria é o único
 // lugar onde arte órfã aparece antes de virar peso morto no arquivo.
 function orphanItems() {
@@ -386,6 +413,7 @@ function orphanItems() {
   CLASSES.warlock.forms.forEach((f) => (used[f.sprite] = 1));
   Object.keys(ENEMIES).forEach((id) => (used[id] = 1));
   Object.keys(MINIONS).forEach((k) => { if (MINIONS[k].sprite) used[MINIONS[k].sprite] = 1; });
+  Object.keys(ITEMS).forEach((k) => { if (ITEMS[k].sprite) used[ITEMS[k].sprite] = 1; });
   return Object.keys(SPRITE_DATA).filter((id) => !used[id]).map((id) => ({
     id: id,
     name: "sem dono",
@@ -543,6 +571,7 @@ const SECTIONS = [
   { title: "Warlock", note: "As três formas do personagem. A forma muda com o número de capstones fechados — é a metamorfose, não a build, que diz o quanto ele deixou de ser humano.", items: playerItems() },
   { title: "Inimigos", note: "Altura = raio × ENEMIES.art, e o grid de pixel arredonda para um número inteiro de células. A horda é densa e frágil: a silhueta é o que diz o que está vindo.", items: enemyItems() },
   { title: "Demônios invocados", note: "Cada kind tem sprite próprio. Kind sem sprite cai no orbe genérico — e o driver_render reprova isso.", items: minionItems() },
+  { title: "Drops", note: "Os dois itens que caem no chão. O baú abre uma tela e o ímã limpa o campo — duas respostas opostas, então a diferença entre eles tem que ser de SILHUETA: um objeto fechado com fecho contra uma ferradura de duas pontas.", items: dropItems() },
   { title: "Portal", note: "Uma grade só, recolorida por feitiço. A boca é transparente de propósito: o vórtice gira atrás da moldura.", items: portalItems() },
   { title: "Formas de evento", note: "Quadros gerados em runtime a partir de um campo de calor amostrado numa grade — a mesma máquina para as quatro. O que muda entre elas não é só a silhueta: é a CURVA DE CALOR. O bloom queima cedo e esfria, o implode acende no fim, a nova nunca tem miolo, e o rip é o único que não é radial. Lado a lado é o único jeito de julgar se são quatro coisas ou quatro tunings da mesma.", items: explosionItems() },
   { title: "Chão", note: "Oito variantes de laje. Um tile só repetido é o que mais denuncia cenário procedural barato.", items: tileItems() },
