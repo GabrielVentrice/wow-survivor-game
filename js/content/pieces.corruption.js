@@ -122,7 +122,9 @@ Object.assign(PIECES, {
       { type: "damage_over_time", key: "unstableAffliction", dps: "@dps", duration: "@duration",
         tickInterval: "@tickInterval", color: "#a8f05c", radius: "@radius",
         stacking: { mode: "refresh", max: 1 },
-        onExpire: [{ type: "damage_instant", amount: "@blast", radius: "@blastRadius", big: true }] },
+        onExpire: [{ type: "damage_instant", amount: "@blast", radius: "@blastRadius", big: true,
+          // a instabilidade racha o corpo por dentro
+          shape: "rip" }] },
     ],
     paths: {
       instability: { name: "Instabilidade", tiers: [
@@ -251,7 +253,9 @@ Object.assign(PIECES, {
     stats: { chargeTime: 1.1, damage: 58, radius: 340 },
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: 0 },
     effects: [
-      { type: "damage_instant", amount: "@damage", radius: "@radius", onlyDotted: true, big: true },
+      { type: "damage_instant", amount: "@damage", radius: "@radius", onlyDotted: true, big: true,
+        // ela RASGA o que ja estava apodrecendo — e o talho, nao a bola de fogo
+        shape: "rip" },
     ],
     paths: {
       rapture: { name: "Êxtase", tiers: [
@@ -336,6 +340,8 @@ Object.assign(PIECES, {
     trigger: { type: "aura", interval: "@interval" },
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius",
+        // dreno PUXA: a casca converge para o warlock em vez de estourar
+        shape: "implode",
         onHit: [
           { type: "heal", frac: "@heal" },
           { type: "damage_over_time", key: "soulRot", dps: "@dotDps", duration: "@dotTime",

@@ -234,7 +234,16 @@ const VFX_LIFE = {
   burst: 0.46, shock: 0.3, spread: 0.6, jump: 0.25, summon: 0.4,
   unsummon: 0.3, execute: 0.4, echo: 0.5, blink: 0.35, heal: 0.6,
   portal: 0.9, reap: 0.55, link: 0.28, dash: 0.2,
+  // as tres formas novas sao eventos por direito proprio: cada uma tem vida,
+  // desenho e voz. `burst` continua sendo o nome do `bloom` — ele esta em
+  // dezesseis pecas e num hash de referencia, e renomear so para ficar
+  // simetrico custaria mais do que a simetria vale.
+  implode: 0.5, nova: 0.42, rip: 0.4,
 };
+
+/* Kind do evento -> forma no gerador. E um mapa e nao uma igualdade porque o
+   `burst` e mais velho que o gerador. */
+const EVENT_SHAPE = { burst: "bloom", implode: "implode", nova: "nova", rip: "rip" };
 
 // Which variant of a multi-variant vfx this instance gets. A counter, not
 // Math.random(): two explosions in the same frame must not land on the same
@@ -279,8 +288,8 @@ class VfxLayer {
       const a = (1 - k) * (1 - k);      // brilho: cai antes da forma parar
       const x = v.x - cam.left, y = v.y - cam.top;
       switch (v.kind) {
-        case "burst": {
-          drawExplosion(ctx, x, y, v.r, k, v.color, v.seed);
+        case "burst": case "implode": case "nova": case "rip": {
+          drawFxEvent(ctx, EVENT_SHAPE[v.kind], x, y, v.r, k, v.color, v.seed);
           break;
         }
         case "echo": {
@@ -467,18 +476,24 @@ class VfxLayer {
 
    The whole thing is one blob + one blit + one stroke. No allocation, no
    gradient, nothing that scales with how many explosions are on screen. */
-function drawExplosion(ctx, x, y, r, k, color, seed) {
-  // The requested size picks the grid: the ball is born with the number of
+function drawFxEvent(ctx, shape, x, y, r, k, color, seed) {
+  // The requested size picks the grid: the form is born with the number of
   // cells it will occupy in the buffer, so the blit is 1:1 and cells stay
   // square.
   const G = explosionGrid((r * 2.6) / PIXEL_GRID);
-  const set = explosionFrames(color, G);
+  const set = fxFrames(shape, color, G);
   const frames = set[(seed >> 1) % set.length];
   const fi = Math.min(frames.length - 1, Math.floor(k * frames.length));
   const size = G * PIXEL_GRID;              // grid half = 1.3r, fireball tops near 0.9r
 
   ctx.save();
-  const flash = Math.max(0, 1 - k * 3);
+  /* O clarao acompanha a CURVA DE CALOR da forma, e nao o comeco da vida. No
+     `bloom` o calor esta no primeiro terco; no `implode` ele chega no fim, e um
+     clarao na ignicao contaria a historia ao contrario — o evento inteiro
+     existe para o estouro chegar depois do colapso. */
+  const late = FX_SHAPES[shape] && FX_SHAPES[shape].lateFlash;
+  const flash = late ? Math.max(0, 1 - Math.abs(k - 0.78) * 5)
+                     : Math.max(0, 1 - k * 3);
   if (flash > 0) {
     const fr = r * (1.05 + (1 - flash) * 0.7);
     ctx.globalAlpha = flash * 0.6;
@@ -499,7 +514,7 @@ function drawExplosion(ctx, x, y, r, k, color, seed) {
      explosao pegou. Amarrar a alpha na curva do raio apagaria o anel no
      primeiro decimo da vida, quando ele ainda esta dizendo o que importa. */
   const rt = Math.min(1, k * 2.4);
-  if (rt < 1) {
+  if (rt < 1 && !late) {
     const fade = 1 - rt;
     ctx.strokeStyle = `rgba(255,255,255,${(fade * 0.6).toFixed(2)})`;
     ctx.lineWidth = 1 + fade * 3;
@@ -713,4 +728,9 @@ function drawPieceOverlays(ctx, build, player, cam) {
       ctx.globalAlpha = 1;
     }
   }
+}
+
+// O nome antigo continua: a explosao e um caso de `drawFxEvent`.
+function drawExplosion(ctx, x, y, r, k, color, seed) {
+  drawFxEvent(ctx, "bloom", x, y, r, k, color, seed);
 }

@@ -64,13 +64,10 @@ const DIVIDA_MUDA = {
 
 // Pecas que desenham exatamente a mesma coisa (fase 5). Chave = assinatura.
 const DIVIDA_IRMAS = {
-  "minion+vfx:summon": "todo demonio nasce do mesmo anel fechando",
   "dot": "aplicar DoT nao tem evento proprio: so a nevoa generica no alvo",
   "vfx:burst": "a bola de fogo unica, em peca de dano em area puro",
   "area": "um desenho de zona para toda zona do jogo",
   "veil": "as pecas de escudo, todas na mesma casca",
-  "dot+vfx:burst": "DoT com estouro junto",
-  "veil+vfx:burst": "escudo com estouro junto",
   "vfx:heal": "a cruz de cura, identica em toda peca que cura",
 };
 
@@ -216,6 +213,14 @@ function assinar(id) {
      tem que caber aqui, senao "muda" quer dizer "nao consegui provocar". */
   const alvo = alvos(8);
   apodrecer(alvo);
+
+  /* E UM DEMONIO em campo. Grimoire of Sacrifice e Dark Pact consomem um pet;
+     sem nenhum vivo, `sacrificeOne` devolve nada e as duas pecas saem com a
+     assinatura de metade delas. E a mesma regra dos alvos: toda condicao que a
+     peca declara tem que caber na mesa. */
+  g.minions.summon({ kind: "imp", count: 1, duration: 30 },
+                   { key: "fixture", color: "#9a4cff", now: g.clock,
+                     x: g.player.x + 30, y: g.player.y });
   const dotBase = alvo.map((e) => e.dots.length);
   const antes = {
     proj: g.projectiles.active.length, area: g.areas.active.length,
@@ -228,6 +233,7 @@ function assinar(id) {
   /* Contagem de PICO, nao do fim: um projetil nasce e some no mesmo intervalo
      (a 480 u/s ele cobre os 70 ate o alvo em 0,15s), e olhar so o estado final
      dava Incinerate como peca que nao desenha nada. */
+  const vistoAntes = new Set(g.minions.active);
   const pico = { proj: antes.proj, area: antes.area, minion: antes.minion };
   const marcar = () => {
     pico.proj = Math.max(pico.proj, g.projectiles.active.length);
@@ -247,7 +253,12 @@ function assinar(id) {
   for (const k of emitido) desenha.add("vfx:" + k);
   if (pico.proj > antes.proj) desenha.add("proj");
   if (pico.area > antes.area) desenha.add("area");
-  if (pico.minion > antes.minion) desenha.add("minion");
+  /* O demonio entra na assinatura pelo KIND, e nao como "invocou algo": seis
+     pecas invocam, e o que o jogador ve nao e o anel — e o bicho. Silhueta
+     propria por tipo ja e regra (`driver_render` reprova demonio sem sprite),
+     entao contar as seis como irmas visuais seria o driver ignorando a
+     distincao mais forte que essas pecas tem. */
+  for (const m of g.minions.active) if (!vistoAntes.has(m)) desenha.add("minion:" + m.kind);
   if (alvo.some((e, i) => e.dots.length > dotBase[i])) desenha.add("dot");
   if (g.player.shield > antes.escudo) desenha.add("veil");
 

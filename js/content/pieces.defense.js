@@ -15,6 +15,8 @@ Object.assign(PIECES, {
     trigger: { type: "aura", interval: "@interval" },
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius",
+        // dreno PUXA: a casca converge para o warlock em vez de estourar
+        shape: "implode",
         onHit: [{ type: "heal", frac: "@heal" }] },
     ],
     paths: {

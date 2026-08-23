@@ -193,15 +193,15 @@ está ocupada.
 Ordenadas por dopamina-por-hora, não por elegância. Cada uma fecha sozinha,
 roda a bateria e commita.
 
-> **Estado:** fases 0 a 4 entregues (`feat/vfx-impacto`). Placar do
+> **Estado:** fases 0 a 5 (primeira fatia) entregues (`feat/vfx-impacto`). Placar do
 > `driver_vfx`, do começo até aqui:
 >
 > | | fase 0 | fase 3 |
 > |---|---|---|
-> | assinaturas visuais distintas | 14 | **24** |
+> | assinaturas visuais distintas | 14 | **33** |
 > | peças que disparam sem desenhar nada | 8 | **1** |
 > | cores fora da paleta no render | 15 | **11** |
-> | vozes | 0 | **17** |
+> | vozes | 0 | **20** |
 > | mecânicas sem tell (galeria) | 25 | **16** |
 
 ### ~~Fase 0 — Instrumentação~~ ✅
@@ -344,9 +344,35 @@ Nenhuma mudança de conteúdo, como planejado: as quatro formas existem e são
 revisáveis lado a lado na `sprites.html`, e ninguém as usa ainda — é a fase 5
 que liga cada peça à sua.
 
-### Fase 5 — Assinatura por peça (2–3 sessões)
-Os oito archetypes restantes e o campo `fx` em todas as 43. É aqui que "repetido"
-acaba. Sub-lotes por eixo, para cada commit ser revisável na galeria.
+### Fase 5 — Assinatura por peça (em andamento)
+
+**Fatia 1 entregue.** O mecanismo e as quatro formas ligadas ao catálogo:
+`shape` é um campo do **efeito** (não da peça), então um tier que reescreve
+`effects.N` troca a identidade de graça — que é o que um caminho de upgrade faz.
+
+O que a fatia ensinou, e que não estava no plano: **distinguir não é só forma e
+cor, é também RELAÇÃO.** Três peças eram indistinguíveis de vizinhas e nenhuma
+precisou de forma nova — precisaram do segundo ponto que a fase 3 criou:
+Grimoire (o pacto é uma transferência), Enslave Demon (escravizar toma um corpo
+que já estava ali) e Demonic Circle (os dois anéis eram um movimento só).
+
+E o driver estava contando errado de novo: seis peças caíam em
+`minion+vfx:summon` como se fossem iguais, quando **o que o jogador vê não é o
+anel, é o bicho** — silhueta própria por tipo já é regra do projeto. A
+assinatura passou a carregar o *kind* do demônio.
+
+Resultado: **14 → 33 assinaturas distintas**, e as peças presas em colisão
+caíram de 30 para 14.
+
+**Fatia 2 (o que falta).** Os quatro grupos que sobraram, e cada um pede um
+arquétipo que ainda não existe:
+
+| grupo | peças | precisa de |
+|---|---|---|
+| `dot` | 5 | `spore` — aplicar DoT não tem evento nenhum |
+| `area` | 3 | um desenho de zona por família, não um círculo para todas |
+| `veil` | 2 | a casca de escudo compartilhada |
+| `vfx:heal` | 2 | `siphon` |
 
 ### Fase 6 — Antecipação e resíduo (1 sessão)
 A batida 1 e a batida 4 em quem ganha mais com elas: sombra no chão antes do

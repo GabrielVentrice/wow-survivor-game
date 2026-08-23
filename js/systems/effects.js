@@ -154,7 +154,14 @@ const EFFECTS = {
       if (e.onHit) { const n = childCtx(game, c, en, dealt); runEffects(game, e.onHit, n); popCtx(game); }
     }
     c.amount = amt;
-    if (e.radius > 0) game.emitVfx("burst", c.x, c.y, e.radius, c.color);
+    /* A FORMA mora no efeito, nao na peca. Dois motivos, e o segundo e o que
+       decide: um tier que reescreve `effects.N` troca a forma de graca, sem
+       nenhuma maquinaria de patch nova — que e literalmente o que um caminho
+       de upgrade faz quando muda a identidade da peca. E uma peca pode ter
+       dois efeitos com formas diferentes.
+
+       Sem forma declarada, `burst`: a detonacao continua sendo o padrao. */
+    if (e.radius > 0) game.emitVfx(e.shape || "burst", c.x, c.y, e.radius, c.color);
     else if (list.length) game.emitSfx("hit", c.x, c.y, 0.2);
   },
 
@@ -293,7 +300,7 @@ const EFFECTS = {
       if (targets[i].type.boss && !e.affectsBoss) continue;
       targets[i].stunUntil = Math.max(targets[i].stunUntil, until);
     }
-    if (e.radius > 0) game.emitVfx("shock", c.x, c.y, e.radius, c.color);
+    if (e.radius > 0) game.emitVfx(e.shape || "shock", c.x, c.y, e.radius, c.color);
   },
 
   fear(game, e, c) {

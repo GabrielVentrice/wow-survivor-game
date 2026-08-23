@@ -87,6 +87,43 @@ const VOICES = {
     },
   },
 
+  /* Implosao. O som segue a MESMA curva da forma: ele comeca como sucção —
+     ruido subindo com o filtro fechando, que e o oposto do sopro que abre — e
+     so entao vem o baque. Um estouro colado no comeco contaria a historia ao
+     contrario, e ai a forma e a voz estariam discordando sobre o que
+     aconteceu. */
+  implode: {
+    gap: 0.13,
+    play(s, t, o) {
+      s._wash(t, 0.3, 2400, 260, 1.6, 0.045 * o.v, 0.9);
+      s._sweep(t, 380, 90, 0.32, "sawtooth", 0.03 * o.v, 900);
+      s._burst(t + 0.26, 0.16, "lowpass", 620 - o.size * 200, 1, 0.075 * o.v, 0.6);
+      s._sweep(t + 0.26, 120 - o.size * 30, 34, 0.3, "sine", 0.085 * o.v);
+    },
+  },
+
+  /* Nova: a casca varrendo, sem miolo. So filtro e ar — nenhum grave, porque
+     grave le como massa e esta forma nao tem massa nenhuma. */
+  nova: {
+    gap: 0.13,
+    play(s, t, o) {
+      s._burst(t, 0.03, "bandpass", 3600, 14, 0.03 * o.v, 1.0);
+      s._wash(t, 0.3, 600, 3200, 1.3, 0.055 * o.v, 1.0);
+      s._sweep(t, 700, 180, 0.26, "triangle", 0.03 * o.v, 2000);
+    },
+  },
+
+  /* Rip: o talho. Curto, seco e sem cauda — a fenda abre e fecha, e o que o
+     ouvido precisa saber e que alguma coisa foi RASGADA, nao que explodiu. */
+  rip: {
+    gap: 0.12,
+    play(s, t, o) {
+      s._burst(t, 0.06, "highpass", 2200, 0.9, 0.05 * o.v, 1.7);
+      s._wash(t + 0.02, 0.18, 900, 2600, 2.2, 0.04 * o.v, 1.3);
+      s._sweep(t + 0.01, 320, 110, 0.16, "sawtooth", 0.035 * o.v, 1200);
+    },
+  },
+
   // Onda de choque: uma serra despencando enquanto o anel varre o chao.
   shock: {
     gap: 0.14,

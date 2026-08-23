@@ -113,6 +113,7 @@ const FX_SHAPES = {
   implode: {
     shards: 10,
     inward: true,
+    lateFlash: true,        // o clarao chega no fim; ver drawFxEvent
     cool: (u) => 0.55 + u * 0.95,
     begin(u, variant, half) {
       const R = half * 0.74;

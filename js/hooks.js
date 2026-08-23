@@ -155,11 +155,18 @@ const HOOKS = {
 
   // Grimoire of Sacrifice: devora o pet permanentemente. Perde Dominio em
   // troca de escudo e dano — a evolucao que desmonta a propria build.
+  /* O pacto: o demonio e consumido LA e o poder chega AQUI. Emitir so o
+     colapso no lugar dele deixava a peca com a mesma leitura da Implosion — as
+     duas devoram um demonio e devolvem escudo —, e a diferenca entre as duas e
+     justamente que esta e uma transferencia, nao uma detonacao. O filamento e
+     o que conta isso, e ele so existe porque a camada de vfx aprendeu a
+     carregar um segundo ponto. */
   grimoire(game, e, c) {
     const m = game.minions.sacrificeOne();
     if (!m) return;
     game.player.addShield(e.amount || 60, e.cap);
-    game.emitVfx("burst", m.x, m.y, 80, c.color);
+    game.emitVfx("implode", m.x, m.y, 80, c.color);
+    game.emitVfx("link", m.x, m.y, 0, c.color, game.player.x, game.player.y);
   },
 
   // Soulstone: cargas de revive, repostas pela aura e consumidas sozinhas.

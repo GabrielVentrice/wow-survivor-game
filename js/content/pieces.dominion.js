@@ -238,7 +238,9 @@ Object.assign(PIECES, {
     stats: { blast: 60, radius: 170, cooldown: 1.4, shield: 20 },
     trigger: { type: "reactive", event: "player_damaged", cooldown: "@cooldown", atPlayer: true },
     effects: [
-      { type: "damage_instant", amount: "@blast", radius: "@radius", big: true },
+      { type: "damage_instant", amount: "@blast", radius: "@radius", big: true,
+        // o imp detona para DENTRO: o clarao chega depois do colapso
+        shape: "implode" },
       { type: "shield", amount: "@shield", cap: 150 },
     ],
     paths: {
@@ -332,7 +334,13 @@ Object.assign(PIECES, {
       { type: "summon", kind: "tyrant", ai: "anchor", count: 1, cap: "@count", big: true,
         duration: "@duration", damage: "@damage", range: "@range",
         attackInterval: "@attackInterval",
-        onHit: [{ type: "damage_instant", amount: "@damage*0.7", radius: "@cleave", big: true }] },
+        onHit: [{ type: "damage_instant", amount: "@damage*0.7", radius: "@cleave", big: true,
+          /* Onda de comando, nao bola de fogo. Ela e o par visual do Infernal
+             — as duas invocam algo grande que bate em area — e a diferenca
+             tem que estar na FORMA, porque a cor nao pode ajudar: a do Tirano
+             e roxa por ser Dominio, e a do Infernal e laranja por ser
+             Cataclismo, e matiz ja esta ocupado dizendo o eixo. */
+          shape: "nova" }] },
     ],
     paths: {
       swarm: { name: "Autônomo", tiers: [
@@ -376,7 +384,9 @@ Object.assign(PIECES, {
     trigger: { type: "aura", interval: "@interval" },
     effects: [
       { type: "hook", name: "grimoire", amount: "@shield", cap: "@cap" },
-      { type: "damage_instant", amount: "@damage", radius: "@radius", big: true },
+      { type: "damage_instant", amount: "@damage", radius: "@radius", big: true,
+        // o pet e consumido, nao explodido
+        shape: "implode" },
       { type: "shield", amount: "@shield", cap: "@cap" },
     ],
     paths: {

@@ -656,6 +656,41 @@ O campo (`fxField`) vive separado do desenho pelos dois motivos acima: é o que
 o driver compara, e é a única coisa que muda entre arquétipos — o painter é um
 só.
 
+### A forma mora no EFEITO, não na peça
+
+Ligar o gerador ao catálogo é uma linha de dado:
+
+```js
+{ type: "damage_instant", amount: "@blast", radius: "@radius", shape: "implode" }
+```
+
+Sem `shape`, `burst` — a detonação continua sendo o padrão, e as dezesseis
+peças que não declaram nada não mudaram. Dois motivos para o campo morar no
+efeito e não na peça, e o segundo é o que decide:
+
+1. Uma peça pode ter dois efeitos com formas diferentes.
+2. **Um tier que reescreve `effects.N` troca a forma de graça**, sem nenhuma
+   maquinaria de patch nova — e trocar a identidade da peça é literalmente o
+   que um caminho de upgrade faz.
+
+**A cor não pode ajudar a distinguir, então a forma tem que fazer o trabalho
+sozinha.** O par mais claro é Infernal e Demonic Tyrant: as duas invocam algo
+grande que bate em área, e matiz já está ocupado dizendo o eixo (laranja porque
+é Cataclismo, roxo porque é Domínio). O Infernal é impacto de meteoro (`bloom`);
+o Tirano é **onda de comando** (`nova`), sem miolo de fogo.
+
+**E há um terceiro formato além de forma e cor: a RELAÇÃO.** Três peças eram
+indistinguíveis de vizinhas até ganharem um segundo ponto:
+
+| peça | era lida como | o que faltava |
+|---|---|---|
+| Grimoire of Sacrifice | Implosion (as duas devoram um pet e dão escudo) | o pacto é uma **transferência**: o filamento do demônio até o warlock |
+| Enslave Demon | invocar um felguard | escravizar **toma** um corpo que já estava ali: a coleira sai do warlock |
+| Demonic Circle | dois anéis sem parentesco | era **um** movimento: o rastro liga saída e chegada |
+
+As três só existem porque `VfxLayer` aprendeu a carregar um segundo ponto na
+fase anterior — e nenhuma delas é uma forma nova.
+
 ### Mecânica que cobra, avisa
 
 Vinte e cinco mecânicas mudavam o jogo sem gastar um pixel. Três formatos de

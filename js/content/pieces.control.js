@@ -101,8 +101,9 @@ Object.assign(PIECES, {
     stats: { interval: 6, radius: 190, duration: 1.2, damage: 30 },
     trigger: { type: "aura", interval: "@interval" },
     effects: [
-      { type: "stun", duration: "@duration", radius: "@radius" },
-      { type: "damage_instant", amount: "@damage", radius: "@radius" },
+      { type: "stun", duration: "@duration", radius: "@radius", shape: "nova" },
+      // a casca varrendo o chao: o que ela informa e ate onde o controle pegou
+      { type: "damage_instant", amount: "@damage", radius: "@radius", shape: "nova" },
     ],
     paths: {
       hold: { name: "Trava", tiers: [

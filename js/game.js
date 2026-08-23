@@ -298,6 +298,12 @@ class Game {
     }, n);
     popCtx(this);
     this.emitVfx("summon", e.x, e.y, 40, c.color);
+    /* A coleira. Escravizar devolvia exatamente o que invocar devolvia — o
+       mesmo anel fechando e o mesmo demonio nascendo —, e as duas coisas nao
+       sao a mesma: uma conjura do nada e a outra TOMA um corpo que ja estava
+       ali. O filamento saindo do warlock e o que diz de quem aquilo passou a
+       ser. */
+    this.emitVfx("link", this.player.x, this.player.y, 0, c.color, e.x, e.y);
   }
 
   /* --- o funil de dano ----------------------------------------------------
