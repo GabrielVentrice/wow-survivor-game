@@ -108,7 +108,7 @@ const BALANCE = {
      nao `window` que sobe. */
   combo: {
     window: 0.1,                      // segundos entre dois abates da cadeia
-    min: 3,                           // a partir daqui a cadeia aparece
+    min: 50,                          // a partir daqui a cadeia aparece
     tiers: [10, 40, 120],             // degraus que engordam o numero
     size: [48, 64, 84, 108],          // px do numero, por degrau
     swell: [0.10, 0.16, 0.24, 0.34],  // quanto ele salta, por degrau
