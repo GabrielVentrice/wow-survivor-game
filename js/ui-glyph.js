@@ -88,7 +88,13 @@ const GLIFO_SPRITE = {
   // hunter: a peca que invoca a matilha usa a grade do proprio lobo — e o
   // unico caso em que o icone pode ser a coisa em vez de um simbolo dela.
   wildThrash: "wolf",
-  hunter: "wolf",
+  callOfTheWild: "boar",
+  animalCompanion: "bear",
+  shellCover: "turtle",
+  blackArrow: "spectre",
+  howlOfThePackLeader: "wyvern",
+  // o hunter em pessoa, para a placa de classe do menu
+  hunter: "hunter",
 };
 
 /* A primitiva de cada peca. Nao ilustra — distingue. O criterio e a FORMA da

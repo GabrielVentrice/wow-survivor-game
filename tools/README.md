@@ -28,6 +28,8 @@ DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câ
 DRIVER=driver_vfx.js   node tools/harness.js .   # vfx: assinatura de cada peça, cor no render, voz de cada evento, ceifa e cadeia
 DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homing não fecha, e alvo próprio por tiro
 DRIVER=driver_trigger.js node tools/harness.js .  # os triggers do hunter: trap inerte/carga/rearme, leading parado, pack em formação
+DRIVER=driver_class.js node tools/harness.js . 12          # a classe fecha a própria progressão, e nada vaza entre classes
+DRIVER=driver_class.js node tools/harness.js . 12 mortal   # o mesmo, sem imortalidade, warlock e hunter lado a lado
 DRIVER=driver_preview.js node tools/harness.js . # escreve tools/telas-preview.html: as 6 telas de UI (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
@@ -38,6 +40,25 @@ DRIVER=driver_perf.js node tools/harness.js . 12        # custo de frame com a h
 DRIVER=driver_autopsy.js node tools/harness.js . 8 4          # autopsia: QUEM matou o jogador
 DRIVER=driver_autopsy.js node tools/harness.js . 8 4 sweep    # o mesmo, comparando variantes de tuning
 ```
+
+## `driver_class` — a classe fecha, e não vaza
+
+Duas perguntas, e as duas só passaram a existir quando o jogo ganhou a segunda
+classe.
+
+**Completável.** Uma run que mira um eixo chega à pool cheia, ao capstone e à
+spell fechada? Um catálogo pode validar inteiro no registry e mesmo assim nunca
+fechar nada — foi exatamente o que aconteceu com o warlock antes da separação
+das duas telas de escolha (0 capstones em 16 runs). O jogador é **imortal** aqui
+de propósito, como em `driver.js`: quem mede sobrevivência é `driver_balance`, e
+misturar as duas perguntas fez a primeira versão deste driver "reprovar" o
+hunter por uma coisa que o warlock também faz — morrer aos dois minutos. O modo
+`mortal` roda a mesma política nas duas classes e imprime lado a lado, que é a
+única forma honesta de comparar.
+
+**Estanque.** Nenhuma peça, passiva ou capstone da outra classe entra na build.
+`driver.js` confere `cls` no dado; este confere o que a build **efetivamente
+recebeu** numa run inteira, que é o lado por onde o vazamento apareceria.
 
 ## `driver_trigger` — o contrato de cada trigger novo
 

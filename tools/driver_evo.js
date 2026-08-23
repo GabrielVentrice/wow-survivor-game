@@ -78,15 +78,23 @@ for (const [id, pid, into] of evos) {
 
 /* --- 2. capstones -------------------------------------------------------- */
 console.log(`--- ${Object.keys(CAPSTONES).length} capstones ---`);
+/* A run tem que ser da CLASSE do capstone. `checkCapstones` filtra por `cls`, e
+   `build.axis` so tem as chaves dos eixos daquela classe — cravar
+   `axis.trapping` numa run de warlock nao destrava nada, so cria uma chave que
+   ninguem le. Foi essa a regra que o filtro por classe introduziu, e ela e a
+   mesma que impede o capstone do hunter de abrir sozinho num warlock. */
+const PECAS_DA_CLASSE = {
+  warlock: ["corruption", "immolate", "wildImps", "felguard", "incinerate", "agony", "rainOfFire"],
+  hunter: ["killCommand", "wildThrash", "tarTrap", "arcaneShot", "serpentSting",
+           "shellCover", "raptorStrike"],
+};
 for (const cid in CAPSTONES) {
   const cap = CAPSTONES[cid];
+  g.selectedClass = cap.cls;
   g.start();
   try {
-    // pecas de todos os eixos, para os hooks terem com o que trabalhar
-    for (const pid of ["corruption", "immolate", "wildImps", "felguard",
-                       "incinerate", "agony", "rainOfFire"]) {
-      g.build.acquirePiece(pid);
-    }
+    // pecas da classe, para os hooks terem com o que trabalhar
+    for (const pid of PECAS_DA_CLASSE[cap.cls] || []) g.build.acquirePiece(pid);
     for (const a in cap.req) g.build.axis[a] = cap.req[a];
     const newly = g.build.checkCapstones();
     g.build.afterChange();
@@ -99,6 +107,7 @@ for (const cid in CAPSTONES) {
                 `${g.minions.active.length} demonios, ${g.dots.active.length} dots`);
   } catch (e) { fail(`${cid}: erro`, e); console.error(e.stack); }
 }
+g.selectedClass = "warlock";
 
 /* --- 3. regra dos 2 caminhos profundos ----------------------------------- */
 console.log("--- regras estruturais ---");

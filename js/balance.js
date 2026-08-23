@@ -682,13 +682,23 @@ const CLASSES = {
     name: "Hunter",
     tag: "Matilha · Mira · Emboscada",
     color: "#e0b833",
-    available: false,
+    available: true,
     glyph: "hunter",
     axes: ["pack", "precision", "trapping"],
     systems: ["aspect"],
     base: { maxHp: 110, speed: 250 },
-    starting: [],
-    forms: null,
+    /* Kit inicial: UMA peca, e a mesma regra do warlock — a mais neutra do
+       catalogo, entrando de graca para o pool de 20 ficar inteiro. Kill Command
+       mira sozinha e nao pede nada do jogador, entao a primeira etapa continua
+       sendo descoberta e nao confirmacao. */
+    starting: ["killCommand"],
+    /* FORMA UNICA, e e uma posicao declarada e nao uma lacuna: o corpo do
+       hunter nao conta a progressao da run. `driver_form` cobra cobertura de
+       capstone so de quem declara mais de uma forma — o que ele proibe e a
+       cobertura pela METADE, tres formas para oito finais. */
+    forms: [
+      { sprite: "hunter", scale: 3.375 },
+    ],
   },
   mage:   { id: "mage",   name: "Mage",   tag: "Em breve", color: "#3fa9f5", available: false },
 };

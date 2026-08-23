@@ -49,6 +49,12 @@ sem tell em tela ganha tarja laranja, e o filtro "só o que não anima" lista as
 25 que hoje mudam o jogo em silêncio. `driver_gallery` reprova card que estoura,
 card mudo e registry que passou na frente da galeria.
 
+`DRIVER=driver_class.js node tools/harness.js . 12` pergunta se uma classe
+**fecha a própria progressão** — pool cheia, capstone, spell fechada — e se
+nada vaza entre classes. As duas perguntas só passaram a existir com a segunda
+classe, e a primeira delas um registry válido não responde: o warlock validava
+inteiro e fechava zero capstones em 16 runs antes da separação das telas.
+
 `DRIVER=driver_trigger.js node tools/harness.js .` cobra o **contrato de cada
 gatilho novo** — a coisa que um driver de fumaça não vê, porque um trigger
 errado roda, não estoura, e é só uma cópia do `autonomous` com outro nome.
@@ -95,8 +101,9 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/triggers.js` | `TRIGGERS` — quando dispara |
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
-| `js/content/pieces.*.js` | o catálogo por eixo: 44 do warlock + 3 do hunter |
+| `js/content/pieces.*.js` | o catálogo por eixo: 44 do warlock + 45 do hunter |
 | `js/content/{passives,capstones,minions}.js` | passivas, capstones e o tuning dos demônios |
+| `js/content/hunter.meta.js` | as 8 passivas e os 8 capstones do hunter |
 | `js/render/fx-shapes.js` | `FX_SHAPES` — o gerador de eventos em pixel (`bloom`, `implode`, `nova`, `rip`) |
 | `js/render/tiles.js` | `TILE_ROWS` — as 8 lajes do chão, desenhadas em grade de 42x42 |
 | `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
@@ -218,6 +225,37 @@ As cores do Hunter saem das três especializações do WoW, uma cada: **Matilha*
 veneno e alcatrão, Survival). Separação entre elas: 103° / 68° / 171°. Vermelho
 ficou de fora dos dois conjuntos — é reserva da barra de vida, do relógio da
 fase dura e do eyebrow do game over.
+
+### O Hunter: uma forma só, e isso é uma posição
+
+O warlock tem dez formas porque o corpo dele **conta a progressão** — uma por
+capstone, mais o Iniciado. O hunter tem **uma**, e a diferença não é dívida de
+arte: são duas respostas diferentes para "o que o corpo diz sobre a run".
+
+`driver_form` cobra cobertura de capstone **só de quem declara mais de uma
+forma**. Forma única é coerente ("o meu corpo não conta a progressão"); o que
+ele continua proibindo é a cobertura pela metade — três formas para oito finais
+é o corpo dizendo que a run chegou longe sem dizer para onde, que é o defeito
+que tirou a metamorfose do acúmulo de pontos. E ele também reprova forma única
+que aponte para um capstone: ou cobre todos, ou nenhum.
+
+Quatro coisas do hunter que valem para classe nova:
+
+- **O kit inicial é uma peça, e a mais neutra do catálogo.** `killCommand` mira
+  sozinha e não pede nada do jogador — a mesma função que `incinerate` tem no
+  warlock. Duas peças entregariam meia identidade de graça e a primeira etapa
+  deixaria de ser descoberta.
+- **`DEFAULT_FORMS` desenha o WARLOCK.** Classe nova sem `forms` aparece em
+  campo com o corpo de outra, em silêncio. Ele existe só para quem monta um
+  `Player` fora de uma run (as galerias); toda classe jogável declara `forms`.
+- **Bicho novo pede grade nova.** `driver_render` reprova tipo de demônio sem
+  sprite próprio, então a matilha custou seis grades: lobo, javali, urso,
+  wyvern, tartaruga e espectro. O javali pega `fur0..2` e o urso `fur1..3` —
+  mesma pelagem, três passos acima, que é a regra da fatia que já separa o
+  ghoul do vilefiend.
+- **A rampa `fur` nasceu com QUATRO passos de propósito.** Três passos servem um
+  bicho; quatro servem dois, e é isso que impede a matilha de ler como um
+  animal em dois tamanhos.
 
 ### `key` é a identidade estável, `id` é a aparência
 
@@ -1050,9 +1088,23 @@ Três regras que caem daí:
   estourar, sentença fecha para dentro conforme o prazo acaba. É o mesmo orbe
   nos cinco casos.
 
-**Estado final: 43 peças, 43 assinaturas distintas, zero mudas.** Nenhuma peça
+**Estado final: 89 peças, 89 assinaturas distintas, zero mudas.** Nenhuma peça
 do jogo desenha o mesmo que outra, e `driver_vfx` reprova a primeira que voltar
 a colidir.
+
+O catálogo do hunter dobrou o número de peças e o driver cobrou cada colisão —
+onze delas. **Nenhuma foi paga com desenho novo**, e é isso que prova que os
+canais de distinção que já existiam bastam:
+
+| o que colidia | o que separou |
+|---|---|
+| seis peças de tiro, todas `proj` | o que cada tiro FAZ ao acertar: `arcaneShot` enfraquece, `aimedShot` soca, `rapidFire` incendeia, `multiShot` abre em leque, `aspectOfTheHydra` envenena |
+| duas peças que só davam escudo | a fatia do `veil` — 6 lados com espinho contra 9 girando ao contrário |
+| Kill Command contra outro `rip` | a **relação**: o filamento do bicho até o alvo, que é o que a peça literalmente é |
+| dois sangramentos `rot` | o `look` do orbe: estilhaço cravado é `unstable`, não podridão |
+
+A lição é a de sempre neste arquivo: quando duas peças desenham igual, quase
+nunca falta arte — falta a peça dizer em tela o que ela já faz na simulação.
 
 ### Mecânica que cobra, avisa
 

@@ -246,6 +246,14 @@ class MinionSystem {
         continue;
       }
       m.animTime += dt * 4;
+      // O frenesi vence: devolve passo e cadencia de base. Um `if` por demonio
+      // por sub-step, contra um multiplicador global que valeria para bicho que
+      // nem estava em campo quando o tiro saiu.
+      if (m.hasteUntil && now >= m.hasteUntil) {
+        m.hasteUntil = 0;
+        m.speed = m.baseSpeed;
+        m.attackInterval = m.baseAttack;
+      }
       const ai = MINION_AI[m.ai] || MINION_AI.chase;
       const target = ai(m, dt, g, now);
       if (!target || now < m.cd) continue;

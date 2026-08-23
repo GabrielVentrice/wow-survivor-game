@@ -153,7 +153,10 @@
 <script src="js/content/pieces.cataclysm.js"></script>
 <script src="js/content/pieces.defense.js"></script>
 <script src="js/content/pieces.control.js"></script>
-<script src="js/content/pieces.hunter.js"></script>
+<script src="js/content/pieces.hunter.pack.js"></script>
+<script src="js/content/pieces.hunter.precision.js"></script>
+<script src="js/content/pieces.hunter.trapping.js"></script>
+<script src="js/content/pieces.hunter.survival.js"></script>
 <script src="js/content/passives.js"></script>
 <script src="js/content/capstones.js"></script>
 <script src="js/render/fx-shapes.js"></script>
@@ -198,7 +201,19 @@ const PIECE_FILES = {
   "js/content/pieces.cataclysm.js": ["incinerate", "immolate", "conflagrate", "rainOfFire", "infernal", "shadowburn", "burningTrail", "chaosBolt", "wither", "cataclysm"],
   "js/content/pieces.defense.js": ["drainLife", "soulLeech", "unendingResolve", "demonSkin", "healthstone", "netherWard", "soulstone"],
   "js/content/pieces.control.js": ["burningRush", "demonicCircle", "shadowfury", "curseOfExhaustion", "curseOfTongues", "howlOfTerror", "mortalCoil", "banish", "enslaveDemon"],
-  "js/content/pieces.hunter.js": ["tarTrap", "wildfireBomb", "wildThrash"],
+  "js/content/pieces.hunter.pack.js": ["killCommand", "barbedShot", "beastCleave",
+    "wildThrash", "callOfTheWild", "direBeast", "stampede", "howlOfThePackLeader",
+    "bestialWrath", "animalCompanion"],
+  "js/content/pieces.hunter.precision.js": ["arcaneShot", "aimedShot", "rapidFire",
+    "multiShot", "trickShots", "killShot", "sentinelsMark", "aspectOfTheHydra",
+    "volley", "blackArrow"],
+  "js/content/pieces.hunter.trapping.js": ["tarTrap", "freezingTrap", "explosiveTrap",
+    "bindingShot", "wildfireBomb", "shrapnelBomb", "explosiveShot", "flamebreak",
+    "raptorStrike", "mongooseBite", "serpentSting"],
+  "js/content/pieces.hunter.survival.js": ["exhilaration", "survivalOfTheFittest",
+    "feignDeath", "shellCover", "roarOfSacrifice", "mendPet", "disengage",
+    "camouflage", "trueshotAura", "intimidation", "tranquilizingShot",
+    "concussiveShot", "scareBeast", "harpoon"],
 };
 function pieceFile(id) {
   for (const f in PIECE_FILES) if (PIECE_FILES[f].indexOf(id) >= 0) return f;
@@ -511,6 +526,51 @@ function playHook(w, name, x, y, target, col) {
     case "voraz":
       if (target) { target.dots.length = 0; w.vfx.emit("burst", target.x, target.y, 70, CAPSTONES.voraz.color); }
       break;
+
+    /* --- hunter ---------------------------------------------------------- */
+
+    // Kill Command: o comando é uma RELAÇÃO entre a matilha e o alvo, e é o
+    // filamento que a desenha. Sem ele a peça só pisca no alvo.
+    case "comandoDaMatilha": {
+      const m = w.minions[0] || spawnMinion(w, "wolf", col, false);
+      if (target && m) {
+        w.vfx.emit("link", m.x, m.y, 0, col, target.x, target.y);
+        w.vfx.emit("rip", target.x, target.y, 46, col);
+        target.hitFlash = 0.1;
+      }
+      break;
+    }
+    // Barbed Shot / Bestial Wrath: o frenesi é um estado da matilha inteira.
+    case "farejarSangue":
+      if (!w.minions.length) for (let i = 0; i < 3; i++) spawnMinion(w, "wolf", col, false);
+      w.vfx.emit("shock", p.x, p.y, 120, col);
+      for (const m of w.minions) w.vfx.emit("summon", m.x, m.y, m.radius * 2.2, col);
+      break;
+    // Dire Beast: nunca se sabe qual vem — e é isso que o card mostra.
+    case "bichoDaMata": {
+      const kinds = ["wolf", "boar", "bear", "wyvern"];
+      spawnMinion(w, kinds[(w.diraIdx = ((w.diraIdx || 0) + 1)) % kinds.length], col, false);
+      break;
+    }
+    // Batedor: todo golpe de bicho marca. A marca é 9×9 sobre a cabeça.
+    case "batedor":
+      if (target) { target.marked = 0.45; target.markedUntil = w.t + 5; target.hitFlash = 0.1; }
+      break;
+    // Ranger Sombria: o que morre de golpe pesado levanta como espectro.
+    case "rangerSombria":
+      if (target) {
+        w.vfx.emit("implode", target.x, target.y, 60, col);
+        spawnMinion(w, "spectre", col, false);
+      }
+      break;
+    // Domador: armadilha que dispara põe a matilha inteira em frenesi.
+    case "domador": {
+      if (!w.minions.length) for (let i = 0; i < 2; i++) spawnMinion(w, "boar", col, false);
+      spawnArea(w, { radius: 60, duration: 1.0, look: "rot" }, p.x + 60, p.y + 8, col);
+      w.vfx.emit("shock", p.x + 60, p.y + 8, 70, col);
+      for (const m of w.minions) w.vfx.emit("summon", m.x, m.y, m.radius * 2.2, col);
+      break;
+    }
     case "contagion": {
       const other = w.enemies.find((en) => en !== target);
       if (target) w.vfx.emit("jump", target.x, target.y, 20, target.dotColor || col);
@@ -1086,6 +1146,12 @@ const HOOK_INFO = {
   soulstone: { owner: "peça Soulstone", tell: "cruz de cura no player a cada carga reposta", demo: "soulstone" },
   blink: { owner: "peça Demonic Circle", tell: "blink na saída E na chegada — dois anéis, um teleporte", demo: "blink" },
   healthstone: { owner: "peça Healthstone", tell: "cruz de cura quando a vida cai do limiar", demo: "healthstone" },
+  comandoDaMatilha: { owner: "peça Kill Command", tell: "filamento do bicho até o alvo: o comando é uma RELAÇÃO, não um piscar no alvo", demo: "comandoDaMatilha" },
+  farejarSangue: { owner: "peça Barbed Shot / Bestial Wrath", tell: "pulso no player + um anel por bicho: o frenesi é da matilha inteira", demo: "farejarSangue" },
+  bichoDaMata: { owner: "peça Dire Beast", tell: "nunca se sabe qual vem — lobo, javali, urso ou wyvern, um por chamado", demo: "bichoDaMata" },
+  batedor: { owner: "capstone Batedor", tell: "marca de 9×9 sobre a cabeça de quem o bicho mordeu", demo: "batedor" },
+  rangerSombria: { owner: "capstone Ranger Sombria", tell: "implosão no corpo e o espectro subindo dele", demo: "rangerSombria" },
+  domador: { owner: "capstone Domador", tell: "a armadilha dispara e a matilha inteira acende junto", demo: "domador" },
 };
 
 function hookItems() {

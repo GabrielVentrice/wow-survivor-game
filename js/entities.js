@@ -712,8 +712,15 @@ class Minion {
     this.color = o.color || "#ff8a3c";
     this.damage = o.damage || 0;
     this.attackInterval = o.attackInterval || 1;
+    /* Valores de BASE, para o frenesi da matilha (`HOOKS.farejarSangue`) poder
+       ser desfeito. A pressa e gravada no bicho e nao num multiplicador global
+       porque demonio nasce e morre o tempo todo — um global valeria para quem
+       entrou depois do tiro. Restaurados em MinionSystem.update. */
+    this.baseAttack = this.attackInterval;
+    this.hasteUntil = 0;
     this.range = o.range || 260;
     this.speed = o.speed || 200;
+    this.baseSpeed = this.speed;
     this.orbitRadius = o.orbitRadius || 72;
     this.angle = o.angle || 0;
     this.spawnedAt = o.spawnedAt || 0;   // abertura do portal / entrada em cena

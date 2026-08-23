@@ -116,7 +116,14 @@ else console.log("  ok pool cheio sem capstone deixa a forma no aprendiz");
 /* Cada capstone traz A SUA forma, e anuncia. Antes o teste era por contagem —
    n capstones davam a forma n. Agora e por identidade, e e mais forte: fechar
    `nihilam` tem que dar a forma de nihilam, e nao "a segunda forma". */
+/* A run tem que ser da CLASSE do capstone, e a cobranca so vale para classe que
+   declara mais de uma forma — a mesma regra do bloco 1. Numa classe de forma
+   unica o corpo nao conta a progressao, e cobrar dela que conte seria cobrar o
+   contrario do que ela declara. */
 for (const id in CAPSTONES) {
+  const dono = CLASSES[CAPSTONES[id].cls];
+  if (!dono || !dono.forms || dono.forms.length <= 1) continue;
+  g.selectedClass = CAPSTONES[id].cls;
   g.start();
   g.build.capstones.add(id);
   g.build.afterChange();
@@ -130,9 +137,16 @@ for (const id in CAPSTONES) {
   // checkForm vira no-op e o clima do momento some.
   else if (g.ui.toastCount === antes) fail(`a forma de "${id}" chegou sem anunciar nada`);
 }
-console.log(`  ok ${Object.keys(CAPSTONES).length} capstones, cada um com a sua forma anunciada`);
+{
+  const comForma = Object.keys(CAPSTONES).filter((id) => {
+    const d = CLASSES[CAPSTONES[id].cls];
+    return d && d.forms && d.forms.length > 1;
+  }).length;
+  console.log(`  ok ${comForma} capstones de classe com metamorfose, cada um com a sua forma anunciada`);
+}
 
 // e o caminho de verdade: capstone entrando por applyOffer tambem anuncia
+g.selectedClass = "warlock";
 g.start();
 const inst0 = g.build.acquirePiece("corruption", true) || g.build.get("corruption");
 g.build.axis.dominion = AXIS_RULES.pureAt;
