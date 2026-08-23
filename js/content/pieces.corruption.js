@@ -27,6 +27,7 @@ Object.assign(PIECES, {
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
       { type: "damage_over_time", key: "corruption", dps: "@dps", duration: "@duration",
+        look: "rot",   // podridao: o orbe ORBITA, e a fatia base
         tickInterval: "@tickInterval", color: "#7fdc4a", radius: "@radius",
         stacking: { mode: "refresh", max: 1 } },
     ],
@@ -76,6 +77,7 @@ Object.assign(PIECES, {
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
       { type: "damage_over_time", key: "agony", dps: "@dps", duration: "@duration",
+        look: "curse",   // maldicao de acumulo: uma marca PARADA por stack sobre a cabeca
         tickInterval: "@tickInterval", ramp: "@ramp", color: "#4a9e2e", radius: "@radius",
         stacking: { mode: "stack", max: "@stacks" } },
     ],
@@ -120,6 +122,7 @@ Object.assign(PIECES, {
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
       { type: "damage_over_time", key: "unstableAffliction", dps: "@dps", duration: "@duration",
+        look: "unstable",   // ela TREME mais perto de estourar: o corpo avisa
         tickInterval: "@tickInterval", color: "#a8f05c", radius: "@radius",
         stacking: { mode: "refresh", max: 1 },
         onExpire: [{ type: "damage_instant", amount: "@blast", radius: "@blastRadius", big: true,
@@ -167,7 +170,9 @@ Object.assign(PIECES, {
     trigger: { type: "reactive", event: "enemy_killed", condition: "has_dot",
                cooldown: "@cooldown", needsTarget: true },
     effects: [
-      { type: "damage_instant", amount: "@blast", radius: "@radius", big: true },
+      { type: "damage_instant", amount: "@blast", radius: "@radius", big: true,
+        // a semente nao estoura, ela SEMEIA: onda saindo do cadaver
+        shape: "nova" },
     ],
     paths: {
       yield: { name: "Colheita", tiers: [
@@ -299,6 +304,7 @@ Object.assign(PIECES, {
     trigger: { type: "trail", distance: "@distance" },
     effects: [
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
+        look: "rot",       // miasma: o aro apodrece em arcos partidos
         tickInterval: "@tickInterval", color: "#a8f05c",
         onTick: [{ type: "damage_over_time", key: "corruption", dps: "@dotDps",
                    duration: "@dotTime", tickInterval: 0.6, color: "#a8f05c" }] },

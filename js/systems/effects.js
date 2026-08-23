@@ -251,6 +251,7 @@ const EFFECTS = {
         life: e.duration || 3,
         tickInterval: e.tickInterval || 0.35,
         color: e.color || c.color,
+        look: e.look,
         source: c.key,
         payload: e.onTick || null,
         follow: !!e.follow,
@@ -276,8 +277,13 @@ const EFFECTS = {
     game.healPlayer(amt);
   },
 
+  /* A casca era UMA para as seis pecas que dao escudo — e ciano, cor que a
+     identidade extinguiu. `veil` e a fatia: quantos lados, quanto ele gira e
+     se tem espinho. Um desenho so, parametrizado, do mesmo jeito que os
+     arquetipos de evento. */
   shield(game, e, c) {
     const amt = e.frac != null ? (c.amount || 0) * e.frac : (e.amount || 0);
+    if (amt > 0) game.player.setVeil(c.color, e.veil);
     game.player.addShield(amt, e.cap);
   },
 

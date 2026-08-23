@@ -57,7 +57,9 @@ Object.assign(PIECES, {
     stats: { frac: 0.06, cap: 180, cooldown: 0.1 },
     trigger: { type: "reactive", event: "enemy_hit", cooldown: "@cooldown", atPlayer: true },
     effects: [
-      { type: "shield", frac: "@frac", cap: "@cap" },
+      { type: "shield", frac: "@frac", cap: "@cap",
+        // absorcao: fina e rapida, ela se refaz a cada golpe
+        veil: { sides: 8, spin: 0.95, thick: 1.5 } },
     ],
     paths: {
       absorb: { name: "Absorção", tiers: [
@@ -96,7 +98,9 @@ Object.assign(PIECES, {
     trigger: { type: "reactive", event: "player_damaged", condition: "player_below",
                pct: "@threshold", cooldown: "@cooldown", atPlayer: true },
     effects: [
-      { type: "shield", amount: "@shield", cap: "@cap" },
+      { type: "shield", amount: "@shield", cap: "@cap",
+        // resolucao: quatro faces pesadas, e o espinho do revide
+        veil: { sides: 4, spin: 0.3, thick: 3, spikes: 1 } },
       { type: "knockback", force: 140, radius: 200 },
     ],
     paths: {
@@ -137,7 +141,9 @@ Object.assign(PIECES, {
     stats: { interval: 1, shield: 12, cap: 200 },
     trigger: { type: "aura", interval: "@interval" },
     effects: [
-      { type: "shield", amount: "@shield", cap: "@cap" },
+      { type: "shield", amount: "@shield", cap: "@cap",
+        // couro: grosso e lento, e o que menos parece energia
+        veil: { sides: 5, spin: 0.18, thick: 3.4 } },
     ],
     paths: {
       hide: { name: "Couro", tiers: [
@@ -216,7 +222,9 @@ Object.assign(PIECES, {
     trigger: { type: "aura", interval: "@interval" },
     effects: [
       { type: "reflect", radius: "@radius" },
-      { type: "shield", amount: "@shield", cap: 140 },
+      { type: "shield", amount: "@shield", cap: 140,
+        // barreira: anel apertado girando ao CONTRARIO — ela devolve
+        veil: { sides: 12, spin: -0.75, thick: 1.4 } },
     ],
     paths: {
       ward: { name: "Barreira", tiers: [

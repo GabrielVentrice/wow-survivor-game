@@ -62,6 +62,7 @@ class DotSystem {
       dps: spec.dps, duration, tickInterval: interval,
       maxStacks: max, rampPerSec: spec.ramp || 0,
       color: spec.color || c.color,
+      look: spec.look,
       removable: spec.removable, permanent: spec.permanent,
       onExpire: spec.onExpire || null,
       spreadOnContact: spec.spreadOnContact,

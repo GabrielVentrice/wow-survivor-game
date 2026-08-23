@@ -1,4 +1,7 @@
 "use strict";
+/* A fatia PADRAO da casca de escudo. Peca que nao declara `veil` cai aqui, e o
+   que ela perde e identidade, nao funcionamento. Ver EFFECTS.shield. */
+const VEIL_BASE = { sides: 6, spin: 0.5, thick: 2, spikes: 0 };
 /* =========================================================================
    ENTIDADES — dados transientes, todos vindos de Pool.
    Nenhuma entidade conhece pecas ou efeitos: o que elas carregam sao numeros
@@ -33,6 +36,8 @@ class Player {
     this.moving = false;
     this.rushing = false;              // Game.update: o buff de velocidade esta de pe
     this.speedBoostColor = null;
+    this.veil = null;                  // fatia da casca de escudo (EFFECTS.shield)
+    this.veilRgb = null;
     this.forms = cls.forms || DEFAULT_FORMS;
     this.formIdx = 0;
     // Cor de cada forma, pre-resolvida: a luz de chao e desenhada por frame e
@@ -155,6 +160,14 @@ class Player {
      o halo em volta do warlock e o que se ganha por fechar um caminho ate o
      tier 5. A FORMA (capstones) manda na luz do corpo; as AURAS (spells
      concluidas) mandam nos halos coloridos em volta. */
+  /* Quem deu o escudo manda na casca. O ultimo a dar vence: com duas pecas de
+     escudo na build o jogador tem UMA barra de escudo, entao ele so pode ter
+     uma casca — e a mais recente e a que responde pelo que acabou de acontecer. */
+  setVeil(color, veil) {
+    this.veil = veil || VEIL_BASE;
+    if (color !== this._veilHex) { this._veilHex = color; this.veilRgb = hexRgb(color); }
+  }
+
   draw(ctx, cam, auras) {
     const sx = this.x - cam.left;
     const sy = this.y - cam.top;
@@ -288,15 +301,42 @@ class Player {
       drawSpriteGlow(ctx, spr, sx, sy, drawH, this.facing < 0, anim, col, beat);
     }
 
-    // escudo: casca girando, so quando ha carga
+    /* A CASCA. Era um circulo ciano, igual para as seis pecas que dao escudo —
+       e ciano e a cor que a identidade tirou do jogo. Agora ela e um poligono
+       na cor de QUEM deu o escudo, e a fatia (`veil`) diz quantos lados, o
+       quanto ele gira e se tem espinho.
+
+       Poligono e nao circulo porque poligono tem ORIENTACAO: girando, ele diz
+       que existe alguma coisa em volta do corpo; um circulo girando e um
+       circulo parado. E os lados sao poucos de proposito — a 20 pixels de
+       raio, doze lados ja sao um circulo de novo. */
     if (this.shield > 0) {
       const lim = this.maxShield > 0 ? this.maxShield : this.maxHp;
       const k = Math.min(1, this.shield / lim);
-      ctx.strokeStyle = `rgba(120,200,255,${(0.25 + k * 0.5).toFixed(2)})`;
-      ctx.lineWidth = 1.5 + k * 2;
+      const v = this.veil || VEIL_BASE;
+      const rgb = this.veilRgb || hexRgb(CLASSES.warlock.color);
+      const R = r * (1.5 + k * 0.4);
+      const n = v.sides || 6, spin = t * (v.spin != null ? v.spin : 0.5);
+      ctx.strokeStyle = `rgba(${rgb},${(0.3 + k * 0.55).toFixed(2)})`;
+      ctx.lineWidth = 1.5 + k * (v.thick || 2);
       ctx.beginPath();
-      ctx.arc(sx, sy, r * (1.5 + k * 0.4), 0, Math.PI * 2);
+      for (let i = 0; i <= n; i++) {
+        const a = spin + (i / n) * Math.PI * 2;
+        const px = sx + Math.cos(a) * R, py = sy + Math.sin(a) * R;
+        if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+      }
       ctx.stroke();
+      // espinho: a casca que REVIDA aponta para fora, e isso se le sem legenda
+      if (v.spikes) {
+        for (let i = 0; i < n; i++) {
+          const a = spin + ((i + 0.5) / n) * Math.PI * 2;
+          const c0 = Math.cos(a), s0 = Math.sin(a);
+          ctx.beginPath();
+          ctx.moveTo(sx + c0 * R, sy + s0 * R);
+          ctx.lineTo(sx + c0 * R * (1 + 0.22 * k), sy + s0 * R * (1 + 0.22 * k));
+          ctx.stroke();
+        }
+      }
     }
   }
 }
@@ -456,13 +496,47 @@ class Enemy {
 
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
+    /* Um orbe por stack, e a fatia (`look`) diz COMO ele se move. Cinco pecas
+       do jogo so aplicam DoT: sem isto elas desenhavam exatamente a mesma
+       coisa, e como a cor e predicado do eixo, duas do mesmo eixo saiam
+       identicas num corpo.
+
+       O padrao do movimento e o que separa: podridao ORBITA, fogo SOBE,
+       maldicao fica PARADA em fila sobre a cabeca (uma marca por acumulo, que
+       e o que uma maldicao de acumulo precisa dizer) e sentenca FECHA para
+       dentro. Nenhum deles custa um desenho novo — e o mesmo orbe. */
     for (let i = 0; i < n; i++) {
       const d = this.dots[i];
       const blob = glowBlob(d.color || col);
       const a = t * 2.2 + (i / n) * Math.PI * 2;
-      const depth = 0.7 + Math.sin(a) * 0.3;
-      const px = sx + Math.cos(a) * r * 1.5;
-      const py = sy - r * 0.1 + Math.sin(a) * r * 0.55;
+      let depth = 0.7 + Math.sin(a) * 0.3;
+      let px, py;
+      if (d.look === "fire") {
+        const ph = (t * 0.85 + i * 0.37) % 1;
+        px = sx + (i - (n - 1) / 2) * r * 0.5;
+        py = sy - r * 0.15 - ph * r * 1.5;
+        depth = 1 - ph;
+      } else if (d.look === "curse") {
+        px = sx + (i - (n - 1) / 2) * r * 0.6;
+        py = sy - r * 1.2;
+        depth = 0.9;
+      } else if (d.look === "unstable") {
+        // instavel: fica na fila da maldicao, mas TREME, e o tremor cresce
+        // conforme o prazo acaba — o corpo avisa que vai estourar
+        const left = d.endAt ? Math.max(0, (d.endAt - t) / (d.duration || 1)) : 0.5;
+        const j = (1 - left) * r * 0.22;
+        px = sx + (i - (n - 1) / 2) * r * 0.6 + Math.sin(t * 21 + i) * j;
+        py = sy - r * 1.2 + Math.cos(t * 17 + i * 2) * j;
+        depth = 0.85 + (1 - left) * 0.4;
+      } else if (d.look === "doom") {
+        const left = d.endAt ? Math.max(0, (d.endAt - t) / (d.duration || 1)) : 0.5;
+        px = sx + Math.cos(a) * r * (0.35 + left * 1.3);
+        py = sy - r * 0.1 + Math.sin(a) * r * (0.15 + left * 0.5);
+        depth = 1.05 - left * 0.35;
+      } else {
+        px = sx + Math.cos(a) * r * 1.5;
+        py = sy - r * 0.1 + Math.sin(a) * r * 0.55;
+      }
       const w = r * 0.32 * depth * (1 + pulse * 0.3);
       ctx.globalAlpha = fade * 0.3 * depth;
       ctx.drawImage(blob, px - w, py - w, w * 2, w * 2);
@@ -636,25 +710,62 @@ class AreaEffect {
     this.source = o.source;
     this.payload = o.payload || null;
     this.follow = o.follow || false;     // gruda no player (auras persistentes)
+    this.look = o.look || "fire";        // fatia do aro — ver draw()
     this.onEnd = o.onEnd || null;
     this.dead = false;
   }
-  // Zona com borda, nao mancha. O preenchimento diz "aqui queima" e por isso e
-  // fraco; quem carrega a informacao e o aro no raio exato, que o jogador le
-  // de relance para saber onde termina o dano. Neblina larga com o mesmo peso
-  // cobre o chao, esconde inimigo e ainda deixa o limite no chute.
+  /* Zona com borda, nao mancha. O preenchimento diz "aqui queima" e por isso e
+     fraco; quem carrega a informacao e o aro NO RAIO EXATO, que o jogador le
+     de relance para saber onde termina o dano. Neblina larga com o mesmo peso
+     cobre o chao, esconde inimigo e ainda deixa o limite no chute.
+
+     `look` e a fatia. Era um circulo so para todas as zonas do jogo — chuva de
+     fogo, rastro de brasa e miasma desenhavam exatamente a mesma coisa, e como
+     cor e predicado do eixo, duas zonas do mesmo eixo saiam identicas. O que
+     muda entre as tres nao e a cor nem o raio: e o ARO, porque e ele que
+     informa. Fogo tremula, podridao gira em arcos partidos, brasa fica parada
+     e tracejada como chao chamuscado.
+
+     O raio nunca muda com o `look`: qualquer estilo que mexesse nele estaria
+     mentindo sobre onde o dano pega. */
   draw(ctx, cam) {
     const sx = this.x - cam.left, sy = this.y - cam.top;
     const a = Math.min(1, this.life / 0.4) * 0.5; // fade out no fim
-    const g = ctx.createRadialGradient(sx, sy, this.radius * 0.2, sx, sy, this.radius);
+    const R = this.radius;
+    const t = this.maxLife - this.life;
+    const g = ctx.createRadialGradient(sx, sy, R * 0.2, sx, sy, R);
     g.addColorStop(0, `rgba(${this.rgb},${a * 0.34})`);
     g.addColorStop(0.6, `rgba(${this.rgb},${a * 0.18})`);
     g.addColorStop(1, `rgba(${this.rgb},0)`);
     ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(sx, sy, this.radius, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = `rgba(${this.rgb},${(a * 0.6).toFixed(2)})`;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(sx, sy, this.radius, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(sx, sy, R, 0, Math.PI * 2); ctx.fill();
+
+    if (this.look === "rot") {
+      // arcos partidos girando: a zona que APODRECE nao tem borda fixa
+      ctx.strokeStyle = `rgba(${this.rgb},${(a * 0.75).toFixed(2)})`;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 5; i++) {
+        const a0 = t * 0.55 + (i / 5) * Math.PI * 2;
+        ctx.beginPath(); ctx.arc(sx, sy, R, a0, a0 + 0.72); ctx.stroke();
+      }
+      return;
+    }
+    if (this.look === "ash") {
+      // tracejado parado: chao chamuscado, nao fogo vivo
+      ctx.strokeStyle = `rgba(${this.rgb},${(a * 0.5).toFixed(2)})`;
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 12; i++) {
+        const a0 = (i / 12) * Math.PI * 2;
+        ctx.beginPath(); ctx.arc(sx, sy, R, a0, a0 + 0.24); ctx.stroke();
+      }
+      return;
+    }
+    // fogo: aro cheio que tremula. O tremor e no BRILHO e na espessura, nunca
+    // no raio — raio piscando seria a zona mentindo sobre o alcance.
+    const flick = 0.82 + Math.sin(t * 14 + this.x) * 0.18;
+    ctx.strokeStyle = `rgba(${this.rgb},${(a * 0.6 * flick).toFixed(2)})`;
+    ctx.lineWidth = 1.5 + flick * 0.8;
+    ctx.beginPath(); ctx.arc(sx, sy, R, 0, Math.PI * 2); ctx.stroke();
   }
 }
 
@@ -676,6 +787,7 @@ class DotInstance {
     this.rampPerSec = o.rampPerSec || 0;
     this.bornAt = o.now;
     this.color = o.color;
+    this.look = o.look || "rot";     // fatia do orbe de stack — ver Enemy.drawDotOver
     this.removable = o.removable !== false;
     this.permanent = !!o.permanent;
     this.onExpire = o.onExpire || null;

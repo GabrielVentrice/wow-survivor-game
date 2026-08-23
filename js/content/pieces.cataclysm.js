@@ -61,6 +61,7 @@ Object.assign(PIECES, {
     effects: [
       { type: "damage_instant", amount: "@damage", crit: "@crit" },
       { type: "damage_over_time", key: "immolate", dps: "@dotDps", duration: "@duration",
+        look: "fire",   // queima: o orbe SOBE em vez de girar
         tickInterval: "@tickInterval", color: "#ff8a3c", radius: "@radius",
         stacking: { mode: "refresh", max: 1 } },
     ],
@@ -160,6 +161,7 @@ Object.assign(PIECES, {
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: 0 },
     effects: [
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
+        look: "fire",      // fogo vivo: o aro tremula
         tickInterval: "@tickInterval", count: "@drops", jitter: "@jitter", color: "#ff8a3c" },
     ],
     paths: {
@@ -289,6 +291,7 @@ Object.assign(PIECES, {
     trigger: { type: "trail", distance: "@distance" },
     effects: [
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
+        look: "ash",       // rastro: chao chamuscado, tracejado e parado
         tickInterval: "@tickInterval", color: "#e0521a" },
     ],
     paths: {
@@ -416,6 +419,7 @@ Object.assign(PIECES, {
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius", big: true },
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
+        look: "fire",
         tickInterval: "@tickInterval", color: "#ffb54a" },
     ],
     paths: {

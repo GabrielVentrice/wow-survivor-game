@@ -691,6 +691,40 @@ indistinguíveis de vizinhas até ganharem um segundo ponto:
 As três só existem porque `VfxLayer` aprendeu a carregar um segundo ponto na
 fase anterior — e nenhuma delas é uma forma nova.
 
+### Fatia, não desenho novo
+
+Depois que as quatro formas existiram, três grupos de peças continuavam
+idênticos — e **nenhum deles precisou de um desenho novo**. Precisaram de um
+parâmetro declarado no dado, do mesmo jeito que a paleta resolve "duas
+criaturas do mesmo material diferem por QUAIS três passos da rampa".
+
+| o que dura | a fatia | quem lê |
+|---|---|---|
+| casca de escudo | `veil: { sides, spin, thick, spikes }` | `EFFECTS.shield` → `Player.setVeil` |
+| zona no chão | `look: "fire" \| "rot" \| "ash"` | `EFFECTS.area_persistent` → `AreaEffect.draw` |
+| orbe de DoT | `look: "rot" \| "fire" \| "curse" \| "unstable" \| "doom"` | `DotSystem.apply` → `Enemy.drawDotOver` |
+
+Três regras que caem daí:
+
+- **A casca é polígono, não círculo.** Polígono tem orientação: girando, ele
+  diz que existe alguma coisa em volta do corpo; círculo girando é círculo
+  parado. E os lados são poucos de propósito — a 20px de raio, doze lados já
+  são um círculo de novo. A cor sai de **quem deu o escudo**, e o ciano
+  cravado (a mesma casca para as seis peças) morreu junto.
+- **Na zona, o que muda é o ARO — nunca o raio.** É o aro que informa onde o
+  dano termina; qualquer estilo que mexesse no raio estaria mentindo sobre o
+  alcance. Fogo tremula no brilho e na espessura, podridão gira em arcos
+  partidos, brasa fica parada e tracejada como chão chamuscado.
+- **No DoT, o que muda é o MOVIMENTO do orbe.** Podridão orbita, fogo sobe,
+  maldição fica parada em fila sobre a cabeça (uma marca por acúmulo, que é o
+  que uma maldição de acúmulo precisa dizer), instabilidade treme mais perto de
+  estourar, sentença fecha para dentro conforme o prazo acaba. É o mesmo orbe
+  nos cinco casos.
+
+**Estado final: 43 peças, 43 assinaturas distintas, zero mudas.** Nenhuma peça
+do jogo desenha o mesmo que outra, e `driver_vfx` reprova a primeira que voltar
+a colidir.
+
 ### Mecânica que cobra, avisa
 
 Vinte e cinco mecânicas mudavam o jogo sem gastar um pixel. Três formatos de

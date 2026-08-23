@@ -210,6 +210,10 @@ const HOOKS = {
     const p = game.player;
     if (p.hp / p.maxHp > (e.threshold || 0.3)) return;
     game.healPlayer(p.maxHp * (e.frac || 0.35), true);
+    /* A pedra RACHA antes de curar. Sem isso ela e identica ao Soulstone — as
+       duas curam e as duas desenham a mesma cruz —, e a diferenca e que uma
+       gasta uma alma guardada e a outra quebra um objeto. */
+    game.emitVfx("rip", p.x, p.y, 44, c.color);
     game.emitVfx("heal", p.x, p.y, 50, c.color);
   },
 };

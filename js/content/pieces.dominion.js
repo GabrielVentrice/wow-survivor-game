@@ -193,6 +193,7 @@ Object.assign(PIECES, {
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
       { type: "damage_over_time", key: "doom", dps: "@dps", duration: "@duration",
+        look: "doom",   // sentenca: o orbe FECHA para dentro conforme o prazo acaba
         tickInterval: "@tickInterval", color: "#c07aff",
         stacking: { mode: "refresh", max: 1 },
         onExpire: [{ type: "summon", kind: "imp", ai: "chase", count: "@impCount",
@@ -241,7 +242,9 @@ Object.assign(PIECES, {
       { type: "damage_instant", amount: "@blast", radius: "@radius", big: true,
         // o imp detona para DENTRO: o clarao chega depois do colapso
         shape: "implode" },
-      { type: "shield", amount: "@shield", cap: 150 },
+      { type: "shield", amount: "@shield", cap: 150,
+        // anteparo improvisado do que sobrou do imp: tres faces, sem acabamento
+        veil: { sides: 3, spin: 0.65, thick: 2.2 } },
     ],
     paths: {
       blast: { name: "Detonação", tiers: [
@@ -387,7 +390,9 @@ Object.assign(PIECES, {
       { type: "damage_instant", amount: "@damage", radius: "@radius", big: true,
         // o pet e consumido, nao explodido
         shape: "implode" },
-      { type: "shield", amount: "@shield", cap: "@cap" },
+      { type: "shield", amount: "@shield", cap: "@cap",
+        // o pacto: sete faces, o corpo do demonio virou casca
+        veil: { sides: 7, spin: 0.42, thick: 2.8 } },
     ],
     paths: {
       axe: { name: "Machado", tiers: [

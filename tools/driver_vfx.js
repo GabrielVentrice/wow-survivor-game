@@ -44,7 +44,6 @@ Math.random = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147
 
 // Cor saturada cravada no codigo de render (fase 7).
 const DIVIDA_COR = {
-  "rgba(120,200,255": "casca de escudo — a MESMA para as 6 pecas de escudo, e ciano saiu da identidade",
   "#ff3b6b": "barra de vida do chefe",
   "rgba(122,60,255": "parada do gradiente do projetil: todo tiro de fogo desbota para roxo na borda",
   "#7a3cff": "cor de classe de fallback",
@@ -58,18 +57,13 @@ const DIVIDA_COR = {
 };
 
 // Peca que dispara e nao desenha nada (fase 3).
-const DIVIDA_MUDA = {
-  soulLeech: "escudo por fracao do dano recebido: sem dano no funil nem a casca aparece, e a casca e a mesma das outras cinco pecas de escudo (fase 5)",
-};
+const DIVIDA_MUDA = {};
 
 // Pecas que desenham exatamente a mesma coisa (fase 5). Chave = assinatura.
-const DIVIDA_IRMAS = {
-  "dot": "aplicar DoT nao tem evento proprio: so a nevoa generica no alvo",
-  "vfx:burst": "a bola de fogo unica, em peca de dano em area puro",
-  "area": "um desenho de zona para toda zona do jogo",
-  "veil": "as pecas de escudo, todas na mesma casca",
-  "vfx:heal": "a cruz de cura, identica em toda peca que cura",
-};
+/* VAZIA. Quarenta e tres pecas, quarenta e tres assinaturas: nenhuma peca do
+   jogo desenha o mesmo que outra. Manter assim e o que esta lista faz agora —
+   peca nova que colidir com uma existente reprova aqui. */
+const DIVIDA_IRMAS = {};
 
 /* =========================================================================
    1. COR NO CODIGO DE RENDER
@@ -165,7 +159,10 @@ function alvos(n) {
     const e = g.enemies.spawn(ENEMIES.abomination, g.player.x + Math.cos(a) * 70,
                               g.player.y + Math.sin(a) * 70, g.spawner.scale);
     e.maxHp = 4000;
-    e.hp = i % 3 === 2 ? 40 : 4000;      // um em cada tres na faixa de execucao
+    // um em cada tres na faixa de execucao — e com folga para AGUENTAR os
+    // golpes que a propria mesa desfere, senao ele morre antes de a peca de
+    // execucao ter alguem para executar
+    e.hp = i % 3 === 2 ? 480 : 4000;
     g.grid.insert(e);
     list.push(e);
   }
@@ -245,6 +242,13 @@ function assinar(id) {
   for (let i = 0; i < 3; i++) {
     firePiece(g, inst, p.x, p.y, alvo[i % alvo.length], 1, 0, g.clock + i * 0.5);
     marcar();
+    /* E um golpe DE VERDADE pelo funil, para as pecas `reactive` dispararem
+       pelo caminho delas. Sem isso o driver so consegue provocar quem dispara
+       por cooldown, e uma peca que so acorda quando o dano acontece sai como
+       muda por causa do cenario. Foi assim que o zero de escudo do Soul Leech
+       ficou escondido: ninguem nunca provocou a peca. */
+    g.damageEnemy(alvo[(i + 1) % alvo.length], 60, "fixture", true);
+    marcar();
   }
   // os efeitos persistentes so viram tela depois de um passo de simulacao
   for (let i = 0; i < 8; i++) { g.update(0.025); marcar(); }
@@ -252,15 +256,25 @@ function assinar(id) {
   const desenha = new Set(), mudo = new Set();
   for (const k of emitido) desenha.add("vfx:" + k);
   if (pico.proj > antes.proj) desenha.add("proj");
-  if (pico.area > antes.area) desenha.add("area");
+  // a zona entra pela FATIA do aro: fogo tremula, podridao gira, brasa e
+  // tracejada. O raio nunca muda com o `look` — ver AreaEffect.draw
+  for (const z of g.areas.active) desenha.add("area:" + (z.look || "fire"));
   /* O demonio entra na assinatura pelo KIND, e nao como "invocou algo": seis
      pecas invocam, e o que o jogador ve nao e o anel — e o bicho. Silhueta
      propria por tipo ja e regra (`driver_render` reprova demonio sem sprite),
      entao contar as seis como irmas visuais seria o driver ignorando a
      distincao mais forte que essas pecas tem. */
   for (const m of g.minions.active) if (!vistoAntes.has(m)) desenha.add("minion:" + m.kind);
-  if (alvo.some((e, i) => e.dots.length > dotBase[i])) desenha.add("dot");
-  if (g.player.shield > antes.escudo) desenha.add("veil");
+  // o DoT entra pela FATIA do orbe: podridao orbita, fogo sobe, maldicao fica
+  // parada em fila, sentenca fecha para dentro — ver Enemy.drawDotOver
+  for (const e of alvo) {
+    for (const d of e.dots) if (d.key !== "fixture") desenha.add("dot:" + (d.look || "rot"));
+  }
+  // a casca entra pela FATIA: seis pecas dao escudo e cada uma tem a sua
+  // (quantos lados, quanto gira, se tem espinho) — ver EFFECTS.shield
+  if (g.player.shield > antes.escudo) {
+    desenha.add("veil:" + ((g.player.veil && g.player.veil.sides) || "?"));
+  }
 
   const now = g.clock;
   // marca de estado: uma grade de 9x9 em osso sobre a cabeca, uma forma por

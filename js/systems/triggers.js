@@ -14,7 +14,7 @@
    ========================================================================= */
 
 // Dispara a lista de efeitos da peca a partir de um ponto/alvo.
-function firePiece(game, inst, x, y, target, dirX, dirY, now) {
+function firePiece(game, inst, x, y, target, dirX, dirY, now, amount) {
   const c = pushCtx(game);
   c.key = inst.key;
   c.color = inst.def.color;
@@ -22,7 +22,14 @@ function firePiece(game, inst, x, y, target, dirX, dirY, now) {
   c.x = x; c.y = y;
   c.target = target;
   c.dirX = dirX; c.dirY = dirY;
-  c.amount = 0;
+  /* `amount` e o valor que o EVENTO trouxe, e ele existe por causa de um bug
+     que so apareceu quando alguem foi procurar por que a peca nao desenhava
+     nada: Soul Leech promete "todo dano que voce causa vira casca" e converte
+     uma fracao de `c.amount` — que era zerado aqui, sempre. A peca dava zero
+     de escudo desde que existe. Quem dispara por evento passa o numero do
+     evento; quem dispara por cooldown continua comecando do zero, porque nao
+     ha nada anterior para herdar. */
+  c.amount = amount || 0;
   runEffects(game, inst.r.effects, c);
   popCtx(game);
   inst.casts++;
@@ -190,7 +197,7 @@ const TRIGGERS = {
       s.nextAt = now + cd(game, t.cooldown || 0.4);
       const x = t.atPlayer || !target ? p.x : target.x;
       const y = t.atPlayer || !target ? p.y : target.y;
-      firePiece(game, inst, x, y, target, p.dirX, p.dirY, now);
+      firePiece(game, inst, x, y, target, p.dirX, p.dirY, now, payload.amount);
     },
   },
 };
