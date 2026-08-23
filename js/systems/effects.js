@@ -36,6 +36,7 @@ function childCtx(game, c, target, amount) {
   n.x = target ? target.x : c.x;
   n.y = target ? target.y : c.y;
   n.amount = amount != null ? amount : c.amount;
+  n._told = false;              // a pilha e reaproveitada; ver telegraph()
   return n;
 }
 
@@ -136,11 +137,44 @@ function claimAngle(a, minSep) {
   return a;
 }
 
+/* ANTECIPACAO. As quatro batidas de um evento sao antecipacao, impacto,
+   dissipacao e residuo, e o jogo tinha as duas do meio. A que falta mais e a
+   primeira, e ela nao e enfeite: golpe que cai LONGE do jogador, num ponto que
+   ele poderia ter deixado, e dano que ele nao teve como ler. Meteoro sem
+   sombra no chao nao e dificuldade, e sorteio.
+
+   O aviso e honesto: o efeito e mesmo ADIADO por `tell` segundos, e o anel
+   fecha no quadro em que ele cai. Desenhar o telegrafo sem atrasar o golpe
+   seria um aviso que nao antecede nada.
+
+   O ponto e congelado agora e o alvo e descartado: em `tell` segundos o
+   inimigo mirado pode ter morrido, e um meteoro que persegue o cadaver e pior
+   que um que cai onde foi anunciado. E o contexto e reconstruido do zero
+   porque a pilha e reaproveitada — guardar `c` seria ler outro efeito depois.
+
+   `_told` e a trava anti-recursao: o reagendamento chama o MESMO efeito. */
+function telegraph(game, e, c) {
+  const x = e.atTarget && c.target ? c.target.x : c.x;
+  const y = e.atTarget && c.target ? c.target.y : c.y;
+  const key = c.key, color = c.color, type = e.type;
+  game.emitVfx("tell", x, y, e.radius || 60, color);
+  game.schedule(e.tell, () => {
+    const n = pushCtx(game);
+    n.key = key; n.color = color; n.now = game.clock;
+    n.x = x; n.y = y; n.target = null;
+    n.dirX = 0; n.dirY = 0; n.amount = 0;
+    n._told = true;
+    EFFECTS[type](game, e, n);
+    popCtx(game);
+  });
+}
+
 const EFFECTS = {
 
   /* --- dano ------------------------------------------------------------- */
 
   damage_instant(game, e, c) {
+    if (e.tell > 0 && !c._told) { telegraph(game, e, c); return; }
     const targets = effectTargets(game, e, c);
     if (!targets.length) return;
     const crit = e.crit > 0 && Math.random() < e.crit;
@@ -238,6 +272,7 @@ const EFFECTS = {
   },
 
   area_persistent(game, e, c) {
+    if (e.tell > 0 && !c._told) { telegraph(game, e, c); return; }
     const x = e.atTarget && c.target ? c.target.x : c.x;
     const y = e.atTarget && c.target ? c.target.y : c.y;
     const jitter = e.jitter || 0;

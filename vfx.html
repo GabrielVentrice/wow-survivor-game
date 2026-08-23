@@ -637,6 +637,7 @@ function stepWorld(w, dt) {
 
 // A ordem daqui é a ordem de Game.render(): ela É a profundidade.
 function drawWorld(ctx, w) {
+  w.vfx.drawDecals(ctx, CAM);
   for (let i = 0; i < w.areas.length; i++) w.areas[i].draw(ctx, CAM);
   if (w.overlay) w.overlay(ctx, w);
   for (let i = 0; i < w.drops.length; i++) w.drops[i].draw(ctx, CAM);

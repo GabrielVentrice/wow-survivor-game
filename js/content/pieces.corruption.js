@@ -184,6 +184,8 @@ Object.assign(PIECES, {
     effects: [
       { type: "damage_over_time", key: "soulRupture", dps: "@dps", duration: "@duration",
         tickInterval: "@tickInterval", color: "#4a9e2e", radius: "@radius",
+        // o dano dela e o PRAZO vencendo, entao o orbe fecha para dentro
+        look: "doom",
         stacking: { mode: "refresh", max: 1 }, expireOnDeath: true,
         // a alma arrebenta para fora: onda, e nao a rachadura por dentro que e
         // a assinatura do Unstable Affliction

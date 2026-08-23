@@ -1039,6 +1039,10 @@ class Game {
     }
     this.scenery.draw(ctx, cam, t);
 
+    // O residuo E o chao por um tempo: ele vem logo depois dele e antes de
+    // qualquer entidade. Evento acontece SOBRE o mundo; chamusco acontece NELE.
+    this.vfxLayer.drawDecals(ctx, cam);
+
     const areas = this.areas.active;
     for (let i = 0; i < areas.length; i++) areas[i].draw(ctx, cam);
 

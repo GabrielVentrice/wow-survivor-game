@@ -161,6 +161,15 @@ const VOICES = {
     },
   },
 
+  /* O telegrafo. Baixo e sem ataque de proposito: ele avisa, nao acontece. Se
+     ele soasse como um golpe, o jogador reagiria a ele e nao ao golpe. */
+  tell: {
+    gap: 0.1,
+    play(s, t, o) {
+      s._wash(t, 0.15, 320, 900, 2.4, 0.018 * o.v, 0.8);
+    },
+  },
+
   // Salto de DoT: um blip. E o unico som do jogo que sobe e para.
   jump: {
     gap: 0.08,

@@ -726,6 +726,51 @@ indistinguíveis de vizinhas até ganharem um segundo ponto:
 As três só existem porque `VfxLayer` aprendeu a carregar um segundo ponto na
 fase anterior — e nenhuma delas é uma forma nova.
 
+### As quatro batidas: antecipação e resíduo
+
+Um evento tem quatro batidas — **antecipação, impacto, dissipação, resíduo** —
+e o jogo tinha as duas do meio. As duas das pontas são o que separa "piscou" de
+"aconteceu", e cada uma conserta um defeito diferente.
+
+**Resíduo: o chão lembra.** Sem ele o mundo esquece — uma explosão que apagou o
+vão inteiro da horda deixava exatamente o mesmo chão que um tiro que não
+acertou ninguém. `SCORCH_KINDS` diz quem marca e quanto: só o que **abre
+espaço** (`burst`, `nova`, `rip`) deixa chamusco; implosão recolhe, salto e
+deslocamento não tocam o chão, cura não queima nada.
+
+- **O chamusco vive num pool separado do resto do vfx**, e os dois motivos são
+  de profundidade: ele dura dez vezes mais que o evento que o criou, e é
+  desenhado logo depois do chão e antes de qualquer entidade. **Evento acontece
+  SOBRE o mundo; resíduo acontece NELE.**
+- **Ele é escuro, não aceso.** Chão queimado não brilha — é a ausência de chão
+  limpo. Quem carrega a cor da peça é só o aro, e fraco: chamusco que brilhasse
+  como a explosão faria a explosão parar de significar algo.
+
+**Antecipação: o golpe avisa onde vai cair.** Não é enfeite — golpe que cai
+**longe** do jogador, num ponto que ele poderia ter deixado, é dano que ele não
+teve como ler. Meteoro sem sombra no chão não é dificuldade, é sorteio.
+
+`tell: 0.16` num efeito **adia o efeito de verdade** e emite o anel que fecha.
+Desenhar o telegrafo sem atrasar o golpe seria um aviso que não antecede nada —
+e é por isso que isto é, declaradamente, uma mudança de jogo e não só de arte.
+Três consequências:
+
+- **O anel FECHA.** Um anel que abrisse leria como algo que já aconteceu;
+  fechar é o que dá a contagem regressiva. Ele também não usa `lighter` nem tem
+  miolo: é o único evento do jogo que conta o futuro, e não pode ser confundido
+  com um golpe.
+- **O ponto é congelado e o alvo descartado.** Em 0,16s o inimigo mirado pode
+  ter morrido, e um meteoro que persegue o cadáver é pior que um que cai onde
+  foi anunciado.
+- **O atraso e a vida do anel são o mesmo número**, e `driver_vfx` mantém os
+  dois iguais. Não há como um derivar do outro — um é dado de conteúdo, o outro
+  de render —, então o que resta é cobrar a igualdade. Se divergirem, o anel
+  fecha e nada acontece.
+
+Quem NÃO recebe telegrafo: o que sai do jogador (o alcance já é a leitura) e o
+golpe repetido de um demônio plantado — telegrafar cada golpe de uma torre é
+aviso constante, que é ruído.
+
 ### Fatia, não desenho novo
 
 Depois que as quatro formas existiram, três grupos de peças continuavam

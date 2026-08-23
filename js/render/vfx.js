@@ -239,11 +239,37 @@ const VFX_LIFE = {
   // dezesseis pecas e num hash de referencia, e renomear so para ficar
   // simetrico custaria mais do que a simetria vale.
   implode: 0.5, nova: 0.42, rip: 0.4,
+  /* O TELEGRAFO. A vida dele nao e escolha de gosto: ela e o atraso do golpe
+     que ele anuncia, e o anel tem que FECHAR no quadro em que o dano cai. Se
+     os dois numeros divergirem, o aviso mente — `driver_vfx` mantem os dois
+     iguais. */
+  tell: 0.16,
 };
 
 /* Kind do evento -> forma no gerador. E um mapa e nao uma igualdade porque o
    `burst` e mais velho que o gerador. */
 const EVENT_SHAPE = { burst: "bloom", implode: "implode", nova: "nova", rip: "rip" };
+
+/* --- Resíduo ---------------------------------------------------------------
+   As quatro batidas de um evento sao antecipacao, impacto, dissipacao e
+   RESIDUO, e o jogo tinha as duas do meio. Sem a quarta, o mundo esquece: uma
+   explosao que apagou o vao inteiro da horda deixa exatamente o mesmo chao que
+   um tiro que nao acertou ninguem.
+
+   O chamusco vive num pool separado do resto do vfx por dois motivos, e os
+   dois sao de PROFUNDIDADE: ele dura dez vezes mais que o evento que o criou,
+   e ele e desenhado embaixo de tudo — logo depois do chao e antes de qualquer
+   entidade. Evento acontece SOBRE o mundo; residuo acontece NO mundo.
+
+   Ele e escuro, nao aceso. Chao queimado nao brilha — e a ausencia de chao
+   limpo. Quem carrega a cor da peca e so o aro, e fraco: se o chamusco
+   brilhasse tanto quanto a explosao, a explosao pararia de significar algo, que
+   e a mesma regra que segura o cenario inteiro. */
+const SCORCH_LIFE = 1.7;
+const SCORCH_MAX = 90;
+// so o que ABRE espaco deixa marca: implosao recolhe, salto e deslocamento nao
+// tocam o chao, e cura nao queima nada
+const SCORCH_KINDS = { burst: 0.82, nova: 0.95, rip: 0.5, reap: 0 };
 
 // Which variant of a multi-variant vfx this instance gets. A counter, not
 // Math.random(): two explosions in the same frame must not land on the same
@@ -265,11 +291,19 @@ class VfxLayer {
       o.rgb = hexRgb(o.color);
       o.t = 0; o.life = VFX_LIFE[kind] || 0.35;
     });
+    this.decals = new Pool(() => ({}), (o, x, y, r, color, seed) => {
+      o.x = x; o.y = y; o.r = r; o.rgb = hexRgb(color);
+      o.seed = seed; o.t = 0;
+    });
   }
-  reset() { this.pool.clear(); }
+  reset() { this.pool.clear(); this.decals.clear(); }
   emit(kind, x, y, r, color, x2, y2) {
     if (this.pool.active.length > 160) return;   // teto: vfx nunca engasga o loop
-    this.pool.spawn(kind, x, y, r, color, x2, y2);
+    const v = this.pool.spawn(kind, x, y, r, color, x2, y2);
+    const f = SCORCH_KINDS[kind];
+    if (f > 0 && r > 24 && this.decals.active.length < SCORCH_MAX) {
+      this.decals.spawn(x, y, r * f, color, v ? v.seed : 0);
+    }
   }
   update(dt) {
     const l = this.pool.active;
@@ -277,6 +311,39 @@ class VfxLayer {
       l[i].t += dt;
       if (l[i].t >= l[i].life) { this.pool.release(i); i--; }
     }
+    const d = this.decals.active;
+    for (let i = 0; i < d.length; i++) {
+      d[i].t += dt;
+      if (d[i].t >= SCORCH_LIFE) { this.decals.release(i); i--; }
+    }
+  }
+
+  /* Desenhado logo depois do chao e antes de tudo o mais: ele E o chao por um
+     tempo. Achatado, porque marca no chao vista de cima nao e um circulo — e a
+     mesma elipse que a luz aos pes do warlock e o anel de podridao usam. */
+  drawDecals(ctx, cam) {
+    const d = this.decals.active;
+    if (!d.length) return;
+    ctx.save();
+    for (let i = 0; i < d.length; i++) {
+      const s = d[i], k = s.t / SCORCH_LIFE;
+      const a = (1 - k) * (1 - k);          // some devagar e so entao acaba
+      const x = s.x - cam.left, y = s.y - cam.top;
+      ctx.fillStyle = `rgba(9,5,10,${(a * 0.5).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y, s.r, s.r * 0.42, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // o aro guarda a cor de quem queimou, e so ele
+      ctx.strokeStyle = `rgba(${s.rgb},${(a * 0.22).toFixed(3)})`;
+      ctx.lineWidth = 1.5;
+      for (let j = 0; j < 6; j++) {
+        const a0 = vfxRand(s.seed + j) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.ellipse(x, y, s.r, s.r * 0.42, 0, a0, a0 + 0.55);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
   draw(ctx, cam) {
     const l = this.pool.active;
@@ -378,6 +445,27 @@ class VfxLayer {
           // the gate radius, same scale drawMinions uses for the standing one.
           const o = Math.min(1, k / 0.18, (1 - k) / 0.26);
           drawPortal(ctx, x, y, v.r, v.t * 4, v.color, o);
+          break;
+        }
+        case "tell": {
+          /* Aviso, nao golpe. Ele nao brilha, nao usa `lighter` e nao tem
+             miolo: e um anel FECHANDO no chao, e o unico evento do jogo que
+             conta o futuro em vez do passado. Fechar e o que da a contagem
+             regressiva — um anel que abrisse leria como algo que ja
+             aconteceu. */
+          const c = 1 - k;
+          ctx.save();
+          ctx.globalCompositeOperation = "source-over";
+          ctx.translate(x, y);
+          ctx.scale(1, 0.45);
+          ctx.strokeStyle = `rgba(${v.rgb},${(0.35 + k * 0.5).toFixed(2)})`;
+          ctx.lineWidth = 1.5 + k * 2;
+          ctx.beginPath(); ctx.arc(0, 0, v.r * (0.25 + c * 0.95), 0, Math.PI * 2); ctx.stroke();
+          // o alvo no chao: o raio EXATO, parado, para o jogador medir a fuga
+          ctx.strokeStyle = `rgba(${v.rgb},0.3)`;
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(0, 0, v.r, 0, Math.PI * 2); ctx.stroke();
+          ctx.restore();
           break;
         }
         case "reap": {

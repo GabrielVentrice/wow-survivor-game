@@ -161,6 +161,9 @@ Object.assign(PIECES, {
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: 0 },
     effects: [
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
+        // chuva de fogo: sombra no chao antes de cada queda. Sem ela o dano
+        // cai num ponto que o jogador nao teve como ler.
+        tell: 0.16,
         look: "fire",      // fogo vivo: o aro tremula
         tickInterval: "@tickInterval", count: "@drops", jitter: "@jitter", color: "#ff8a3c" },
     ],
@@ -419,6 +422,7 @@ Object.assign(PIECES, {
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius", big: true },
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
+        tell: 0.16,
         look: "fire",
         tickInterval: "@tickInterval", color: "#ffb54a" },
     ],

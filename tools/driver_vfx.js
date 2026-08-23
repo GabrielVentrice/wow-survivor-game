@@ -181,12 +181,14 @@ function apodrecer(list) {
 
 /* O que a peca fez APARECER. Nem todo tell e um evento emitido: marca de
    estado sobre o inimigo e sobreposicao presa ao jogador sao desenho que dura,
-   e um driver que so olhasse `emitVfx` diria que elas nao existem. As fichas
-   mudas que sobram sao a resposta da pergunta "isso cobra em silencio?". */
-const MUDAS = {
-  desloca: "reposicionamento", velocidade: "buff sem corpo",
-  dreno: "nada", cura: "nada no mundo",
-};
+   e um driver que so olhasse `emitVfx` diria que elas nao existem.
+
+   O que NAO da mais para medir daqui: deslocamento e dreno de vida. Com sete
+   segundos de simulacao a horda anda e encosta, entao "o inimigo mudou de
+   lugar" e "o jogador perdeu vida" acontecem para toda peca, inclusive as que
+   nao fazem nem uma coisa nem outra. As duas mecanicas ganharam tell proprio
+   (o rastro `dash` e as riscas do Burning Rush), entao a ficha muda delas
+   deixou de ter trabalho. */
 
 function assinar(id) {
   g.start();
@@ -231,11 +233,33 @@ function assinar(id) {
      (a 480 u/s ele cobre os 70 ate o alvo em 0,15s), e olhar so o estado final
      dava Incinerate como peca que nao desenha nada. */
   const vistoAntes = new Set(g.minions.active);
-  const pico = { proj: antes.proj, area: antes.area, minion: antes.minion };
+  const desenha = new Set();
+
+  /* TUDO e anotado durante a janela, nunca no fim dela. Zona expira, marca de
+     controle expira, escudo decai, demonio some — numa janela de sete segundos
+     olhar o estado final e olhar o silencio DEPOIS da peca, e nao a peca. Foi
+     assim que Banish, Howl of Terror e Burning Trail apareceram como mudas
+     depois que a janela cresceu: as tres desenham, e as tres ja tinham
+     acabado. */
+  let picoEscudo = antes.escudo;
   const marcar = () => {
-    pico.proj = Math.max(pico.proj, g.projectiles.active.length);
-    pico.area = Math.max(pico.area, g.areas.active.length);
-    pico.minion = Math.max(pico.minion, g.minions.count());
+    if (g.projectiles.active.length > antes.proj) desenha.add("proj");
+    if (g.player.speedBoostUntil > g.clock) desenha.add("rush");
+    if (g.player.shield > picoEscudo) {
+      picoEscudo = g.player.shield;
+      desenha.add("veil:" + ((g.player.veil && g.player.veil.sides) || "?"));
+    }
+    for (const z of g.areas.active) desenha.add("area:" + (z.look || "fire"));
+    for (const m of g.minions.active) if (!vistoAntes.has(m)) desenha.add("minion:" + m.kind);
+    const now2 = g.clock;
+    for (const e of alvo) {
+      for (const d of e.dots) if (d.key !== "fixture") desenha.add("dot:" + (d.look || "rot"));
+      if (e.stunUntil > now2) desenha.add("marca:stun");
+      else if (e.fearUntil > now2) desenha.add("marca:fear");
+      else if (e.slowUntil > now2) desenha.add("marca:slow");
+      else if ((e.weakUntil || 0) > now2) desenha.add("marca:weaken");
+      else if (e.marked > 0 && now2 < e.markedUntil) desenha.add("marca:mark");
+    }
   };
 
   const p = g.player;
@@ -250,46 +274,31 @@ function assinar(id) {
     g.damageEnemy(alvo[(i + 1) % alvo.length], 60, "fixture", true);
     marcar();
   }
-  // os efeitos persistentes so viram tela depois de um passo de simulacao
-  for (let i = 0; i < 8; i++) { g.update(0.025); marcar(); }
+  /* Sete segundos, e nao um punhado de passos. Boa parte do catalogo cobra no
+     VENCIMENTO — Doom, Unstable Affliction e Soul Rupture nao desenham o que
+     tem de mais proprio ate o DoT expirar. Com uma janela de 0.2s essas pecas
+     saiam com a assinatura da espera, nao a delas. */
+  g.spawner.interval = 1e9;
+  for (let i = 0; i < 280; i++) {
+    /* A mesa e um banco de teste, nao uma partida: os alvos sao reancorados e
+       a vida do jogador fica presa. Sem isso a horda fecha em cima dele em
+       sete segundos e TODA peca passa a "deslocar inimigo" e "drenar vida" —
+       o driver estaria medindo a aproximacao da horda, nao a peca. */
+    if (i % 24 === 0) {
+      for (let j = 0; j < alvo.length; j++) {
+        const a2 = (j / alvo.length) * Math.PI * 2;
+        alvo[j].x = g.player.x + Math.cos(a2) * 70;
+        alvo[j].y = g.player.y + Math.sin(a2) * 70;
+      }
+    }
+    g.player.hp = g.player.maxHp * 0.25;
+    g.update(0.025);
+    marcar();
+  }
 
-  const desenha = new Set(), mudo = new Set();
   for (const k of emitido) desenha.add("vfx:" + k);
-  if (pico.proj > antes.proj) desenha.add("proj");
-  // a zona entra pela FATIA do aro: fogo tremula, podridao gira, brasa e
-  // tracejada. O raio nunca muda com o `look` — ver AreaEffect.draw
-  for (const z of g.areas.active) desenha.add("area:" + (z.look || "fire"));
-  /* O demonio entra na assinatura pelo KIND, e nao como "invocou algo": seis
-     pecas invocam, e o que o jogador ve nao e o anel — e o bicho. Silhueta
-     propria por tipo ja e regra (`driver_render` reprova demonio sem sprite),
-     entao contar as seis como irmas visuais seria o driver ignorando a
-     distincao mais forte que essas pecas tem. */
-  for (const m of g.minions.active) if (!vistoAntes.has(m)) desenha.add("minion:" + m.kind);
-  // o DoT entra pela FATIA do orbe: podridao orbita, fogo sobe, maldicao fica
-  // parada em fila, sentenca fecha para dentro — ver Enemy.drawDotOver
-  for (const e of alvo) {
-    for (const d of e.dots) if (d.key !== "fixture") desenha.add("dot:" + (d.look || "rot"));
-  }
-  // a casca entra pela FATIA: seis pecas dao escudo e cada uma tem a sua
-  // (quantos lados, quanto gira, se tem espinho) — ver EFFECTS.shield
-  if (g.player.shield > antes.escudo) {
-    desenha.add("veil:" + ((g.player.veil && g.player.veil.sides) || "?"));
-  }
 
-  const now = g.clock;
-  // marca de estado: uma grade de 9x9 em osso sobre a cabeca, uma forma por
-  // estado. Ver STATE_MARKS (js/sprites.js) e Enemy.draw.
-  if (alvo.some((e) => e.stunUntil > now)) desenha.add("marca:stun");
-  if (alvo.some((e) => e.fearUntil > now)) desenha.add("marca:fear");
-  if (alvo.some((e) => e.slowUntil > now)) desenha.add("marca:slow");
-  if (alvo.some((e) => (e.weakUntil || 0) > now)) desenha.add("marca:weaken");
-  if (alvo.some((e) => e.marked > 0)) desenha.add("marca:mark");
-  if (g.player.speedBoostUntil > now) desenha.add("rush");   // Player.draw
-  if (alvo.some((e, i) => e.x + "," + e.y !== antes.pos[i])) mudo.add("desloca");
-  if (g.player.hp < antes.hp) mudo.add("dreno");
-  if (g.player.hp > antes.hp) mudo.add("cura");
-
-  return { desenha: [...desenha].sort(), mudo: [...mudo].sort() };
+  return { desenha: [...desenha].sort(), mudo: [] };
 }
 
 const porAssinatura = new Map();
@@ -507,6 +516,36 @@ const s1 = fxFrames("nova", "#7fdc4a", G0);
 if (fxFrames("nova", "#7fdc4a", G0) !== s1) bad("fxFrames remonta o mesmo conjunto");
 fxFrames("nova", "#7fdc4a", 24);
 if (FX_SETS.size !== antesCache + 2) bad("cache de forma nao separa por grade");
+
+/* =========================================================================
+   6. O TELEGRAFO E O ATRASO SAO O MESMO NUMERO
+
+   `tell` no efeito adia o golpe; `VFX_LIFE.tell` e quanto o anel leva para
+   fechar. Se os dois divergirem o aviso mente — o anel fecha e nada acontece,
+   ou o golpe cai com o anel ainda aberto. Nao ha como um derivar do outro (um
+   e dado de conteudo, o outro e dado de render), entao o que resta e cobrar a
+   igualdade.
+   ========================================================================= */
+const telegrafos = [];
+function varrerTell(list, dono, depth) {
+  if (!list || depth > 4) return;
+  for (const e of list) {
+    if (!e) continue;
+    if (e.tell > 0) telegrafos.push({ dono, tell: e.tell });
+    varrerTell(e.onHit, dono, depth + 1);
+    varrerTell(e.onTick, dono, depth + 1);
+    varrerTell(e.onExpire, dono, depth + 1);
+    varrerTell(e.effects, dono, depth + 1);
+  }
+}
+for (const id in PIECES) varrerTell(PIECES[id].effects, id, 0);
+const desalinhado = telegrafos.filter((t) => t.tell !== VFX_LIFE.tell);
+if (desalinhado.length) {
+  bad("telegrafo com atraso diferente da vida do anel: " +
+      desalinhado.map((t) => `${t.dono} (${t.tell} != ${VFX_LIFE.tell})`).join(", "));
+} else if (telegrafos.length) {
+  console.log(`ok  telegrafo: ${telegrafos.length} efeito(s) adiado(s), todos casados com VFX_LIFE.tell`);
+}
 
 /* --- placar -------------------------------------------------------------- */
 const total = Object.keys(PIECES).length;

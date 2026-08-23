@@ -193,12 +193,12 @@ está ocupada.
 Ordenadas por dopamina-por-hora, não por elegância. Cada uma fecha sozinha,
 roda a bateria e commita.
 
-> **Estado:** fases 0 a 5 entregues (`feat/vfx-impacto`). Placar do
+> **Estado:** fases 0 a 6 entregues (`feat/vfx-impacto`). Placar do
 > `driver_vfx`, do começo até aqui:
 >
 > | | fase 0 | fase 3 |
 > |---|---|---|
-> | assinaturas visuais distintas | 14 | **43 de 43** |
+> | assinaturas visuais distintas | 14 | **44 de 44** |
 > | peças que disparam sem desenhar nada | 8 | **0** |
 > | cores fora da paleta no render | 15 | **10** |
 > | vozes | 0 | **20** |
@@ -367,11 +367,26 @@ que você causa vira casca" e convertia uma fração de `c.amount` — que
 só apareceu porque alguém foi perguntar por que ela não desenhava nada.
 `reactive` passou a repassar o valor do evento.
 
-### Fase 6 — Antecipação e resíduo (1 sessão)
-A batida 1 e a batida 4 em quem ganha mais com elas: sombra no chão antes do
-meteoro, carga antes do Chaos Bolt, chamusco depois da explosão, poça depois da
-zona. Revisar `hitstop`/`shake` para os eventos novos.
-**Verificação:** `driver_feel`.
+### ~~Fase 6 — Antecipação e resíduo~~ ✅
+As duas batidas das pontas. **Resíduo:** o chamusco vive num pool próprio e é
+desenhado entre o chão e as entidades — evento acontece SOBRE o mundo, resíduo
+acontece NELE. Só o que abre espaço marca; ele é escuro e não aceso, porque
+chão queimado não brilha.
+
+**Antecipação:** `tell` adia o efeito **de verdade** e emite o anel que fecha —
+telegrafo que não atrasa nada é aviso que não antecede nada, e por isso isto é
+mudança de jogo declarada. O ponto é congelado e o alvo descartado (um meteoro
+que persegue o cadáver é pior que um que cai onde foi anunciado), e o driver
+mantém o atraso e a vida do anel iguais.
+
+**E a mesa de teste virou de verdade uma bancada.** A janela subiu de 0,2s para
+7s, porque boa parte do catálogo cobra no VENCIMENTO — Doom, Unstable
+Affliction e Soul Rupture não desenham o que têm de mais próprio até o DoT
+expirar. Com a janela maior, três coisas quebraram e as três eram o medidor:
+tudo passou a ser anotado **durante** a janela e nunca no fim dela (zona
+expira, marca expira, escudo decai), os alvos são reancorados e a vida do
+jogador fica presa — senão a horda fecha em cima dele e toda peça vira
+"desloca inimigo, drena vida".
 
 ### Fase 7 — Limpeza de paleta (meia sessão)
 Ciano do escudo → `veil` na cor da peça. Anéis de controle → marcas em osso.

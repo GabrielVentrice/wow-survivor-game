@@ -30,6 +30,7 @@ function firePiece(game, inst, x, y, target, dirX, dirY, now, amount) {
      evento; quem dispara por cooldown continua comecando do zero, porque nao
      ha nada anterior para herdar. */
   c.amount = amount || 0;
+  c._told = false;              // a pilha e reaproveitada; ver telegraph()
   runEffects(game, inst.r.effects, c);
   popCtx(game);
   inst.casts++;
