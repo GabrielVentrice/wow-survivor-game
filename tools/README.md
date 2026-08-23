@@ -104,6 +104,16 @@ Seis cenarios (`SCENARIOS`, dado): alvo unico, aglomerado em volta, cerco com o
 jogador andando, leva mortal com reposicao, atiradores e chefe. Duas
 configuracoes por peca: recem-comprada e com um caminho fechado no tier 5.
 
+Foi ele que achou os dois defeitos que a grade de tres linhas trouxe: o Demonic
+Circle piorava ao saltar mais cedo (fugir antes de a horda fechar pega menos
+corpos) e a linha de Critico do Shadowburn fechava sem nunca disparar — 100% de
+critico sobre um golpe que nao acontece continua sendo zero.
+
+Uma reprovacao dele e ARTEFATO DE CENARIO e continua vermelha de proposito:
+`rainOfFire mastery5` evolui para Cataclysm, que e `directional`, e o piloto do
+banco fica parado na maioria dos cenarios. Ela ja era vermelha antes da grade
+(como `strike5`, e com zero em vez de 5,5k).
+
 Duas coisas custaram uma rodada cada, e as duas sao a mesma licao — **o banco
 tem que montar um mundo que o jogo pode entregar**:
 
@@ -126,7 +136,10 @@ O que ele reprova, e por isso e driver e nao relatorio:
   `reactive` cobre tanto Shadowburn quanto o escudo do Soul Leech, e `reflect`
   so causa dano se um tier comprou isso;
 - **caminho fechado que rende MENOS que a peca crua** — um tier que piorou a
-  peca. Ninguem le 645 tiers a procura disso.
+  peca. Ninguem le 660 tiers a procura disso — e desde que as tres linhas
+  viraram uma grade so (`js/content/paths.js`), o modo `full` e o unico lugar
+  que mede as tres: o modo padrao fecha o PRIMEIRO caminho, que hoje e sempre a
+  Aceleracao.
 
 O que ele NAO responde, e nao deve: se o jogador CHEGA ao tier 5. O banco
 credita o gate de eixo de uma vez e nunca chama `checkCapstones`, porque o

@@ -14,6 +14,10 @@ Survivors-like (Vampire Survivors) com tema WoW, classe Warlock, e um sistema de
 build roguelike inspirado em Bloons TD 6 (caminhos de upgrade que trocam a
 identidade da peça) e Echoes of Mystralia (composição livre de efeitos).
 
+O que Bloons empresta hoje é a **profundidade**, não o vocabulário: os três
+caminhos são os mesmos em toda peça — **Aceleração, Maestria e Crítico** — e a
+troca de identidade mora no tier 5 de cada um. Ver "As três linhas".
+
 **O único input em combate é movimento.** Nada é conjurado à mão; toda peça
 dispara sozinha pelo seu trigger. Posicionamento é a única decisão em tempo real.
 
@@ -272,10 +276,22 @@ Três regras que caíram daí, e as três custaram uma medição:
   zero de dano em 6s. O conserto é o número base valer sozinho, não a linha
   compensar depois.
 
-**E o banco de provas cobra o resto.** `driver_bench` reprova caminho fechado
-que rende menos que a peça crua, e foi ele que mostrou que descer o limiar do
-Demonic Circle de 7 para 3 inimigos **piorava** a peça: saltar mais cedo tira o
-warlock de perto antes de a horda fechar, então cada saída pega menos corpos.
+**E o banco de provas cobra o resto** (`DRIVER=driver_bench.js ... 12 full` — o
+modo padrão fecha só o primeiro caminho, que hoje é sempre a Aceleração). Ele
+achou os dois defeitos que a grade trouxe, e os dois são a mesma armadilha —
+**degrau que parece upgrade na tabela e não é upgrade em campo**:
+
+- **Demonic Circle piorava** ao descer o limiar de 7 para 3 inimigos: saltar
+  mais cedo tira o warlock de perto antes de a horda fechar, então cada saída
+  pega menos corpos. O raio maior é o que paga a pressa.
+- **A linha de Crítico do Shadowburn fechava sem nunca disparar**: 100% de
+  crítico sobre um golpe que não acontece continua sendo zero. A peça só executa
+  abaixo de um limiar, e o limiar tinha que subir junto.
+
+Vale como regra para tier 5 novo: **crítico garantido não é payoff sozinho.** Se
+a peça tem condição de disparo (limiar de vida, alvo com DoT, cerco), o tier que
+crava `crit: { set: 1 }` precisa afrouxar a condição no mesmo degrau — senão a
+linha inteira é comprada por nada.
 
 #### O crítico é um stat da peça, e quem sorteia é o funil
 
@@ -310,12 +326,17 @@ investisse, e ninguém investe no que nunca viu.
 
 #### O que a grade custou, e o que ela cobrou de volta
 
-Três peças ganharam número base que antes só existia dentro de um caminho,
-porque a Maestria precisa de algo para multiplicar e o Crítico de algo para
-dobrar: **Nether Ward** (o dano devolvido), **Soulstone** (a casca por
-reposição) e **Demonic Circle** e **Burning Rush** (o estouro da saída e a
-esteira de fogo). Não é generosidade: linha que não compra nada é carta morta,
-e carta morta numa tela de três ofertas é um terço da tela.
+**Quatro peças ganharam número base** que antes só existia dentro de um
+caminho, porque a Maestria precisa de algo para multiplicar e o Crítico de algo
+para dobrar: **Nether Ward** (o dano devolvido), **Soulstone** (a casca por
+reposição), **Demonic Circle** (o estouro da saída) e **Burning Rush** (a
+esteira de fogo). Não é generosidade: linha que não compra nada é carta morta, e
+carta morta numa tela de três ofertas é um terço da tela.
+
+**Os nomes das linhas são uma linha de dado** (`LINE_NAMES`, em
+`js/content/paths.js`), e os dos degraus outra (`LINE_TIERS`). Eles aparecem no
+subtítulo da carta e na tira da build; trocar "Aceleração" por "Haste" é essa
+linha e mais nada.
 
 O que a grade **não** conserta é o meio da run. Vários tiers estruturais que
 antes chegavam no tier 1 ou 2 ("os tiros explodem em área", "as mordidas
@@ -1738,9 +1759,11 @@ descontar, chegar ao nível 10 de uma vez faria a primeira carta (a que paga o
 nível 8) oferecer passiva, e a trava de dez viraria uma de oito. `driver_cards`
 cobra as duas pontas: nível 1 sem passiva, e nível 10 com fila de 3 também sem.
 
-**Nenhum texto novo por tier.** São 645 tiers no catálogo — escrever "antes →
-depois" à mão em cada um seria conteúdo que envelhece no primeiro
-rebalanceamento. Tudo o que a carta mostra sai do que já existe:
+**Nenhum texto novo por tier.** São 660 tiers no catálogo, e só 132 deles são
+escritos à mão (os tier 5, um por linha por peça) — os outros 528 saem dos
+geradores das três linhas. Escrever "antes → depois" à mão em cada um seria
+conteúdo que envelhece no primeiro rebalanceamento. Tudo o que a carta mostra
+sai do que já existe:
 
 | Campo da carta | De onde vem |
 |---|---|
