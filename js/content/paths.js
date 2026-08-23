@@ -27,17 +27,38 @@
    grade existir.
 
    Fechadas, as tres linhas chegam perto uma da outra de proposito:
-     Aceleracao  1/0.56 = 1.79x de cadencia, e a quantidade dobrando ou mais
-     Maestria    1.3 * 1.35 * 1.4 * 1.5 = 3.69x no numero principal
-     Critico     60% de chance a 3.5x = 2.50x de dano medio
-   Nenhuma domina; o que decide e a peca. */
+     Aceleracao  1/0.4875 = 2.05x de cadencia, e a quantidade quadruplicando
+     Maestria    1.5 * 1.4 * 1.45 * 1.5 = 4.57x no numero principal
+     Critico     80% de chance a 4.5x = 3.80x de dano medio
+   Nenhuma domina; o que decide e a peca.
+
+   E elas sao FRONT-LOADED: o degrau mais caro da linha e o PRIMEIRO. A versao
+   anterior abria em +30% / -20% / +15% de critico e a medicao a reprovou de
+   forma brutal — sobrevivencia mediana de 9:59 para 2:05, mortes antes dos 3
+   min de 4/20 para 12/20, pool de eixo de 20/20 para 2/20. O motivo nao e o
+   total, que estava perto do dos caminhos antigos: e que o marco e pago em
+   ABATES, entao menos dano cedo vira menos marco, que vira tier travado pelo
+   gate de eixo, que vira menos dano. E a mesma realimentacao da curva de XP,
+   e ela e implacavel — os caminhos antigos abriam em "+50% de dano" e era isso
+   que a mantinha do lado bom. */
 const LINE_STEPS = {
   // sem stat de quantidade, a linha inteira e recarga: quatro degraus
-  rateOnly: [0.8, 0.8, 0.75, 0.75],
+  rateOnly: [0.75, 0.75, 0.7, 0.7],
   // com quantidade, a recarga leva dois degraus e cede os outros dois
-  rate: [0.8, 0.7],
-  dmg: [1.3, 1.35, 1.4, 1.5],
+  rate: [0.75, 0.65],
+  dmg: [1.5, 1.4, 1.45, 1.5],
 };
+
+/* Os degraus do Critico sao um par (chance, multiplicador) e nao um numero,
+   entao eles tem tabela propria. O primeiro degrau leva os dois de proposito:
+   chance sozinha sobre um multiplicador de 2x e o degrau mais fraco que a
+   grade sabe oferecer, e ele estava sendo o primeiro que o jogador via. */
+const CRIT_STEPS = [
+  { crit: 0.25, mul: 0.5 },
+  { crit: 0.25 },
+  { mul: 1 },
+  { crit: 0.25, mul: 1 },
+];
 
 const LINE_NAMES = { haste: "Aceleração", mastery: "Maestria", crit: "Crítico" };
 
@@ -126,14 +147,17 @@ function MASTERY(spec, top) {
    quase nunca acontece. */
 function CRIT(spec, top) {
   const noun = (spec && spec.noun) || "dano";
-  const tiers = [
-    T(LINE_TIERS.crit[0], "+15% de chance de crítico.", { crit: { add: 0.15 } }),
-    T(LINE_TIERS.crit[1], `+0.75x no ${noun} crítico.`, { critMul: { add: 0.75 } }),
-    T(LINE_TIERS.crit[2], "+20% de chance de crítico.", { crit: { add: 0.2 } }),
-    T(LINE_TIERS.crit[3], `+20% de crítico e +0.75x no ${noun} crítico.`,
-      { crit: { add: 0.2 }, critMul: { add: 0.75 } }),
-    top,
-  ];
+  const tiers = CRIT_STEPS.map((st, i) => {
+    const mods = {};
+    if (st.crit) mods.crit = { add: st.crit };
+    if (st.mul) mods.critMul = { add: st.mul };
+    const chance = st.crit ? `+${Math.round(st.crit * 100)}% de crítico` : "";
+    const peso = st.mul ? `+${st.mul}x no ${noun} crítico` : "";
+    const desc = chance && peso ? `${chance} e ${peso}.`
+      : chance ? `${chance.replace("de crítico", "de chance de crítico")}.` : `${peso}.`;
+    return T(LINE_TIERS.crit[i], desc, mods);
+  });
+  tiers.push(top);
   return { name: LINE_NAMES.crit, evolvesInto: (spec && spec.evolvesInto), tiers };
 }
 

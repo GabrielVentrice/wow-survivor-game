@@ -250,14 +250,41 @@ está ancorada na linha que combina com ela (`evolvesInto` no spec daquela
 linha), e `driver.js` continua cobrando que a forma evoluída tenha os mesmos
 três caminhos da base — o que com ids fixos passou a ser de graça.
 
-**Uma tabela só balanceia o catálogo inteiro** (`LINE_STEPS`). Fechadas, as três
-linhas chegam perto uma da outra de propósito:
+**Uma tabela só balanceia o catálogo inteiro** (`LINE_STEPS` e `CRIT_STEPS`).
+Fechadas, as três linhas chegam perto uma da outra de propósito:
 
 | linha | o que ela compra fechada |
 |---|---|
-| Aceleração | `1/0.56 = 1.79x` de cadência, e a quantidade dobrando ou mais |
-| Maestria | `1.3 × 1.35 × 1.4 × 1.5 = 3.69x` no número principal |
-| Crítico | 60% de chance a 3.5x → `2.50x` de dano médio |
+| Aceleração | `1/0.4875 = 2.05x` de cadência, e a quantidade quadruplicando |
+| Maestria | `1.5 × 1.4 × 1.45 × 1.5 = 4.57x` no número principal |
+| Crítico | 80% de chance a 4.5x → `3.80x` de dano médio |
+
+#### E elas são FRONT-LOADED, porque o marco é pago em abates
+
+O degrau mais caro de cada linha é o **primeiro**. Não é gosto: a primeira
+versão da grade abria em `+30%` de dano, `-20%` de recarga e `+15%` de crítico
+— totais na mesma faixa dos caminhos antigos — e a medição a reprovou de forma
+brutal (`driver_balance`, 4 runs × 5 políticas, mesmas seeds):
+
+| | caminhos antigos | grade v1 (degraus parelhos) |
+|---|---|---|
+| sobrevivência mediana (`focado`) | 9:59 | **2:05** |
+| mortes antes dos 3 min | 4/20 | **12/20** |
+| pool de eixo ao fim (mediana) | 20/20 | **2/20** |
+| runs com evolução | 9/20 | **0/20** |
+| runs com capstone | 10/20 | **2/20** |
+
+O total quase não tinha mudado; o que mudou foi **quando** ele chega. Os
+caminhos antigos abriam em "+50% de dano" ou "dobra o dano", e era isso que
+segurava a realimentação: o marco é cobrado em **abates**, então menos dano
+cedo vira menos marco, que vira tier travado pelo gate de eixo, que vira menos
+dano ainda. É a mesma realimentação que a curva de XP já documenta acima, e ela
+é implacável — só **9 de 20 runs** chegaram aos 400 abates, contra 20 de 20 na
+base.
+
+Regra que fica: **degrau novo se mede pelo primeiro, não pelo total.** Uma linha
+cujo primeiro degrau vale menos que `1.3x` não é uma linha mais lenta, é uma
+linha que a run não consegue pagar.
 
 Três regras que caíram daí, e as três custaram uma medição:
 
