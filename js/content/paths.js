@@ -128,10 +128,19 @@ function MASTERY(spec, top) {
   const tiers = steps.map((v, i) => {
     const mods = {};
     for (const st of stats) mods[st] = spec.add ? { add: v } : { mul: v };
-    const txt = spec.add
-      ? `${v > 0 ? "+" : ""}${spec.pct ? Math.round(v * 100) + "%" : v}`
-      : `+${pctUp(v)}%`;
-    return T(LINE_TIERS.dmg[i], `${txt} de ${noun}.`, mods);
+    let txt = spec.add
+      ? `${v > 0 ? "+" : ""}${spec.pct ? Math.round(v * 100) + "%" : v} de ${noun}`
+      : `+${pctUp(v)}% de ${noun}`;
+    /* `also` e o segundo stat que sobe junto quando ele NAO pode ser
+       multiplicado. As duas maldicoes sao o caso: a potencia delas e um fator
+       (0.65 = o alvo anda a 65%), e sem isto a Maestria teria que escolher
+       entre multiplicar o dano e aprofundar a maldicao. */
+    if (spec.also) {
+      const w = spec.also.steps[i];
+      mods[spec.also.stat] = { add: w };
+      txt += ` e ${w > 0 ? "+" : ""}${spec.also.pct ? Math.round(w * 100) + "%" : w} de ${spec.also.noun}`;
+    }
+    return T(LINE_TIERS.dmg[i], txt + ".", mods);
   });
   tiers.push(top);
   return { name: LINE_NAMES.mastery, evolvesInto: spec.evolvesInto, tiers };

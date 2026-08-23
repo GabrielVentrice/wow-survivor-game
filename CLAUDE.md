@@ -351,25 +351,60 @@ investisse, e ninguém investe no que nunca viu.
   os reativos que escutam esse evento — o crítico deixaria de ser dano e
   passaria a ser gatilho.
 
-#### O que a grade custou, e o que ela cobrou de volta
+#### Toda peça precisa de número DESDE A COMPRA
 
-**Quatro peças ganharam número base** que antes só existia dentro de um
-caminho, porque a Maestria precisa de algo para multiplicar e o Crítico de algo
-para dobrar: **Nether Ward** (o dano devolvido), **Soulstone** (a casca por
-reposição), **Demonic Circle** (o estouro da saída) e **Burning Rush** (a
-esteira de fogo). Não é generosidade: linha que não compra nada é carta morta, e
-carta morta numa tela de três ofertas é um terço da tela.
+Esta é a regra mais cara que a grade trouxe, e ela quase passou despercebida
+porque não aparece em nenhum driver de peça: **onze peças do catálogo não
+causavam dano nenhum**, e no catálogo antigo elas ganhavam dano no **tier 1 ou
+2** de um caminho temático — "Corrosão: a aura também causa dano" (Curse of
+Exhaustion), "Estilhaço" (Howl of Terror, Mortal Coil), "Espinhos" (Demon Skin,
+Soul Leech), "Casca" (Healthstone), "Sentinela" (Soulstone). Eram tiers baratos,
+dentro do `freeTier`, e eram eles que transformavam uma carta de controle numa
+peça que contribui.
+
+Na grade, esse salto estrutural passou a morar no **tier 5** — que pede 10
+pontos no eixo da peça. Uma run que sorteia controle ou defesa ficava com nada
+que a Maestria pudesse multiplicar e nada que o Crítico pudesse dobrar, pelo
+resto da run.
+
+Medido com o jogador **imortal** (tira a morte da conta e mede só o crescimento
+da build), política aleatória, 8 seeds, mediana de abates:
+
+| | caminhos antigos | grade sem número base | com número base |
+|---|---|---|---|
+| 60s | 376 | 160 | 268 |
+| 120s | 1056 | **399** | 1009 |
+| 180s | 2055 | **630** | 2018 |
+| 240s | 3174 | 2881 | 3099 |
+| tiers comprados aos 240s | 29 | **18** | 30 |
+
+A coluna do meio é a mesma realimentação de sempre, e a última linha é a prova
+dela: menos dano → menos abates → menos XP e menos marco → **menos tiers
+comprados** → menos dano. Onze peças mudas bastaram para derrubar o jogo pela
+metade, sem que uma única peça de dano tivesse ficado mais fraca — o
+`driver_bench` mostrava Incinerate fechado **5,6x mais forte** que o caminho
+antigo equivalente no mesmo momento.
+
+O conserto foi dar a cada uma **o número que ela já ganhava no tier 1**, agora
+na base: dano de aura nas duas maldições, estouro no grito e no revide,
+espinhos no couro e na casca, servos na alma guardada, dano devolvido na
+barreira, esteira no Burning Rush e estouro de saída no Demonic Circle.
+
+**Regra que fica: peça nova tem que fazer, no instante em que é comprada, a
+coisa que as três linhas multiplicam.** Se o que ela faz só existe depois de um
+tier, ela é uma carta morta na tela — e carta morta numa tela de três ofertas é
+um terço da tela.
 
 **Os nomes das linhas são uma linha de dado** (`LINE_NAMES`, em
 `js/content/paths.js`), e os dos degraus outra (`LINE_TIERS`). Eles aparecem no
 subtítulo da carta e na tira da build; trocar "Aceleração" por "Haste" é essa
 linha e mais nada.
 
-O que a grade **não** conserta é o meio da run. Vários tiers estruturais que
-antes chegavam no tier 1 ou 2 ("os tiros explodem em área", "as mordidas
-sangram") hoje só existem no tier 5, que pede 10 pontos no eixo da peça
-(`PATH_RULES.axisGate`). Quem espalha eixo sente isso — e é o preço declarado
-do gate, não uma regressão.
+O que sobra de custo é honesto e continua de pé: tiers estruturais de peças que
+**já** causam dano ("os tiros explodem em área", "as mordidas sangram") hoje só
+existem no tier 5. Quem espalha eixo sente isso, e é o preço declarado do gate
+(`PATH_RULES.axisGate`) — a diferença é que agora ele atrasa o teto da peça em
+vez de decidir se ela existe.
 
 ### Trigger é o que diferencia as peças
 
