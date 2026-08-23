@@ -29,6 +29,7 @@ class BuildSystem {
     this.reactives.clear();
     this.vfx.length = 0;
     this.apexed.clear();
+    this.game.critBy.clear();
     this.wireEvents();
     this.applyGlobals();
   }
@@ -172,6 +173,20 @@ class BuildSystem {
     for (const inst of this.pieces.values()) inst.r = resolvePiece(inst, this);
     this.rebuildReactives();
     this.rebuildVfx();
+    this.rebuildCrit();
+  }
+
+  /* A tabela de critico que `Game.damageEnemy` le por `key`. Ela sai dos stats
+     JA RESOLVIDOS, entao passiva e capstone que mexam em `crit`/`critMul`
+     entram de graca — e uma peca sem a linha de Critico comprada simplesmente
+     nao aparece no mapa, que e a consulta mais barata possivel no funil. */
+  rebuildCrit() {
+    const m = this.game.critBy;
+    m.clear();
+    for (const inst of this.pieces.values()) {
+      const chance = inst.r.stats.crit || 0;
+      if (chance > 0) m.set(inst.key, { chance, mul: inst.r.stats.critMul || 2 });
+    }
   }
 
   /* AURAS do personagem. So spell CONCLUIDA entra aqui.

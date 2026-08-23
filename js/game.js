@@ -97,6 +97,11 @@ class Game {
     this._apexQueued = null;      // eixo que encheu e ainda nao virou onda
     this.timers = [];             // efeitos agendados (Eco do Vazio)
     this.damageBy = new Map();    // key -> dano acumulado (medidor)
+    /* key -> { chance, mul }. A linha de Critico de cada peca vive aqui, e
+       nao dentro dos efeitos: quem sorteia e o funil de dano, entao projetil,
+       DoT, area, demonio e dano instantaneo critam pela mesma regra. Escrito
+       por BuildSystem.rebuildCrit a cada aquisicao. */
+    this.critBy = new Map();
 
     // multiplicadores de jogo inteiro, escritos por BuildSystem.applyGlobals
     this.dotHaste = 1; this.dotDurationMul = 1;
@@ -318,15 +323,33 @@ class Game {
      fica em `_chain`, e um trigger reativo daquela mesma key nao dispara. E a
      generalizacao do antigo `source !== "corruption"` — sem ela, um DoT que
      aplica DoT trava o browser. */
-  damageEnemy(e, amount, key, big, dotKey) {
+  damageEnemy(e, amount, key, big, dotKey, cont) {
     if (!e || e.hp <= 0 || amount <= 0) return 0;
 
     let amt = amount * this.dynDamage;
     if (e.marked && this.clock < e.markedUntil) amt *= 1 + e.marked;
+
+    /* O CRITICO e sorteado aqui, uma vez por acerto, a partir dos stats da
+       peca dona da `key`. Ele mora no funil e nao dentro de cada efeito pelo
+       mesmo motivo que o medidor de dano mora aqui: sao cinco caminhos de
+       dano (instantaneo, projetil, DoT, area, demonio) e uma regra so. Uma
+       copia por efeito seria a mesma lista escrita cinco vezes, e a que
+       envelhecesse deixaria uma peca sem a linha de Critico em silencio. */
+    let crit = false;
+    if (key) {
+      const cr = this.critBy.get(key);
+      if (cr && Math.random() < cr.chance) { crit = true; amt *= cr.mul; }
+    }
     if (big && this.bigHitCrit) amt *= 2;      // capstone Nihilam
 
     e.hp -= amt;
-    e.hitFlash = 0.1;
+    // o critico se le no corpo: o mesmo flash branco, com o dobro de fôlego
+    e.hitFlash = crit ? 0.2 : 0.1;
+    /* E fala, mas so no dano DISCRETO. Tique de DoT e de area cobram por
+       sub-step enquanto durarem — um estalo por cobranca viraria metralhadora
+       justo quando a horda fecha. Mesma regra que os mantem fora do hitstop.
+       `big` ja tem a propria voz logo abaixo. */
+    if (crit && !big && !dotKey && !cont) this.emitSfx("crit", e.x, e.y, 0.35);
     if (key) this.damageBy.set(key, (this.damageBy.get(key) || 0) + amt);
 
     if (this.areaLifesteal > 0 && !dotKey) this.healPlayer(amt * this.areaLifesteal);
@@ -1020,7 +1043,7 @@ class Game {
           if (e.hp <= 0 || e.charmed) return;
           const dx = e.x - a.x, dy = e.y - a.y, rr = a.radius + e.radius;
           if (dx * dx + dy * dy > rr * rr) return;
-          const dealt = dmg > 0 ? this.damageEnemy(e, dmg, a.source) : 0;
+          const dealt = dmg > 0 ? this.damageEnemy(e, dmg, a.source, false, null, true) : 0;
           if (a.payload) {
             const c = pushCtx(this);
             c.key = a.source; c.color = a.color; c.now = this.clock;
