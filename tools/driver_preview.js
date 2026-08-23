@@ -78,7 +78,7 @@ const takeMs = (idx, label) => {
   msShots.push({
     rows, label,
     eyebrow: `<span>Etapa ${idx + 1}</span><s></s>` +
-             `<span>${mmss(g.milestoneTimeAt(idx))}</span><s></s>` +
+             `<span>${fmtNum(g.milestoneKillsAt(idx))} abates</span><s></s>` +
              `<span>${falta} ponto${falta === 1 ? "" : "s"} por gastar</span>`,
     sub: (offers.find((o) => o.locked)
       ? `${offers.find((o) => o.locked).axis.name} já está aberta: o eixo sozinho não cobra mais nada. A spell, sim.`

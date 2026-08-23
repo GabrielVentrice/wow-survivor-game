@@ -242,12 +242,26 @@ BALANCE.levelup = {
 /* ETAPAS: a batida lenta da run, e a UNICA fonte de ponto de eixo.
 
    O level up passou a ser so profundidade (um tier de uma spell que voce ja
-   tem). Largura e comprometimento saem daqui — de marcos de TEMPO, que o
-   jogador ve chegar no relogio em vez de sortear.
+   tem). Largura e comprometimento saem daqui — de marcos de ABATE, que o
+   jogador ve chegar no contador em vez de sortear.
 
-   Por que tempo e nao chefe: o primeiro Dreadlord so nasce aos 5 min e depois
+   Por que abate e nao chefe: o primeiro Dreadlord so nasce aos 5 min e depois
    vem a cada 2:30. Metade da run ficaria sem marco nenhum, e o eixo — que e a
    unica decisao irreversivel do jogo — chegaria tarde demais para ser mirado.
+
+   E por que abate e nao TEMPO, que era o que este marco media antes: relogio
+   entrega a decisao irreversivel por ESPERAR. Num survivors-like em que o unico
+   input e movimento, quem fugiu em circulo por 40s recebia o mesmo ponto de
+   eixo de quem varreu a horda — e a batida lenta, que e a unica decisao que a
+   run nao desfaz, era a unica coisa do jogo que nao pedia nada do jogador.
+   Contando corpo, o marco vira o pagamento de matar, que e o verbo do genero.
+
+   O PRECO CRESCE porque a horda cresce. Abates por segundo e superlinear nesta
+   curva — medido, ~1/s no primeiro minuto e ~100/s aos 10 min —, entao quota
+   fixa por marco entregaria a pool inteira nos primeiros minutos de uma run que
+   engatou a bola de neve, e o clímax chegaria antes da build existir. O termo
+   quadratico (`ramp`) e o que segura isso: cada marco pede
+   `every + ramp*(2*idx-1)` corpos a mais que o anterior.
 
    NAO ha tabela de pontos por marco, e isso e de proposito. A rampa e
    EMERGENTE: antes de abrir um eixo so existe carta de spell, que vale
@@ -264,16 +278,21 @@ BALANCE.levelup = {
 
    A cadencia sai da conta, nao do gosto: a pool e 20, um jogador que abre um
    eixo cedo gasta ~5 marcos a 1 ponto e o resto a 2, entao fecha em ~13 marcos.
-   A 45s isso da ~9:45 — logo antes dos 10 min, que e onde uma run competente
-   deveria estar acabando. `driver_milestone` refaz essa conta. */
+   Nestes numeros o 13o marco cai em ~15,7 mil corpos e o 15o em ~18,5 mil —
+   o que uma run competente acumula por volta dos 10 min, que e onde ela deveria
+   estar acabando. `driver_milestone` refaz essa conta. */
 BALANCE.milestones = {
-  first: 40,        // s ate o primeiro marco
-  every: 40,        // cadencia enquanto sobrar ponto de eixo
+  first: 50,        // abates ate o primeiro marco
+  every: 200,       // termo linear do proximo marco
+  ramp: 80,         // termo quadratico: a horda cresce, o preco cresce junto
   cards: 3,         // cartas por etapa
   unlockAt: 5,      // pontos num eixo para ele ganhar slot fixo + carta seca
   spellPoints: 1,   // eixo que uma spell carrega para o eixo dela
   axisPoints: 2,    // eixo da carta seca de um eixo aberto
-  warnAt: 12,       // s antes do marco em que o HUD comeca a avisar
+  /* Fracao do marco atual em que o HUD comeca a avisar — fracao, e nao um
+     numero de corpos, porque o marco custa 250 no comeco e 2 mil no fim: 20
+     abates seriam meio minuto de aviso no primeiro e um piscar no ultimo. */
+  warnAt: 0.15,
 };
 
 /* Baú: quantos tiers grátis ele entrega. Peso relativo, não porcentagem;

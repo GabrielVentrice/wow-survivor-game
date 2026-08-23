@@ -381,6 +381,13 @@ acrescentar:
   abates em branco, âmbar e verde — e etapa e abates não são estados de eixo,
   então não podem falar em cor de eixo. Viraram uma linha só, em osso.
 
+**A linha de contexto conta CORPOS, não segundos** (`Etapa em N abates · M no
+total`). Ela é o único aviso da batida lenta, e um relógio ali diria ao jogador
+para *esperar* — que é a jogada que a etapa por abates existe para não premiar.
+O limiar em que ela acende (`warnAt`) é **fração do marco atual** e não um
+número fixo de corpos: o primeiro marco custa 250 e o décimo custa 2 mil, então
+20 abates seriam meio minuto de antecedência lá e um piscar aqui.
+
 **Os pips da tira contam o caminho MAIS FUNDO**, os cinco degraus, como em toda
 outra tela. Já foram três — um por caminho, aceso acima do tier gratuito —, e
 isso responde "tem caminho investido?" quando a pergunta que a tira faz é "quão
@@ -1266,7 +1273,7 @@ não podem voltar a ser uma só.
 
 | | Level-up | Etapa |
 |---|---|---|
-| **Quando** | subiu de nível (~17–70 por run) | marco de tempo, a cada `every` enquanto sobrar ponto |
+| **Quando** | subiu de nível (~17–70 por run) | marco de **abates**, a cada `every`+`ramp` corpos enquanto sobrar ponto |
 | **A pergunta** | qual das minhas spells vira *a* spell da run? | para onde essa run vai? |
 | **O que oferece** | tier de caminho; passiva global a partir do nível 10 | spell nova (+1 no eixo dela) e, no eixo aberto, +2 secos |
 | **Custa** | nada | é a **única** fonte de ponto de eixo |
@@ -1329,12 +1336,37 @@ Consequências que valem para qualquer coisa nova:
 tabela de pontos por marco**. A rampa é *emergente*: o quanto uma etapa vale sai
 do estado da build, não de uma coluna de números.
 
-Marco de **tempo** e não de chefe: o primeiro Dreadlord só nasce aos 5 min e
+Marco de **abates** e não de chefe: o primeiro Dreadlord só nasce aos 5 min e
 depois vem a cada 2:30, então metade da run ficaria sem marco e a única decisão
-irreversível chegaria tarde demais para ser mirada. `#msClock` no HUD conta para
-o próximo — marco que chega sem aviso não estrutura ritmo nenhum.
+irreversível chegaria tarde demais para ser mirada. A linha de contexto do HUD
+conta os corpos que faltam para o próximo — marco que chega sem aviso não
+estrutura ritmo nenhum.
 
-**Quem para as etapas é a POOL, não uma contagem de marcos.** `every` continua
+**E abates, não TEMPO**, que é o que este marco media antes. Relógio entrega a
+decisão irreversível por **esperar**: quem fugiu em círculo por 40s recebia o
+mesmo ponto de eixo de quem varreu a horda, e a batida lenta — a única escolha
+que a run não desfaz — era a única coisa do jogo que não pedia nada do jogador.
+Contando corpo, o marco vira o pagamento de matar, que é o verbo do gênero, e a
+tela de etapa passa a chegar mais cedo para quem está rampando e mais tarde para
+quem está sobrevivendo de raspão.
+
+Três consequências, e as três estão no código:
+
+- **O preço cresce, e cresce acelerando.** Abates por segundo é superlinear
+  nesta curva — medido, ~1/s no primeiro minuto e ~100/s aos 10. Quota fixa por
+  marco entregaria a pool inteira nos primeiros minutos de uma run que engatou a
+  bola de neve, e o clímax chegaria antes de existir build para gastá-lo. Daí o
+  termo quadrático: `milestoneKillsAt(idx) = first + idx*every + idx²*ramp`,
+  então cada marco pede `every + ramp*(2·idx−1)` corpos a mais que o anterior.
+- **Dois marcos no mesmo frame deixaram de ser raros.** Com relógio isso exigia
+  um travamento; com corpos, uma explosão grande ou a varredura do Ápice vencem
+  dois preços de uma vez. A fila (`pendingMilestones`, teto de 3) era um caso de
+  borda e virou o caminho normal.
+- **`updateMilestones` roda DEPOIS de `killDeadEnemies`.** O contador que arma o
+  marco é o que a varredura acabou de mexer; antes dela, todo marco chegaria um
+  sub-step atrasado.
+
+**Quem para as etapas é a POOL, não uma contagem de marcos.** O contador continua
 disparando enquanto `axisLeft > 0`. Enquanto uma lista fixa era o fim da linha,
 quem levava spell terminava a run com ponto no bolso e nenhuma tela para
 gastá-lo — medido, runs acabando em **12/20 e 13/20**, com ponto aparecendo no
@@ -1371,11 +1403,17 @@ eixo aberto custa um marco a mais. `driver_milestone` reprova
 #### Cadência: sai da conta, não do gosto
 
 Pool 20; quem abre um eixo cedo gasta ~5 marcos a 1 ponto e o resto a 2, e as
-linhas sorteadas nem sempre oferecem o eixo alvo — na prática **~15 marcos**. A
-`every` 40s isso fecha em **10:00**, logo antes de onde uma run competente
-acaba. `driver_milestone` refaz essa conta em vez de confiar no número: se a
-pool só fechasse depois dos 11 min, ele reprova, porque **marco entregue depois
-da morte não entrega nada**.
+linhas sorteadas nem sempre oferecem o eixo alvo — na prática **~15 marcos**.
+Com `first` 50, `every` 200 e `ramp` 80 o 15º marco cai em **18,5 mil corpos**,
+que é o que uma run competente do piloto acumula por volta dos 10 min — logo
+antes de onde ela acaba. `driver_milestone` refaz essa conta em vez de confiar
+no número, porque **marco entregue depois da morte não entrega nada**.
+
+O que ele cobra mudou de unidade junto com o marco: o teto era um relógio (11
+min) e virou um **orçamento de corpos** (20 mil). O driver não roda o jogo — ele
+exercita a tela —, então quem re-mede a curva de abates é `driver_balance`; aqui
+o que se verifica é que a conta cabe nesse orçamento, que ela cresce a cada
+marco, e que `ramp` existe.
 
 #### Apresentação
 

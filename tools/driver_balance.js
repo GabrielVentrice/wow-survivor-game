@@ -24,6 +24,18 @@
 const RUNS = Number(__argv[1] || 6);
 const MAX_MIN = Number(__argv[2] || 20);
 
+/* Sweep opcional da rampa da etapa: `... 4 16 first,every,ramp`. Ela e cobrada
+   em ABATES, e abates sao consequencia da build que a propria etapa constroi —
+   entao a rampa e um PONTO FIXO e nao um numero que se deriva. Achar onde ele
+   cai pede rodar a mesma bateria com tres rampas diferentes, e sem esta linha
+   isso exigiria tres arvores de trabalho. Mesmo argumento do `sweep` do
+   `driver_autopsy`. */
+if (__argv[3]) {
+  const [f, e, r] = __argv[3].split(",").map(Number);
+  Object.assign(BALANCE.milestones, { first: f, every: e, ramp: r });
+  console.log(`rampa da etapa: first ${f}, every ${e}, ramp ${r}`);
+}
+
 /* --- o bot ---------------------------------------------------------------
    Repulsão da horda + atração pelo orbe mais próximo, e fica parado quando
    não há ninguém perto. É o mínimo para um piloto que não seja burro: sem a
@@ -220,11 +232,15 @@ function runOnce(policy, seed) {
   // A etapa e a unica fonte de eixo, entao a politica precisa opinar aqui —
   // sortear este lado tornaria capstone uma medida do sorteio e nao do perfil.
   let milestones = 0;
+  // Em que ABATE cada marco caiu. O marco e cobrado em corpos, e `driver_milestone`
+  // nao roda o jogo — entao quem mede a curva de verdade e este driver.
+  const msKills = [];
   g.ui.openMilestone = function () {
     if (g.build.axisLeft <= 0) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
     const offers = g.build.getMilestoneOffers();
     if (!offers.length) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
     const pick = POLICIES[policy].ms(g, offers, rnd) || { o: offers[0], wet: !offers[0].dry };
+    msKills.push(g.player.kills);
     milestones++;
     picks.push("M:" + pick.o.axisId + (pick.wet ? "+" + pick.o.piece.id : ""));
     g.build.applyMilestone(pick.o, pick.wet);
@@ -276,7 +292,7 @@ function runOnce(policy, seed) {
     hpCurve, kpsCurve, dpsCurve,
     axis: { ...g.build.axis },
     axisTotal: g.build.axisTotal,
-    milestones,
+    milestones, msKills,
     forms: g.player.formIdx,
     pieces: [...g.build.pieces.values()].map((i) => i.def.id),
     paths: [...g.build.pieces.values()].map((i) => i.def.id + "[" + Object.values(i.paths).join("") + "]"),
@@ -415,6 +431,20 @@ console.log(`  eixos medianos: ${med(all.map((r) => r.axis.corruption))}/` +
   `(pool ${med(all.map((r) => r.axisTotal))}/${AXIS_RULES.pool})`);
 console.log(`  runs que evoluiram algo: ${all.filter((r) => r.evolved.length).length}/${all.length}` +
   `  ${JSON.stringify(cnt(evoAll))}`);
+
+/* A etapa e cobrada em ABATES, entao a pergunta "a rampa cabe na run?" so tem
+   resposta aqui: `driver_milestone` exercita a tela mas nao joga. A linha diz em
+   que corpo cada marco caiu, mediana entre as runs que chegaram nele — se ela
+   subir mais rapido do que a curva de abates, a pool para de fechar. */
+{
+  const maxMs = Math.max(0, ...all.map((r) => r.msKills.length));
+  const linha = [];
+  for (let i = 0; i < Math.min(maxMs, 16); i++) {
+    const vals = all.map((r) => r.msKills[i]).filter((v) => v != null);
+    linha.push(`${med(vals)}(${vals.length})`);
+  }
+  console.log(`  marco N em X abates (runs que chegaram): ${linha.join(" ")}`);
+}
 console.log(`  runs com capstone: ${all.filter((r) => r.capstones.length).length}/${all.length}` +
   `  ${JSON.stringify(cnt(capAll))}`);
 

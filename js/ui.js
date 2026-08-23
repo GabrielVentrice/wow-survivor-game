@@ -148,11 +148,18 @@ class UI {
 
     /* Marco que chega sem aviso nao estrutura ritmo nenhum: o valor de uma
        batida lenta esta em VER a decisao se aproximando. Perto dela a linha
-       acende — em osso, que e o unico jeito de acender sem mentir sobre eixo. */
+       acende — em osso, que e o unico jeito de acender sem mentir sobre eixo.
+
+       O que falta e contado em CORPOS, nao em segundos, porque e matar que paga
+       o marco: um relogio ali diria ao jogador para esperar, e esperar nao e a
+       jogada. E o limiar do aviso e fracao do marco atual, senao ele seria meio
+       minuto de antecedencia no primeiro e nenhum no decimo. */
     const left = g.nextMilestoneIn();
-    const abates = `${fmtNum(p.kills)} abates`;
-    e.hudCtx.textContent = left == null ? abates : `Etapa em ${mmss(left)} · ${abates}`;
-    e.hudCtx.classList.toggle("soon", left != null && left <= BALANCE.milestones.warnAt);
+    e.hudCtx.textContent = left == null
+      ? `${fmtNum(p.kills)} abates`
+      : `Etapa em ${fmtNum(left)} abates · ${fmtNum(p.kills)} no total`;
+    e.hudCtx.classList.toggle("soon",
+      left != null && left <= g.milestoneSpan() * BALANCE.milestones.warnAt);
 
     const hp = Math.max(0, p.hp);
     e.hpFill.style.width = (hp / p.maxHp * 100) + "%";
@@ -765,7 +772,8 @@ class UI {
        ainda vem mais — o jogador que levou spell toda vez e esta atrasado. */
     const falta = g.build.axisLeft;
     this.el.msEyebrow.innerHTML =
-      `<span>Etapa ${idx + 1}</span><s></s><span>${mmss(g.milestoneTimeAt(idx))}</span><s></s>` +
+      `<span>Etapa ${idx + 1}</span><s></s>` +
+      `<span>${fmtNum(g.milestoneKillsAt(idx))} abates</span><s></s>` +
       `<span>${falta} ponto${falta === 1 ? "" : "s"} por gastar</span>`;
 
     /* O subtitulo muda de assunto junto com a fase. Enquanto nenhum eixo abriu,

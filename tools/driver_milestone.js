@@ -18,7 +18,9 @@
 //
 //   1. a conta da cadencia fecha: quem abre um eixo cedo gasta a pool inteira
 //      dentro de uma run jogavel. Nao ha tabela de pontos para conferir — a
-//      rampa e emergente —, entao a verificacao e a SIMULACAO da conta;
+//      rampa e emergente —, entao a verificacao e a SIMULACAO da conta. O marco
+//      e contado em ABATES, entao "run jogavel" virou um orcamento de corpos e
+//      nao um relogio, e a rampa quadratica tem que crescer a cada marco;
 //   2. enquanto sobrar ponto, um marco ainda vem. As etapas nao acabam numa
 //      contagem, acabam quando a pool acaba: `pieceDiscount` implicito (spell
 //      vale menos que eixo seco) atrasa quem leva largura, e sem esta regra
@@ -40,6 +42,28 @@ const bad = (m) => { problems++; console.log("X   " + m); };
 
 /* --- 0. o dado ------------------------------------------------------------ */
 if (!(M.every > 0)) bad("every ausente: a pool ficaria sem como ser gasta");
+if (!(M.first > 0)) bad("first ausente: o primeiro marco sairia no abate zero");
+if (!(M.ramp > 0)) {
+  bad("ramp ausente: com quota fixa por marco, uma run que engata a bola de " +
+      "neve esvazia a pool nos primeiros minutos");
+}
+if (!(M.warnAt > 0 && M.warnAt < 1)) {
+  bad(`warnAt ${M.warnAt} nao e fracao do marco: em abates um limiar absoluto ` +
+      "seria meio minuto de aviso no primeiro marco e nenhum no decimo");
+}
+{
+  /* A conta tem que crescer sempre, e crescer mais a cada marco: e isso que a
+     faz acompanhar a horda em vez de ser atropelada por ela. */
+  const g0 = new Game();
+  let ant = 0, passo = 0;
+  for (let i = 0; i < 20; i++) {
+    const cum = g0.milestoneKillsAt(i);
+    const d = cum - ant;
+    if (d <= 0) bad(`marco ${i} nao custa nada: ${ant} -> ${cum}`);
+    if (i > 1 && d <= passo) bad(`marco ${i} custa ${d}, o anterior custou ${passo} — a rampa parou`);
+    ant = cum; passo = d;
+  }
+}
 if (!(M.axisPoints > M.spellPoints)) {
   bad(`axisPoints ${M.axisPoints} nao supera spellPoints ${M.spellPoints}: ` +
       "levar arsenal deixaria de custar velocidade");
@@ -160,7 +184,7 @@ function simular(seed, alvo, sempreSpell) {
     if (abriuEm < 0 && g.build.axis[alvo] >= M.unlockAt) abriuEm = marcos;
   }
 
-  const fecha = g.milestoneTimeAt(marcos - 1);
+  const fecha = g.milestoneKillsAt(marcos - 1);
   return {
     marcos, abriuEm, fecha, viuSolto3,
     pool: g.build.axisTotal, caps: g.build.capstones.size,
@@ -210,11 +234,19 @@ if (taxaCap < CAP_MIN) {
 
 /* 1. a conta da cadencia. O numero que importa nao e "a pool fecha", e "a pool
    fecha ENQUANTO o jogador ainda esta vivo": marco entregue depois da morte nao
-   entrega nada. Uma run competente acaba por volta dos 10-11 min. */
+   entrega nada.
+
+   Com marco de tempo o teto era um relogio. Com marco de ABATE ele e um numero
+   de corpos, e o teto vem da medicao: uma run competente do piloto de
+   `driver_balance` passa dos 15 mil abates por volta dos 10 min e dos 20 mil um
+   pouco depois — que e onde ela deveria estar acabando. Este driver nao roda o
+   jogo (ele so exercita a tela), entao quem re-mede a curva de abates e o
+   `driver_balance`; aqui o que se cobra e que a conta CAIBA nesse orcamento. */
+const ORCAMENTO = 20000;
 const medFecha = mirando.map((r) => r.fecha).sort((a, b) => a - b)[Math.floor(mirando.length / 2)];
-if (medFecha > 11 * 60) {
-  bad(`quem mira so fecha a pool aos ${(medFecha / 60).toFixed(1)} min — ` +
-      `a ${M.every}s por marco a cadencia nao cabe na run`);
+if (medFecha > ORCAMENTO) {
+  bad(`quem mira so fecha a pool com ${medFecha} abates (teto ${ORCAMENTO}) — ` +
+      `a ${M.every}+${M.ramp}/marco a cadencia nao cabe na run`);
 }
 
 /* --- quem so leva spell --------------------------------------------------- */
@@ -236,7 +268,7 @@ const med = (a) => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)];
 console.log(problems
   ? `X   ${problems} problemas na tela de etapa`
   : `ok  etapa validada — quem mira abre o eixo na etapa ${med(mirando.map((r) => r.abriuEm))}, ` +
-    `fecha a pool em ${med(mirando.map((r) => r.marcos))} etapas (${(medFecha / 60).toFixed(1)} min) ` +
+    `fecha a pool em ${med(mirando.map((r) => r.marcos))} etapas (${medFecha} abates) ` +
     `com capstone em ${comCap}/${CAP_SEEDS.length} das maos e ` +
     `${med(mirando.map((r) => r.spells))} spells; ` +
     `quem so leva spell precisa de ${largo.marcos} etapas`);

@@ -17,7 +17,7 @@ DRIVER=driver_music.js node tools/harness.js .   # trilha: andamento, camadas, e
 DRIVER=driver_render.js node tools/harness.js .  # cenário, demônios e explosão: render e caches
 DRIVER=driver_track.js node tools/harness.js .   # trilha em arquivo: loop, fallback, estados
 DRIVER=driver_cards.js node tools/harness.js .   # level up: gate de eixo, pips, progresso, teto do painel
-DRIVER=driver_milestone.js node tools/harness.js .  # etapa: tabela, tres eixos, ganho real, quem mira fecha capstone
+DRIVER=driver_milestone.js node tools/harness.js .  # etapa: rampa de abates, tres eixos, ganho real, quem mira fecha capstone
 DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas, abertura
 DRIVER=driver_chest.js node tools/harness.js .   # baú: cadência de aparição e tamanho do prêmio
 DRIVER=driver_form.js  node tools/harness.js .   # metamorfose por capstone e aura por spell concluída
@@ -244,10 +244,17 @@ tabela — não existe tabela de pontos, a rampa é emergente:
   para reaparecer;
 - o número anunciado é o creditado, nos dois lados; a spell credita no eixo
   **dela** e não cobra eixo duas vezes (entra como `free`);
-- e **quem mira, chega** — fecha a pool inteira, dentro de uma run jogável
-  (o driver reprova se isso só acontecer depois dos 11 min: marco entregue
-  depois da morte não entrega nada), e com capstone. Sem esta última o resto é
-  contabilidade.
+- e **quem mira, chega** — fecha a pool inteira, dentro de uma run jogável, e
+  com capstone. Sem esta última o resto é contabilidade.
+
+O marco é contado em **abates** e não em segundos, então a cobrança de "run
+jogável" mudou de unidade: o teto era um relógio (11 min) e virou um **orçamento
+de corpos** (20 mil, o que uma run competente do piloto acumula um pouco depois
+dos 10 min). Junto disso ele cobra que a rampa exista e **cresça a cada marco** —
+com quota fixa por corpo, uma run que engata a bola de neve esvaziaria a pool
+nos primeiros minutos, e o clímax chegaria antes de haver build para gastá-lo.
+Este driver não roda a simulação, ele exercita a tela: quem re-mede a curva de
+abates é `driver_balance`.
 
 O capstone é a única dessas cobranças feita por **taxa**, e não por seed. A
 fase fechada obriga a levar a spell que o sorteio pôs na mesa, então o eixo

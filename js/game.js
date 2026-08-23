@@ -116,7 +116,7 @@ class Game {
     this.elapsed = 0;
     this.clock = 0;         // relogio de simulacao: base de TODO agendamento
     this.lastTime = 0;
-    this.milestoneIdx = 0;      // proximo marco de BALANCE.milestones.at
+    this.milestoneIdx = 0;      // proximo marco: ver milestoneKillsAt
     this.pendingMilestones = 0; // etapas vencidas e ainda nao gastas
 
     this.ui = new UI(this);
@@ -699,7 +699,6 @@ class Game {
     this.applyPassives(dt);
     this.build.updateDynamic();
 
-    this.updateMilestones();
     this.spawner.update(dt, this);
     this.updateEnemies(dt);          // move + preenche o grid + contato
     this.tickApex(dt);               // a onda do Apice, com o grid recem-feito
@@ -710,6 +709,9 @@ class Game {
     this.updateAreas(dt);
     this.runTimers();
     this.killDeadEnemies();
+    // DEPOIS de colher os mortos: o contador que arma o marco e o que acabou de
+    // mudar. Antes da varredura, todo marco chegaria um sub-step atrasado.
+    this.updateMilestones();
     this.updateOrbs(dt);
     this.updatePickups(dt);
     this.updateParticles(dt);
@@ -744,15 +746,17 @@ class Game {
     if (this.player.pendingLevels > 0) this.ui.openLevelUp();
   }
 
-  /* Marcos de tempo: a batida lenta e a unica fonte de ponto de eixo.
+  /* Marcos de ABATE: a batida lenta e a unica fonte de ponto de eixo.
 
      Marca em FILA (`pendingMilestones++`) em vez de abrir a tela aqui: este
      ponto do update esta no meio da simulacao, e um `state` trocado aqui
      deixaria o resto do frame rodando com o jogo ja "parado". Quem abre e o
      fim do update, junto com o level up.
 
-     A fila tambem cobre o caso raro de dois marcos no mesmo frame (timeScale 3
-     com um travamento): o segundo espera sua vez em vez de sumir. */
+     A fila tambem cobre o caso comum de dois marcos no mesmo frame — e com
+     abates ele deixou de ser raro: uma explosao grande ou a varredura do Apice
+     derrubam centenas de corpos de uma vez e podem vencer dois precos juntos.
+     O segundo espera sua vez em vez de sumir. */
   updateMilestones() {
     /* A condicao de parada e a POOL, nao a tabela.
 
@@ -762,31 +766,44 @@ class Game {
        deixavam sete pontos parados. Medido, runs acabando em 12/20 e 13/20 —
        ponto que existe, aparece no painel, e nao tem como virar nada. */
     if (this.build.axisLeft <= 0) return;
-    // Teto de fila: com `tailEvery` pequeno e um travamento longo, o laco
-    // poderia enfileirar dezenas de telas de uma vez.
-    while (this.pendingMilestones < 3 && this.elapsed >= this.milestoneTimeAt(this.milestoneIdx)) {
+    // Teto de fila: uma varredura que mata a tela inteira pode vencer varios
+    // marcos no mesmo frame, e o jogador nao le tres telas em sequencia.
+    while (this.pendingMilestones < 3 && this.player.kills >= this.milestoneKillsAt(this.milestoneIdx)) {
       this.milestoneIdx++;
       this.pendingMilestones++;
     }
   }
 
-  /* Quando o marco `idx` acontece. Cadencia fixa, sem tabela: quem decide
-     quantos marcos a run tem e a POOL, nao uma lista de horarios.
+  /* Quantos corpos o marco `idx` custa, no ACUMULADO da run. Cadencia por
+     formula, sem tabela: quem decide quantos marcos a run tem e a POOL, nao uma
+     lista de quotas.
+
+     O termo quadratico e o que faz a conta acompanhar a horda: abates por
+     segundo sobem de ~1 para ~100 ao longo de uma run, entao quota fixa por
+     marco esvaziaria a pool antes da build existir para gasta-la.
 
      Uma funcao so para os dois usos (disparar e contar no HUD): duas copias
      divergiriam na primeira vez que a cadencia mudasse, e o HUD passaria a
      contar para um marco que nao e o que vai disparar. */
-  milestoneTimeAt(idx) {
+  milestoneKillsAt(idx) {
     const M = BALANCE.milestones;
-    return M.first + idx * M.every;
+    return M.first + idx * M.every + idx * idx * M.ramp;
   }
 
-  /* Segundos ate o proximo marco, ou null quando nao ha mais ponto a dar. E o
+  /* Abates ate o proximo marco, ou null quando nao ha mais ponto a dar. E o
      que o HUD mostra: marco que chega sem aviso nao estrutura ritmo nenhum — o
      jogador precisa poder ver a decisao se aproximando. */
   nextMilestoneIn() {
     if (this.build.axisLeft <= 0) return null;
-    return Math.max(0, this.milestoneTimeAt(this.milestoneIdx) - this.elapsed);
+    return Math.max(0, this.milestoneKillsAt(this.milestoneIdx) - this.player.kills);
+  }
+
+  /* Quanto custa SO o marco atual — o denominador do aviso do HUD. E o trecho
+     que diz se faltam muitos corpos ou poucos: 20 abates sao quase metade do
+     primeiro marco e um piscar do decimo. */
+  milestoneSpan() {
+    const idx = this.milestoneIdx;
+    return this.milestoneKillsAt(idx) - (idx > 0 ? this.milestoneKillsAt(idx - 1) : 0);
   }
 
   /* A trilha acompanha a pressao real da run, nao um cronometro proprio:
