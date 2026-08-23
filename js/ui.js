@@ -27,6 +27,7 @@ class UI {
       hpFill: $("hpFill"), xpFill: $("xpFill"), shieldFill: $("shieldFill"),
       hpLabel: $("hpLabel"), xpLabel: $("xpLabel"),
       pieceBar: $("pieceBar"), axisBar: $("axisBar"), toasts: $("toasts"),
+      combo: $("combo"), comboNum: $("comboNum"), comboFuse: $("comboFuse"),
       levelup: $("levelup"), lvRows: $("lvRows"), lvBuild: $("lvBuild"),
       lvEyebrow: $("lvEyebrow"), lvClock: $("lvClock"), lvCtx: $("lvCtx"),
       milestone: $("milestone"), msRows: $("msRows"), msEyebrow: $("msEyebrow"),
@@ -54,6 +55,12 @@ class UI {
        precisa da resposta mesmo quando o quarto evento virou contador. */
     this.live = [];
     this.toastCount = 0;
+
+    /* O ultimo estado escrito na cadeia. `updateCombo` roda a 60fps e o numero
+       so muda quando um corpo cai: sem isto ela reescreveria o mesmo
+       `textContent` e a mesma variavel de tamanho todo frame. */
+    this.comboShown = -1;
+    this.comboTierShown = -1;
   }
 
   /* As tres variaveis de cor de um eixo, escritas inline no elemento. E o
@@ -111,6 +118,9 @@ class UI {
     this.el.hud.classList.remove("hidden");
     this.live.length = 0;
     this.el.toasts.innerHTML = "";
+    this.comboShown = 0;
+    this.comboTierShown = -1;
+    this.el.combo.classList.add("hidden");
     this.updatePieceBar();
   }
 
@@ -153,6 +163,47 @@ class UI {
       : `${Math.ceil(hp)} / ${p.maxHp}`;
     e.xpFill.style.width = (p.xp / p.xpToNext * 100) + "%";
     e.xpLabel.textContent = "Nível " + p.level;
+
+    this.updateCombo();
+  }
+
+  /* A CADEIA — o numero grande da esquerda.
+
+     Ela e a leitura em numero do que a ceifa desenha em anel, e as duas dizem
+     a mesma coisa por caminhos diferentes: a ceifa e um evento no chao, que
+     acontece e passa; a cadeia e um ESTADO, e estado se desenha enquanto dura
+     — a mesma regra que separa a casca do escudo de um vfx de escudo.
+
+     Em osso e nao na cor da build (que e o que a ceifa usa) porque isto e UI:
+     cor e predicado de eixo, e uma cadeia nao fala de eixo nenhum.
+
+     O salto e escrito em `transform`, nao em `font-size`: mudar a fonte
+     reposiciona o texto e obriga o browser a refazer o layout do HUD inteiro
+     sessenta vezes por segundo. O tamanho por degrau muda, mas so quando o
+     degrau muda. */
+  updateCombo() {
+    const g = this.game, C = BALANCE.combo, e = this.el;
+    const n = g.comboCount >= C.min ? g.comboCount : 0;
+    if (!n && !this.comboShown) return;      // fora de cadeia nao custa nada
+
+    if (n !== this.comboShown) {
+      if (!n || !this.comboShown) e.combo.classList.toggle("hidden", !n);
+      if (n) e.comboNum.textContent = n;
+      this.comboShown = n;
+    }
+    if (!n) { this.comboTierShown = -1; return; }
+
+    const t = g.comboTier();
+    if (t !== this.comboTierShown) {
+      e.combo.style.setProperty("--combo-sz", C.size[t] + "px");
+      this.comboTierShown = t;
+    }
+    // o numero SALTA e volta; o degrau so decide quanto
+    const s = 1 + g.comboPulse() * C.swell[t];
+    e.comboNum.style.transform = s > 1.001 ? `scale(${s.toFixed(3)})` : "";
+    // o pavio: quanto falta da janela de um segundo
+    const left = Math.max(0, (g.comboUntil - g.clock) / C.window);
+    e.comboFuse.style.width = (left * 100).toFixed(1) + "%";
   }
 
   /* Barras de eixo, no canto OPOSTO ao da tira de pecas. Elas viviam empilhadas
@@ -1127,7 +1178,8 @@ class UI {
     let auras = 0;
     for (const inst of b.pieces.values()) if (b.isComplete(inst)) auras++;
     this.el.goExtra.innerHTML = this.marcosHtml() +
-      `<div class="pa-linha"><span>Auras acesas</span><b>${auras}</b></div>`;
+      `<div class="pa-linha"><span>Auras acesas</span><b>${auras}</b></div>` +
+      `<div class="pa-linha"><span>Maior cadeia</span><b>${fmtNum(g.comboBest)}</b></div>`;
 
     this.el.gameover.classList.remove("hidden");
   }

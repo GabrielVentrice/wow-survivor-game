@@ -429,6 +429,75 @@ const esparso = ceifar(14, 0.5);
 if (esparso.length) bad(`abate esparso (1 a cada 0,5s) acendeu a ceifa ${esparso.length} vez(es)`);
 else console.log("ok  ceifa: abate esparso nao acende — ela mede abates por SEGUNDO");
 
+/* 4e. A CADEIA — a irma em numero da ceifa. Ela mede a mesma coisa (abates por
+   tempo) e por isso responde as mesmas duas pontas: leva conta, esparso zera.
+   O que so ela tem e a cadencia do salto: uma build madura poe dezenas de
+   corpos no chao por segundo, e o numero tem que PULSAR, nao vibrar. */
+function encadear(n, dtEntre) {
+  g.start();
+  g.spawner.interval = 1e9;
+  const saltos = [];
+  let anterior = g.comboPulseAt;
+  for (let i = 0; i < n; i++) {
+    const e = g.enemies.spawn(ENEMIES.ghoul, g.player.x + 40 + i, g.player.y, g.spawner.scale);
+    e.hp = 0;
+    g.killDeadEnemies();
+    if (g.comboPulseAt !== anterior) { saltos.push(g.comboPulseAt); anterior = g.comboPulseAt; }
+    if (dtEntre > 0) { g.clock += dtEntre; g.tickCombo(); }
+  }
+  return { n: g.comboCount, best: g.comboBest, saltos };
+}
+
+const C = BALANCE.combo;
+if (C.size.length !== C.tiers.length + 1 || C.swell.length !== C.tiers.length + 1) {
+  bad(`combo: ${C.tiers.length} degraus pedem ${C.tiers.length + 1} tamanhos e saltos, ` +
+      `tem ${C.size.length} e ${C.swell.length}`);
+}
+
+const cadeia = encadear(30, C.window * 0.5);
+if (cadeia.n !== 30) bad(`cadeia: 30 abates dentro da janela contaram ${cadeia.n}`);
+else console.log(`ok  cadeia: 30 abates a ${C.window * 0.5}s de distancia -> ${cadeia.n}, degrau ${g.comboTier()}`);
+
+// o recorde e o que denuncia: se a janela estivesse deixando passar, oito
+// abates espacados teriam encadeado em algum momento
+const quebrada = encadear(8, C.window * 1.5);
+if (quebrada.best !== 1) bad(`cadeia: abate a cada ${C.window * 1.5}s encadeou ate ${quebrada.best}`);
+else console.log(`ok  cadeia: intervalo maior que a janela zera a conta (recorde ${quebrada.best})`);
+
+/* O salto tem cadencia pelo mesmo motivo que o hitstop tem: sem ela, cem
+   abates por segundo rearmam o salto no meio dele mesmo e o numero para de
+   voltar ao tamanho normal — vira um numero grande tremendo, nao um pulso. */
+const denso = encadear(100, 0.01);
+const teto = Math.ceil(100 * 0.01 / C.pulse) + 1;
+if (denso.saltos.length > teto) {
+  bad(`cadeia: 100 abates em 1s deram ${denso.saltos.length} saltos (teto ${teto} pela cadencia)`);
+} else {
+  console.log(`ok  cadeia: 100 abates em 1s -> ${denso.saltos.length} salto(s), nao 100`);
+}
+for (let i = 1; i < denso.saltos.length; i++) {
+  if (denso.saltos[i] - denso.saltos[i - 1] < C.pulse - 1e-9) {
+    bad("cadeia: um salto rearmou antes de o anterior terminar");
+    break;
+  }
+}
+
+// e o que a tela mostra: numero, degrau e pavio saem do estado, e abaixo de
+// `min` nada sobe — dois abates seguidos sao o normal deste jogo.
+g.ui.comboShown = 0; g.ui.comboTierShown = -1;
+g.comboCount = C.min - 1; g.comboUntil = g.clock + C.window;
+g.ui.updateCombo();
+if (g.ui.comboShown) bad(`cadeia: ${C.min - 1} abates ja acenderam o contador (min ${C.min})`);
+g.comboCount = C.tiers[C.tiers.length - 1];
+g.comboPulseAt = g.clock;
+g.ui.updateCombo();
+const mostrado = "" + g.ui.el.comboNum.textContent;
+const tam = g.ui.el.combo.style.getPropertyValue("--combo-sz");
+const salto = g.ui.el.comboNum.style.transform;
+if (mostrado !== "" + g.comboCount) bad(`cadeia: a tela mostra "${mostrado}" e a conta e ${g.comboCount}`);
+else if (tam !== C.size[C.size.length - 1] + "px") bad(`cadeia: degrau final devia medir ${C.size[C.size.length - 1]}px, mediu "${tam}"`);
+else if (!/scale\(/.test(salto)) bad("cadeia: o quadro do abate nao escreveu salto nenhum");
+else console.log(`ok  cadeia na tela: ${mostrado} em ${tam}, salto ${salto}`);
+
 /* =========================================================================
    5. O GERADOR DE FORMAS
 

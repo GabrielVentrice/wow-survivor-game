@@ -380,6 +380,10 @@ class Game {
     this.reapTier = 0;
     this.apex = null;
     this._apexQueued = null;
+    this.comboCount = 0;
+    this.comboUntil = 0;
+    this.comboBest = 0;
+    this.comboPulseAt = -99;
     this.camera.resetShake();
     this.lastBigHit = null;
     this.build.reset();
@@ -568,6 +572,42 @@ class Game {
     if (k >= 1) this.apex = null;
   }
 
+  /* A cadeia: o mesmo fato da ceifa, dito em numero. Ver BALANCE.combo.
+
+     Ela vive no relogio de SIMULACAO como todo o resto do agendamento: a
+     janela de um segundo tem que valer um segundo de jogo, senao o modo
+     rapido daria o triplo de folga para manter a conta viva. */
+  onComboKill() {
+    const C = BALANCE.combo;
+    this.comboCount = this.clock <= this.comboUntil ? this.comboCount + 1 : 1;
+    this.comboUntil = this.clock + C.window;
+    if (this.comboCount > this.comboBest) this.comboBest = this.comboCount;
+    // o salto so rearma depois de terminar: ver o porque em BALANCE.combo
+    if (this.comboCount >= C.min && this.clock - this.comboPulseAt >= C.pulse) {
+      this.comboPulseAt = this.clock;
+    }
+  }
+
+  tickCombo() {
+    if (this.comboCount && this.clock > this.comboUntil) this.comboCount = 0;
+  }
+
+  /* O degrau da cadeia, 0..tiers.length — quem decide o tamanho do numero e o
+     tamanho do salto. */
+  comboTier() {
+    const t = BALANCE.combo.tiers;
+    for (let i = t.length - 1; i >= 0; i--) if (this.comboCount >= t[i]) return i + 1;
+    return 0;
+  }
+
+  /* 1 no quadro do abate, 0 quando o salto acabou. Nao ha estado decaindo por
+     frame aqui de proposito: `pulse` e a duracao inteira dele, entao a curva
+     sai de uma subtracao. */
+  comboPulse() {
+    const k = (this.clock - this.comboPulseAt) / BALANCE.combo.pulse;
+    return k >= 1 || k < 0 ? 0 : 1 - k;
+  }
+
   /* A cor do eixo em que a build mais investiu. A ceifa nao pertence a uma
      peca, mas tambem nao pode inventar matiz: cor continua sendo predicado de
      eixo, e o que ela diz e "a SUA build acabou de fazer isso". */
@@ -674,6 +714,7 @@ class Game {
     this.updatePickups(dt);
     this.updateParticles(dt);
     this.tickReap(dt);
+    this.tickCombo();
     // buff que DURA nao se desenha por evento: evento por pulso e a forma
     // errada para um estado. O render precisa do relogio, e o Player nao o tem.
     this.player.rushing = this.player.speedBoostUntil > this.clock;
@@ -1009,6 +1050,7 @@ class Game {
         this.shatterEnemy(e, heft);
         this.sfx.death(heft, e.type.deathSfx);
         this.onReapKill();
+        this.onComboKill();
         if (e.type.boss) this.bossAlive = Math.max(0, this.bossAlive - 1);
         if (e.type.boss) {
           this.addShake(13, e.x - this.player.x, e.y - this.player.y);

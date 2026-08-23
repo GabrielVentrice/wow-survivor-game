@@ -215,7 +215,16 @@ for (let i = 0; i < 60 * 90; i++) g.update(1 / 60);
 
 // a run continua de onde as previas de level up pararam: build carregada
 g.ui.updatePieceBar();
+/* A cadeia so existe no meio de uma leva, e uma leva dura menos de um segundo
+   — e exatamente o tipo de estado que nao se revisa jogando. A previa a poe
+   num degrau do meio, com o pavio pela metade e o salto no meio do caminho. */
+g.comboCount = BALANCE.combo.tiers[1] + 2;
+g.comboUntil = g.clock + BALANCE.combo.window * 0.58;
+g.comboPulseAt = g.clock - BALANCE.combo.pulse * 0.35;
 g.ui.updateHUD();
+const cbSz = g.ui.el.combo.style.getPropertyValue("--combo-sz");
+const cbTr = g.ui.el.comboNum.style.transform;
+const cbFu = g.ui.el.comboFuse.style.width;
 frame("hud · build carregada, com o mundo atras", "tela-hud",
   `<div class="hud-tl">${shell("pieceBar")}</div>
    <div class="hud-tc"><div id="t" class="dado-l">${document.getElementById("timer").textContent}</div>
@@ -226,7 +235,12 @@ frame("hud · build carregada, com o mundo atras", "tela-hud",
      <div class="barra-xp"><i style="width:38%"></i></div>
      <div class="hud-vit rotulo"><span>64 / 100</span><span>Nível ${g.player.level}</span></div>
    </div>
-   <div class="hud-br">${shell("toasts")}</div>`);
+   <div class="hud-br">${shell("toasts")}</div>
+   <div class="hud-ml" style="--combo-sz:${cbSz}">
+     <b class="combo-num" style="transform:${cbTr}">${g.comboCount}</b>
+     <div class="combo-pe"><span class="rotulo">em cadeia</span>
+       <div class="combo-pavio"><i style="width:${cbFu}"></i></div></div>
+   </div>`);
 
 g.ui.onPause();
 frame("pausa · a build inteira legivel", "tela-pausa",

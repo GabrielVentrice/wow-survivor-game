@@ -235,6 +235,35 @@
   .hud-bc { position:absolute; bottom:var(--e5); left:50%; transform:translateX(-50%); width:min(720px,86vw); }
   .hud-br { position:absolute; bottom:var(--e5); right:var(--e5); display:flex; flex-direction:column; gap:var(--e2); }
 
+  /* A CADEIA — o sexto lugar, e a excecao que confirma o "nada no meio".
+
+     Ela nao esta sempre la: fora de uma cadeia o elemento nao existe em tela,
+     entao ela nao disputa canto com nada. Fica na borda ESQUERDA, na altura
+     dos olhos, que e o unico lugar vazio do HUD e nao cobre o warlock (que
+     esta sempre no centro).
+
+     Osso, nunca cor de eixo: a cadeia nao fala de Corrupcao, Dominio nem
+     Cataclismo (R2). O contorno de obsidiana e a mesma decisao do
+     `drawSpriteRim` do warlock — sem ele um numero de 108px em osso se
+     dissolve dentro de uma pilha de corpos. Nao e brilho: e contorno, entao
+     R4 continua de pe. */
+  .hud-ml { position:absolute; left:var(--e5); top:50%; transform:translateY(-50%);
+            display:flex; flex-direction:column; gap:var(--e2); align-items:flex-start; }
+  .hud-ml.hidden { display:none; }
+  .combo-num {
+    display:block; font-family:var(--fonte-display); font-weight:900;
+    font-size:var(--combo-sz,48px); line-height:.82; letter-spacing:-.02em;
+    color:var(--osso-600); transform-origin:0 50%;
+    paint-order:stroke fill; -webkit-text-stroke:4px var(--obs-900);
+  }
+  .combo-pe { display:flex; flex-direction:column; gap:var(--e1); }
+  .combo-pe .rotulo { color:var(--osso-400); }
+  /* O pavio e a unica coisa que diz o que "cadeia" significa: ele conta o
+     segundo que falta para a conta zerar. Sem ele o numero cai sozinho e o
+     jogador nao tem como saber que a regra e tempo entre abates. */
+  .combo-pavio { width:88px; height:3px; background:var(--osso-100); overflow:hidden; }
+  .combo-pavio > i { display:block; height:100%; background:var(--osso-400); }
+
   #timer { color:var(--osso-600); }
   /* fase dura: o relogio vira aviso. Vermelho aqui e o mesmo vermelho da vida
      — e o unico lugar da tela em que ele significa ameaca ao jogador. */
@@ -735,7 +764,8 @@
     <canvas id="canvas"></canvas>
   </div>
 
-  <!-- 9.4 HUD — cinco lugares, margem de 24 em todos, nada no meio. -->
+  <!-- 9.4 HUD — cinco lugares fixos, margem de 24 em todos, nada no meio. O
+       sexto (a cadeia, na borda esquerda) so existe durante uma cadeia. -->
   <div id="hud" class="hidden">
     <div id="pieceBar" class="hud-tl"></div>
     <div class="hud-tc">
@@ -749,6 +779,14 @@
       <div class="hud-vit rotulo"><span id="hpLabel">100 / 100</span><span id="xpLabel">Nível 1</span></div>
     </div>
     <div id="toasts" class="hud-br"></div>
+    <!-- A cadeia: o sexto lugar, e o unico que nao esta sempre la. -->
+    <div id="combo" class="hud-ml hidden">
+      <b id="comboNum" class="combo-num">0</b>
+      <div class="combo-pe">
+        <span class="rotulo">em cadeia</span>
+        <div class="combo-pavio"><i id="comboFuse"></i></div>
+      </div>
+    </div>
   </div>
 
   <!-- 9.1 Menu — cartaz alinhado a esquerda, ancorado na regua de x=120. -->

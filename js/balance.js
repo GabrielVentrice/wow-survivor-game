@@ -73,6 +73,40 @@ const BALANCE = {
     shake: 20,         // quase o teto de `camera.shake.ref` — nada e mais alto
   },
 
+  /* A CADEIA — o contador da esquerda.
+
+     Ela e a leitura em numero do mesmo fato que a ceifa desenha em anel: um
+     abate que cai dentro de `window` do anterior continua a conta, e um
+     intervalo maior que isso a zera. O relogio e o da SIMULACAO, entao a
+     janela mede tempo de jogo — a 3x, um segundo real dariam tres de folga.
+
+     `min` existe pelo mesmo motivo que a ceifa tem tres degraus e nao um: dois
+     abates seguidos e o estado normal deste jogo, e um contador que nunca
+     apaga nao esta dizendo nada. So sobe na tela quando ja e um feito.
+
+     `pulse` e UM numero e nao dois: ele e a duracao do salto E o intervalo
+     minimo entre dois. Amarrados, cada salto sempre termina antes que o
+     proximo possa comecar — com decaimento e cadencia separados, uma build
+     madura (dezenas de abates por segundo) rearmaria o salto no meio dele
+     mesmo e o numero passaria a vibrar num tamanho fixo em vez de pulsar.
+
+     MEDIDO, run de 12 min com a horda no teto: a cadeia fica em tela em 100%
+     dos quadros depois do primeiro minuto e chega a 5627 sem quebrar uma vez.
+     Isso e o que uma janela de 1s significa neste jogo — a horda e densa
+     demais para dar um segundo de silencio —, entao o numero e um medidor de
+     RAMPAGEM e nao um feito que se perde. Quem quiser que ela quebre mexe em
+     `window`, e e o unico numero daqui que muda isso. Os degraus foram postos
+     no arco medido (10 / 40 / 120) e nao em 10/25/50, que acendiam os tres nos
+     primeiros vinte segundos e deixavam o resto da run num tamanho so. */
+  combo: {
+    window: 1,                        // segundos entre dois abates da cadeia
+    min: 3,                           // a partir daqui a cadeia aparece
+    tiers: [10, 40, 120],             // degraus que engordam o numero
+    size: [48, 64, 84, 108],          // px do numero, por degrau
+    swell: [0.10, 0.16, 0.24, 0.34],  // quanto ele salta, por degrau
+    pulse: 0.11,                      // segundos de um salto (e o intervalo)
+  },
+
   camera: {
     lerp: 0.12,          // suavização do follow (0 = travado, 1 = instantâneo)
 

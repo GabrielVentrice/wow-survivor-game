@@ -363,7 +363,7 @@ chão é `--osso-400`/`--osso-500` e não branco. Com a build inteira acesa o
 jogador perdia de vista a única coisa que controla; ele passa a ser a única
 coisa branca em tela. Não é mais luz: é **reserva**.
 
-#### O HUD: cinco lugares, e nada no meio
+#### O HUD: cinco lugares fixos, e nada no meio
 
 Margem de 24 em todos os cantos. Topo-esquerda a tira de peças (glifos de 56 com
 os pips do estado da build embaixo), topo-centro o relógio e **uma** linha de
@@ -394,6 +394,12 @@ empilhados nunca mais. O contador de eventos anunciados é `UI.toastCount` e nã
 o número de nós vivos: quem pergunta "isso avisou alguma coisa?" precisa da
 resposta mesmo quando o quarto evento virou contador — `driver_form` depende
 disso.
+
+**O sexto lugar existe, e ele é a exceção que confirma a regra: a cadeia.**
+Borda esquerda, na altura dos olhos — o único vão do HUD, e o único que não
+cobre o warlock, que está sempre no centro. Ela pode morar lá porque **não está
+sempre lá**: fora de uma cadeia o elemento não existe em tela, então ela nunca
+disputa canto com nada. Lugar fixo novo continua sendo cinco.
 
 ### Um grid de pixel, e todo mundo dentro dele
 
@@ -634,6 +640,51 @@ acabou de acontecer". Consequências:
 - A voz dela é **o único som do jogo que sobe** em altura e brilho ao mesmo
   tempo. Todo o resto do combate cai (explosão, morte, execução, choque), e
   subir é o que faz o ouvido ler recompensa em vez de dano.
+
+**4. A cadeia (`BALANCE.combo`) — a ceifa dita em número.** As duas medem o
+mesmo fato (abates por tempo) e é de propósito que não se derivem uma da outra:
+a ceifa é um **evento** no chão, que acontece e passa; a cadeia é um **estado**,
+e estado se desenha enquanto dura — a mesma regra que separa a casca do escudo
+de um vfx de escudo. Um abate dentro de `window` do anterior continua a conta,
+um intervalo maior a zera, e o pavio de 3px embaixo do número é o que diz que a
+regra é *tempo entre abates* e não abates totais.
+
+- **É leitura, não bônus.** A cadeia não multiplica dano, não dá recurso e não
+  entra em nenhum stat. No dia em que ela pagar alguma coisa, o número vira
+  input de decisão e o desenho tem que mudar junto (ele hoje não diz o que
+  compra) — a alavanca de dificuldade continua sendo `ENEMIES`.
+- **O relógio é o da simulação.** A 3x, um segundo real daria três de folga
+  para manter a conta viva, e o modo rápido seria o que mais encadeia.
+- **`min` existe pelo mesmo motivo que a ceifa tem três degraus e não um.**
+  Dois abates seguidos é o estado normal deste jogo; contador que nunca apaga
+  não está dizendo nada.
+- **`pulse` é UM número, e é a duração do salto E o intervalo mínimo entre dois
+  saltos.** Com decaimento e cadência separados, uma build madura (dezenas de
+  corpos por segundo) rearmaria o salto no meio dele mesmo, e o número passaria
+  a **vibrar num tamanho fixo** em vez de pulsar. Amarrados, cada salto sempre
+  termina antes que o próximo possa começar — é a mesma lição do
+  `hitstop.cooldown` e do `gap` das vozes. `driver_vfx` mede as duas pontas:
+  100 abates em 1s dão ~9 saltos e não 100, e nenhum rearma antes da hora.
+- **Osso, nunca cor de eixo.** A ceifa é canvas e usa `buildColor`; a cadeia é
+  UI, e cor é predicado de eixo — uma cadeia não fala de eixo nenhum. O que
+  impede o número de se dissolver numa pilha de corpos é **contorno** de
+  obsidiana, a mesma decisão do `drawSpriteRim` do warlock, e não brilho.
+- **O salto é `transform`, nunca `font-size`.** Mudar a fonte refaz o layout do
+  HUD inteiro sessenta vezes por segundo. O tamanho por degrau muda — mas só
+  quando o degrau muda.
+- **Ela não tem voz nem evento visual**, e por isso não passa por `emitVfx`: a
+  ceifa já é a voz desse fato, e dar um segundo som ao mesmo pulso seria
+  anunciar duas vezes. A cadeia é o que a run guarda para o game over
+  (`comboBest`, no painel "A run em uma linha").
+
+**O que uma janela de 1s significa aqui, medido.** Numa run de 12 min com a
+horda no teto a cadeia fica em tela em **100% dos quadros** depois do primeiro
+minuto e chega a **5627 sem quebrar uma vez** — esta horda é densa demais para
+dar um segundo de silêncio. Então o número é um **medidor de rampagem**, não um
+feito que se perde, e é assim de propósito: quem quiser que ele quebre mexe em
+`window`, que é o único número do bloco que muda isso. Os degraus saíram do arco
+medido (10 / 40 / 120); em 10/25/50 os três acendiam nos primeiros vinte
+segundos e o resto da run inteira ficava num tamanho só.
 
 ### Os dois drops: objeto, não retângulo
 
