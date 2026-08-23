@@ -8,6 +8,17 @@ const BALANCE = {
     radius: 16,
     speed: 240,          // px/s
     maxHp: 100,
+    /* The soul pickup radius grows with the level. Late in a run the floor is
+       covered with orbs the player already earned, and walking over each one
+       is the least interesting movement the game asks for — movement is the
+       only input in combat, so it has to be spent on the horde and not on
+       sweeping the ground. It grows off the LEVEL and not off elapsed time so
+       it stays a reward for killing, and it is capped: the `magnet` item
+       pulls every orb on the map, and an uncapped radius would make it a
+       pickup that arrives already spent. */
+    pickup: 95,
+    pickupPerLevel: 4,   // level 40 -> 251, level 57+ -> the cap
+    pickupMax: 320,
   },
   world: {
     tile: 126,           // lado da laje de basalto — MULTIPLO de PIXEL_UNIT

@@ -27,8 +27,8 @@ class Player {
     this.level = 1;
     this.xp = 0;
     this.xpToNext = xpForLevel(1);
-    this.basePickup = 95;
-    this.pickupRange = 95;
+    this.basePickup = BALANCE.player.pickup;
+    this.pickupRange = this.basePickup;
     this.pendingLevels = 0;
     this.dmgReduction = 0;
     this.kills = 0;
@@ -68,6 +68,13 @@ class Player {
     this.speedBoostUntil = 0;
     this.reviveCharges = 0;
     this.noExternalHeal = false;  // capstone Tirania
+  }
+  // Pickup radius at the current level, capped. Derived from `level` on every
+  // read instead of being bumped inside gainXp: one formula, and a level
+  // granted from anywhere (chest, debug) carries the radius with it.
+  pickupForLevel() {
+    const b = BALANCE.player;
+    return Math.min(b.pickupMax, b.pickup + (this.level - 1) * b.pickupPerLevel);
   }
   gainXp(v) {
     this.xp += v;

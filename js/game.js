@@ -680,6 +680,7 @@ class Game {
     let speed = p.baseSpeed;
     if (this.clock < (p.speedBoostUntil || 0)) speed *= p.speedBoost;
     p.speed = speed;
+    p.basePickup = p.pickupForLevel();
     p.pickupRange = p.basePickup;
 
     // Vinculo de Alma: teto de escudo cresce com o exercito em campo
