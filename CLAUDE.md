@@ -58,7 +58,25 @@ sorteados, não se revisa jogando — e a etapa carrega a única decisão
 irreversível da run.
 
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
-Antes de commitar, rode a bateria headless: veja `tools/README.md`.
+Antes de commitar, rode a bateria headless — **`node tools/run-all.js`**, que
+roda os 24 drivers em paralelo com o mais lento na frente (~70s, contra 175s em
+série). `node tools/run-all.js fast` é o subconjunto de ~8s que cabe a cada
+edit. Detalhe em `tools/README.md`.
+
+**`DRIVER=driver_bench.js` é o banco de provas: a peça sozinha, em campo
+controlado.** `driver_balance` responde "esta RUN funciona?" e não responde
+"esta PEÇA faz muito ou pouco dano?" — o que ele mede passa por um bot que se
+posiciona, uma curva de XP, um sorteio de oferta e 44 peças dividindo o mesmo
+funil, então um 0,4% de share não separa "quebrada" de "nunca foi oferecida". O
+banco tira a run da conta: spawner desligado, N dummies em posição conhecida,
+jogador imortal, e 450 células de 12s de jogo em 20s — o que corta o custo não é
+simular menos jogo, é simular menos **horda** (40 corpos em vez de 4400, e 40%
+do frame mora no `SpatialGrid`). Duas regras que custaram uma rodada cada, e as
+duas são a mesma: **o banco tem que montar um mundo que o jogo pode entregar** —
+o kit inicial fica (sem alguém batendo, toda peça `reactive` mede zero e parece
+quebrada) e `requires` é honrado (o jogo não oferece Conflagrate sem um DoT na
+build). Ele reprova peça de dano que não causa dano em cenário nenhum e caminho
+fechado que rende menos que a peça crua.
 
 **Scripts são clássicos (`<script src>`), nunca `type="module"`.** Módulo ES é
 buscado com CORS e `file://` tem origem opaca — o browser bloquearia e "abrir o

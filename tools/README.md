@@ -7,6 +7,9 @@ runtime, hook morto, evolução quebrada e travamento de frame — coisas que s�
 aparecem depois de vários minutos de jogo.
 
 ```bash
+node tools/run-all.js                      # A BATERIA INTEIRA, em paralelo (~70s)
+node tools/run-all.js fast                 # so o que roda em menos de 1s (~8s)
+node tools/run-all.js bench,cards          # um subconjunto, por nome parcial
 node tools/harness.js .                    # run completa, seed 1, 12 min
 node tools/harness.js . 3 15               # seed 3, 15 min de jogo
 DRIVER=driver_evo.js   node tools/harness.js .   # as 7 evoluções + regras de eixo/caminho
@@ -27,6 +30,9 @@ DRIVER=driver_palette.js node tools/harness.js . # paleta mestre: cor fora da PA
 DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câmera, curvas de evento
 DRIVER=driver_vfx.js   node tools/harness.js .   # vfx: assinatura de cada peça, cor no render, voz de cada evento, ceifa e cadeia
 DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homing não fecha, e alvo próprio por tiro
+DRIVER=driver_bench.js node tools/harness.js .   # banco: dano de cada peça em 6 cenários controlados
+DRIVER=driver_bench.js node tools/harness.js . 20 full        # 20s/célula, os três caminhos
+DRIVER=driver_bench.js node tools/harness.js . 12 "" cataclysm  # só um eixo (~7s, para iterar)
 DRIVER=driver_preview.js node tools/harness.js . # escreve tools/telas-preview.html: as 6 telas de UI (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
@@ -37,6 +43,96 @@ DRIVER=driver_perf.js node tools/harness.js . 12        # custo de frame com a h
 DRIVER=driver_autopsy.js node tools/harness.js . 8 4          # autopsia: QUEM matou o jogador
 DRIVER=driver_autopsy.js node tools/harness.js . 8 4 sweep    # o mesmo, comparando variantes de tuning
 ```
+
+## `run-all` — a bateria em paralelo
+
+A bateria era serial por acidente e nao por necessidade. Cada driver e um
+processo que carrega a propria copia do jogo e nao fala com ninguem, entao o
+relogio de parede era a SOMA de todos por nenhuma razao alem de o laco estar
+escrito em `bash`. Medido, nesta maquina de 4 nucleos: **175s viraram 70s**.
+
+Duas decisoes fazem a conta fechar, e a segunda e a que envelhece bem:
+
+- **O mais lento entra primeiro.** Com um driver de 58s e um pool de 3, a ordem
+  alfabetica termina com ele comecando por ultimo e o pool inteiro esperando um
+  processo so. Ordenado por custo decrescente, o resto da bateria cabe DENTRO
+  da janela dele — o piso do relogio passa a ser o driver mais lento, e nada
+  alem dele.
+- **O custo e medido, nao digitado.** Cada rodada grava os tempos em
+  `tools/.run-all-times.json` (fora do repo) e a proxima ordena por eles. Uma
+  tabela de pesos escrita a mao envelheceria calada no primeiro driver novo, e
+  um driver que ficou lento sem ninguem notar e exatamente o que esta ferramenta
+  deveria tornar visivel.
+
+Tres tiers: `fast` e o que roda a cada edit (~8s, so mecanismo), `full` e o que
+roda antes de commitar (~70s, inclui os que simulam minutos de jogo e as
+galerias), `deep` sao `balance`/`perf`/`autopsy`, que MEDEM em vez de verificar
+e saem por pedido.
+
+**O que NAO e a alavanca, medido:** baixar `maxAlive` de 4400 para 1500 corta
+so 23% do tempo de simulacao (60,8s -> 46,9s em 4 min de jogo) e muda o que os
+drivers veem. O custo do frame e a horda — 40% dele mora no `SpatialGrid`, e a
+segunda metade em `updateEnemies` —, mas o teto de vivos nao e o que o decide
+nos primeiros minutos; o fluxo de spawn e. Encolher a horda paga pouco e paga
+em cima do unico numero que varios drivers existem para exercitar.
+
+A alavanca que sobra, e ela e um refactor de verdade: **uma simulacao, varios
+observadores**. `driver.js`, `driver_audio`, `driver_chest` e `driver_render`
+simulam 3, 5, 12 e 3 minutos do MESMO jogo do zero — 170 dos 206 segundos de
+CPU da bateria sao quatro processos construindo o mesmo mundo. Um unico run de
+12 min com quatro conjuntos de sondas custaria o tempo de um deles. O preco e
+isolamento: hoje um driver que estoura nao derruba os outros tres.
+
+## `driver_bench` — a peca sozinha, em cenario controlado
+
+`driver_balance` responde "esta RUN funciona?". Ele nao responde "esta PECA faz
+muito ou pouco dano?", e nao pode: o que ele mede passa por um bot que se
+posiciona, por uma curva de XP, por um sorteio de oferta e por 44 pecas
+dividindo o mesmo funil. Uma peca que aparece com 0,4% de share pode estar
+quebrada, pode ter sido comprada tarde, ou pode nunca ter caido na mesa — e a
+tabela nao distingue os tres casos. A lista `NUNCA ESCOLHIDA` e a prova: hoje
+ela mistura "o sorteio nao ofereceu" com "nao faz nada".
+
+O banco tira a run da conta. Cada celula e um mundo montado a mao — spawner
+desligado, N dummies em posicao conhecida, jogador imortal — e a matriz inteira
+sai em **20s: 450 celulas de 12s de jogo cada**. O que corta o custo nao e
+simular menos jogo, e sim simular menos HORDA: 40 dummies em vez de 4400 corpos.
+O motor continua sendo o mesmo `Game`, de proposito — uma planilha de dano seria
+mais rapida e seria uma segunda lista para divergir da primeira.
+
+Seis cenarios (`SCENARIOS`, dado): alvo unico, aglomerado em volta, cerco com o
+jogador andando, leva mortal com reposicao, atiradores e chefe. Duas
+configuracoes por peca: recem-comprada e com um caminho fechado no tier 5.
+
+Duas coisas custaram uma rodada cada, e as duas sao a mesma licao — **o banco
+tem que montar um mundo que o jogo pode entregar**:
+
+- **O kit inicial FICA.** A primeira versao limpava a build para deixar uma peca
+  so, e voltou com um bloco de zeros: `shadowburn` (executa quem tem pouca
+  vida), `soulLeech` e toda peca `reactive` nao tem como disparar sem alguem
+  batendo antes. Isso nao e a peca sendo fraca — e o banco tendo montado uma
+  build que nao existe, porque `CLASSES.warlock.starting` da `incinerate` de
+  graca em toda run. O que mantem o numero limpo nao e a build vazia, e a `key`:
+  `damageBy` e por fonte.
+- **`requires` e honrado.** O jogo nao oferece Conflagrate sem um DoT na build,
+  entao medi-la sem habilitadora mede uma build impossivel. Com a habilitadora,
+  as quatro pecas com `requires` sairam de zero.
+
+O que ele reprova, e por isso e driver e nao relatorio:
+
+- **peca de dano com caminho fechado que nao causa dano em cenario nenhum** — o
+  zero ambiguo do `driver_balance`, agora sem ambiguidade. "Peca de dano" sai do
+  MECANISMO (a build resolvida tem algum efeito que causa dano?) e nao da tag:
+  `reactive` cobre tanto Shadowburn quanto o escudo do Soul Leech, e `reflect`
+  so causa dano se um tier comprou isso;
+- **caminho fechado que rende MENOS que a peca crua** — um tier que piorou a
+  peca. Ninguem le 645 tiers a procura disso.
+
+O que ele NAO responde, e nao deve: se o jogador CHEGA ao tier 5. O banco
+credita o gate de eixo de uma vez e nunca chama `checkCapstones`, porque o
+assunto e dano e nao economia — misturar as duas perguntas e o que faz a
+resposta nao servir para nenhuma das duas. Economia e `driver_milestone` e
+`driver_balance`.
 
 ## `driver_autopsy` — quem matou, e o que consertaria
 

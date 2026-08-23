@@ -8,3 +8,6 @@ tools/spritesheet.png
 .claude/worktrees/
 __pycache__/
 *.pyc
+
+# tempos medidos da ultima bateria: cache de ordenacao do tools/run-all.js
+tools/.run-all-times.json
