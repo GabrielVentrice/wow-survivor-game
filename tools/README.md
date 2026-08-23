@@ -30,7 +30,8 @@ DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homin
 DRIVER=driver_trigger.js node tools/harness.js .  # os triggers do hunter: trap inerte/carga/rearme, leading parado, pack em formação
 DRIVER=driver_aspect.js node tools/harness.js .   # aspectos: as seis condições, exclusão mútua, e o pisca
 DRIVER=driver_class.js node tools/harness.js . 12          # a classe fecha a própria progressão, e nada vaza entre classes
-DRIVER=driver_class.js node tools/harness.js . 12 mortal   # o mesmo, sem imortalidade, warlock e hunter lado a lado
+DRIVER=driver_class.js node tools/harness.js . 12 imortal 6  # o mesmo em 6 seeds, com placar de medianas
+DRIVER=driver_class.js node tools/harness.js . 12 mortal   # sem imortalidade, warlock e hunter lado a lado
 DRIVER=driver_preview.js node tools/harness.js . # escreve tools/telas-preview.html: as 6 telas de UI (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
@@ -91,6 +92,15 @@ nunca zerava, `Game.update` saía cedo em todo frame seguinte e o **relógio de
 simulação congelava** — a run parecia ter morrido aos 6,9 min com orçamento de
 16, e não tinha morrido, tinha parado. Quem abre uma tela que para o `update`
 tem que fechá-la, e fechar quer dizer devolver o estado E baixar a fila.
+
+**Uma run não responde nada.** O 4º argumento é o número de seeds, e ele existe
+porque a pergunta é estatística: mudar o catálogo desloca **todo** sorteio
+seguinte, então duas fases não produzem a mesma run nem com a mesma semente. Uma
+run só não distingue "a fase piorou a classe" de "esta mão veio ruim" — é o
+mesmo erro que `driver_balance` já documenta, e ele custou uma leitura errada na
+fase das evoluções: uma run despencou de 8,6 para 2,0 min e a causa era a mão,
+não a mudança. O placar sai em **mediana** e não média, pela bimodalidade por
+política que `driver_balance` também documenta.
 
 **Estanque.** Nenhuma peça, passiva ou capstone da outra classe entra na build.
 `driver.js` confere `cls` no dado; este confere o que a build **efetivamente

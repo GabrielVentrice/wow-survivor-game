@@ -34,7 +34,7 @@ Object.assign(PIECES, {
         ] },
     ],
     paths: {
-      tar: { name: "Alcatrão", tiers: [
+      tar: { name: "Terreno", evolvesInto: "bindingShot", tiers: [
         T("Piche", "+45% de dano da poça.", { dps: { mul: 1.45 } }),
         T("Betume", "A poça dura +3s.", { dotTime: { add: 3 } }),
         T("Atoleiro", "A lentidão fica muito mais forte.", { factor: { mul: 0.55 } }),
@@ -161,9 +161,9 @@ Object.assign(PIECES, {
   },
 
   bindingShot: {
-    id: "bindingShot", cls: "hunter", key: "bindingShot", name: "Binding Shot",
-    color: "#2fd47e", axis: "trapping", axisPoints: 2,
-    tags: ["trap", "control", "root"],
+    id: "bindingShot", cls: "hunter", key: "tarTrap", name: "Binding Shot",
+    color: "#2fd47e", axis: "trapping", axisPoints: 0,
+    tags: ["trap", "control", "root"], evolutionOnly: true,
     desc: "Arma um laço no chão onde você está; quem pisa nele fica preso e é puxado de volta para o centro.",
     stats: { radius: 96, charges: 1, cooldown: 7, duration: 18,
              pullForce: 120, stunTime: 1.6, damage: 110, slowTime: 4, factor: 0.4 },
@@ -179,14 +179,14 @@ Object.assign(PIECES, {
         ] },
     ],
     paths: {
-      snare: { name: "Laço", tiers: [
+      tar: { name: "Laço", tiers: [
         T("Corda", "+50% da força do puxão.", { pullForce: { mul: 1.5 } }),
         T("Nó", "A prisão dura +1s.", { stunTime: { add: 1 } }),
         T("Rede", "+45% de raio do laço.", { radius: { mul: 1.45 } }),
         T("Guincho", "+70% da força do puxão.", { pullForce: { mul: 1.7 } }),
         T("Teia", "A prisão dura +2.5s.", { stunTime: { add: 2.5 } }),
       ]},
-      bite: { name: "Dente", tiers: [
+      jaws: { name: "Dente", tiers: [
         T("Ferrão", "+60% de dano.", { damage: { mul: 1.6 } }),
         T("Fisga", "Quem escapa fica muito lento.", null,
           { "effects.0.onEnd.6": { type: "slow", factor: "@factor",
@@ -227,7 +227,7 @@ Object.assign(PIECES, {
         tickInterval: "@tickInterval", look: "fire", color: "#2fd47e" },
     ],
     paths: {
-      blast: { name: "Estouro", tiers: [
+      blast: { name: "Estilhaço", evolvesInto: "shrapnelBomb", tiers: [
         T("Carga", "+50% de dano da detonação.", { damage: { mul: 1.5 } }),
         T("Estilhaço", "+35% de raio.", { radius: { mul: 1.35 } }),
         T("Napalm", "Dobra o dano da detonação.", { damage: { mul: 2 } }),
@@ -256,9 +256,9 @@ Object.assign(PIECES, {
   },
 
   shrapnelBomb: {
-    id: "shrapnelBomb", cls: "hunter", key: "shrapnelBomb", name: "Shrapnel Bomb",
-    color: "#12915a", axis: "trapping", axisPoints: 2,
-    tags: ["bomb", "area", "bleed"], vfx: "thorn",
+    id: "shrapnelBomb", cls: "hunter", key: "wildfireBomb", name: "Shrapnel Bomb",
+    color: "#12915a", axis: "trapping", axisPoints: 0,
+    tags: ["bomb", "area", "bleed"], evolutionOnly: true, vfx: "thorn",
     desc: "Enquanto você se move, joga uma bomba de estilhaços à frente: ela não queima, ela corta — e quem é cortado sangra.",
     stats: { distance: 165, cooldown: 2.8, damage: 130, radius: 108,
              dotDps: 66, dotTime: 5, tickInterval: 0.5 },
@@ -271,21 +271,21 @@ Object.assign(PIECES, {
         look: "unstable", color: "#12915a" },
     ],
     paths: {
-      shard: { name: "Estilhaço", tiers: [
+      blast: { name: "Estilhaço", tiers: [
         T("Lâmina", "+50% do dano do sangramento.", { dotDps: { mul: 1.5 } }),
         T("Profundo", "O sangramento dura +3s.", { dotTime: { add: 3 } }),
         T("Serrilha", "Dobra o dano do sangramento.", { dotDps: { mul: 2 } }),
         T("Tica Rápido", "O sangramento tica 40% mais rápido.", { tickInterval: { mul: 0.6 } }),
         T("Moedor", "Triplica o dano do sangramento.", { dotDps: { mul: 3 } }),
       ]},
-      spread: { name: "Dispersão", tiers: [
+      throw: { name: "Dispersão", tiers: [
         T("Cone Largo", "+40% de raio.", { radius: { mul: 1.4 } }),
         T("Longe", "Cai 70 unidades mais à frente.", { distance: { add: 70 } }),
         T("Mais Largo", "+50% de raio.", { radius: { mul: 1.5 } }),
         T("Cadência", "Lança 35% mais rápido.", { cooldown: { mul: 0.65 } }),
         T("Nuvem de Aço", "Dobra o raio.", { radius: { mul: 2 } }),
       ]},
-      bleed: { name: "Hemorragia", tiers: [
+      burn: { name: "Hemorragia", tiers: [
         T("Corte Fundo", "+60% de dano de impacto.", { damage: { mul: 1.6 } }),
         T("Espalha", "O sangramento salta para vizinhos quando o alvo morre.", null,
           { "effects.3": { type: "spread_on_death", radius: 130, maxTargets: 4 } }),
@@ -419,7 +419,7 @@ Object.assign(PIECES, {
           { "effects.4": { type: "knockback", force: 130, radius: "@radius",
             atTarget: true } }),
       ]},
-      combo: { name: "Sequência", tiers: [
+      combo: { name: "Sequência", evolvesInto: "mongooseBite", tiers: [
         T("Duplo", "Golpeia quase o dobro de rápido.", { cooldown: { mul: 0.55 } }),
         T("Contra-golpe", "Um segundo talho logo atrás.", null,
           { "effects.6": { type: "damage_instant", amount: "@damage*0.6",
@@ -434,9 +434,9 @@ Object.assign(PIECES, {
   },
 
   mongooseBite: {
-    id: "mongooseBite", cls: "hunter", key: "mongooseBite", name: "Mongoose Bite",
-    color: "#5cf0a4", axis: "trapping", axisPoints: 2,
-    tags: ["melee", "reactive", "stack"], vfx: "chain",
+    id: "mongooseBite", cls: "hunter", key: "raptorStrike", name: "Mongoose Bite",
+    color: "#5cf0a4", axis: "trapping", axisPoints: 0,
+    tags: ["melee", "reactive", "stack"], evolutionOnly: true, vfx: "chain",
     requires: { tag: "melee" },
     desc: "Sempre que você causa dano, o bote responde no mesmo alvo — e cada bote seguido no mesmo corpo bate mais forte que o anterior.",
     stats: { cooldown: 0.4, damage: 82, radius: 54, amp: 0.22, duration: 4 },
@@ -447,14 +447,14 @@ Object.assign(PIECES, {
       { type: "mark", amp: "@amp", duration: "@duration", atTarget: true },
     ],
     paths: {
-      fury: { name: "Fúria", tiers: [
+      edge: { name: "Fúria", tiers: [
         T("Bote", "+50% de dano.", { damage: { mul: 1.5 } }),
         T("Reflexo", "Responde 35% mais vezes.", { cooldown: { mul: 0.65 } }),
         T("Ferocidade", "Dobra o dano.", { damage: { mul: 2 } }),
         T("Sem Pausa", "Responde quase sem intervalo.", { cooldown: { mul: 0.5 } }),
         T("Frenesi", "Triplica o dano.", { damage: { mul: 3 } }),
       ]},
-      stack: { name: "Acúmulo", tiers: [
+      combo: { name: "Acúmulo", tiers: [
         T("Empilha", "+60% da amplificação por bote.", { amp: { mul: 1.6 } }),
         T("Segura", "O acúmulo dura +3s.", { duration: { add: 3 } }),
         T("Fundo", "+70% da amplificação.", { amp: { mul: 1.7 } }),
@@ -464,7 +464,7 @@ Object.assign(PIECES, {
             atTarget: true, look: "curse", color: "#5cf0a4" } }),
         T("Sentença", "Dobra a amplificação.", { amp: { mul: 2 } }),
       ]},
-      spread: { name: "Bote Largo", tiers: [
+      reach: { name: "Bote Largo", tiers: [
         T("Área", "+60% de raio.", { radius: { mul: 1.6 } }),
         T("Salto", "O bote salta para um vizinho.", null,
           { "effects.5": { type: "chain", range: 140, falloff: 0.7,
@@ -495,7 +495,7 @@ Object.assign(PIECES, {
         ] },
     ],
     paths: {
-      venom: { name: "Veneno", tiers: [
+      venom: { name: "Veneno", evolvesInto: "blackArrow", tiers: [
         T("Concentrado", "+50% do dano do veneno.", { dotDps: { mul: 1.5 } }),
         T("Persiste", "O veneno dura +4s.", { dotTime: { add: 4 } }),
         T("Corrosivo", "Dobra o dano do veneno.", { dotDps: { mul: 2 } }),

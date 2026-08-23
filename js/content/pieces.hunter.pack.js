@@ -28,7 +28,7 @@ Object.assign(PIECES, {
       { type: "hook", name: "comandoDaMatilha", amount: "@perBeast", link: true },
     ],
     paths: {
-      command: { name: "Comando", tiers: [
+      command: { name: "Comando", evolvesInto: "howlOfThePackLeader", tiers: [
         T("Ordem", "+45% de dano.", { damage: { mul: 1.45 } }),
         T("Grito", "Comanda 30% mais rápido.", { cooldown: { mul: 0.7 } }),
         T("Sangue", "Dobra o dano.", { damage: { mul: 2 } }),
@@ -199,9 +199,9 @@ Object.assign(PIECES, {
   },
 
   callOfTheWild: {
-    id: "callOfTheWild", cls: "hunter", key: "callOfTheWild", name: "Call of the Wild",
-    color: "#f5d45c", axis: "pack", axisPoints: 2,
-    tags: ["beast", "pack", "summon"], vfx: "sigil",
+    id: "callOfTheWild", cls: "hunter", key: "direBeast", name: "Call of the Wild",
+    color: "#f5d45c", axis: "pack", axisPoints: 0,
+    tags: ["beast", "pack", "summon"], evolutionOnly: true, vfx: "sigil",
     desc: "Chama uma leva de javalis que entra inteira de uma vez, investe e some — reforço temporário, não matilha permanente.",
     stats: { count: 4, interval: 11, damage: 84, duration: 7, speed: 355, attackInterval: 0.9 },
     trigger: { type: "pack", count: "@count", interval: "@interval", litter: "@count" },
@@ -212,14 +212,14 @@ Object.assign(PIECES, {
         onHit: [{ type: "knockback", force: 60 }] },
     ],
     paths: {
-      herd: { name: "Vara", tiers: [
+      wild: { name: "Vara", tiers: [
         T("Dois a Mais", "Mais dois javalis na leva.", { count: { add: 2 } }),
         T("Demoram", "A leva dura +4s.", { duration: { add: 4 } }),
         T("Três a Mais", "Mais três javalis na leva.", { count: { add: 3 } }),
         T("Volta Logo", "A leva volta 35% mais rápido.", { interval: { mul: 0.65 } }),
         T("Debandada", "Mais cinco javalis na leva.", { count: { add: 5 } }),
       ]},
-      charge: { name: "Investida", tiers: [
+      might: { name: "Investida", tiers: [
         T("Chifre", "+50% de dano.", { damage: { mul: 1.5 } }),
         T("Atropelo", "A investida abre em área.", null,
           { "effects.0.onHit.2": { type: "damage_instant", amount: "@damage*0.6", radius: 80 } }),
@@ -228,7 +228,7 @@ Object.assign(PIECES, {
         T("Estouro da Boiada", "A investida atordoa por 0.7s.", null,
           { "effects.0.onHit.3": { type: "stun", duration: 0.7, radius: 80 } }),
       ]},
-      bond: { name: "Chamado", tiers: [
+      roam: { name: "Chamado", tiers: [
         T("Berro", "Investem 25% mais rápido.", { attackInterval: { mul: 0.75 } }),
         T("Corno", "+40% de dano.", { damage: { mul: 1.4 } }),
         T("Trompa", "Investem mais 30% rápido.", { attackInterval: { mul: 0.7 } }),
@@ -253,7 +253,7 @@ Object.assign(PIECES, {
         speed: "@speed", attackInterval: "@attackInterval", cap: "@count" },
     ],
     paths: {
-      wild: { name: "Mata", tiers: [
+      wild: { name: "Matilha", evolvesInto: "callOfTheWild", tiers: [
         T("Mais Um", "Mais um bicho ao mesmo tempo.", { count: { add: 1 } }),
         T("Demora", "Os bichos duram +6s.", { duration: { add: 6 } }),
         T("Mais Dois", "Mais dois bichos ao mesmo tempo.", { count: { add: 2 } }),
@@ -324,10 +324,10 @@ Object.assign(PIECES, {
   },
 
   howlOfThePackLeader: {
-    id: "howlOfThePackLeader", cls: "hunter", key: "howlOfThePackLeader",
+    id: "howlOfThePackLeader", cls: "hunter", key: "killCommand",
     name: "Howl of the Pack Leader",
-    color: "#f5d45c", axis: "pack", axisPoints: 2,
-    tags: ["beast", "summon", "reactive"], vfx: "sigil",
+    color: "#f5d45c", axis: "pack", axisPoints: 0,
+    tags: ["beast", "summon", "reactive"], evolutionOnly: true, vfx: "sigil",
     requires: { tag: "beast" },
     desc: "Quando você toma dano, o uivo responde: um bicho grande da matilha entra em campo do seu lado e caça até acabar.",
     stats: { cooldown: 7, damage: 210, duration: 13, attackInterval: 0.95, count: 1 },
@@ -338,14 +338,14 @@ Object.assign(PIECES, {
         projectile: { damage: "@damage", speed: 560, radius: 5, trail: 120, color: "#f5d45c" } },
     ],
     paths: {
-      answer: { name: "Resposta", tiers: [
+      command: { name: "Resposta", tiers: [
         T("Ecoa", "Responde 30% mais rápido.", { cooldown: { mul: 0.7 } }),
         T("Alto", "+50% de dano do bicho.", { damage: { mul: 1.5 } }),
         T("Dois Vêm", "Vêm dois bichos por uivo.", { count: { add: 1 } }),
         T("Longo", "Os bichos duram +8s.", { duration: { add: 8 } }),
         T("Coro", "Vêm três bichos por uivo.", { count: { add: 1 } }),
       ]},
-      boar: { name: "Javali", tiers: [
+      bond: { name: "Javali", tiers: [
         T("Vem Junto", "Um javali entra junto do uivo.", null,
           { "effects.2": { type: "summon", kind: "boar", ai: "flank", count: 1, cap: 4,
             damage: "@damage*0.7", duration: "@duration", attackInterval: 0.9,
@@ -357,7 +357,7 @@ Object.assign(PIECES, {
         T("Vara Inteira", "Quatro javalis por uivo.", null,
           { "effects.2.count": 4 }),
       ]},
-      bear: { name: "Urso", tiers: [
+      rend: { name: "Urso", tiers: [
         T("Vem o Urso", "Um urso entra junto e fica ao seu lado.", null,
           { "effects.4": { type: "summon", kind: "bear", ai: "anchor", count: 1, cap: 2,
             damage: "@damage*1.3", duration: "@duration", attackInterval: 1.1,

@@ -39,6 +39,18 @@ function simulate(seconds) {
     g.player.hp = g.player.maxHp;
     g.input.keys = new Set(((i / 80) % 1) > 0.6 ? [] : ["d", "s"]);
     if (g.enemies.active.length < 20) populate(20);
+    /* Um golpe DE VERDADE pelo funil, de vez em quando. Sem ele o driver so
+       consegue provocar quem dispara por cooldown, e uma peca `reactive` sai
+       como "nao causou dano nenhum" por causa da MESA e nao por causa dela.
+
+       Kill Shot foi quem escancarou isso: ele so acorda com `enemy_low`, que
+       so e emitido quando alguem cai abaixo de 20% de vida — e numa mesa onde
+       ele e a unica peca da build, nada leva ninguem ate la. `driver_vfx` ja
+       tinha aprendido a mesma licao com o zero de escudo do Soul Leech. */
+    if (i % 8 === 0) {
+      const alvo = g.enemies.active[i % Math.max(1, g.enemies.active.length)];
+      if (alvo && alvo.hp > 0) g.damageEnemy(alvo, alvo.maxHp * 0.45, "fixture", true);
+    }
     g.update(0.025);
   }
 }
@@ -76,6 +88,54 @@ for (const [id, pid, into] of evos) {
   } catch (e) { fail(`${id}.${pid}: erro`, e); console.error(e.stack); }
 }
 
+/* --- 1b. a CORRENTE de duas evolucoes ------------------------------------
+   Arcane Shot -> Aimed Shot -> Kill Shot e a primeira peca do jogo que evolui
+   DUAS vezes, e ela existe so porque a `key` atravessa a troca. Tres coisas
+   tem que valer, e as tres sao o que a `key` serve para segurar:
+
+     - a `key` e a MESMA nas tres formas (medidor de dano, anti-recursao, e a
+       origem dos eventos);
+     - o medidor nao zera na troca — dano feito como Arcane Shot continua
+       contado depois de virar Kill Shot;
+     - a segunda evolucao sai de um caminho DIFERENTE do primeiro, porque o
+       que evoluiu ja esta no tier 5 e nao sobe mais.
+
+   `maxDeep` permite exatamente dois caminhos passarem do tier 2, entao a
+   corrente cabe — e cabe com folga zero, que e o comprometimento que ela cobra. */
+console.log("--- corrente de evolucao ---");
+{
+  g.start();
+  abreEixos();
+  const inst = g.build.acquirePiece("arcaneShot");
+  const key0 = inst.key;
+  for (let t = 0; t < PATH_RULES.tiers; t++) g.build.upgradePath(inst, "focus");
+  const formaB = inst.def.id;
+  populate(20);
+  simulate(3);
+  const meioDano = g.damageBy.get(key0) || 0;
+  for (let t = 0; t < PATH_RULES.tiers; t++) g.build.upgradePath(inst, "arcane");
+  const formaC = inst.def.id;
+  simulate(3);
+  const fimDano = g.damageBy.get(key0) || 0;
+
+  if (formaB !== "aimedShot") fail(`corrente: 1a evolucao deu "${formaB}", esperado aimedShot`);
+  else if (formaC !== "killShot") fail(`corrente: 2a evolucao deu "${formaC}", esperado killShot`);
+  else if (inst.key !== key0) fail(`corrente: a key mudou (${key0} -> ${inst.key})`);
+  else if (!meioDano) fail("corrente: a forma do meio nao causou dano — nao da para medir se o medidor sobreviveu");
+  else if (fimDano <= meioDano) {
+    fail(`corrente: o medidor nao andou depois da 2a troca (${meioDano} -> ${fimDano})`);
+  } else {
+    console.log(`  ok arcaneShot -> ${formaB} -> ${formaC}, key "${key0}" nas tres`);
+    console.log(`  ok o medidor atravessou as duas trocas: ${Math.round(meioDano)} -> ${Math.round(fimDano)}`);
+  }
+  // e a segunda evolucao veio de OUTRO caminho: o primeiro esta no teto
+  if (inst.paths.focus !== PATH_RULES.tiers || inst.paths.arcane !== PATH_RULES.tiers) {
+    fail(`corrente: caminhos em ${inst.paths.focus}/${inst.paths.arcane}, esperado 5/5`);
+  } else {
+    console.log(`  ok os dois caminhos fechados (5/5), dentro do teto de ${PATH_RULES.maxDeep} profundos`);
+  }
+}
+
 /* --- 2. capstones -------------------------------------------------------- */
 console.log(`--- ${Object.keys(CAPSTONES).length} capstones ---`);
 /* A run tem que ser da CLASSE do capstone. `checkCapstones` filtra por `cls`, e
@@ -102,7 +162,7 @@ for (const cid in CAPSTONES) {
     populate(40);
     simulate(10);
     let total = 0;
-    for (const v of g.damageBy.values()) total += v;
+    for (const [k, v] of g.damageBy) if (k !== "fixture") total += v;
     console.log(`  ok ${cap.name.padEnd(12)} ${newly.length} ativado(s), ${Math.round(total / 1000)}k de dano, ` +
                 `${g.minions.active.length} demonios, ${g.dots.active.length} dots`);
   } catch (e) { fail(`${cid}: erro`, e); console.error(e.stack); }

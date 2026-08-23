@@ -24,10 +24,18 @@
    O segundo regime (`mortal`) roda a mesma politica nas duas classes e compara
    — e ai a pergunta e comparativa, nao absoluta. */
 const MODO = __argv[2] || "imortal";
+const SEEDS = Number(__argv[3] || 1);
 const CLASSES_A_RODAR = MODO === "mortal" ? ["warlock", "hunter"] : ["hunter"];
 
+/* SEEDS, e nao uma run. A pergunta "a classe fecha a progressao" e
+   estatistica: o catalogo muda a cada fase, e mudar o catalogo desloca TODO
+   sorteio seguinte — duas fases nao produzem a mesma run nem com a mesma
+   semente. Uma run so nao distingue "a fase piorou a classe" de "esta mao veio
+   ruim", que e exatamente o erro que `driver_balance` ja documenta. */
+const RESUMO = [];
 for (const CLS of CLASSES_A_RODAR) {
-let s = 11;
+for (let seed = 1; seed <= SEEDS; seed++) {
+let s = 11 * seed;
 Math.random = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
 const g = new Game();
 window.game = g;
@@ -92,4 +100,30 @@ else console.log("  ok nenhum capstone de outra classe abriu");
 const pasVaz = [...b.passives.keys()].filter((k) => PASSIVES[k].cls !== CLS);
 if (pasVaz.length) console.log("  X VAZOU passiva: " + pasVaz.join(", "));
 else console.log("  ok nenhuma passiva de outra classe entrou");
+const evoluidas = [...b.pieces.values()].filter((i) => i.evolvedInto).length;
+RESUMO.push({ cls: CLS, seed: seed, min: g.elapsed / 60, pool: b.axisTotal,
+              caps: b.capstones.size, evo: evoluidas, auras: b.vfx.length,
+              dano: total, abates: g.player.kills });
+console.log(`  evolucoes: ${evoluidas}`);
+}
+}
+
+/* O placar, que e o que responde a pergunta da fase. Mediana e nao media: a
+   bimodalidade por politica ja esta documentada em `driver_balance`, e uma run
+   que engatou a bola de neve puxa a media sozinha. */
+const med = (xs) => { const a = xs.slice().sort((x, y) => x - y);
+  return a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2; };
+if (RESUMO.length > 1) {
+  console.log("\n=== PLACAR ===");
+  for (const cls of CLASSES_A_RODAR) {
+    const r = RESUMO.filter((x) => x.cls === cls);
+    if (!r.length) continue;
+    console.log(`  ${cls}: ${r.length} run(s)`);
+    console.log(`    sobrevivencia (mediana)  ${med(r.map((x) => x.min)).toFixed(1)} min`);
+    console.log(`    pool ao fim (mediana)    ${med(r.map((x) => x.pool))}/20`);
+    console.log(`    abates (mediana)         ${Math.round(med(r.map((x) => x.abates)))}`);
+    console.log(`    runs com capstone        ${r.filter((x) => x.caps).length}/${r.length}`);
+    console.log(`    runs com evolucao        ${r.filter((x) => x.evo).length}/${r.length}`);
+    console.log(`    runs com aura            ${r.filter((x) => x.auras).length}/${r.length}`);
+  }
 }

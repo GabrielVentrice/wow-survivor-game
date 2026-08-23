@@ -107,7 +107,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/aspects.js` | `ASPECTS` + `AspectSystem` — o subsistema do hunter |
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
-| `js/content/pieces.*.js` | o catálogo por eixo: 44 do warlock + 51 do hunter |
+| `js/content/pieces.*.js` | o catálogo por eixo: 44 do warlock + 51 do hunter (9 delas só por evolução) |
 | `js/content/{passives,capstones,minions}.js` | passivas, capstones e o tuning dos demônios |
 | `js/content/hunter.meta.js` | as 8 passivas e os 8 capstones do hunter |
 | `js/render/fx-shapes.js` | `FX_SHAPES` — o gerador de eventos em pixel (`bloom`, `implode`, `nova`, `rip`) |
@@ -270,6 +270,40 @@ Quatro coisas do hunter que valem para classe nova:
 chave do medidor de dano, guarda anti-recursão e origem dos eventos. Uma
 evolução com `key` diferente da forma base zera o medidor e quebra os efeitos
 ligados à fonte — o validador do harness rejeita isso.
+
+**E a evolução carrega os MESMOS ids de caminho da forma base.** Não é
+convenção: `inst.paths` sobrevive à troca, então um caminho que a forma nova
+não declarasse ficaria com o contador preso num objeto que ninguém lê — e os
+tiers já comprados deixariam de ser aplicados. O que muda entre as duas é o
+CONTEÚDO dos tiers, nunca a chave deles. O validador cobra
+(`falta o caminho "<id>" da forma base`), e é isso que faz o tier 3 comprado
+como Arcane Shot continuar valendo depois de virar Aimed Shot.
+
+**A CORRENTE de duas evoluções.** `Arcane Shot → Aimed Shot → Kill Shot` é a
+primeira peça do jogo que evolui duas vezes, e ela só é possível porque as duas
+regras acima seguram: a `key` é `arcaneShot` nas três formas e os ids de
+caminho (`focus`/`pierce`/`arcane`) atravessam inteiras.
+
+Três coisas caem daí:
+
+- **A segunda evolução sai de um caminho DIFERENTE do primeiro.** O que evoluiu
+  já está no tier 5 e não sobe mais, então a corrente precisa de dois caminhos
+  fechados — e `PATH_RULES.maxDeep` permite exatamente dois. Ela cabe com folga
+  zero, que é o comprometimento que ela cobra.
+- **O medidor de dano atravessa as duas trocas**, porque a `key` não muda.
+  Medido em `driver_evo`: 6420 como Aimed Shot → 24470 como Kill Shot, mesma
+  entrada de `damageBy`.
+- **Uma corrente é uma decisão de conteúdo, não uma mecânica nova.** O motor já
+  fazia isso desde sempre; ninguém tinha declarado dois `evolvesInto` na mesma
+  linhagem.
+
+**E o que a evolução custa, medido.** `driver_class`, 5 seeds, política de
+level-up aleatória: sobrevivência mediana 9,6 min, pool 20/20, capstone em 3/5,
+aura em 3/5 e **evolução em 1/5**. O número baixo não é defeito da fase: só 9
+das 51 peças do hunter têm caminho que evolui, e o tier 5 pede 10 pontos no eixo
+DA PEÇA — é a mesma escolha que a separação das duas telas documentou ("o custo
+é profundidade"). Aura em 3/5 e evolução em 1/5 dizem juntas que os caminhos
+FECHAM; o que é raro é fechar justo o caminho que converte.
 
 ### O pipeline de stats
 

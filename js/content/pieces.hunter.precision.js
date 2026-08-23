@@ -27,7 +27,7 @@ Object.assign(PIECES, {
         onHit: [{ type: "weaken", factor: "@factor", duration: "@weakTime" }] },
     ],
     paths: {
-      focus: { name: "Foco", tiers: [
+      focus: { name: "Precisão", evolvesInto: "aimedShot", tiers: [
         T("Mira", "+50% de dano.", { damage: { mul: 1.5 } }),
         T("Cadência", "Atira 30% mais rápido.", { cooldown: { mul: 0.7 } }),
         T("Perfuração", "Dobra o dano.", { damage: { mul: 2 } }),
@@ -59,9 +59,9 @@ Object.assign(PIECES, {
   },
 
   aimedShot: {
-    id: "aimedShot", cls: "hunter", key: "aimedShot", name: "Aimed Shot",
-    color: "#1c4aa8", axis: "precision", axisPoints: 2,
-    tags: ["shot", "charge", "heavy"], vfx: "meteor",
+    id: "aimedShot", cls: "hunter", key: "arcaneShot", name: "Aimed Shot",
+    color: "#1c4aa8", axis: "precision", axisPoints: 0,
+    tags: ["shot", "charge", "heavy"], evolutionOnly: true, vfx: "meteor",
     desc: "Enquanto você fica parado, respira e alinha o tiro: uma flecha só, pesada, que atravessa a horda inteira e sai do outro lado.",
     stats: { chargeTime: 1.3, range: 720, damage: 620, speed: 760, projRadius: 8,
              pierce: 8, punch: 120, punchRadius: 64 },
@@ -73,14 +73,14 @@ Object.assign(PIECES, {
           shape: "implode", color: "#1c4aa8" }] },
     ],
     paths: {
-      draw: { name: "Puxada", tiers: [
+      focus: { name: "Puxada", tiers: [
         T("Tensão", "+50% de dano.", { damage: { mul: 1.5 } }),
         T("Respiração", "Alinha 25% mais rápido.", { chargeTime: { mul: 0.75 } }),
         T("Corda Longa", "Dobra o dano.", { damage: { mul: 2 } }),
         T("Reflexo", "Alinha mais 30% rápido.", { chargeTime: { mul: 0.7 } }),
         T("Tiro Perfeito", "Triplica o dano.", { damage: { mul: 3 } }),
       ]},
-      line: { name: "Linha", tiers: [
+      pierce: { name: "Linha", tiers: [
         T("Vara", "Atravessa mais seis corpos.", { pierce: { add: 6 } }),
         T("Longe", "+40% de alcance.", { range: { mul: 1.4 } }),
         T("Ponta de Aço", "O tiro estoura em quem fura.", null,
@@ -89,7 +89,7 @@ Object.assign(PIECES, {
         T("Mais Rápido", "+50% de velocidade do tiro.", { speed: { mul: 1.5 } }),
         T("Lança de Guerra", "Atravessa quase tudo.", { pierce: { add: 16 } }),
       ]},
-      execute: { name: "Execução", tiers: [
+      arcane: { name: "Execução", evolvesInto: "killShot", tiers: [
         T("Golpe de Misericórdia", "O tiro executa alvos muito feridos.", null,
           { "effects.0.onHit.4": { type: "execute", amount: "@damage*0.4",
             threshold: 0.25, executeMul: 4 } }),
@@ -169,7 +169,7 @@ Object.assign(PIECES, {
         T("Alcance", "+40% de alcance.", { range: { mul: 1.4 } }),
         T("Colheita", "Mira mais cinco alvos.", { targets: { add: 5 } }),
       ]},
-      ricochet: { name: "Ricochete", tiers: [
+      ricochet: { name: "Ricochete", evolvesInto: "trickShots", tiers: [
         T("Quica", "Cada flecha salta para um vizinho.", null,
           { "effects.0.onHit.2": { type: "chain", range: 150, falloff: 0.6,
             effects: [{ type: "damage_instant", amount: "@damage*0.7", radius: 40 }] } }),
@@ -194,9 +194,9 @@ Object.assign(PIECES, {
   },
 
   trickShots: {
-    id: "trickShots", cls: "hunter", key: "trickShots", name: "Trick Shots",
-    color: "#6ea6f5", axis: "precision", axisPoints: 2,
-    tags: ["shot", "chain", "ricochet"], vfx: "chain",
+    id: "trickShots", cls: "hunter", key: "multiShot", name: "Trick Shots",
+    color: "#6ea6f5", axis: "precision", axisPoints: 0,
+    tags: ["shot", "chain", "ricochet"], evolutionOnly: true, vfx: "chain",
     requires: { tag: "shot" },
     desc: "Mira sozinha e o tiro ricocheteia de corpo em corpo, perdendo força a cada salto — quanto mais junta a horda, mais longe ele vai.",
     stats: { cooldown: 1.9, range: 440, damage: 155, jumpRange: 180, falloff: 0.72 },
@@ -214,7 +214,7 @@ Object.assign(PIECES, {
         ] },
     ],
     paths: {
-      bounce: { name: "Salto", tiers: [
+      ricochet: { name: "Salto", tiers: [
         T("Longe", "O salto vai 70 unidades mais longe.", { jumpRange: { add: 70 } }),
         T("Terceiro", "O ricochete ganha mais um salto.", null,
           { "effects.0.onHit.0.effects.1.effects.1": { type: "chain", range: "@jumpRange",
@@ -226,14 +226,14 @@ Object.assign(PIECES, {
             range: "@jumpRange", falloff: "@falloff",
             effects: [{ type: "damage_instant", amount: "@damage*0.4", radius: 34 }] } }),
       ]},
-      shot: { name: "Tiro", tiers: [
+      fan: { name: "Tiro", tiers: [
         T("Pontaria", "+50% de dano.", { damage: { mul: 1.5 } }),
         T("Cadência", "Atira 30% mais rápido.", { cooldown: { mul: 0.7 } }),
         T("Peso", "Dobra o dano.", { damage: { mul: 2 } }),
         T("Alcance", "+40% de alcance.", { range: { mul: 1.4 } }),
         T("Tiro de Mestre", "Triplica o dano.", { damage: { mul: 3 } }),
       ]},
-      spark: { name: "Faísca", tiers: [
+      barb: { name: "Faísca", tiers: [
         T("Queima", "Cada corpo tocado passa a queimar.", null,
           { "effects.0.onHit.3": { type: "damage_over_time", key: "trickShots",
             dps: "@damage*0.2", duration: 4, tickInterval: 0.5, look: "fire",
@@ -249,9 +249,9 @@ Object.assign(PIECES, {
   },
 
   killShot: {
-    id: "killShot", cls: "hunter", key: "killShot", name: "Kill Shot",
-    color: "#1c4aa8", axis: "precision", axisPoints: 2,
-    tags: ["shot", "execute", "reactive"],
+    id: "killShot", cls: "hunter", key: "arcaneShot", name: "Kill Shot",
+    color: "#1c4aa8", axis: "precision", axisPoints: 0,
+    tags: ["shot", "execute", "reactive"], evolutionOnly: true,
     desc: "Quando um inimigo cai abaixo de 20% de vida, o tiro sai sozinho e acaba com ele — dano multiplicado dentro do limiar.",
     stats: { cooldown: 0.7, range: 520, damage: 210, threshold: 0.2, executeMul: 5,
              heal: 26, radius: 58 },
@@ -264,14 +264,14 @@ Object.assign(PIECES, {
         atTarget: true, shape: "rip", color: "#1c4aa8" },
     ],
     paths: {
-      finish: { name: "Golpe Final", tiers: [
+      focus: { name: "Golpe Final", tiers: [
         T("Sentença", "+50% da força da execução.", { executeMul: { mul: 1.5 } }),
         T("Limiar", "Executa até 28% de vida.", { threshold: { set: 0.28 } }),
         T("Frieza", "+70% de dano base.", { damage: { mul: 1.7 } }),
         T("Abate", "Executa até 35% de vida.", { threshold: { set: 0.35 } }),
         T("Ceifador", "Dobra a força da execução.", { executeMul: { mul: 2 } }),
       ]},
-      chain: { name: "Sequência", tiers: [
+      pierce: { name: "Sequência", tiers: [
         T("Recarga", "Dispara 35% mais vezes.", { cooldown: { mul: 0.65 } }),
         T("Alcance", "+40% de alcance.", { range: { mul: 1.4 } }),
         T("Sem Pausa", "Dispara quase sem intervalo.", { cooldown: { mul: 0.4 } }),
@@ -281,7 +281,7 @@ Object.assign(PIECES, {
               executeMul: "@executeMul" }] } }),
         T("Colheita", "+80% de dano base.", { damage: { mul: 1.8 } }),
       ]},
-      spoils: { name: "Espólio", tiers: [
+      arcane: { name: "Espólio", tiers: [
         T("Respiro", "Cada execução te cura um pouco.", null,
           { "effects.4": { type: "heal", amount: "@heal", atPlayer: true } }),
         T("Fôlego", "+80% da cura.", { heal: { mul: 1.8 } }),
@@ -424,9 +424,9 @@ Object.assign(PIECES, {
   },
 
   blackArrow: {
-    id: "blackArrow", cls: "hunter", key: "blackArrow", name: "Black Arrow",
-    color: "#1c4aa8", axis: "precision", axisPoints: 2,
-    tags: ["shot", "dot", "summon"], vfx: "rot",
+    id: "blackArrow", cls: "hunter", key: "serpentSting", name: "Black Arrow",
+    color: "#1c4aa8", axis: "precision", axisPoints: 0,
+    tags: ["shot", "dot", "summon"], evolutionOnly: true, vfx: "rot",
     desc: "Mira sozinha e crava uma flecha negra que apodrece o alvo — e o que ela mata levanta como espectro para caçar por você.",
     stats: { cooldown: 3.2, range: 500, damage: 130, dotDps: 90, dotTime: 6, tickInterval: 0.5,
              spectreDamage: 130, spectreTime: 10 },
@@ -445,14 +445,14 @@ Object.assign(PIECES, {
         ] },
     ],
     paths: {
-      rot: { name: "Podridão", tiers: [
+      venom: { name: "Podridão", tiers: [
         T("Fundo", "+50% do dano da podridão.", { dotDps: { mul: 1.5 } }),
         T("Persiste", "A podridão dura +3s.", { dotTime: { add: 3 } }),
         T("Tica Rápido", "A podridão tica 40% mais rápido.", { tickInterval: { mul: 0.6 } }),
         T("Necrose", "Dobra o dano da podridão.", { dotDps: { mul: 2 } }),
         T("Sentença", "Triplica o dano da podridão.", { dotDps: { mul: 3 } }),
       ]},
-      wraith: { name: "Espectro", tiers: [
+      spread: { name: "Espectro", tiers: [
         T("Companhia", "+60% de dano do espectro.", { spectreDamage: { mul: 1.6 } }),
         T("Demora", "Os espectros duram +6s.", { spectreTime: { add: 6 } }),
         T("Dois", "Cada podridão levanta dois espectros.", null,
@@ -461,7 +461,7 @@ Object.assign(PIECES, {
         T("Legião", "Cada podridão levanta quatro espectros.", null,
           { "effects.0.onHit.0.onExpire.0.count": 4, "effects.0.onHit.0.onExpire.0.cap": 10 }),
       ]},
-      shaft: { name: "Haste", tiers: [
+      fang: { name: "Haste", tiers: [
         T("Impacto", "+60% de dano de impacto.", { damage: { mul: 1.6 } }),
         T("Cadência", "Crava 30% mais rápido.", { cooldown: { mul: 0.7 } }),
         T("Área", "A flecha estoura ao acertar.", null,
