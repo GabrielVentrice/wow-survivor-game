@@ -11,7 +11,7 @@ node tools/harness.js .                    # run completa, seed 1, 12 min
 node tools/harness.js . 3 15               # seed 3, 15 min de jogo
 DRIVER=driver_evo.js   node tools/harness.js .   # as 7 evoluções + regras de eixo/caminho
 DRIVER=driver_hooks.js node tools/harness.js .   # todo hook de capstone/passiva dispara?
-DRIVER=driver_dot.js   node tools/harness.js .   # cadência, stacking e expiração de DoT
+DRIVER=driver_dot.js   node tools/harness.js .   # DoT: cadência, stacking, expiração e a conta que vence com o corpo
 DRIVER=driver_audio.js node tools/harness.js .   # som de morte: grafo, throttle, mudo
 DRIVER=driver_music.js node tools/harness.js .   # trilha: andamento, camadas, estados
 DRIVER=driver_render.js node tools/harness.js .  # cenário, demônios e explosão: render e caches
@@ -204,6 +204,14 @@ tabela — não existe tabela de pontos, a rampa é emergente:
   (o driver reprova se isso só acontecer depois dos 11 min: marco entregue
   depois da morte não entrega nada), e com capstone. Sem esta última o resto é
   contabilidade.
+
+O capstone é a única dessas cobranças feita por **taxa**, e não por seed. A
+fase fechada obriga a levar a spell que o sorteio pôs na mesa, então o eixo
+alvo termina com 14 a 16 dos 20 pontos conforme a mão — e 14/4/2 erra o puro
+(15) e o híbrido (10+5) por um ponto de cada lado. Cobrar isso em cinco seeds
+fixas mede o baralho e não o jogo: **qualquer peça nova reembaralha o sorteio**
+e derruba uma seed que estava verde sem que a tela tenha mudado. Então ele roda
+20 mãos e exige 80%; hoje marca 18/20. Mecanismo, não sorte de seed.
 
 **Driver que roda a simulação em laço precisa resolver a tela de etapa.** Ela
 para o `update` como o level-up e o baú, e sem um `openMilestone` de stub o

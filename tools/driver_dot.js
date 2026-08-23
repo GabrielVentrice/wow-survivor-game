@@ -68,6 +68,43 @@ g.dots.clear(e);
 if (e.dots.length) fail("clear() nao esvaziou os DoTs do inimigo");
 else console.log("  ok clear() solta os DoTs antes do inimigo voltar ao pool");
 
+/* --- a conta que vence com o corpo (Soul Rupture) --------------------------
+   Um DoT cujo dano inteiro mora na detonacao final so paga se o alvo
+   sobreviver ao proprio tique — e nesta horda ele quase nunca sobrevive.
+   `expireOnDeath` inverte isso, e quem roda a conta e `clear()`, porque o
+   inimigo morto e limpo por `killDeadEnemies` no mesmo frame: o laco de update
+   nunca ve o DoT de novo. O teste cobra os dois lados — que detona com o
+   corpo, e que um DoT normal NAO detona. */
+{
+  const mk = (flag, key) => {
+    g.start();
+    g.damageBy.clear();
+    const alvo = g.enemies.spawn(ENEMIES.ghoul, 400, 0, { hp: 1, dmg: 1, speed: 0 });
+    const viz = g.enemies.spawn(ENEMIES.abomination, 440, 0, { hp: 1, dmg: 1, speed: 0 });
+    viz.hp = viz.maxHp = 1e9;
+    g.grid.clear(); g.grid.insert(alvo); g.grid.insert(viz);
+    const cc = { key, color: "#fff", now: g.clock, x: alvo.x, y: alvo.y, target: alvo };
+    g.dots.apply(alvo, {
+      key, dps: 1, duration: 60, tickInterval: 30, expireOnDeath: flag,
+      stacking: { mode: "refresh", max: 1 },
+      onExpire: [{ type: "damage_instant", amount: 500, radius: 120 }],
+    }, cc);
+    alvo.hp = 0;                       // morreu ANTES do prazo
+    g.killDeadEnemies();
+    return g.damageBy.get(key) || 0;
+  };
+  let mortesExpiradas = 0;
+  g.events.on(EVENTS.DOT_EXPIRED, () => mortesExpiradas++);
+  const comFlag = mk(true, "ruptura");
+  const semFlag = mk(false, "comum");
+  if (comFlag < 400) fail(`expireOnDeath nao detonou com a morte do alvo (${comFlag.toFixed(0)} de dano)`);
+  else console.log(`  ok expireOnDeath cobra a conta quando o corpo cai (${comFlag.toFixed(0)} de dano)`);
+  if (semFlag > 0) fail(`DoT sem expireOnDeath detonou ao morrer (${semFlag.toFixed(0)} de dano)`);
+  else console.log("  ok DoT comum morre calado junto com o alvo");
+  if (mortesExpiradas) fail(`dot_expired disparou ${mortesExpiradas}x numa morte — o fato e "venceu num alvo vivo"`);
+  else console.log("  ok a morte nao emite dot_expired (Contagio e Chamador nao contam duas vezes)");
+}
+
 // expiracao natural com o alvo saindo de alcance (o caso do Ceifador/Contagio)
 g.start();
 g.build.acquirePiece("corruption");

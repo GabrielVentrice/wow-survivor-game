@@ -19,10 +19,10 @@ Object.assign(PIECES, {
     id: "corruption", key: "corruption", name: "Corruption",
     color: "#7fdc4a", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "dot"], vfx: "rot",
-    desc: "Apodrece o alvo mais próximo. Dano que não pede mira nem posição.",
+    desc: "Mira sozinha no inimigo mais próximo e planta um DoT de podridão. Reaplicar renova a duração; não pede mira nem posição.",
     stats: {
       cooldown: 1.2, range: 440, targets: 1,
-      dps: 14, duration: 6, tickInterval: 0.5, radius: 0,
+      dps: 28, duration: 6, tickInterval: 0.5, radius: 0,
     },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
@@ -69,10 +69,10 @@ Object.assign(PIECES, {
     id: "agony", key: "agony", name: "Agony",
     color: "#4a9e2e", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "dot"], vfx: "sigil",
-    desc: "Dor que cresce. Quanto mais tempo o alvo vive, mais caro fica.",
+    desc: "Mira sozinha e aplica uma dor que dói mais a cada segundo em que o alvo continua vivo. Empilha em cima de si mesma.",
     stats: {
       cooldown: 2.4, range: 400, targets: 1,
-      dps: 9, duration: 12, tickInterval: 0.7, ramp: 0.34, stacks: 3, radius: 0,
+      dps: 18, duration: 12, tickInterval: 0.7, ramp: 0.34, stacks: 3, radius: 0,
     },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
@@ -113,10 +113,10 @@ Object.assign(PIECES, {
     id: "unstableAffliction", key: "unstableAffliction", name: "Unstable Affliction",
     color: "#a8f05c", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "dot"],
-    desc: "Magia instável: o dano de verdade vem quando ela termina.",
+    desc: "Mira sozinha e planta um DoT curto que explode em área ao terminar. O tique é pequeno; o fim é o dano.",
     stats: {
       cooldown: 3.2, range: 380, targets: 1,
-      dps: 10, duration: 5, tickInterval: 1, blast: 70, blastRadius: 90,
+      dps: 20, duration: 5, tickInterval: 1, blast: 140, blastRadius: 90,
       radius: 0, stacks: 1,
     },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
@@ -160,13 +160,77 @@ Object.assign(PIECES, {
     },
   },
 
+  /* A OUTRA metade do "DoT que explode no fim", e ela existe por causa do que
+     Unstable Affliction NAO consegue prometer: a explosao dela so acontece se o
+     alvo sobreviver ao proprio tique, e nesta horda — densa, fragil, morrendo
+     em leva — quase nunca sobrevive. `expireOnDeath` inverte isso: a conta
+     vence do mesmo jeito quando o corpo cai antes do prazo, entao o estouro
+     deixa de ser sorte e passa a ser o que a peca faz.
+
+     Dai o desenho dos numeros: o tique e quase decorativo e o fim carrega o
+     dano inteiro da peca. Quem compra isto nao compra dano por segundo, compra
+     um pulso pesado em area a cada conjuracao. */
+  soulRupture: {
+    id: "soulRupture", key: "soulRupture", name: "Soul Rupture",
+    color: "#4a9e2e", axis: "corruption", axisPoints: 2,
+    tags: ["shadow", "dot"], vfx: "sigil",
+    desc: "Mira sozinha e planta uma ruptura na alma: o tique é fraco, e o dano vem todo de um estouro em área quando o prazo vence — mesmo que o corpo caia antes.",
+    stats: {
+      cooldown: 3.4, range: 420, targets: 1,
+      dps: 14, duration: 6, tickInterval: 1,
+      blast: 600, blastRadius: 140, radius: 0,
+    },
+    trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
+    effects: [
+      { type: "damage_over_time", key: "soulRupture", dps: "@dps", duration: "@duration",
+        tickInterval: "@tickInterval", color: "#4a9e2e", radius: "@radius",
+        stacking: { mode: "refresh", max: 1 }, expireOnDeath: true,
+        // a alma arrebenta para fora: onda, e nao a rachadura por dentro que e
+        // a assinatura do Unstable Affliction
+        onExpire: [{ type: "damage_instant", amount: "@blast", radius: "@blastRadius", big: true,
+                     shape: "nova" }] },
+    ],
+    paths: {
+      rupture: { name: "Ruptura", tiers: [
+        T("Fissura", "+60% no dano do estouro.", { blast: { mul: 1.6 } }),
+        T("Rachadura", "+40% no raio do estouro.", { blastRadius: { mul: 1.4 } }),
+        T("Colapso", "Dobra o dano do estouro.", { blast: { mul: 2 } }),
+        T("Fenda", "O estouro também atordoa por 0.8s.", null,
+          { "effects.0.onExpire.1": { type: "stun", duration: 0.8, radius: "@blastRadius" } }),
+        T("Alma Partida", "Triplica o dano do estouro e dobra o raio.",
+          { blast: { mul: 3 }, blastRadius: { mul: 2 } }),
+      ]},
+      fuse: { name: "Prazo", tiers: [
+        T("Pavio Curto", "A ruptura vence 40% mais cedo.", { duration: { mul: 0.6 } }),
+        T("Urgência", "Conjura 35% mais rápido.", { cooldown: { mul: 0.65 } }),
+        T("Pressa", "A ruptura vence na metade do tempo.", { duration: { mul: 0.5 } }),
+        T("Sobrecarga", "+80% no dano do estouro.", { blast: { mul: 1.8 } }),
+        T("Estopim", "O estouro deixa uma poça corrosiva no lugar.", null,
+          { "effects.0.onExpire.2": { type: "area_persistent", radius: "@blastRadius*0.7",
+                                      dps: "@blast*0.25", duration: 4, tickInterval: 0.4,
+                                      color: "#4a9e2e" } }),
+      ]},
+      echo: { name: "Eco", tiers: [
+        T("Dois Alvos", "Rompe 2 almas por conjuração.", { targets: { set: 2 } }),
+        T("Alcance", "+40% de alcance.", { range: { mul: 1.4 } }),
+        T("Quatro Alvos", "Rompe 4 almas por conjuração.", { targets: { set: 4 } }),
+        T("Ressonância", "O estouro salta para o vizinho a 70%.", null,
+          { "effects.0.onExpire.3": { type: "chain", range: 180, falloff: 0.7, effects: [
+            { type: "damage_instant", amount: "@blast*0.7", radius: "@blastRadius*0.8", big: true }] } }),
+        T("Ruptura em Cadeia", "O estouro espalha todos os DoTs do alvo.", null,
+          { "effects.0.onExpire.4": { type: "spread_on_death", radius: "@blastRadius",
+                                      full: true, maxTargets: 6 } }),
+      ]},
+    },
+  },
+
   seedOfCorruption: {
     id: "seedOfCorruption", key: "seedOfCorruption", name: "Seed of Corruption",
     color: "#7fdc4a", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "reactive"], vfx: "thorn",
-    desc: "Todo inimigo apodrecido vira uma bomba. Você só precisa deixá-lo morrer.",
+    desc: "Quando um inimigo que carrega DoT morre, o corpo dele explode em área. Você não conjura nada: só deixa a horda apodrecer e cair.",
     requires: { tag: "dot" },
-    stats: { blast: 55, radius: 110, cooldown: 0.25 },
+    stats: { blast: 110, radius: 110, cooldown: 0.25 },
     trigger: { type: "reactive", event: "enemy_killed", condition: "has_dot",
                cooldown: "@cooldown", needsTarget: true },
     effects: [
@@ -211,8 +275,8 @@ Object.assign(PIECES, {
     id: "haunt", key: "haunt", name: "Haunt",
     color: "#a8f05c", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "summon"],
-    desc: "Um olho do Vazio persegue alvos e marca quem ele toca: tudo dói mais neles.",
-    stats: { count: 1, respawn: 5, damage: 12, amp: 0.3, markTime: 5, duration: 12, range: 440 },
+    desc: "Invoca um olho do Vazio que atira sozinho e marca quem acerta — alvo marcado recebe mais dano de TUDO na sua build.",
+    stats: { count: 1, respawn: 5, damage: 24, amp: 0.3, markTime: 5, duration: 12, range: 440 },
     trigger: { type: "autonomous", count: "@count", interval: "@respawn" },
     effects: [
       { type: "summon", kind: "darkglare", ai: "turret", count: 1, cap: "@count",
@@ -253,9 +317,9 @@ Object.assign(PIECES, {
     id: "maleficRapture", key: "maleficRapture", name: "Malefic Rapture",
     color: "#a8f05c", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "rooted"],
-    desc: "Fique parado e cobre a conta: pulsa em TODOS que carregam um DoT seu.",
+    desc: "Enquanto você fica parado, carrega e pulsa dano instantâneo em todos os inimigos ao redor que carregam um DoT seu.",
     requires: { tag: "dot" },
-    stats: { chargeTime: 1.1, damage: 58, radius: 340 },
+    stats: { chargeTime: 1.1, damage: 116, radius: 340 },
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: 0 },
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius", onlyDotted: true, big: true,
@@ -299,8 +363,8 @@ Object.assign(PIECES, {
     id: "vileTaint", key: "corruption", name: "Vile Taint",
     color: "#a8f05c", axis: "corruption", axisPoints: 0,
     tags: ["shadow", "dot", "trail"], evolutionOnly: true, vfx: "rot",
-    desc: "A corrupção sai dos seus pés. Andar vira a arma.",
-    stats: { distance: 60, radius: 88, dps: 26, duration: 5, tickInterval: 0.35, dotDps: 12, dotTime: 6 },
+    desc: "Enquanto você anda, deixa poças de podridão no rastro: elas causam dano contínuo e aplicam DoT em quem pisa.",
+    stats: { distance: 60, radius: 88, dps: 52, duration: 5, tickInterval: 0.35, dotDps: 24, dotTime: 6 },
     trigger: { type: "trail", distance: "@distance" },
     effects: [
       { type: "area_persistent", radius: "@radius", dps: "@dps", duration: "@duration",
@@ -341,8 +405,8 @@ Object.assign(PIECES, {
     id: "soulRot", key: "drainLife", name: "Soul Rot",
     color: "#a8f05c", axis: "corruption", axisPoints: 0,
     tags: ["shadow", "dot", "aura", "heal"], evolutionOnly: true, vfx: "blood",
-    desc: "Uma aura que apodrece tudo por perto e devolve a podridão como vida.",
-    stats: { interval: 0.4, radius: 190, damage: 16, heal: 0.22, dotDps: 10, dotTime: 5 },
+    desc: "Aura constante em volta de você: causa dano, aplica DoT e devolve parte do dano causado como cura.",
+    stats: { interval: 0.4, radius: 190, damage: 32, heal: 0.22, dotDps: 20, dotTime: 5 },
     trigger: { type: "aura", interval: "@interval" },
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius",

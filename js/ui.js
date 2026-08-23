@@ -1176,6 +1176,11 @@ const STAT_FMT = {
   dps:         { name: "dano", fmt: SF.ps },
   dotDps:      { name: "dano do DoT", fmt: SF.ps },
   impDamage:   { name: "dano do imp", fmt: SF.n },
+  // `blast` e DANO em toda peca que o usa (Unstable Affliction, Chaos Bolt,
+  // Seed of Corruption, Implosion, Soul Rupture) — quem carrega o raio e
+  // `blastRadius`. Enquanto ele morava na secao de espaco rotulado como
+  // "raio da explosao", o delta da carta anunciava raio no lugar de dano.
+  blast:       { name: "dano da explosão", fmt: SF.n },
   heal:        { name: "cura", fmt: SF.n },
   shield:      { name: "escudo", fmt: SF.n },
   drain:       { name: "dreno", fmt: SF.ps },
@@ -1199,7 +1204,6 @@ const STAT_FMT = {
   markTime:       { name: "marca", fmt: SF.s },
   // espaco
   radius:      { name: "raio", fmt: SF.i },
-  blast:       { name: "raio da explosão", fmt: SF.i },
   blastRadius: { name: "raio da explosão", fmt: SF.i },
   pullRadius:  { name: "raio da atração", fmt: SF.i },
   projRadius:  { name: "raio do projétil", fmt: SF.i },

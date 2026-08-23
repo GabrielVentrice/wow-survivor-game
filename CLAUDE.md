@@ -88,7 +88,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/triggers.js` | `TRIGGERS` — quando dispara |
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
-| `js/content/*.js` | o catálogo: 31 peças, passivas, capstones, demônios |
+| `js/content/*.js` | o catálogo: 44 peças, passivas, capstones, demônios |
 | `js/render/fx-shapes.js` | `FX_SHAPES` — o gerador de eventos em pixel (`bloom`, `implode`, `nova`, `rip`) |
 | `js/render/tiles.js` | `TILE_ROWS` — as 8 lajes do chão, desenhadas em grade de 42x42 |
 | `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
@@ -122,6 +122,21 @@ Schema de uma peça:
   paths: { a: { name, evolvesInto?, tiers: [T(), T(), T(), T(), T()] }, b, c },
 }
 ```
+
+**O `desc` de uma peça diz o MECANISMO, não o clima.** Ele é o único texto que
+explica a spell na tela de etapa — a tela que cobra o ponto que não volta —, e
+lá não há rótulo de trigger nem carta de tier para completar a frase. Então a
+forma é fixa e vale para peça nova: **como dispara, depois o que faz**, na
+ordem em que o jogador precisa. "Mira sozinha", "Aura constante", "Enquanto
+você anda", "Enquanto você fica parado", "Quando você toma dano", "Sempre que
+você causa dano" abrem a frase; o efeito fecha. O que sobra de espaço vai para
+a condição que decide a compra (`requires`, limiar, recarga, teto).
+
+Duas coisas ficam **fora** do `desc`, e as duas por envelhecimento: **número**
+(quem diz quanto é `stats`, e a carta imprime o antes → depois resolvido) e
+**piada de identidade** ("o arroz com feijão do Cataclismo" não diz se a peça
+mira sozinha). Frase de clima não é proibida — ela só não pode ocupar o lugar
+da informação.
 
 Demônio é a mesma ideia: a entrada em `MINIONS` (`js/content/minions.js`)
 carrega o tuning **e** o visual — `sprite` aponta para uma grade em
@@ -195,6 +210,26 @@ Todo dano em inimigo passa por aqui. Enquanto os eventos de um acerto estão
 sendo despachados, a `key` fica em `game._chain` e um trigger reativo daquela
 mesma key não dispara. É a generalização do antigo `source !== "corruption"`:
 sem ela, um DoT que aplica DoT trava o browser. `MAX_FX_DEPTH` é o backstop.
+
+### O DoT pode vencer com o corpo, e é `clear()` que cobra
+
+`onExpire` é o que um DoT faz quando o prazo acaba. Ele sozinho não sustenta
+uma peça cujo dano inteiro mora na detonação final: nesta horda — densa,
+frágil, morrendo em leva — o alvo quase nunca sobrevive ao próprio tique, e a
+peça vira uma promessa que o campo cancela. `expireOnDeath: true` no efeito de
+DoT inverte isso: a conta vence do mesmo jeito quando o corpo cai antes.
+
+Três regras que caem daí:
+
+- **Quem roda é `DotSystem.clear()`, não o `update`.** `killDeadEnemies` limpa
+  os DoTs do morto no mesmo frame em que ele cai, então o laço de update nunca
+  vê aquele DoT de novo. Pôr a chamada lá dentro seria escrever código morto.
+- **A morte não emite `DOT_EXPIRED`.** Esse fato é "a conta venceu num alvo
+  **vivo**", e é o que Contágio e Chamador escutam; emiti-lo numa morte os
+  faria disparar duas vezes no mesmo corpo, junto de `ENEMY_KILLED`.
+- **É dado, não peça.** Qualquer DoT do catálogo pode declarar o campo; hoje
+  quem declara é `soulRupture`. `driver_dot` cobra os dois lados — que detona
+  com o corpo, e que um DoT normal continua morrendo calado.
 
 ### Marcar e varrer, nunca remover no meio do laço
 
@@ -811,6 +846,32 @@ alavancas mudaram de lugar junto com o custo: hoje são `BALANCE.milestones`
 (`unlockAt`, `axisPoints`, `every`) para o capstone, e a ordenação do baú em
 `UI.openChest` para a evolução. O peso de caminho já iniciado em `getOffers`
 saiu: ele era muleta para um bolo poluído por peças novas, que não existe mais.
+
+**O dano do jogador DOBROU no catálogo inteiro** — `damage`, `dps`, `dotDps`,
+`blast` e `impDamage` de toda peça, evoluções e demônios junto. É a outra
+metade da dobra que o elenco de inimigos levou: as duas coisas que se encostam
+no funil de dano tinham que andar juntas.
+
+O que ele conserta e o que ele **não** conserta, medido (`driver_balance`,
+4 runs x 5 políticas, mesmas seeds):
+
+| | antes | com o dobro |
+|---|---|---|
+| dano por run (mediana, `focado`) | 25k | **44k** |
+| sobrevivência mediana | 1:54 – 4:03 | 1:49 – 2:06 |
+| runs que morrem antes dos 3 min | 15/20 | 17/20 |
+
+O dano sai do lugar; a **sobrevivência não**, e a razão é que ela nunca foi
+limitada por dano. Ela é bimodal por política, e continua sendo: as que ceifam
+cedo (`aleatorio`, `agressivo`) ocasionalmente engatam a bola de neve e chegam
+aos 11 min com 40 mil abates, as outras morrem aos dois minutos em quase toda
+mão — e o dobro de dano não move nenhuma das duas pontas. Quem mata o piloto aos dois minutos é `touchDps` dentro da
+parede de 4400 corpos, e nenhuma quantidade de dano de saída compra tempo
+contra encosto — o jogador morre com a horda no chão em volta dele. As
+alavancas para devolver run continuam sendo as declaradas no bloco de
+`ENEMIES`: `touchDps` nos corpos comuns e `hardDmgGrowth`, que compõe em cima
+deles a cada 15s depois de `hardAt`. Enquanto elas não mexerem, evolução,
+capstone e metamorfose seguem sendo coisas que a run não vive para ver.
 
 Medir por média das políticas engana aqui. `driver_balance` roda cinco perfis, e
 três deles (`aleatorio`, `amplo`, `agressivo`) **não miram por construção** —

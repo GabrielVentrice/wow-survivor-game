@@ -11,7 +11,7 @@ Object.assign(PIECES, {
     id: "burningRush", key: "burningRush", name: "Burning Rush",
     color: "#ff8a3c", axis: "cataclysm", axisPoints: 1,
     tags: ["speed", "aura"],
-    desc: "Corre muito mais rápido queimando a própria vida — a queima nunca chega a te matar.",
+    desc: "Aura constante: você anda muito mais rápido e queima a própria vida por segundo. A queima para num piso — nunca mata.",
     stats: { interval: 0.5, speedMul: 1.35, drain: 0.55, radius: 0 },
     trigger: { type: "aura", interval: "@interval" },
     effects: [
@@ -52,7 +52,7 @@ Object.assign(PIECES, {
     id: "demonicCircle", key: "demonicCircle", name: "Demonic Circle",
     color: "#9a4cff", axis: "dominion", axisPoints: 1,
     tags: ["escape", "aura"],
-    desc: "Se a horda te cercar, você simplesmente não está mais lá.",
+    desc: "Se inimigos demais fecharem em volta de você, te teleporta para fora do cerco na hora. Automático.",
     stats: { interval: 1, minEnemies: 7, checkRadius: 130, distance: 240 },
     trigger: { type: "aura", interval: "@interval" },
     effects: [
@@ -97,8 +97,8 @@ Object.assign(PIECES, {
     id: "shadowfury", key: "shadowfury", name: "Shadowfury",
     color: "#e0521a", axis: "cataclysm", axisPoints: 1,
     tags: ["control", "aura"],
-    desc: "Um pulso que congela a horda no lugar. Compra o segundo que faltava.",
-    stats: { interval: 6, radius: 190, duration: 1.2, damage: 30 },
+    desc: "A cada poucos segundos, um pulso atordoa e machuca todos os inimigos em volta de você.",
+    stats: { interval: 6, radius: 190, duration: 1.2, damage: 60 },
     trigger: { type: "aura", interval: "@interval" },
     effects: [
       { type: "stun", duration: "@duration", radius: "@radius", shape: "nova" },
@@ -137,7 +137,7 @@ Object.assign(PIECES, {
     id: "curseOfExhaustion", key: "curseOfExhaustion", name: "Curse of Exhaustion",
     color: "#4a9e2e", axis: "corruption", axisPoints: 1,
     tags: ["control", "aura"],
-    desc: "Uma aura de cansaço. A horda continua vindo — só que devagar.",
+    desc: "Aura constante: todo inimigo dentro do raio anda mais devagar enquanto estiver nele.",
     stats: { interval: 0.6, radius: 210, factor: 0.65, duration: 1.4 },
     trigger: { type: "aura", interval: "@interval" },
     effects: [
@@ -176,7 +176,7 @@ Object.assign(PIECES, {
     id: "curseOfTongues", key: "curseOfTongues", name: "Curse of Tongues",
     color: "#4a9e2e", axis: "corruption", axisPoints: 1,
     tags: ["control", "aura"],
-    desc: "A horda gagueja. Bate mais devagar e machuca menos.",
+    desc: "Aura constante: inimigos dentro do raio atacam mais devagar e causam menos dano de contato.",
     stats: { interval: 0.8, radius: 220, factor: 0.6, duration: 2 },
     trigger: { type: "aura", interval: "@interval" },
     effects: [
@@ -214,7 +214,7 @@ Object.assign(PIECES, {
     id: "howlOfTerror", key: "howlOfTerror", name: "Howl of Terror",
     color: "#6a28c8", axis: "dominion", axisPoints: 1,
     tags: ["control", "reactive"],
-    desc: "Quando encostam em você, o grito espalha a horda. Resposta, não prevenção.",
+    desc: "Quando você toma dano, um grito faz os inimigos em volta fugirem por alguns segundos. Resposta, não prevenção.",
     stats: { radius: 200, duration: 2.2, cooldown: 4 },
     trigger: { type: "reactive", event: "player_damaged", cooldown: "@cooldown", atPlayer: true },
     effects: [
@@ -253,7 +253,7 @@ Object.assign(PIECES, {
     id: "mortalCoil", key: "mortalCoil", name: "Mortal Coil",
     color: "#4a9e2e", axis: "corruption", axisPoints: 1,
     tags: ["control", "heal", "reactive"],
-    desc: "Em vida baixa, empurra a horda e devolve fôlego. O botão de pânico automático.",
+    desc: "Quando você toma dano com a vida abaixo do limiar, empurra a horda para longe e devolve parte da vida.",
     stats: { threshold: 0.4, radius: 190, force: 170, heal: 0.2, cooldown: 9 },
     trigger: { type: "reactive", event: "player_damaged", condition: "player_below",
                pct: "@threshold", cooldown: "@cooldown", atPlayer: true },
@@ -296,7 +296,7 @@ Object.assign(PIECES, {
     id: "banish", key: "banish", name: "Banish",
     color: "#6a28c8", axis: "dominion", axisPoints: 1,
     tags: ["control"],
-    desc: "Tira o maior problema do tabuleiro por alguns segundos.",
+    desc: "A cada poucos segundos, prende no lugar um inimigo dentro do alcance — chefe incluído.",
     stats: { cooldown: 7, range: 460, duration: 5, targets: 1 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
@@ -336,7 +336,7 @@ Object.assign(PIECES, {
     id: "enslaveDemon", key: "enslaveDemon", name: "Enslave Demon",
     color: "#9a4cff", axis: "dominion", axisPoints: 1,
     tags: ["control", "summon"],
-    desc: "Vira um inimigo contra os próprios. O exército cresce roubando peça.",
+    desc: "A cada poucos segundos, converte um inimigo em aliado temporário: ele passa a lutar do seu lado.",
     stats: { cooldown: 8, range: 300, duration: 10 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: 1 },
     effects: [

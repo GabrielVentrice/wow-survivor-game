@@ -791,6 +791,8 @@ class DotInstance {
     this.removable = o.removable !== false;
     this.permanent = !!o.permanent;
     this.onExpire = o.onExpire || null;
+    // a conta vence tambem se o corpo cair antes do prazo (Soul Rupture)
+    this.expireOnDeath = !!o.expireOnDeath;
     this.spreadOnContact = !!o.spreadOnContact;
     this.dead = false;
   }
@@ -831,6 +833,11 @@ class XPOrb {
   // com um gradiente largo por orbe o piso inteiro vira uma mancha (e um
   // gradiente novo alocado por orbe por frame). Halo fraco cacheado + nucleo
   // solido le como pingo de alma e some do caminho do resto.
+  // But the drop is measured in WORLD units and the world is painted into a
+  // buffer at 1/PIXEL_UNIT: a 2.1-unit core landed on 0.7 buffer pixels, a
+  // sub-pixel dot the renderer had to fade into the floor. It now covers ~3
+  // buffer pixels — still far smaller than the 13-unit enemy beside it, so
+  // the floor does not turn into a smear when fifty of them drop at once.
   // The drop is blue, not green: green was the Corruption hue, so on a
   // Corruption build the XP on the floor dissolved into the player's own
   // spells. Blue is the one hue no axis owns.
@@ -845,11 +852,11 @@ class XPOrb {
     const sx = this.x - cam.left, sy = this.y - cam.top - rise;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.34 * k;
-    ctx.drawImage(glowBlob(UI_PAL.xp), sx - 7, sy - 7, 14, 14);
+    ctx.globalAlpha = 0.4 * k;
+    ctx.drawImage(glowBlob(UI_PAL.xp), sx - 11, sy - 11, 22, 22);
     ctx.restore();
     ctx.fillStyle = UI_PAL.xpNucleo;
-    ctx.beginPath(); ctx.arc(sx, sy, 2.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI * 2); ctx.fill();
   }
 }
 
