@@ -677,14 +677,26 @@ regra é *tempo entre abates* e não abates totais.
   anunciar duas vezes. A cadeia é o que a run guarda para o game over
   (`comboBest`, no painel "A run em uma linha").
 
-**O que uma janela de 1s significa aqui, medido.** Numa run de 12 min com a
-horda no teto a cadeia fica em tela em **100% dos quadros** depois do primeiro
-minuto e chega a **5627 sem quebrar uma vez** — esta horda é densa demais para
-dar um segundo de silêncio. Então o número é um **medidor de rampagem**, não um
-feito que se perde, e é assim de propósito: quem quiser que ele quebre mexe em
-`window`, que é o único número do bloco que muda isso. Os degraus saíram do arco
-medido (10 / 40 / 120); em 10/25/50 os três acendiam nos primeiros vinte
-segundos e o resto da run inteira ficava num tamanho só.
+**A janela é a alavanca, e ela está em 0,1s.** `window` é o único número do
+bloco que decide se a cadeia **quebra**. Medido, run de 12 min com a horda no
+teto:
+
+| janela | recorde | em tela | quebras | quadros no degrau 3 |
+|---|---|---|---|---|
+| 1s | 7584 | 100% | 0 | 93% |
+| 0,3s | 743 | 87% | 234 | 3% |
+| **0,1s** | **364** | **57%** | **605** | **0%** |
+
+Em 1s esta horda é densa demais para dar um segundo de silêncio: o número nunca
+zerava e era um **medidor de rampagem**, não um feito que se perde. Em 0,1s ele
+só continua enquanto os corpos caem no mesmo pulso — some de quase metade dos
+quadros e volta a ser um feito.
+
+O preço está na última coluna: os degraus de cima (40 / 120) praticamente não
+acendem mais, então `tiers` e `size` passam a viver quase só no degrau 0. Se a
+intenção for o número voltar a variar de tamanho, quem desce é `tiers`, não
+`window` que sobe — os degraus estão no arco de uma janela de 1s (10 / 40 / 120,
+e não 10/25/50, que acendiam os três nos primeiros vinte segundos).
 
 ### Os dois drops: objeto, não retângulo
 

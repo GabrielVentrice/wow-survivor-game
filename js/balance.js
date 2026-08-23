@@ -90,16 +90,24 @@ const BALANCE = {
      madura (dezenas de abates por segundo) rearmaria o salto no meio dele
      mesmo e o numero passaria a vibrar num tamanho fixo em vez de pulsar.
 
-     MEDIDO, run de 12 min com a horda no teto: a cadeia fica em tela em 100%
-     dos quadros depois do primeiro minuto e chega a 5627 sem quebrar uma vez.
-     Isso e o que uma janela de 1s significa neste jogo — a horda e densa
-     demais para dar um segundo de silencio —, entao o numero e um medidor de
-     RAMPAGEM e nao um feito que se perde. Quem quiser que ela quebre mexe em
-     `window`, e e o unico numero daqui que muda isso. Os degraus foram postos
-     no arco medido (10 / 40 / 120) e nao em 10/25/50, que acendiam os tres nos
-     primeiros vinte segundos e deixavam o resto da run num tamanho so. */
+     `window` e o unico numero daqui que decide se a cadeia QUEBRA, e por isso
+     ele e a alavanca. MEDIDO, run de 12 min com a horda no teto:
+
+       janela  recorde  em tela  quebras  quadros no degrau 3
+       1s        7584     100%       0            93%
+       0,3s       743      87%     234             3%
+       0,1s       364      57%     605             0%
+
+     Em 1s a horda e densa demais para dar um segundo de silencio: o numero
+     nunca zerava e era um medidor de RAMPAGEM, nao um feito que se perde. Em
+     0,1s ele so continua enquanto os corpos caem no mesmo pulso — quebra o
+     tempo todo, some de metade dos quadros e volta a ser um feito. O preco
+     esta na ultima coluna: os degraus de cima (40 / 120) praticamente nao
+     acendem mais, entao `tiers` e `size` passam a viver quase so no degrau 0.
+     Se a intencao for o numero variar de tamanho de novo, e `tiers` que desce,
+     nao `window` que sobe. */
   combo: {
-    window: 1,                        // segundos entre dois abates da cadeia
+    window: 0.1,                      // segundos entre dois abates da cadeia
     min: 3,                           // a partir daqui a cadeia aparece
     tiers: [10, 40, 120],             // degraus que engordam o numero
     size: [48, 64, 84, 108],          // px do numero, por degrau
