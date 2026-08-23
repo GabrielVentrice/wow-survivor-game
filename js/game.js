@@ -34,6 +34,24 @@ const PIXEL_UNIT = 3;
    o jogo mais precisa nao engasgar. */
 const SHARD_BUDGET = 420;
 
+/* Pushes two overlapping bodies apart, half the overlap each.
+
+   Called once per neighbouring pair by `SpatialGrid.forPairs` — the hottest
+   call site of the simulation, which is why it is a plain named function and
+   touches nothing but the two bodies it is given. */
+function separatePair(e, o) {
+  let dx = e.x - o.x, dy = e.y - o.y;
+  const minD = e.radius + o.radius;
+  const d2 = dx * dx + dy * dy;
+  if (d2 > 0 && d2 < minD * minD) {
+    const d = Math.sqrt(d2);
+    const push = (minD - d) * 0.5;
+    dx /= d; dy /= d;
+    e.x += dx * push; e.y += dy * push;
+    o.x -= dx * push; o.y -= dy * push;
+  }
+}
+
 class Game {
   constructor() {
     this.canvas = document.getElementById("canvas");
@@ -881,25 +899,26 @@ class Game {
     this.separateEnemies();
   }
 
-  // separação leve reaproveitando o grid já populado — sem O(n²)
+  /* Separacao leve reaproveitando o grid ja populado — sem O(n^2).
+
+     Ela e a parte cara da simulacao inteira, e por isso o laco mora em
+     `grid.forPairs`: uma passada pelos baldes custa quatro consultas ao grid
+     por BALDE, contra nove por CORPO da varredura que ela substitui.
+
+     DUAS passadas, e o numero e medido, nao escolhido. A varredura antiga via
+     cada par duas vezes, e isso nao era desperdicio: nesta horda o empurrao
+     para dentro nao para, entao a segunda visita e trabalho corretivo contra
+     uma carga continua e nao limpeza da primeira. Com uma passada so a horda
+     fecha em cima do jogador — 10.12 corpos encostando aos 4 min contra 8.04,
+     e metade da progressao perdida em 30 runs do `driver_balance`. Ver o
+     comentario de `forPairs`.
+
+     `separatePair` fica fora do metodo de proposito. Uma funcao nomeada no
+     escopo do arquivo da a `forPairs` um unico ponto de chamada monomorfico;
+     uma arrow criada aqui seria uma closure nova por passada. */
   separateEnemies() {
-    const list = this.enemies.active;
-    for (let i = 0; i < list.length; i++) {
-      const e = list[i];
-      this.grid.forNear(e.x, e.y, (o) => {
-        if (o === e) return;
-        let dx = e.x - o.x, dy = e.y - o.y;
-        const minD = e.radius + o.radius;
-        const d2 = dx * dx + dy * dy;
-        if (d2 > 0 && d2 < minD * minD) {
-          const d = Math.sqrt(d2);
-          const push = (minD - d) * 0.5;
-          dx /= d; dy /= d;
-          e.x += dx * push; e.y += dy * push;
-          o.x -= dx * push; o.y -= dy * push;
-        }
-      });
-    }
+    this.grid.forPairs(separatePair);
+    this.grid.forPairs(separatePair);
   }
 
   /* Marca-e-varre, como os DoTs: o impacto de um projetil pode disparar um
