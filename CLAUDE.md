@@ -1119,6 +1119,75 @@ inércia.
   inteira — vira o elemento mais pesado de uma tela que quase não tem conteúdo,
   e o botão passa a ser o assunto.
 
+### O Ápice: encher um eixo varre a tela
+
+Chegar aos 15 pontos de um eixo é a coisa mais irreversível que uma run pode
+fazer — com pool de 20 e teto de 15, só **um** eixo cabe lá, e chegar exige ter
+recusado os outros dois marco após marco. O jogo cobrava esse comprometimento e
+não devolvia nada em tela: o número virava 15 no rodapé da etapa e a run seguia
+igual. O Ápice é o pagamento — uma onda serrilhada sai do corpo do warlock e
+varre o que está em tela, e o que ela alcança morre.
+
+O tuning inteiro é `BALANCE.apex` (três números: `sweep`, `bossFrac`, `shake`),
+e as regras que caem daí:
+
+- **Quem arma é a TRAVESSIA do teto, não estar nele.** O gatilho mora em
+  `BuildSystem.addAxis`, e não na tela de etapa: baú, capstone ou peça que
+  credite eixo no futuro ganham o mesmo evento sem uma linha nova. O `Set`
+  `apexed` existe porque `addAxis(x, 0)` no eixo cheio passa por ali em toda
+  etapa seguinte — sem ele a onda sairia a cada marco.
+- **Ela nasce em FILA (`Game.queueApex`) e sai no primeiro quadro de jogo.** O
+  `addAxis` que a descobre roda com a tela de etapa aberta, e essa é a única
+  tela que **apaga o canvas**: a onda sairia por cima de preto chapado, matando
+  uma horda que o jogador não está vendo.
+- **O raio é o canto VISÍVEL mais distante, medido do jogador** — não um número
+  de tabela. Raio fixo mente em metade das resoluções: em tela larga sobra
+  horda viva na borda, que é exatamente o que o evento existe para não deixar
+  acontecer. E a câmera persegue com lerp, então o jogador quase nunca está no
+  centro dela; meia diagonal deixaria viva a faixa para onde a câmera ainda
+  está andando.
+- **Uma curva, dois consumidores.** `apexFront` mora em `js/util.js` e não junto
+  do desenho, onde toda outra curva de evento mora, porque `Game.tickApex` mata
+  com ela e `VfxLayer.draw` desenha com ela. Pelo mesmo motivo `VFX_LIFE.apex`
+  **referencia** `BALANCE.apex.sweep` em vez de repetir o número: é o caso do
+  telegrafo, só que aqui dá para referenciar em vez de cobrar por driver, e
+  referenciar é melhor. O anel é a única coisa em tela desenhada no raio em que
+  ela realmente mata.
+- **A frente é uma FRONTEIRA, não um anel.** Cobrar só a faixa entre a frente de
+  antes e a de agora é a versão óbvia, e está errada porque o alvo **se mexe**:
+  a horda anda para dentro, então um corpo que a onda ultrapassou a 660 unidades
+  caminha para 620 no tique seguinte, cai atrás da frente sem nunca ter estado
+  na faixa, e sobrevive ao evento que existe para limpar a tela. Medido: doze de
+  doze vivos na borda. Para o corpo comum a repetição não custa nada — ele já
+  morreu; quem precisa de guarda é o chefe, e a guarda é um `Set` de mordidos.
+- **Ela VARRE em vez de matar de uma vez**, e os dois motivos são o mesmo:
+  duzentos corpos caindo no mesmo frame são um pico de frame no instante em que
+  o jogo mais precisa não engasgar, **e** leem como uma tela que apagou em vez
+  de uma onda que passou. Varrendo, a ceifa acende os três degraus em sequência
+  e o massacre se conta sozinho.
+- **A onda segura as duas telas de escolha** (`if (this.apex) return` no fim do
+  `update`). O XP de duzentos corpos abre level up quase sempre no meio da
+  varredura, e uma carta subindo por cima cortaria justamente o pagamento da
+  escolha que não volta. Não é só apresentação: a tela para `update` e **não**
+  para `VfxLayer`, então a frente da simulação congelaria enquanto o anel
+  continuaria correndo — e as duas coisas que `apexFront` existe para manter
+  iguais divergiriam.
+- **O chefe NÃO morre** (`bossFrac`). A ameaça deste jogo mora nele (ver
+  `bossHpExp`), e um botão que apaga o único perigo real tiraria o perigo da run
+  inteira. Subir para 1 mata o chefe junto: é um número, não um `if`.
+- **Serrilhada, e é só isso que a separa da ceifa.** As duas são anéis achatados
+  em volta do jogador, na cor da build, e a ceifa acontece dezenas de vezes por
+  run. Serra lê como coisa cortando; anel liso, por mais grosso, leria como a
+  onda de choque de uma explosão. Ela gira porque polígono parado neste raio
+  volta a ser círculo, e a alpha cai quase parelho — é a mesma exceção da onda
+  de choque: quando o anel diz **até onde** o dano chegou, ele precisa continuar
+  legível enquanto chega lá.
+- **O teto do pool de vfx não pode descartá-la** (`VFX_ALWAYS`). Caindo no
+  `return` do teto, a horda sumiria sem nada desenhado — e horda que some sem
+  nada lê como bug de pool.
+
+`driver_apex` guarda as seis primeiras.
+
 ### As duas batidas: level-up aprofunda, etapa compromete
 
 O jogo tem **duas telas de escolha**, com ritmos e perguntas diferentes, e elas

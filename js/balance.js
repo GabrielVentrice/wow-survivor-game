@@ -46,6 +46,33 @@ const BALANCE = {
     shake: [6, 11, 17],
   },
 
+  /* O APICE. Um eixo chegando ao teto (`AXIS_RULES.capPerAxis`) e a coisa mais
+     irreversivel que uma run pode fazer: com pool de 20 e teto de 15, so UM
+     eixo cabe la, e chegar exige ter recusado os outros dois marco apos marco.
+     Ate aqui o jogo cobrava esse comprometimento e nao devolvia nada em tela —
+     o numero virava 15 no rodape da etapa e a run seguia igual.
+
+     A onda varre a TELA, e nao um raio de tabela: quem decide o alcance e o
+     canto mais distante do que o jogador esta vendo. Raio fixo mentiria em
+     metade das resolucoes — em tela larga sobraria horda viva na borda, que e
+     exatamente o que o evento existe para nao deixar acontecer.
+
+     Ela VARRE em vez de matar de uma vez, e os dois motivos sao o mesmo:
+     duzentos corpos caindo no mesmo frame e um pico de frame no instante em
+     que o jogo mais precisa nao engasgar, E le como uma tela que apagou em vez
+     de uma onda que passou. Varrendo, a ceifa (`reap`) acende os tres degraus
+     em sequencia e o massacre se conta sozinho.
+
+     `bossFrac` e a excecao declarada: o chefe NAO morre. A ameaca deste jogo
+     mora nele (ver `bossHpExp`), e um botao que apaga o unico perigo real
+     tiraria o perigo da run inteira — ele leva uma mordida grande e continua
+     em pe. Subir para 1 mata o chefe junto; e um numero, nao um if. */
+  apex: {
+    sweep: 0.55,       // segundos que a frente leva para alcancar a borda
+    bossFrac: 0.35,    // fracao do HP MAXIMO que o chefe leva da onda
+    shake: 20,         // quase o teto de `camera.shake.ref` — nada e mais alto
+  },
+
   camera: {
     lerp: 0.12,          // suavização do follow (0 = travado, 1 = instantâneo)
 

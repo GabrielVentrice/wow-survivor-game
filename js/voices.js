@@ -250,6 +250,26 @@ const VOICES = {
     },
   },
 
+  /* O APICE. A ceifa sobe porque e recompensa; esta tambem sobe, e por cima
+     dela abre — um sweep grave e longo por baixo, um brilhante por cima e um
+     wash que vai crescendo em vez de decair. E o unico som do jogo que demora
+     a chegar ao pico: a onda leva meio segundo para alcancar a borda da tela e
+     um estalo curto acabaria antes de a coisa que ele anuncia terminar.
+
+     `gap` alto e formalidade — ele acontece uma vez por run —, mas segura o
+     caso em que duas etapas empilhadas creditam dois eixos no mesmo segundo. */
+  apex: {
+    gap: 1.2,
+    play(s, t, o) {
+      s._sweep(t, 62, 34, 0.9, "sine", 0.10 * o.v);
+      s._sweep(t + 0.02, 180, 720, 0.5, "sawtooth", 0.055 * o.v, 2600);
+      s._wash(t, 0.75, 400, 4200, 1.2, 0.06 * o.v, 0.7);
+      s._bell(t + 0.08, 330, 0.55, 0.040 * o.v, "triangle");
+      s._bell(t + 0.26, 494, 0.5, 0.034 * o.v, "sine");
+      s._burst(t, 0.35, "highpass", 900, 0.7, 0.038 * o.v, 0.6);
+    },
+  },
+
   // O portao rasgando. O evento mais raro do jogo e o unico com cauda longa.
   portal: {
     gap: 0.5,

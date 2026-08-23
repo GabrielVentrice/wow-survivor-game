@@ -124,3 +124,17 @@ function mmss(sec) {
   const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
+
+/* A frente da onda do Apice, em fracao do raio, contra a fracao do tempo.
+
+   Ela mora aqui — e nao junto do desenho, onde toda outra curva de evento mora
+   — porque DUAS camadas precisam do mesmo numero: `Game.tickApex` mata com
+   ela e `VfxLayer.draw` desenha com ela. Duas copias divergiriam na primeira
+   vez que alguem mexesse na curva, e o anel passaria a mentir sobre onde o
+   dano chegou — que e o unico defeito que este evento nao pode ter, porque
+   ele e a recompensa de uma escolha que nao volta.
+
+   Desacelera (a mesma familia do `outCubic` do render): a onda sai do corpo
+   depressa e vai morrendo contra a borda, entao o jogador ve a horda cair de
+   dentro para fora em vez de a tela apagar de uma vez. */
+function apexFront(k) { const u = 1 - k; return 1 - u * u * u; }

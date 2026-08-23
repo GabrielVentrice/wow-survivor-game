@@ -684,11 +684,16 @@ const VFX_EMITTER = {
   implode: 'damage_instant com shape:"implode" — o clarão chega DEPOIS do colapso',
   nova: 'damage_instant/stun com shape:"nova" — a casca varrendo, sem miolo',
   rip: 'damage_instant com shape:"rip" — o talho vertical',
+  apex: "Game.startApex — um eixo chegou ao teto de 15 (BuildSystem.addAxis)",
 };
 const VFX_RADIUS = {
   burst: 70, shock: 100, spread: 85, jump: 18, summon: 44,
   unsummon: 26, execute: 34, echo: 70, blink: 40, heal: 40, portal: 46,
   reap: 150, link: 0, dash: 14, implode: 70, nova: 100, rip: 60,
+  /* No jogo o raio e a tela inteira; aqui e o que cabe no card. A serra e a
+     esteira sao proporcionais ao raio, entao a leitura sobrevive a reducao —
+     o que nao sobrevive e a escala, e nenhum card desta galeria a promete. */
+  apex: 190,
 };
 /* Os eventos de DOIS pontos precisam do segundo, senao o card emite uma linha
    de comprimento zero e o driver o acusa de mudo — com razao: um salto que
@@ -701,7 +706,7 @@ const VFX_NAME = {
   burst: "explosão", shock: "onda de choque", spread: "propagação", jump: "salto de DoT",
   summon: "invocação", unsummon: "desinvocação", execute: "execução", echo: "eco",
   blink: "teleporte", heal: "cura", portal: "portal rasgando", reap: "a ceifa", link: "salto ligado", dash: "deslocamento",
-  implode: "implosão", nova: "nova", rip: "talho",
+  implode: "implosão", nova: "nova", rip: "talho", apex: "o ápice",
 };
 
 function eventItems() {

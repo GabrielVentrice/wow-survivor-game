@@ -93,6 +93,8 @@ class Game {
     this._fxTargets = [];         // um buffer de alvos por profundidade
     this._nearD = []; this._nearE = [];
     this._chain = new Set();      // keys na cadeia de dano atual (anti-recursao)
+    this.apex = null;             // a onda do Apice enquanto ela varre a tela
+    this._apexQueued = null;      // eixo que encheu e ainda nao virou onda
     this.timers = [];             // efeitos agendados (Eco do Vazio)
     this.damageBy = new Map();    // key -> dano acumulado (medidor)
 
@@ -247,6 +249,8 @@ class Game {
     this.sfx.say(name, { dist: Math.sqrt(dx * dx + dy * dy), size: size });
   }
 
+  queueApex(axisId) { this._apexQueued = axisId; }
+
   schedule(delay, fn) { this.timers.push({ at: this.clock + delay, fn }); }
 
   healPlayer(amount, force) {
@@ -374,6 +378,8 @@ class Game {
     this._hitstopCd = 0;
     this.reapHeat = 0;
     this.reapTier = 0;
+    this.apex = null;
+    this._apexQueued = null;
     this.camera.resetShake();
     this.lastBigHit = null;
     this.build.reset();
@@ -495,6 +501,73 @@ class Game {
     this.addShake(R.shake[t - 1]);
   }
 
+  /* --- o Apice ------------------------------------------------------------
+     Um eixo chegou a 15: a onda sai do corpo e varre o que esta em tela. Ver
+     BALANCE.apex para o porque de cada numero. */
+  startApex(axisId) {
+    const p = this.player, cam = this.camera;
+    /* O raio e o canto VISIVEL mais distante, medido do jogador. A camera
+       persegue com lerp, entao ele quase nunca esta no centro dela: usar
+       metade da diagonal deixaria viva a faixa de horda do lado para onde a
+       camera ainda esta andando. */
+    const rx = Math.abs(p.x - cam.x) + cam.w / 2;
+    const ry = Math.abs(p.y - cam.y) + cam.h / 2;
+    const r = Math.sqrt(rx * rx + ry * ry);
+    // ancorado onde a onda NASCEU: ela ja saiu do corpo, entao andar durante a
+    // varredura nao arrasta o alcance junto
+    this.apex = { x: p.x, y: p.y, r, t: 0, front: 0, bit: new Set() };
+    this.emitVfx("apex", p.x, p.y, r, AXIS_PALETTE[axisId].light);
+    this.addShake(BALANCE.apex.shake);
+    // `force`: acontece uma vez por run e nao pode ser comido pela cadencia de
+    // um acerto qualquer que tenha caido no mesmo quarto de segundo
+    this.addHitstop(BALANCE.camera.hitstop.boss, true);
+  }
+
+  tickApex(dt) {
+    const A = this.apex;
+    if (!A) return;
+    const B = BALANCE.apex;
+    A.t += dt;
+    const k = Math.min(1, A.t / B.sweep);
+    const front = A.r * apexFront(k);
+    A.front = front;
+
+    /* A frente e uma FRONTEIRA, e nao um anel: morre tudo o que esta dentro
+       dela, nao so o que entrou nela neste tique.
+
+       Cobrar so o anel entre a frente de antes e a de agora e a versao obvia,
+       e ela esta errada porque o alvo se MEXE: a horda anda para dentro. Um
+       ghoul que a onda ultrapassou enquanto ele estava a 660 unidades caminha
+       para 620 no tique seguinte, cai atras da frente sem nunca ter estado no
+       anel, e sobrevive ao evento que existe para limpar a tela. Medido: doze
+       de doze vivos na borda.
+
+       Para o corpo comum a repeticao nao custa nada (ele ja morreu, e
+       `hp <= 0` corta na primeira linha). Quem precisa de guarda e o chefe,
+       que sobrevive a mordida: sem o `Set` ele levaria `bossFrac` a cada
+       sub-step, e sao varios por quadro.
+
+       Pelo grid, nunca varrendo `enemies.active`: o raio aqui e de tela
+       inteira, mas a lista chega a 4400 corpos e isto roda em todo sub-step
+       da meia-segunda. */
+    this.grid.forRadius(A.x, A.y, front, (e) => {
+      if (e.hp <= 0 || e.charmed) return;
+      const dx = e.x - A.x, dy = e.y - A.y;
+      if (dx * dx + dy * dy > front * front) return;
+      if (e.type.boss) {
+        if (A.bit.has(e.gen)) return;
+        A.bit.add(e.gen);
+        this.damageEnemy(e, e.maxHp * B.bossFrac, "apex", true);
+      } else {
+        // pelo funil, para o abate render XP, estilhaco, ceifa e os reativos
+        // de morte. `dynDamage` divide de volta o multiplicador global: o que
+        // esta declarado e "morre", nao "leva tanto".
+        this.damageEnemy(e, e.hp / Math.max(0.05, this.dynDamage) + 1, "apex");
+      }
+    });
+    if (k >= 1) this.apex = null;
+  }
+
   /* A cor do eixo em que a build mais investiu. A ceifa nao pertence a uma
      peca, mas tambem nao pode inventar matiz: cor continua sendo predicado de
      eixo, e o que ela diz e "a SUA build acabou de fazer isso". */
@@ -571,6 +644,17 @@ class Game {
     this.elapsed += dt;
     this.clock += dt;
 
+    /* O Apice nasce EM FILA e nao no `addAxis` que o descobriu: aquele ponto
+       do codigo roda com a tela de etapa aberta, o canvas apagado e o mundo
+       parado — a onda sairia por cima de preto chapado, matando uma horda que
+       o jogador nao esta vendo. Aqui ela sai no primeiro quadro de jogo de
+       volta, que e o quadro em que ela tem plateia. */
+    if (this._apexQueued) {
+      const a = this._apexQueued;
+      this._apexQueued = null;
+      this.startApex(a);
+    }
+
     this.player.update(dt, this.input);
     this.applyPassives(dt);
     this.build.updateDynamic();
@@ -578,6 +662,7 @@ class Game {
     this.updateMilestones();
     this.spawner.update(dt, this);
     this.updateEnemies(dt);          // move + preenche o grid + contato
+    this.tickApex(dt);               // a onda do Apice, com o grid recem-feito
     this.minions.update(dt, this.clock);
     this.build.tick(dt, this.clock); // triggers de todas as pecas
     this.dots.update(this.clock);    // scheduler por timestamp
@@ -605,6 +690,15 @@ class Game {
        importa quando as duas caem no mesmo frame — e ai a etapa vai primeiro
        porque ela e a rara: um marco engolido pela fila de level ups perderia
        o palco que ele existe para ter. */
+    /* A onda segura as duas telas. Ela mata centenas de corpos, entao o XP
+       que ela derruba abre level up quase sempre no meio da varredura — e uma
+       carta subindo por cima do evento cortaria justamente o pagamento da
+       unica escolha da run que nao volta. Os niveis esperam 0,55s na fila.
+
+       Nao e so apresentacao: a tela para `update` e nao para `VfxLayer`, entao
+       a frente da simulacao congelaria enquanto o anel continuaria correndo, e
+       as duas coisas que `apexFront` existe para manter iguais divergiriam. */
+    if (this.apex) return;
     if (this.pendingMilestones > 0) { this.ui.openMilestone(); return; }
     if (this.player.pendingLevels > 0) this.ui.openLevelUp();
   }

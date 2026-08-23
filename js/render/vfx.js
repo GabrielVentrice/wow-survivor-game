@@ -226,6 +226,10 @@ const PIECE_VFX = {
    dissipando. Foi o que a versao anterior fazia — `k` cru no raio e `1-k` na
    alpha, nos onze eventos visuais do jogo. */
 const outCubic = (k) => { const u = 1 - k; return 1 - u * u * u; };
+// A serra do Apice. Poucos dentes de proposito: a este raio, quarenta viram
+// grao e o anel volta a ler como circulo — a mesma razao que da a casca do
+// escudo poucos lados.
+const APEX_TEETH = 26, APEX_TOOTH = 0.055;
 const outQuint = (k) => { const u = 1 - k; return 1 - u * u * u * u * u; };
 const inCubic = (k) => k * k * k;
 const LINK_SEGS = 7;   // quebras do filamento de salto
@@ -239,6 +243,12 @@ const VFX_LIFE = {
   // dezesseis pecas e num hash de referencia, e renomear so para ficar
   // simetrico custaria mais do que a simetria vale.
   implode: 0.5, nova: 0.42, rip: 0.4,
+  /* O APICE, e ele NAO tem numero proprio: a vida do anel e literalmente a
+     varredura declarada em `BALANCE.apex.sweep`, porque a mesma curva
+     (`apexFront`) decide onde a onda mata e onde ela e desenhada. E o mesmo
+     argumento do telegrafo abaixo — la os dois numeros so podem ser cobrados
+     por driver, aqui da para referenciar, e referenciar e melhor que cobrar. */
+  apex: BALANCE.apex.sweep,
   /* O TELEGRAFO. A vida dele nao e escolha de gosto: ela e o atraso do golpe
      que ele anuncia, e o anel tem que FECHAR no quadro em que o dano cai. Se
      os dois numeros divergirem, o aviso mente — `driver_vfx` mantem os dois
@@ -269,7 +279,13 @@ const SCORCH_LIFE = 1.7;
 const SCORCH_MAX = 90;
 // so o que ABRE espaco deixa marca: implosao recolhe, salto e deslocamento nao
 // tocam o chao, e cura nao queima nada
-const SCORCH_KINDS = { burst: 0.82, nova: 0.95, rip: 0.5, reap: 0 };
+const SCORCH_KINDS = { burst: 0.82, nova: 0.95, rip: 0.5, reap: 0, apex: 0 };
+
+/* Eventos que o teto do pool nao pode descartar. O Apice acontece UMA vez por
+   run e leva a tela inteira junto: caindo no `return` do teto, a horda sumiria
+   sem nada desenhado — e horda que some sem nada le como bug de pool, que e a
+   mesma razao pela qual o corpo sem grade ainda solta um punhado de faiscas. */
+const VFX_ALWAYS = { apex: 1 };
 
 // Which variant of a multi-variant vfx this instance gets. A counter, not
 // Math.random(): two explosions in the same frame must not land on the same
@@ -298,7 +314,8 @@ class VfxLayer {
   }
   reset() { this.pool.clear(); this.decals.clear(); }
   emit(kind, x, y, r, color, x2, y2) {
-    if (this.pool.active.length > 160) return;   // teto: vfx nunca engasga o loop
+    // teto: vfx nunca engasga o loop — menos o que so acontece uma vez por run
+    if (this.pool.active.length > 160 && !VFX_ALWAYS[kind]) return;
     const v = this.pool.spawn(kind, x, y, r, color, x2, y2);
     const f = SCORCH_KINDS[kind];
     if (f > 0 && r > 24 && this.decals.active.length < SCORCH_MAX) {
@@ -495,6 +512,73 @@ class VfxLayer {
           ctx.strokeStyle = `rgba(${v.rgb},${(a * 0.5).toFixed(2)})`;
           ctx.lineWidth = 1 + a * 3;
           ctx.beginPath(); ctx.arc(0, 0, v.r * (0.08 + e * 0.5), 0, Math.PI * 2); ctx.stroke();
+          ctx.restore();
+          break;
+        }
+        case "apex": {
+          /* A onda do Apice, e ela e o unico evento do jogo desenhado no raio
+             em que ele realmente mata: `apexFront` aqui e a mesma funcao que
+             `Game.tickApex` usa para escolher quem cai. Aro no raio exato ja e
+             a regra de toda zona de dano; aqui ela vale em dobro, porque o que
+             o jogador tem que ver e a horda caindo NA linha e nao perto dela.
+
+             SERRILHADA, e e so isso que a separa da ceifa — as duas sao aneis
+             achatados em volta do jogador, na cor da build, e a ceifa acontece
+             dezenas de vezes por run. Serra le como coisa cortando; anel liso,
+             por mais grosso que fosse, leria como a onda de choque de uma
+             explosao grande. E ela gira: poligono parado neste raio volta a
+             ser um circulo.
+
+             Achatada pelo mesmo motivo da ceifa: circulo cheio a um raio de
+             tela inteira leria como uma cupula em cima da cena, e nao como
+             algo passando pelo chao. */
+          const fr = v.r * apexFront(k);
+          /* Alpha quase parelha, e essa e a excecao que a onda de choque da
+             explosao ja abre: quando o anel diz ATE ONDE o dano chegou, ele
+             precisa continuar legivel enquanto chega la. Preso ao `(1-k)²` do
+             resto, ele apagaria na metade da varredura — e o que sumiria e a
+             unica informacao que ele carrega. */
+          const la = 1 - k * 0.72;
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.scale(1, 0.45);
+
+          // o clarao do corpo: o primeiro quadro registra que algo saiu DALI,
+          // antes de o olho ter tempo de achar a linha da onda
+          const fl = 1 - Math.min(1, k * 7);
+          if (fl > 0) {
+            const br = v.r * 0.22 * (0.4 + (1 - fl));
+            ctx.globalAlpha = fl * fl * 0.75;
+            ctx.drawImage(glowBlob(v.color), -br, -br, br * 2, br * 2);
+            ctx.globalAlpha = 1;
+          }
+
+          // o vao ja varrido, fraquissimo: o que ele diz e "aqui dentro nao
+          // sobrou nada". Mais que isto e uma cupula acesa cobrindo a cena.
+          ctx.fillStyle = `rgba(${v.rgb},${(la * 0.05).toFixed(3)})`;
+          ctx.beginPath(); ctx.arc(0, 0, fr, 0, Math.PI * 2); ctx.fill();
+
+          const spin = k * 1.1;
+          ctx.strokeStyle = `rgba(${v.rgb},${(la * 0.95).toFixed(2)})`;
+          ctx.lineWidth = 3 + la * 7;
+          ctx.beginPath();
+          for (let t = 0; t <= APEX_TEETH * 2; t++) {
+            const ang = spin + (t / (APEX_TEETH * 2)) * Math.PI * 2;
+            const rr = fr * (t & 1 ? 1 : 1 - APEX_TOOTH);
+            const px = Math.cos(ang) * rr, py = Math.sin(ang) * rr;
+            if (t) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+          }
+          ctx.stroke();
+
+          /* A esteira: o mesmo raio atrasado no TEMPO, nao um raio menor. E o
+             atraso que da espessura a onda — dois raios sorteados a esmo
+             leriam como dois aneis, e nao como um so que tem corpo. */
+          const bk = Math.max(0, k - 0.18);
+          ctx.strokeStyle = `rgba(${v.rgb},${(la * 0.4).toFixed(2)})`;
+          ctx.lineWidth = 1 + la * 3;
+          ctx.beginPath();
+          ctx.arc(0, 0, v.r * apexFront(bk), 0, Math.PI * 2);
+          ctx.stroke();
           ctx.restore();
           break;
         }

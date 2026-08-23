@@ -18,6 +18,7 @@ class BuildSystem {
     this.axis = { corruption: 0, dominion: 0, cataclysm: 0 };
     this.reactives = new Map();    // evento -> [instancias]
     this.vfx = [];                 // pecas com efeito visual no personagem
+    this.apexed = new Set();       // eixos que ja soltaram o Apice nesta run
   }
 
   reset() {
@@ -27,6 +28,7 @@ class BuildSystem {
     this.axis.corruption = 0; this.axis.dominion = 0; this.axis.cataclysm = 0;
     this.reactives.clear();
     this.vfx.length = 0;
+    this.apexed.clear();
     this.wireEvents();
     this.applyGlobals();
   }
@@ -330,6 +332,21 @@ class BuildSystem {
     );
     const gained = Math.max(0, Math.min(n, room));
     this.axis[axisId] += gained;
+
+    /* O APICE (ver BALANCE.apex). Encher um eixo e o unico fato do jogo que
+       so pode acontecer UMA vez por run — pool de 20, teto de 15 —, e ele
+       nasce aqui e nao na tela de etapa porque quem sabe que o eixo encheu e
+       quem soma o ponto: um baú, um capstone ou uma peca que credite eixo no
+       futuro ganham o mesmo evento sem nenhuma linha nova.
+
+       O `Set` nao e paranoia com a pool: `addAxis(x, 0)` no eixo ja cheio
+       entra aqui em toda etapa seguinte, e sem ele a onda sairia de novo a
+       cada marco. O que arma o evento e a TRAVESSIA do teto, nao estar nele. */
+    if (gained > 0 && this.axis[axisId] >= AXIS_RULES.capPerAxis
+        && !this.apexed.has(axisId)) {
+      this.apexed.add(axisId);
+      this.game.queueApex(axisId);
+    }
     return gained;
   }
 
@@ -637,12 +654,17 @@ class BuildSystem {
   applyMilestone(o, takePiece) {
     const take = o.dry ? !!(takePiece && o.piece) : !!o.piece;
     const step = take ? o.wet : o.dry;
+    // lido ANTES do credito: o que anuncia o Apice e a travessia do teto, e
+    // depois de somar os dois lados da comparacao sao iguais
+    const cheio = this.axis[o.axisId] >= AXIS_RULES.capPerAxis;
     const gained = step ? this.addAxis(o.axisId, step.want) : 0;
+    const apex = !cheio && this.axis[o.axisId] >= AXIS_RULES.capPerAxis
+      ? o.axisId : null;
     if (take) this.acquirePiece(o.piece.id, true);
     else this.afterChange();
     const caps = this.checkCapstones();
     if (caps.length) this.afterChange();
-    return { gained, piece: take ? o.piece : null, caps };
+    return { gained, piece: take ? o.piece : null, caps, apex };
   }
 
   /* Aplica uma oferta de LEVEL UP. Retorna { caps, evolved, completed } para

@@ -612,6 +612,12 @@ class UI {
         name: `${res.evolved.from} → ${res.evolved.to.name}` });
     }
     if (res.completed) this.auraToast(res.completed);
+    /* O Apice antes dos capstones: quando o eixo enche, os dois costumam cair
+       na mesma escolha (15 e o limiar do capstone puro), e o que o jogador
+       precisa ler primeiro e o que ele esta vendo acontecer em tela. */
+    if (res.apex) {
+      this.toast({ head: "Ápice", axis: AXES[res.apex], name: "eixo no máximo" });
+    }
     for (const cap of res.caps) this.capToast(cap);
     this.checkForm(res.caps[res.caps.length - 1]);
     this.updatePieceBar();

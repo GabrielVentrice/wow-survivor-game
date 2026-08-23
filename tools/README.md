@@ -21,6 +21,7 @@ DRIVER=driver_milestone.js node tools/harness.js .  # etapa: tabela, tres eixos,
 DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas, abertura
 DRIVER=driver_chest.js node tools/harness.js .   # baú: cadência de aparição e tamanho do prêmio
 DRIVER=driver_form.js  node tools/harness.js .   # metamorfose por capstone e aura por spell concluída
+DRIVER=driver_apex.js  node tools/harness.js .   # o Ápice: eixo cheio, a onda que varre a tela, o chefe que sobra
 DRIVER=driver_pixel.js node tools/harness.js .   # grid de pixel: buffer, câmera, escala igual p/ todos, laje
 DRIVER=driver_palette.js node tools/harness.js . # paleta mestre: cor fora da PAL, rampa chapada, corpo aceso
 DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câmera, curvas de evento
