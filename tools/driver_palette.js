@@ -16,7 +16,7 @@ for (const k in PAL) {
   TOKEN.get(PAL[k]).push(k);
 }
 const INKS = ["inkCold", "inkDeep", "inkWarm"];
-const ENERGY = /^(fel|arc|pyr|blood|azure)\d|^white$/;
+const ENERGY = /^(fel|arc|pyr|paw|aim|ven|blood|azure)\d|^white$/;
 
 // --- 1. no colour outside the palette ---------------------------------------
 let stray = [];
@@ -47,7 +47,10 @@ else console.log(`  ok materia sem uso: ${dead.length} (${dead.join(", ") || "ne
 // construction; a hand-typed copy drifts the first time AXIS_PALETTE is tuned.
 for (const [tok, want] of [["fel1", AXIS_PALETTE.corruption.base],
                            ["arc1", AXIS_PALETTE.dominion.base],
-                           ["pyr1", AXIS_PALETTE.cataclysm.base]]) {
+                           ["pyr1", AXIS_PALETTE.cataclysm.base],
+                           ["paw1", AXIS_PALETTE.pack.base],
+                           ["aim1", AXIS_PALETTE.precision.base],
+                           ["ven1", AXIS_PALETTE.trapping.base]]) {
   if (PAL[tok] !== want) fail(`PAL.${tok} (${PAL[tok]}) saiu do AXIS_PALETTE (${want})`);
 }
 

@@ -212,6 +212,29 @@ class Game {
   }
   /* Ate `count` inimigos mais proximos. Insercao ordenada num par de buffers
      reaproveitados: nunca ordena a horda inteira e nunca aloca. */
+  /* Quantas armadilhas daquela peca estao ARMADAS no chao. E o que da "carga"
+     ao trigger `trap`: ele nao e avisado quando uma dispara, entao um contador
+     local sairia do ar no primeiro inimigo que pisasse.
+
+     `armed` no filtro nao e detalhe — foi um bug medido. Contando toda zona da
+     peca, a poca que a propria armadilha abre entra na conta e consome a
+     propria carga: com `charges` 2 e uma poca de 6s no chao, a peca parava de
+     rearmar ate a poca vencer. O que a carga conta e o que esta ESPERANDO
+     alguem pisar, e poca aberta ja disparou.
+
+     Varredura linear e o certo aqui: o pico medido e de 26 zonas, e um indice
+     por `source` seria um mapa a manter em toda criacao e toda morte para
+     poupar uma volta de 26. */
+  countArmed(key) {
+    const list = this.areas.active;
+    let n = 0;
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
+      if (!a.dead && a.armed && !a.sprung && a.source === key) n++;
+    }
+    return n;
+  }
+
   nearestEnemies(x, y, maxDist, count) {
     const ds = this._nearD, es = this._nearE;
     ds.length = 0; es.length = 0;
@@ -1016,7 +1039,31 @@ class Game {
       if (a.follow) { a.x = p.x; a.y = p.y; }
       a.life -= dt;
       a.tickTimer -= dt;
-      if (a.tickTimer <= 0) {
+      /* ARMADILHA: inerte ate alguem encostar. Ela nao cobra `dps`, nao roda
+         `payload` por tique e nao envelhece de forma diferente — o que ela faz
+         e procurar o PRIMEIRO corpo dentro do raio e, achando, morrer com a
+         vida zerada para que o `onEnd` (a detonacao) role pelo caminho que ja
+         existe. Um segundo caminho de disparo seria duas listas de efeitos
+         para divergir.
+
+         A busca e gastada no mesmo `tickInterval` do resto: por sub-step seria
+         de tres a quatro consultas de grid por armadilha por frame, e com
+         `charges` 3 e o modo rapido isso e trabalho por nada — a horda nao
+         atravessa um raio de 70 unidades em 0.1s. */
+      if (a.armed) {
+        if (a.tickTimer <= 0) {
+          a.tickTimer += a.tickInterval;
+          let pisou = null;
+          this.grid.forRadius(a.x, a.y, a.radius, (e) => {
+            if (pisou || e.hp <= 0 || e.charmed) return;
+            const dx = e.x - a.x, dy = e.y - a.y, rr = a.radius + e.radius;
+            if (dx * dx + dy * dy <= rr * rr) pisou = e;
+          });
+          if (pisou) { a.sprung = true; a.sprungOn = pisou; a.life = 0; }
+        }
+        if (a.life > 0) continue;
+      }
+      if (!a.armed && a.tickTimer <= 0) {
         a.tickTimer += a.tickInterval;
         const dmg = a.dps * a.tickInterval;
         this.grid.forRadius(a.x, a.y, a.radius, (e) => {
@@ -1035,10 +1082,19 @@ class Game {
         });
       }
       if (a.life <= 0) {
+        // Armadilha que venceu o prazo sem ninguem pisar NAO detona: ela
+        // expira. Detonar no vencimento faria o `onEnd` ser o comportamento
+        // normal da peca em vez da recompensa por acertar o posicionamento.
+        if (a.armed && !a.sprung) { a.dead = true; continue; }
         if (a.onEnd) {
           const c = pushCtx(this);
           c.key = a.source; c.color = a.color; c.now = this.clock;
-          c.x = a.x; c.y = a.y; c.target = null;
+          c.x = a.x; c.y = a.y;
+          /* Quem pisou vira o alvo. Sem isso, `Freezing Trap` congelaria "o
+             raio" e nao o corpo que a pisou, e todo efeito que mira (`stun`,
+             `mark`, `damage_over_time`) perderia o unico alvo que a armadilha
+             tem certeza de ter. Poca que expira continua sem alvo: nao ha um. */
+          c.target = a.sprungOn;
           c.dirX = p.dirX; c.dirY = p.dirY;
           runEffects(this, a.onEnd, c);
           popCtx(this);

@@ -153,6 +153,7 @@
 <script src="js/content/pieces.cataclysm.js"></script>
 <script src="js/content/pieces.defense.js"></script>
 <script src="js/content/pieces.control.js"></script>
+<script src="js/content/pieces.hunter.js"></script>
 <script src="js/content/passives.js"></script>
 <script src="js/content/capstones.js"></script>
 <script src="js/render/fx-shapes.js"></script>
@@ -197,6 +198,7 @@ const PIECE_FILES = {
   "js/content/pieces.cataclysm.js": ["incinerate", "immolate", "conflagrate", "rainOfFire", "infernal", "shadowburn", "burningTrail", "chaosBolt", "wither", "cataclysm"],
   "js/content/pieces.defense.js": ["drainLife", "soulLeech", "unendingResolve", "demonSkin", "healthstone", "netherWard", "soulstone"],
   "js/content/pieces.control.js": ["burningRush", "demonicCircle", "shadowfury", "curseOfExhaustion", "curseOfTongues", "howlOfTerror", "mortalCoil", "banish", "enslaveDemon"],
+  "js/content/pieces.hunter.js": ["tarTrap", "wildfireBomb", "wildThrash"],
 };
 function pieceFile(id) {
   for (const f in PIECE_FILES) if (PIECE_FILES[f].indexOf(id) >= 0) return f;
@@ -354,6 +356,9 @@ function spawnArea(w, e, x, y, col) {
   a.reset(null, {
     x: x, y: y, radius: e.radius || 60, life: Math.min(4, e.duration || 3),
     color: e.color || col, follow: !!e.follow, dps: e.dps || 0,
+    // `look` decide o ARO, que é a única coisa que separa poça de armadilha:
+    // sem passar por aqui, o card do `trap` desenharia uma poça de fogo.
+    look: e.look, armed: !!e.armed,
   });
   w.areas.push(a);
 }
@@ -850,6 +855,47 @@ const TRIGGER_INFO = {
   autonomous: { name: "população autônoma", tell: "repõe população: o que se vê é a invocação nascendo e expirando",
     setup(w) { w.enemies.push(dummyEnemy("ghoul", 100, -16)); },
     tick(w) { every(w, "c", 3.2, () => spawnMinion(w, "wildImp", axc(), false)); } },
+  leading: { name: "à frente do movimento", tell: "cai à frente, no vetor de movimento — e continua caindo PARADO, na última direção válida",
+    gap: true,
+    setup(w) { w.walkPlayer = true; w.enemies.push(dummyEnemy("ghoul", 120, -10)); },
+    tick(w) {
+      /* Sem o `if (w.player.moving)` do `directional`, e é essa a diferença que
+         o card existe para mostrar: quando o player para, a zona continua
+         saindo do mesmo lado. */
+      every(w, "c", 1.2, () => {
+        spawnArea(w, { radius: 46, duration: 1.8 },
+                  w.player.x + (w.player.dirX || 1) * 110,
+                  w.player.y + (w.player.dirY || 0) * 110, axc());
+      });
+    } },
+  pack: { name: "matilha em formação", tell: "nasce em LEVA e cada bicho toma um slot do leque — o cerco por lados diferentes é o tell",
+    size: 300,
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 100, -16)); },
+    tick(w) { every(w, "c", 5.0, () => {
+      for (let i = 0; i < 3; i++) spawnMinion(w, "wolf", axc(), false);
+    }); } },
+  trap: { name: "armadilha armada", tell: "aro tracejado com quatro presas, no raio EXATO — fica inerte e só cobra quando alguém pisa",
+    size: 260,
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 150, -12)); },
+    tick(w) {
+      /* Duas batidas no mesmo ciclo, e é a sequência que o card existe para
+         mostrar: a armadilha ESPERA (aro tracejado, sem cobrar nada) e só
+         então alguém pisa. O card não simula colisão, então o "pisou" é
+         encenado — `armado` guarda em que metade do ciclo estamos. */
+      const ciclo = 3.6, fase = w.t % ciclo;
+      if (!w.armado && fase < 0.1) {
+        w.armado = true;
+        spawnArea(w, { radius: 60, duration: 3.4, look: "trap", armed: true },
+                  w.player.x + 60, w.player.y + 8, axc());
+      }
+      if (w.armado && fase > 2.4) {
+        w.armado = false;
+        for (const a of w.areas) if (a.armed) a.life = 0;
+        w.vfx.emit("implode", w.player.x + 60, w.player.y + 8, 60, axc());
+        spawnArea(w, { radius: 78, duration: 1.2, look: "rot" },
+                  w.player.x + 60, w.player.y + 8, axc());
+      }
+    } },
   reactive: { name: "reativo a evento", tell: "dispara em EVENTO, não em cooldown — o tell é o efeito, no lugar do evento",
     gap: true,
     setup(w) { for (let i = 0; i < 2; i++) w.enemies.push(dummyEnemy("skeleton", 90 + i * 30, -20 + i * 40)); },

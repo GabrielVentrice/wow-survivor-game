@@ -746,6 +746,13 @@ class AreaEffect {
     this.follow = o.follow || false;     // gruda no player (auras persistentes)
     this.look = o.look || "fire";        // fatia do aro — ver draw()
     this.onEnd = o.onEnd || null;
+    /* ARMADA: a zona nao cobra nada ate alguem encostar, e some no primeiro
+       corpo que pisar. E o estado que separa uma armadilha de uma poca — ver
+       Game.updateAreas. `sprung` guarda que ela ja disparou, para o `onEnd`
+       (que e o `payload` da detonacao) nao rodar duas vezes. */
+    this.armed = o.armed || false;
+    this.sprung = false;
+    this.sprungOn = null;              // quem pisou — vira `c.target` no onEnd
     this.dead = false;
   }
   /* Zona com borda, nao mancha. O preenchimento diz "aqui queima" e por isso e
@@ -781,6 +788,34 @@ class AreaEffect {
       for (let i = 0; i < 5; i++) {
         const a0 = t * 0.55 + (i / 5) * Math.PI * 2;
         ctx.beginPath(); ctx.arc(sx, sy, R, a0, a0 + 0.72); ctx.stroke();
+      }
+      return;
+    }
+    if (this.look === "trap") {
+      /* A armadilha e VISIVEL, e o aro esta no raio real como o de toda zona:
+         com input so de movimento, armadilha escondida nao muda decisao
+         nenhuma do jogador — ela vira sorteio, que e a mesma objecao do
+         meteoro sem sombra no chao.
+
+         O que a separa de uma poca e o desenho estar ESPERANDO: um anel
+         tracejado fino (ela nao queima nada agora) mais quatro presas apontando
+         para dentro, que e a forma que diz "isto fecha". Pulsa devagar, porque
+         parado neste raio ela lê como decalque no chão. */
+      const pulse = 0.72 + Math.sin(t * 3.4) * 0.28;
+      ctx.strokeStyle = `rgba(${this.rgb},${(a * 0.62 * pulse).toFixed(2)})`;
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 16; i++) {
+        const a0 = (i / 16) * Math.PI * 2;
+        ctx.beginPath(); ctx.arc(sx, sy, R, a0, a0 + 0.16); ctx.stroke();
+      }
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 4; i++) {
+        const a0 = (i / 4) * Math.PI * 2 + t * 0.6;
+        const ca = Math.cos(a0), sa = Math.sin(a0);
+        ctx.beginPath();
+        ctx.moveTo(sx + ca * R, sy + sa * R);
+        ctx.lineTo(sx + ca * R * 0.58, sy + sa * R * 0.58);
+        ctx.stroke();
       }
       return;
     }

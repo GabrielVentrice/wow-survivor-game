@@ -82,6 +82,42 @@ const MINION_AI = {
     return d <= m.radius + t.radius + 6 ? t : null;
   },
 
+  /* FLANCO: cerca o alvo em vez de andar em linha reta ate ele.
+
+     `chase` leva todo bicho pelo mesmo caminho — a linha entre ele e o
+     inimigo mais proximo. Com cinco bichos isso empilha os cinco no mesmo
+     ponto do mesmo lado, e a matilha lê como um bicho grande e borrado. O que
+     faz cinco bichos parecerem uma matilha e eles chegarem por lados
+     DIFERENTES.
+
+     O ponto de aproximacao e o alvo deslocado pelo slot do bicho (`m.angle`,
+     congelado no spawn pelo trigger `pack`), e o deslocamento MORRE conforme
+     ele chega: longe, ele corre para o flanco dele; perto, ele fecha no corpo.
+     Sem essa morte o bicho orbitaria o inimigo sem nunca encostar, que e o
+     defeito que tirou a orbita de todo demonio com passo proprio.
+
+     `_arc` e o raio do cerco, e ele sai do proprio alvo (`t.radius`) e nao de
+     um numero de tabela: cercar um ghoul e cercar um chefe sao distancias
+     diferentes, e um valor fixo faria a matilha cercar o chefe por dentro. */
+  flank(m, dt, g, now) {
+    const t = g.nearestEnemy(m.x, m.y, m.range);
+    if (!t) return MINION_AI._returnHome(m, dt, g);
+    const dx = t.x - m.x, dy = t.y - m.y, d = Math.hypot(dx, dy) || 1;
+    const toque = m.radius + t.radius;
+    const arc = toque + 18;
+    // 1 quando esta longe, 0 quando ja esta no corpo: o cerco vira ataque.
+    const espalha = Math.min(1, Math.max(0, (d - toque) / (arc * 2.2)));
+    const ax = t.x + Math.cos(m.angle) * arc * espalha;
+    const ay = t.y + Math.sin(m.angle) * arc * espalha;
+    const ex = ax - m.x, ey = ay - m.y, ed = Math.hypot(ex, ey) || 1;
+    if (d > toque) {
+      m.x += (ex / ed) * m.speed * dt;
+      m.y += (ey / ed) * m.speed * dt;
+    }
+    m.facing = dx < 0 ? -1 : 1;
+    return d <= toque + 6 ? t : null;
+  },
+
   /* Formation slot: a point BEHIND the player, opposite to the direction they
      last moved in. `m.angle` is frozen at spawn and used as the slot id — it
      fans the pack sideways and staggers its depth so a dozen demons do not
@@ -163,7 +199,12 @@ class MinionSystem {
     const phase = Math.random() * Math.PI * 2;
 
     for (let i = 0; i < spawnCount; i++) {
-      const a = phase + sep * i;
+      /* `c.slot` e a posicao no leque, mandada por quem invocou. Sorteando, a
+         formacao de `MINION_AI.flank` perde o sentido: `m.angle` E a identidade
+         de posicao, e dois bichos com o mesmo angulo cercam o alvo pelo mesmo
+         lado. Quem sabe repartir o leque e o trigger, porque so ele sabe
+         quantos vao existir — o `summon` so ve a leva de agora. */
+      const a = c.slot != null ? c.slot + sep * i : phase + sep * i;
       const m = this.pool.spawn({
         kind: e.kind, ai: e.ai || def.ai,
         x: c.x + Math.cos(a) * 30, y: c.y + Math.sin(a) * 30,

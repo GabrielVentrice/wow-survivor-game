@@ -27,6 +27,7 @@ DRIVER=driver_palette.js node tools/harness.js . # paleta mestre: cor fora da PA
 DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câmera, curvas de evento
 DRIVER=driver_vfx.js   node tools/harness.js .   # vfx: assinatura de cada peça, cor no render, voz de cada evento, ceifa e cadeia
 DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homing não fecha, e alvo próprio por tiro
+DRIVER=driver_trigger.js node tools/harness.js .  # os triggers do hunter: trap inerte/carga/rearme, leading parado, pack em formação
 DRIVER=driver_preview.js node tools/harness.js . # escreve tools/telas-preview.html: as 6 telas de UI (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
@@ -37,6 +38,38 @@ DRIVER=driver_perf.js node tools/harness.js . 12        # custo de frame com a h
 DRIVER=driver_autopsy.js node tools/harness.js . 8 4          # autopsia: QUEM matou o jogador
 DRIVER=driver_autopsy.js node tools/harness.js . 8 4 sweep    # o mesmo, comparando variantes de tuning
 ```
+
+## `driver_trigger` — o contrato de cada trigger novo
+
+Um trigger novo é fácil de escrever e fácil de escrever errado de um jeito que
+nenhum outro driver vê: ele roda, não estoura, e silenciosamente é uma cópia do
+`autonomous` com outro nome. O que este driver mede é a **regra que faz cada um
+existir**, e as regras foram escolhidas por serem as que quebram calado.
+
+| trigger | o que ele cobra |
+|---|---|
+| `trap` | planta no pé do jogador · fica **inerte** (não cobra de quem não pisou) · dispara no contato e abre o `onEnd` · quem pisou chega como **alvo** · para no teto de cargas · **rearma** por cooldown · vence **sem detonar** quando ninguém pisa |
+| `leading` | cai à frente, na distância declarada · **continua disparando parado**, na última direção válida (é a única diferença real para `directional`) · respeita o cooldown |
+| `pack` | nasce em **leva**, não um por intervalo · para no teto · **slots distintos** (dois bichos no mesmo ângulo cercam pelo mesmo lado) · os bichos chegam por **lados diferentes** |
+
+Mais um bloco que não fala de hunter nenhum: que **nenhuma peça do warlock** usa
+os triggers novos nem nasce com zona armada. É o que garante que a fase 2 não
+mexeu na classe que já existia.
+
+Três coisas que este driver já pegou, e as três valem para trigger novo:
+
+- **Contador de mundo precisa de filtro.** `trap` conta cargas perguntando
+  quantas zonas da peça estão no chão — e a poça que a própria armadilha abre
+  tem a mesma `source`. Com `charges: 2` e uma poça de 6s no chão, a peça
+  consumia a própria carga e parava de rearmar. Hoje quem conta é `countArmed`.
+- **Medida no fim da simulação mede a caminhada, não a peça.** A bomba do
+  `leading` fica parada e o jogador continua andando a 250u/s: um segundo
+  depois ela está atrás dele. A distância se mede no quadro em que a zona
+  aparece, com folga de um sub-step de movimento.
+- **Cenário adversarial reprova código certo.** O bloco de rearme media
+  armadilhas em pé com um inimigo imortal parado em cima do jogador — toda
+  armadilha nova era pisada no quadro em que nascia. Conta plantios, não
+  sobreviventes.
 
 ## `driver_autopsy` — quem matou, e o que consertaria
 

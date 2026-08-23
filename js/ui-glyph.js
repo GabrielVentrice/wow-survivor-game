@@ -85,6 +85,10 @@ const GLIFO_SPRITE = {
   grimoireOfSacrifice: "felguard",
   // o warlock em pessoa, para a placa de classe do menu
   warlock: "warlock",
+  // hunter: a peca que invoca a matilha usa a grade do proprio lobo — e o
+  // unico caso em que o icone pode ser a coisa em vez de um simbolo dela.
+  wildThrash: "wolf",
+  hunter: "wolf",
 };
 
 /* A primitiva de cada peca. Nao ilustra — distingue. O criterio e a FORMA da

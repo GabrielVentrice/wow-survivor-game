@@ -49,6 +49,13 @@ sem tell em tela ganha tarja laranja, e o filtro "só o que não anima" lista as
 25 que hoje mudam o jogo em silêncio. `driver_gallery` reprova card que estoura,
 card mudo e registry que passou na frente da galeria.
 
+`DRIVER=driver_trigger.js node tools/harness.js .` cobra o **contrato de cada
+gatilho novo** — a coisa que um driver de fumaça não vê, porque um trigger
+errado roda, não estoura, e é só uma cópia do `autonomous` com outro nome.
+Armadilha inerte que rearma, bomba que não desliga quando o jogador para,
+matilha que cerca por lados diferentes. Foi ele que achou a poça consumindo a
+própria carga.
+
 `DRIVER=driver_preview.js node tools/harness.js .` escreve
 `tools/telas-preview.html`, com as **seis telas de UI** montadas a partir de
 builds de verdade: o level-up em quatro estados (build crua, média, tira no teto
@@ -88,7 +95,8 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/triggers.js` | `TRIGGERS` — quando dispara |
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
-| `js/content/*.js` | o catálogo: 44 peças, passivas, capstones, demônios |
+| `js/content/pieces.*.js` | o catálogo por eixo: 44 do warlock + 3 do hunter |
+| `js/content/{passives,capstones,minions}.js` | passivas, capstones e o tuning dos demônios |
 | `js/render/fx-shapes.js` | `FX_SHAPES` — o gerador de eventos em pixel (`bloom`, `implode`, `nova`, `rip`) |
 | `js/render/tiles.js` | `TILE_ROWS` — as 8 lajes do chão, desenhadas em grade de 42x42 |
 | `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
@@ -112,7 +120,7 @@ Schema de uma peça:
 
 ```js
 {
-  id, key, name, color, axis, axisPoints, tags, desc,
+  id, cls, key, name, color, axis, axisPoints, tags, desc,
   requires?,      // { piece: "<key>" } ou { tag: "<tag>" } — gate de oferta
   vfx?,           // nome em PIECE_VFX
   evolutionOnly?, // true = só chega por evolução, não entra no sorteio
@@ -161,6 +169,56 @@ fica plantado onde nasceu, e `orbit` é o **Voidwalker**, cuja peça inteira é 
 órbita — trigger `orbital`, caminho "Órbita", tiers de raio de anel e velocidade
 de giro. Ali o giro é a mecânica, não o transporte.
 
+### A classe decide QUAL catálogo existe
+
+`PIECES`, `PASSIVES`, `CAPSTONES` e `MINIONS` continuam sendo **um namespace
+só** — e cada entrada declara de quem é, num campo `cls`. A oferta filtra
+(`BuildSystem.owns`); o resto do motor nunca precisa saber que classes existem.
+
+A alternativa — um registry por classe (`PIECES.warlock.*`) — obrigaria a
+reescrever `resolvePiece`, `evolve`, `js/hooks.js`, o `PIECES[path.evolvesInto]`
+de `upgradePath` e o validador inteiro. Isso é refatoração de motor para
+resolver um problema de pertencimento, que é uma linha de dado.
+
+Três campos em `CLASSES` carregam a abstração inteira:
+
+| campo | o que faz |
+|---|---|
+| `axes` | os três eixos da classe, **na ordem em que o HUD os desenha** |
+| `systems` | subsistemas exclusivos (`[]` no warlock, `["aspect"]` no hunter) |
+| `glyph` | a grade da placa do menu |
+
+**`AXES` deixou de ser "os três eixos" e virou a UNIÃO de todas as classes.**
+Quem itera itera `build.axes`, não `AXES` — eram 11 sítios, sete em `js/ui.js` e
+quatro em `js/systems/build.js`, e não pode voltar a ter um décimo segundo.
+
+Quatro coisas que caem daí, e as duas primeiras são bugs que a mudança preveniu:
+
+- **`checkCapstones` sem filtro abre capstone de outra classe, em silêncio.**
+  Ele lê `req` contra o contador de eixo, e numa run de warlock
+  `this.axis.trapping` é `undefined` — `undefined < 15` é **false**, então o
+  requisito passa. Não dá erro, não dá toast estranho: dá capstones errados.
+- **`this.axis` não pode ser literal.** Ele nasce de `cls.axes` no `reset`, e
+  `axisTotal` soma a lista em vez de somar três nomes.
+- **A regra de matiz do driver virou POR CLASSE, e por geometria.** Com
+  corruption em 98°, dominion em 266° e cataclysm em 24°, sobra **um** único
+  ponto no círculo a 60° dos três: seis famílias globais não cabem, não são
+  difíceis. O que precisa ficar longe é o que divide tela, e uma run é uma
+  classe. Um eixo pertence a uma classe só — duas dividindo eixo fariam o
+  catálogo vazar sem que `cls` percebesse.
+- **`driver_form` cobra cobertura de capstone por classe, e só de quem declara
+  mais de uma forma.** Forma única é uma posição coerente ("o meu corpo não
+  conta a progressão"); o que não pode existir é cobertura pela metade — três
+  formas para oito finais é o corpo dizendo que a run chegou longe sem dizer
+  para onde, que é o defeito que tirou a metamorfose do acúmulo de pontos.
+
+As cores do Hunter saem das três especializações do WoW, uma cada: **Matilha**
+`#e0b833` (ouro fulvo de pelo e presa, Beast Mastery), **Precisão** `#3878e0`
+(azul-aço de ponta de flecha, Marksmanship), **Armadilha** `#2fd47e` (jade de
+veneno e alcatrão, Survival). Separação entre elas: 103° / 68° / 171°. Vermelho
+ficou de fora dos dois conjuntos — é reserva da barra de vida, do relógio da
+fase dura e do eyebrow do game over.
+
 ### `key` é a identidade estável, `id` é a aparência
 
 `id`, `name`, `icon`, `trigger` e `effects` mudam na evolução. **`key` nunca.**
@@ -203,6 +261,72 @@ o comportamento sem tocar em código: é literalmente o que a evolução faz.
 Todo agendamento usa `game.clock` (relógio de simulação). **`update(dt)` roda
 várias vezes por frame** (sub-stepping) — um trigger que contasse frames
 dispararia 2–4× por frame em timeScale 3x.
+
+**Trigger novo é uma entrada em `TRIGGERS`, e nada mais.** O Hunter trouxe três,
+e cada um existe por uma regra que o `autonomous` não tem — sem ela seria uma
+cópia com outro nome, que é exatamente o que `driver_trigger` reprova:
+
+| trigger | a regra que o faz existir |
+|---|---|
+| `leading` | cai **à frente**, no vetor de movimento, e **não desliga quando o jogador para** |
+| `pack` | nasce em **leva** e reparte o leque de formação em slots |
+| `trap` | fica **inerte** até alguém pisar; carga é o que está plantado, não um contador |
+
+**`leading` é `directional` menos uma linha, e a linha é a peça.** `directional`
+exige `p.moving` porque a mira *é* o deslocamento; `leading` é antecipação —
+cobra o chão para onde o jogador está indo. Parar de andar não pode desligá-lo,
+senão a bomba some exatamente quando o jogador estanca para deixar a horda
+chegar. A regra "parado, usa a última direção válida" não precisa de estado
+próprio: `p.dirX/dirY` já *é* o último vetor não-nulo normalizado.
+
+**No `pack`, o `angle` do spawn é o número do slot — e quem o reparte é o
+trigger.** `MINION_AI._slot` e `MINION_AI.flank` usam `m.angle` como identidade
+de posição, e `MinionSystem.summon` sorteava a fase. Sorteando, dois bichos
+caem no mesmo ponto do flanco e a matilha volta a ser um borrão. Só o trigger
+sabe quantos vão existir, então é ele que reparte — via `c.slot`, que
+**`pushCtx` zera na fonte**: a pilha de contexto é reaproveitada, e um campo
+opcional que só um trigger escreve vaza para a próxima peça daquela
+profundidade. `_told` já ensinou isso uma vez.
+
+E nascer em leva não é estética: com `interval` de 6s e `count` 5, entrando um
+por vez, os dois primeiros já morreram quando o quinto chega — a matilha nunca
+está em campo inteira, que é a única coisa que o eixo Matilha mede.
+
+**A armadilha é uma `area_persistent` com `armed: true`.** O motor já tinha
+posição fixa, raio, vida, consulta pelo grid e payload; o que faltava era o
+estado inerte. Quatro regras caem daí, e a primeira foi um bug medido:
+
+- **Carga é o que está ESPERANDO, e `countArmed` filtra por isso.** Contando
+  toda zona da peça, a poça que a própria armadilha abre entra na conta — mesma
+  `source` — e consome a própria carga: com `charges: 2` e uma poça de 6s no
+  chão, a peça parava de rearmar até a poça vencer. A contagem mora no mundo e
+  não num contador do trigger porque **o trigger não é avisado quando a
+  armadilha dispara**; contador local sairia do ar no primeiro inimigo que
+  pisasse.
+- **Quem pisou vira `c.target` do `onEnd`.** Sem isso `Freezing Trap` congelaria
+  "o raio" e não o corpo, e todo efeito que mira perderia o único alvo que a
+  armadilha tem certeza de ter. Poça que expira continua sem alvo — não há um.
+- **Vencer o prazo NÃO detona.** Detonar no vencimento faria o `onEnd` virar o
+  comportamento normal da peça, e ela deixaria de cobrar posicionamento.
+- **A busca é gasta no `tickInterval`, não por sub-step.** Por sub-step seriam
+  3–4 consultas de grid por armadilha por frame, e a horda não atravessa um raio
+  de 70 unidades em 0,1s.
+
+**E a armadilha é VISÍVEL** (`look: "trap"` — aro tracejado com quatro presas
+apontando para dentro, no raio real). É a mesma objeção do meteoro sem sombra no
+chão: com input só de movimento, armadilha escondida não muda decisão nenhuma
+do jogador, ela vira sorteio. O aro fica no raio exato como o de toda zona,
+porque é ele que informa onde o efeito pega.
+
+**`MINION_AI.flank` é a outra metade do `pack`.** `chase` leva todo bicho pela
+mesma linha — a que liga ele ao inimigo mais próximo —, então cinco bichos
+empilham no mesmo lado e a matilha lê como um bicho grande e borrado. O que faz
+cinco parecerem uma matilha é chegarem por lados **diferentes**. O deslocamento
+do slot **morre conforme o bicho chega**: longe ele corre para o flanco dele,
+perto ele fecha no corpo — sem essa morte ele orbitaria o alvo sem encostar, que
+é o defeito que tirou a órbita de todo demônio com passo próprio. E o raio do
+cerco sai do `radius` do alvo, não de tabela: cercar um ghoul e cercar um chefe
+são distâncias diferentes.
 
 ### `damageEnemy(e, amount, key, big, dotKey)` é o funil
 
@@ -906,7 +1030,7 @@ criaturas do mesmo material diferem por QUAIS três passos da rampa".
 | o que dura | a fatia | quem lê |
 |---|---|---|
 | casca de escudo | `veil: { sides, spin, thick, spikes }` | `EFFECTS.shield` → `Player.setVeil` |
-| zona no chão | `look: "fire" \| "rot" \| "ash"` | `EFFECTS.area_persistent` → `AreaEffect.draw` |
+| zona no chão | `look: "fire" \| "rot" \| "ash" \| "trap"` | `EFFECTS.area_persistent` → `AreaEffect.draw` |
 | orbe de DoT | `look: "rot" \| "fire" \| "curse" \| "unstable" \| "doom"` | `DotSystem.apply` → `Enemy.drawDotOver` |
 
 Três regras que caem daí:
@@ -1965,7 +2089,9 @@ jogador perde informação de combate.
 
 1. Escolha o arquivo de `js/content/` pelo eixo.
 2. Adicione a entrada em `Object.assign(PIECES, { ... })` seguindo o schema.
-3. `key` igual ao `id`, a menos que seja evolução de outra peça.
+3. `key` igual ao `id`, a menos que seja evolução de outra peça. E **`cls`
+   explícito** — não há default: peça sem dono cairia no catálogo da outra
+   classe e ninguém veria. O `axis` tem que ser um dos três de `cls`.
 4. Todo número em `stats`; trigger e efeitos só com `"@ref"`.
    **Não há campo `icon`**: o ícone sai de `Glyph.svg(id)` — mapeie o `id` em
    `GLIFO_SPRITE` (se a peça invoca um demônio que já tem grade) ou em

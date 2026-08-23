@@ -488,6 +488,11 @@ const PAL = {
   fel0: AXIS_PALETTE.corruption.deep, fel1: AXIS_PALETTE.corruption.base, fel2: AXIS_PALETTE.corruption.light,
   arc0: AXIS_PALETTE.dominion.deep,   arc1: AXIS_PALETTE.dominion.base,   arc2: AXIS_PALETTE.dominion.light,
   pyr0: AXIS_PALETTE.cataclysm.deep,  pyr1: AXIS_PALETTE.cataclysm.base,  pyr2: AXIS_PALETTE.cataclysm.light,
+  // The hunter's three, by the same construction. Referenced, never copied: a
+  // hand-typed hex drifts the first time AXIS_PALETTE is tuned.
+  paw0: AXIS_PALETTE.pack.deep,       paw1: AXIS_PALETTE.pack.base,       paw2: AXIS_PALETTE.pack.light,
+  aim0: AXIS_PALETTE.precision.deep,  aim1: AXIS_PALETTE.precision.base,  aim2: AXIS_PALETTE.precision.light,
+  ven0: AXIS_PALETTE.trapping.deep,   ven1: AXIS_PALETTE.trapping.base,   ven2: AXIS_PALETTE.trapping.light,
   // Enemy eyes. Pink-shifted on purpose: a pure red at 2px reads as cataclysm
   // orange in motion, which is why red left the effect palette in the first place.
   blood0: "#d92f4a", blood1: "#ff5f7a",
@@ -1421,6 +1426,33 @@ const SPRITE_DATA = {
       "..olo...oldo.....",
       "..olo....olo.....",
       "..ooo....ooo.....",
+    ],
+  },
+  /* Lobo da matilha. Quadrupede de lado, virado para a direita como o resto do
+     elenco que anda.
+
+     A rampa e `gold0..2` — a unica rampa de MATERIA quente que nenhum corpo
+     usava ainda (o infernal so a toca como acento). Pelo fulvo pede exatamente
+     ela, e a regra de fatia continua valendo: quem vier depois pega outros tres
+     passos, nao estes.
+
+     Um unico pixel de energia, o olho. O bicho e materia — se ele acendesse
+     como a spell, com cinco em campo a matilha competiria com o que a build
+     desenha, que e a hierarquia de leitura ao contrario. */
+  wolf: {
+    pal: { o: PAL.inkWarm, d: PAL.gold0, m: PAL.gold1, l: PAL.gold2, B: PAL.bone2, e: PAL.paw1 },
+    rows: [
+      "..............o.o",
+      ".ll..........olol",
+      "olmo.......oollll",
+      ".olmoooooolllellB",
+      "..olmmmmmmmlllBBo",
+      "..ommmmmmmmmmdddo",
+      "..odmmmmmmmmdddo.",
+      "..oddddddddddoo..",
+      "...od.oo.od.o....",
+      "...od.oo.od.o....",
+      "...oo.oo.oo.o....",
     ],
   },
   // Infernal: bloco de pedra com veios de fel e a cabeca em brasa.

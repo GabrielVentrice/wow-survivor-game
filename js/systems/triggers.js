@@ -14,7 +14,7 @@
    ========================================================================= */
 
 // Dispara a lista de efeitos da peca a partir de um ponto/alvo.
-function firePiece(game, inst, x, y, target, dirX, dirY, now, amount) {
+function firePiece(game, inst, x, y, target, dirX, dirY, now, amount, slot) {
   const c = pushCtx(game);
   c.key = inst.key;
   c.color = inst.def.color;
@@ -30,6 +30,9 @@ function firePiece(game, inst, x, y, target, dirX, dirY, now, amount) {
      evento; quem dispara por cooldown continua comecando do zero, porque nao
      ha nada anterior para herdar. */
   c.amount = amount || 0;
+  // Posicao no leque, so para quem invoca em formacao (`pack`). `pushCtx` ja
+  // zerou, entao quem nao manda nada continua sorteando.
+  if (slot != null) c.slot = slot;
   c._told = false;              // a pilha e reaproveitada; ver telegraph()
   runEffects(game, inst.r.effects, c);
   popCtx(game);
@@ -167,6 +170,92 @@ const TRIGGERS = {
       if (now < s.nextAt) return;
       if (game.minions.countOf(inst.key) >= (t.count || 1)) return;
       s.nextAt = now + cd(game, t.interval || 4);
+      firePiece(game, inst, p.x, p.y, null, p.dirX, p.dirY, now);
+    },
+  },
+
+  /* Planta o efeito A FRENTE do player, no vetor de movimento, a uma distancia
+     configuravel. O irmao de `directional`, e a diferenca e uma linha: aquele
+     exige `p.moving`, este nao.
+
+     Nao e detalhe. `directional` e uma peca que so existe enquanto o jogador
+     anda — a mira E o deslocamento. `leading` e uma peca de ANTECIPACAO: ela
+     cobra o chao para onde o jogador esta indo, e parar de andar nao pode
+     desligar isso, senao a bomba deixa de sair exatamente quando o jogador
+     estanca para deixar a horda chegar.
+
+     `p.dirX/dirY` ja e "ultimo vetor de movimento nao-nulo, normalizado"
+     (Player.reset), entao a regra de "se estiver parado, usa a ultima direcao
+     valida" nao precisa de estado proprio: ela ja e o contrato do campo. */
+  leading: {
+    init(s) { s.nextAt = 0; },
+    tick(game, inst, dt, now) {
+      const s = inst.s, t = inst.r.trigger, p = game.player;
+      if (now < s.nextAt) return;
+      s.nextAt = now + cd(game, t.cooldown);
+      const d = t.distance || 160;
+      firePiece(game, inst, p.x + p.dirX * d, p.y + p.dirY * d, null, p.dirX, p.dirY, now);
+    },
+  },
+
+  /* Mantem uma MATILHA. A populacao e reposta como `autonomous` faz, e o que
+     muda e como ela nasce e como ela anda.
+
+     Duas coisas, e nenhuma cabe no `autonomous`:
+
+     1. Nasce em LEVA (`litter`), nao um por intervalo. Uma matilha que entra
+        um bicho de cada vez nunca e uma matilha em tela: com `interval` de 4s
+        e `count` 5, os dois primeiros ja morreram quando o quinto chega.
+     2. O `angle` do spawn e o INDICE do slot, nao um angulo sorteado.
+        `MINION_AI._slot` ja usa `m.angle` como identidade de posicao no leque
+        — sorteando, dois bichos caem no mesmo ponto do flanco e a formacao
+        vira uma pilha. Quem reparte o leque e o trigger, porque so ele sabe
+        quantos vao existir.
+
+     A IA de cercar mora em `MINION_AI.flank`: o trigger repoe, o `ai` do efeito
+     `summon` decide o comportamento. E a mesma separacao que `autonomous` ja
+     tem, e e ela que deixa uma peca de matilha usar `chase` se o dado quiser. */
+  pack: {
+    init(s) { s.nextAt = 0; s.slot = 0; },
+    tick(game, inst, dt, now) {
+      const s = inst.s, t = inst.r.trigger, p = game.player;
+      if (now < s.nextAt) return;
+      const cap = Math.max(1, Math.round(t.count || 3));
+      const alive = game.minions.countOf(inst.key);
+      if (alive >= cap) return;
+      s.nextAt = now + cd(game, t.interval || 6);
+      const litter = Math.min(cap - alive, Math.max(1, Math.round(t.litter || cap)));
+      for (let i = 0; i < litter; i++) {
+        /* O slot avanca em volta do circulo e nunca reinicia: um bicho que
+           morre e reposto ocupa a proxima posicao do leque em vez de renascer
+           por cima do irmao que sobreviveu. */
+        const slot = (s.slot++ % cap) / cap * Math.PI * 2;
+        firePiece(game, inst, p.x, p.y, null, Math.cos(slot), Math.sin(slot), now, 0, slot);
+      }
+    },
+  },
+
+  /* ARMADILHA. Planta no ponto onde o player esta, fica INERTE, e cobra quando
+     um inimigo encosta. Cargas limitadas, rearme por cooldown.
+
+     "Carga" aqui e quantas podem estar plantadas AO MESMO TEMPO, e ela e
+     contada no mundo (`game.countArmed`) em vez de num contador do trigger. E
+     a mesma escolha de `orbital` e `autonomous`, que perguntam
+     `minions.countOf` em vez de guardarem populacao propria — e ela existe
+     porque o trigger nao e avisado quando a armadilha dispara. Um contador
+     local sairia do ar no primeiro inimigo que pisasse, e a peca pararia de
+     rearmar sem ninguem perceber.
+
+     A armadilha em si e uma `area_persistent` com `armed: true`: o motor ja
+     tinha posicao fixa, raio, vida, consulta pelo grid e payload. O que faltava
+     era o estado inerte — ver Game.updateAreas. */
+  trap: {
+    init(s) { s.nextAt = 0; },
+    tick(game, inst, dt, now) {
+      const s = inst.s, t = inst.r.trigger, p = game.player;
+      if (now < s.nextAt) return;
+      if (game.countArmed(inst.key) >= Math.max(1, Math.round(t.charges || 1))) return;
+      s.nextAt = now + cd(game, t.cooldown || 4);
       firePiece(game, inst, p.x, p.y, null, p.dirX, p.dirY, now);
     },
   },

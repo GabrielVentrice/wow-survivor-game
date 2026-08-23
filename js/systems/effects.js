@@ -22,6 +22,12 @@ function pushCtx(game) {
   const s = game._fxStack;
   let c = s[game._fxDepth];
   if (!c) c = s[game._fxDepth] = {};
+  /* `slot` zera AQUI e nao em cada chamador. A pilha e reaproveitada entre
+     disparos, entao um campo opcional que so um trigger escreve sobrevive no
+     objeto e vaza para a proxima peca que empurrar naquela profundidade —
+     `_told` ja aprendeu isso do jeito dificil. Zerar na fonte faz o default
+     valer por construcao, e custa uma atribuicao. */
+  c.slot = null;
   game._fxDepth++;
   return c;
 }
@@ -291,6 +297,8 @@ const EFFECTS = {
         payload: e.onTick || null,
         follow: !!e.follow,
         onEnd: e.onEnd || null,
+        // `armed` transforma a zona em armadilha: inerte, e cobra no contato.
+        armed: !!e.armed,
       });
     }
   },
