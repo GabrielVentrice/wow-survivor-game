@@ -563,7 +563,7 @@ class UI {
       // `overflow:hidden` desenha fora da barra. Encostar pela direita.
       const p = pct(need);
       marcos += `<b class="lv-ax-gate" style="${p >= 100 ? "right:0" : `left:${p}%`}"` +
-                ` title="tier ${t + 1} das spells deste eixo · ${need} pontos"></b>`;
+                ` title="tier ${t + 1} das spells deste eixo · ${need} ponto${need > 1 ? "s" : ""}"></b>`;
     }
 
     let out = "";

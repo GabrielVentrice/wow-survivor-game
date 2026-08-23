@@ -1154,11 +1154,19 @@ inércia.
 - **Ponto de eixo só vem de etapa.** Level-up não cobra nada e o baú entrega tier
   — as duas moedas nunca mais disputam a mesma escolha (ver "As duas batidas").
 - No máximo **2** caminhos por peça passam do tier 2 → impossível maximizar três.
-- **Tier 3, 4 e 5 pedem 5, 10 e 15 pontos no eixo DA PEÇA** (`PATH_RULES.axisGate`)
-  → impossível ter uma spell fechada sem ter escolhido um eixo. Os três números
-  são os limiares de capstone (`hybridSide`/`hybridMain`/`pureAt`), então o tier
-  5 custa a mesma pureza que o capstone puro, e `freeTier` deixa de ser uma
-  segunda regra: os dois tiers de graça são exatamente os que o gate não cobra.
+- **Tier 3, 4 e 5 pedem 1, 5 e 10 pontos no eixo DA PEÇA** (`PATH_RULES.axisGate`)
+  → impossível ter uma spell fechada sem ter escolhido um eixo, e `freeTier`
+  deixa de ser uma segunda regra: os dois tiers de graça são exatamente os que o
+  gate não cobra.
+  **A escada já foi 5/10/15 — os limiares de capstone —, e ela era cara demais
+  para o que cobra.** Lida em tabela ficava elegante (o tier 5 custava a mesma
+  pureza que o capstone puro); jogada, exigia um eixo MÁXIMO para fechar
+  qualquer caminho, então toda build que não fosse pura terminava a run com
+  cada trilha parada no tier 2 — que é justamente o defeito que o gate existe
+  para consertar, e não para causar. Hoje o primeiro degrau é **um ponto**, a
+  coisa mais cedo que uma run pode pagar (uma etapa), e o topo custa a perna
+  principal de um capstone híbrido (`hybridMain`). Profundidade continua pedindo
+  comprometimento; ela parou de pedir a run inteira antes do primeiro tier 3.
 - Passivas podem declarar `exclusive` → `Fúria Contida` e `Pés de Cinza` nunca coexistem.
 - Peça com `requires` só é oferecida depois que a habilitadora está na build.
 - **O kit inicial é UMA peça só**, e ela entra **de graça**
@@ -1289,7 +1297,8 @@ Consequências que valem para qualquer coisa nova:
   (`PATH_RULES.axisGate`, cobrado em `canUpgradePath`) devolve a conversa sem
   devolver o imposto: **a etapa decide QUAIS spells podem ficar fundas, o
   level-up decide qual delas fica.** Espalhar eixo continua sendo uma escolha —
-  ela só passou a ter preço, e o preço é uma build inteira presa no tier 2.
+  ela só passou a ter preço, e o preço é chegar ao fim da run com spells largas
+  em vez de uma fechada.
 - **A trava vale para TODA fonte de tier**, porque quem pergunta é
   `canUpgradePath`: level-up, baú e o que vier depois. Isentar o baú faria dele
   a brecha que desmonta a regra — ele é a única fonte de tier grátis.

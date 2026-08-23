@@ -48,8 +48,10 @@ const bad = (m) => { problems++; console.log("X   " + m); };
 
 /* --- o gate de eixo -------------------------------------------------------
    Profundidade voltou a cobrar comprometimento, e a moeda e o eixo DA PECA:
-   tier 3 pede 5 pontos, tier 4 pede 10, tier 5 pede 15 — os mesmos limiares do
-   capstone. O que este bloco cobra sao as tres pontas que podem mentir:
+   tier 3 pede 1 ponto, tier 4 pede 5, tier 5 pede 10. A tabela abaixo mede as
+   duas bordas de cada degrau — um ponto antes e o ponto exato —, porque gate
+   que abre cedo demais nao aparece jogando: a trilha so sobe mais rapido.
+   O que este bloco cobra sao as tres pontas que podem mentir:
 
      - a trava fecha e abre no ponto exato (nem antes, nem depois);
      - ela e do eixo DA PECA, e nao do eixo mais alto da run — senao investir
@@ -60,7 +62,7 @@ const bad = (m) => { problems++; console.log("X   " + m); };
 const primeira = () => g.build.pieces.values().next().value;
 {
   // [pontos no eixo, tier em que a trilha para]
-  for (const [pontos, teto] of [[0, 2], [4, 2], [5, 3], [9, 3], [10, 4], [14, 4], [15, 5]]) {
+  for (const [pontos, teto] of [[0, 2], [1, 3], [4, 3], [5, 4], [9, 4], [10, 5], [15, 5]]) {
     g.start();
     const inst = primeira();
     g.build.axis[inst.def.axis] = pontos;
