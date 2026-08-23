@@ -375,6 +375,12 @@ class Enemy {
     this.hp = this.maxHp;
     this.touchDps = type.touchDps * scale.dmg;
     this.shootDamage = (type.shootDamage || 0) * scale.dmg;
+    /* O estouro de morte era a UNICA cobranca do elenco que nunca via
+       `scale.dmg`: `deathBlast` lia o dado do tipo direto, entao o Gan'arg
+       cobrava os mesmos 32 no minuto 1 e no minuto 15. A curva ficava
+       invertida — quase um terco da barra quando o jogador nao tem nada, e
+       ruido quando ele tem tudo. Aqui ele entra na mesma fila dos outros dois. */
+    this.blastDamage = (type.deathBlast ? type.deathBlast.damage : 0) * scale.dmg;
     this.hitFlash = 0;
     this.facing = 1;
     this.animTime = Math.random() * 6; // fase aleatória p/ nao andarem em sincronia

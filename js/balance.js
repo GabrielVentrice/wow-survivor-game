@@ -313,7 +313,28 @@ const ENEMIES = {
        morte. Ele transforma "deixei a horda chegar" numa conta paga de uma
        vez, e e a unica peca do elenco que muda COMO se joga em vez de quanto
        se apanha. */
-    deathBlast: { radius: 70, damage: 32 },
+    /* O estouro respondia por 96% de todo o dano que o jogador tomava numa run
+       e por 99% dos dois primeiros minutos (`driver_autopsy`, 8 runs) — nao
+       porque ele bate forte, e sim porque cobrava 32 chapados a qualquer
+       distancia dentro do raio, e um em cada tres corpos da horda entre 1:00 e
+       2:00 e um deles. Tres explodindo junto era a barra inteira em dois
+       segundos, e a pior run media exatamente isso: 100% em 2s.
+
+       Os tres numeros mudaram juntos e cada um responde por uma metade
+       diferente do defeito. `falloff` e o que a conta cobra na BORDA, e devolve
+       ao jogador a unica variavel que ele controla; sem ele, posicao nao mudava
+       nada. O `radius` de 70 alcancava 86 com o raio do jogador, o que faz a
+       regra ser "nao esteja perto" — impossivel numa horda de 4400 corpos; em
+       48 ela vira "nao esteja ENCOSTADO", que e uma regra que da para seguir.
+       E `damage` cai porque o caso comum e o sapador morrendo colado, onde o
+       falloff quase nao desconta.
+
+       Medido, 16 runs de 3 min contra o piso de "sem estouro nenhum": mortes
+       antes dos 3 min caem de 10/16 para 2/16 (o piso e 1/16), abates sobem de
+       828 para 1190 (o piso e 1195) e o sapador continua sendo a maior ameaca
+       isolada com 50% do dano tomado — que e o ponto: ele nao devia sumir, ele
+       devia parar de ser o jogo inteiro. */
+    deathBlast: { radius: 48, damage: 24, falloff: 0.25 },
   },
   felbat: {
     id: "felbat", art: 3.0, name: "Morcego Fel",

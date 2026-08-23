@@ -965,18 +965,56 @@ O dano sai do lugar; a **sobrevivência não**, e a razão é que ela nunca foi
 limitada por dano. Ela é bimodal por política, e continua sendo: as que ceifam
 cedo (`aleatorio`, `agressivo`) ocasionalmente engatam a bola de neve e chegam
 aos 11 min com 40 mil abates, as outras morrem aos dois minutos em quase toda
-mão — e o dobro de dano não move nenhuma das duas pontas. Quem mata o piloto aos dois minutos é `touchDps` dentro da
-parede de 4400 corpos, e nenhuma quantidade de dano de saída compra tempo
-contra encosto — o jogador morre com a horda no chão em volta dele. As
-alavancas para devolver run continuam sendo as declaradas no bloco de
-`ENEMIES`: `touchDps` nos corpos comuns e `hardDmgGrowth`, que compõe em cima
-deles a cada 15s depois de `hardAt`. Enquanto elas não mexerem, evolução,
-capstone e metamorfose seguem sendo coisas que a run não vive para ver.
+mão — e o dobro de dano não move nenhuma das duas pontas.
+
+**E quem matava o piloto aos dois minutos não era o encosto.** Este parágrafo
+dizia que era `touchDps` dentro da parede de 4400 corpos, e isso era um palpite
+que a medição derrubou: dano de saída e tempo de vida são duas curvas, e
+`driver_balance` só enxerga a segunda pela borda — ele conta quando se morre,
+não de quê. Ver "A autópsia" logo abaixo.
 
 Medir por média das políticas engana aqui. `driver_balance` roda cinco perfis, e
 três deles (`aleatorio`, `amplo`, `agressivo`) **não miram por construção** —
 não chegar ao capstone é o preço declarado deles, não uma regressão. Quem
 responde pela saúde do clímax são `focado` e `misto`.
+
+### A autópsia: média de dps não enxerga morte instantânea
+
+`driver_balance` responde **quanto tempo** se sobrevive. Ele não responde
+**de quê** — e as duas perguntas têm respostas diferentes, o que custou um
+parágrafo errado a este arquivo. `driver_autopsy` (`tools/README.md`)
+instrumenta `Game.damagePlayer` e reparte cada ponto de vida perdido por
+inimigo nomeado, sem tocar numa linha do jogo.
+
+A primeira leitura dele encontrou o defeito em uma tela: o estouro de morte do
+**Gan'arg Sapador** respondia por **96% de todo o dano tomado numa run** e
+**99% dos dois primeiros minutos**. Três coisas que só aparecem com esse
+recorte, e que valem para qualquer inimigo novo:
+
+- **O frame não é a unidade certa.** O pior frame do jogo cobrava exatamente 32
+  — nunca um número grande. O que matava era a **janela**: três estouros em dois
+  segundos, e na pior run a barra inteira cabia neles. Frame mede o desenho,
+  janela mede a reação, e é a janela que o jogador chama de "tomei IK".
+- **Cobrança que não vê `scale.dmg` envelhece ao contrário.** `Enemy.reset`
+  escala `touchDps` e `shootDamage`; `deathBlast` lia o dado do tipo cru e era a
+  única exceção do elenco. O resultado era um terço da barra no minuto 1 e ruído
+  no minuto 15 — exatamente o inverso de uma curva.
+- **Punição só é punição se houver escolha.** O sapador foi desenhado para
+  cobrar "deixei a horda chegar" de uma vez. Só que o único input é movimento e
+  **toda peça dispara sozinha**: quem decide matá-lo longe é a build, não o
+  jogador. Uma cobrança chata dentro de um raio de 86 unidades, num jogo com
+  `maxAlive` 4400, não pune decisão nenhuma — ela taxa a horda chegar, que é o
+  que a densidade garante. Inimigo novo com cobrança discreta precisa passar
+  nesse teste antes do de números: **existe uma posição que evita isso?**
+
+O conserto foi de dado — `radius` 48, `damage` 24 e o campo novo `falloff`, a
+fração cobrada na borda —, e ele **não apaga o sapador**: ele continua sendo a
+maior fonte isolada de dano (50%). Medido em 16 runs contra o piso de "sem
+estouro nenhum": mortes antes dos 3 min de 10/16 para 2/16 (piso 1/16), abates
+de 828 para 1190 (piso 1195), e a rajada de 2s na pior run de 100% da barra para
+85%. Depois dele o dano tomado volta a ser repartido — sapador 53%, encosto de
+esqueleto 23%, projétil de inquisidora 11% —, que é o que "morri para a horda"
+deveria parecer numa tabela.
 
 ### O corpo do warlock conta a progressão: capstone vira forma, spell vira aura
 

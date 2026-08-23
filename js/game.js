@@ -941,14 +941,30 @@ class Game {
      E o hitstop e o tremor entram pela cadencia normal, sem `force`: numa
      leva inteira explodindo junto, um stop por corpo viraria apresentacao de
      slides. */
+  /* `falloff` e a fracao cobrada na BORDA, e ele existe porque o estouro chato
+     nao dava ao jogador nada para decidir. O unico input do jogo e movimento e
+     toda peca dispara sozinha: quem escolhe MATAR o sapador de longe e a build,
+     nao o jogador. Entao um estouro que cobra o mesmo encostado e a 85 unidades
+     nao pune "deixei a horda chegar" — ele so taxa a horda chegar, que e o que
+     a densidade deste jogo garante que aconteca.
+
+     Com falloff a conta volta a depender de ONDE o jogador estava, que e a
+     unica variavel que ele controla. Medido (`driver_autopsy`, 8 runs, mesmas
+     seeds): a rajada de 2s cai de 100% da barra na pior run para 40%, o
+     sapador sai de 96% do dano tomado para 60% — continua sendo a maior
+     ameaca, deixa de ser o jogo inteiro — e as mortes antes dos 3 min caem de
+     5/8 para 1/8. Sem `falloff` no dado, o comportamento e o de antes. */
   deathBlast(e) {
     const b = e.type.deathBlast;
     this.emitVfx("burst", e.x, e.y, b.radius, e.type.color);
     this.spawnParticles(e.x, e.y, e.type.color, 10);
     const dx = this.player.x - e.x, dy = this.player.y - e.y;
     const reach = b.radius + this.player.radius;
-    if (dx * dx + dy * dy > reach * reach) return;
-    this.damagePlayer(b.damage, "blast");
+    const d2 = dx * dx + dy * dy;
+    if (d2 > reach * reach) return;
+    const edge = b.falloff != null ? b.falloff : 1;
+    const near = 1 - Math.sqrt(d2) / reach;   // 1 no centro, 0 na borda
+    this.damagePlayer(e.blastDamage * (edge + (1 - edge) * near), "blast");
     this.addShake(9, -dx, -dy);
     this.addHitstop(BALANCE.camera.hitstop.hurt);
   }

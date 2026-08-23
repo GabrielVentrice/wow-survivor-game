@@ -32,7 +32,50 @@ PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de
 PAGE=icons.html   DRIVER=driver_gallery.js node tools/harness.js .  # folha de contato dos ícones: idem
 DRIVER=driver_balance.js node tools/harness.js . 5 16   # balanceamento (5 runs x 4 políticas)
 DRIVER=driver_perf.js node tools/harness.js . 12        # custo de frame com a horda no teto
+DRIVER=driver_autopsy.js node tools/harness.js . 8 4          # autopsia: QUEM matou o jogador
+DRIVER=driver_autopsy.js node tools/harness.js . 8 4 sweep    # o mesmo, comparando variantes de tuning
 ```
+
+## `driver_autopsy` — quem matou, e o que consertaria
+
+`driver_balance` responde **quanto tempo** se sobrevive. Ele não responde a
+pergunta que uma morte instantânea faz: **quem** cobrou, e cobrou de uma vez ou
+ao longo de dez segundos. Uma média de dps não enxerga um golpe único — ela
+dilui exatamente o frame que interessa.
+
+A autópsia instrumenta `Game.damagePlayer` e devolve o dano tomado repartido por
+inimigo nomeado, em três recortes (run inteira, primeiros 2 min, últimos 2s de
+vida), mais o **histograma de dano por frame**: quantos frames cobram 10%, 25%,
+50% da barra de uma vez. É esse histograma que separa "o jogo está difícil" de
+"tem uma coisa te matando do nada".
+
+Nada disso muda uma linha do jogo. A atribuição sai de três ganchos:
+
+| fonte | como o nome é reconstruído |
+|---|---|
+| `blast` | o wrapper de `deathBlast(e)` anota o autor antes de cobrar |
+| `touch` | `updateEnemies(dt)` entrega o passo, então `amount / dt` é o `touchDps` de quem está encostado — e o grid diz quais corpos estão lá |
+| `projectile` | o `shootDamage` identifica qual casta `ranged` atirou |
+
+O modo `sweep` é a outra metade, e é o que evita noites jogando para testar uma
+hipótese: cada entrada de `VARIANTS` é um patch **reversível** sobre os dados,
+rodado com as mesmas seeds das outras. Variante nova é uma entrada nova ali, não
+um branch no jogo — a comparação acontece antes de o número entrar no
+`balance.js`. O 5º argumento filtra quais rodar (`... sweep base,raio-48`):
+varredura larga e barata primeiro, rodada funda só nos finalistas.
+
+Duas regras, e as duas custaram uma rodada para serem aprendidas:
+
+- **Variante troca dado, nunca substitui método.** Uma versão anterior testou o
+  falloff reescrevendo `deathBlast` inteiro, e a reescrita deixou de fora o
+  `spawnParticles` — que sorteia. Com um número de sorteios diferente do jogo,
+  as duas runs divergem no primeiro spawn: o resultado prometeu 1/8 de mortes e
+  o patch de verdade entregou 5/8. Hipótese que só cabe em código entra no jogo
+  atrás de um campo de dado e é medida de lá.
+- **Mesma seed não é mesma run.** No instante em que um número muda, o jogador
+  toma dano diferente, mata em outra ordem e o próximo `Math.random()` cai em
+  outro lugar. A comparação é estatística, nunca par a par: uma ou duas mortes
+  de diferença em oito runs é ruído.
 
 ## Sprite novo a partir de imagem gerada
 
