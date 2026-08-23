@@ -385,8 +385,8 @@ acrescentar:
 total`). Ela é o único aviso da batida lenta, e um relógio ali diria ao jogador
 para *esperar* — que é a jogada que a etapa por abates existe para não premiar.
 O limiar em que ela acende (`warnAt`) é **fração do marco atual** e não um
-número fixo de corpos: o primeiro marco custa 250 e o décimo custa 2 mil, então
-20 abates seriam meio minuto de antecedência lá e um piscar aqui.
+número fixo de corpos: o primeiro marco custa 40 e o décimo custa quase mil,
+então 20 abates seriam meio minuto de antecedência lá e um piscar aqui.
 
 **Os pips da tira contam o caminho MAIS FUNDO**, os cinco degraus, como em toda
 outra tela. Já foram três — um por caminho, aceso acima do tier gratuito —, e
@@ -1404,10 +1404,36 @@ eixo aberto custa um marco a mais. `driver_milestone` reprova
 
 Pool 20; quem abre um eixo cedo gasta ~5 marcos a 1 ponto e o resto a 2, e as
 linhas sorteadas nem sempre oferecem o eixo alvo — na prática **~15 marcos**.
-Com `first` 50, `every` 200 e `ramp` 80 o 15º marco cai em **18,5 mil corpos**,
+Com `first` 40, `every` 90 e `ramp` 45 o 15º marco cai em **10,1 mil corpos**,
 que é o que uma run competente do piloto acumula por volta dos 10 min — logo
 antes de onde ela acaba. `driver_milestone` refaz essa conta em vez de confiar
 no número, porque **marco entregue depois da morte não entrega nada**.
+
+**Mas a conta sozinha não acha os três números, e a primeira tentativa provou
+isso.** `50/200/80` foi escolhido para acompanhar a curva de abates *medida* no
+jogo de marco por tempo — 50, 252, 586, 931, 1300, 2574, 3807, 5262, 6256 corpos
+por marco — e mesmo colada nela derrubou a pool mediana de 12/20 para **5/20**,
+com `focado` e `misto` morrendo 2:40 mais cedo. A razão é que **a curva não é
+independente do marco**: com relógio o jogador recebe o ponto *e por isso*
+produz aquela curva de abates; com corpos, ficar um pouco atrás cedo se acumula
+— menos ponto, build mais fraca, menos abates —, que é a mesma realimentação que
+a curva de XP já tem documentada acima.
+
+A rampa é um **ponto fixo**, então ela se mede em vez de se derivar. É por isso
+que `driver_balance` aceita `first,every,ramp` por argv: achar o ponto exige
+rodar a bateria inteira com rampas diferentes, e sem isso seriam três árvores de
+trabalho. Medido, contra o jogo de marco por tempo, mesmas seeds:
+
+| | marco por tempo | `50/200/80` | **`40/90/45`** |
+|---|---|---|---|
+| pool ao fim (mediana) | 12/20 | 5/20 | **20/20** |
+| runs com capstone | 4/20 | 4/20 | **7/20** |
+| runs com evolução | 2/20 | 1/20 | **6/20** |
+| auras (mediana) | 0 | 0 | **1** |
+
+A bimodalidade por política continua e é esperada (ver o balanceamento acima):
+`focado` e `misto` batem no teto de 16 min, `agressivo` e `amplo` fecham em
+~6–8. O que mudou é que **nenhuma política termina com ponto de eixo no bolso**.
 
 O que ele cobra mudou de unidade junto com o marco: o teto era um relógio (11
 min) e virou um **orçamento de corpos** (20 mil). O driver não roda o jogo — ele

@@ -32,6 +32,7 @@ PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
 PAGE=icons.html   DRIVER=driver_gallery.js node tools/harness.js .  # folha de contato dos ícones: idem
 DRIVER=driver_balance.js node tools/harness.js . 5 16   # balanceamento (5 runs x 4 políticas)
+DRIVER=driver_balance.js node tools/harness.js . 4 16 40,90,45  # o mesmo, com outra rampa de etapa
 DRIVER=driver_perf.js node tools/harness.js . 12        # custo de frame com a horda no teto
 DRIVER=driver_autopsy.js node tools/harness.js . 8 4          # autopsia: QUEM matou o jogador
 DRIVER=driver_autopsy.js node tools/harness.js . 8 4 sweep    # o mesmo, comparando variantes de tuning
@@ -254,7 +255,16 @@ dos 10 min). Junto disso ele cobra que a rampa exista e **cresça a cada marco**
 com quota fixa por corpo, uma run que engata a bola de neve esvaziaria a pool
 nos primeiros minutos, e o clímax chegaria antes de haver build para gastá-lo.
 Este driver não roda a simulação, ele exercita a tela: quem re-mede a curva de
-abates é `driver_balance`.
+abates é `driver_balance`, que ganhou a linha `marco N em X abates` e um sweep
+da rampa por argv (`... 4 16 40,90,45`).
+
+**A rampa é um ponto fixo, não um número que se deriva** — e isso custou uma
+rodada para ser aprendido. A primeira tentativa (`50/200/80`) foi calibrada para
+acompanhar a curva de abates medida no jogo de marco por tempo, e mesmo colada
+nela derrubou a pool mediana de 12/20 para 5/20: com relógio o jogador recebe o
+ponto *e por isso* produz aquela curva; com corpos, ficar atrás cedo se acumula.
+Por isso o sweep existe — achar o ponto exige rodar a bateria inteira com rampas
+diferentes, e sem ele isso seriam três árvores de trabalho.
 
 O capstone é a única dessas cobranças feita por **taxa**, e não por seed. A
 fase fechada obriga a levar a spell que o sorteio pôs na mesa, então o eixo

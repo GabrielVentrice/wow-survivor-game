@@ -278,19 +278,31 @@ BALANCE.levelup = {
 
    A cadencia sai da conta, nao do gosto: a pool e 20, um jogador que abre um
    eixo cedo gasta ~5 marcos a 1 ponto e o resto a 2, entao fecha em ~13 marcos.
-   Nestes numeros o 13o marco cai em ~15,7 mil corpos e o 15o em ~18,5 mil —
-   o que uma run competente acumula por volta dos 10 min, que e onde ela deveria
-   estar acabando. `driver_milestone` refaz essa conta. */
+   Nestes numeros o 13o marco cai em ~7,6 mil corpos e o 15o em ~10,1 mil — o que
+   uma run competente acumula por volta dos 10 min, que e onde ela deveria estar
+   acabando. `driver_milestone` refaz essa conta.
+
+   Mas a conta sozinha nao acha os tres numeros, e a primeira tentativa provou
+   isso: `50/200/80` acompanhava de perto a curva de abates MEDIDA no jogo de
+   marco por tempo (50, 252, 586, 931, 1300, 2574, 3807, 5262, 6256 corpos por
+   marco) e ainda assim derrubou a pool mediana de 12/20 para 5/20. A razao e
+   que a curva nao e independente do marco: com relogio o jogador recebe o ponto
+   E POR ISSO produz aquela curva; com corpos, ficar um pouco atras cedo se
+   acumula — menos ponto, build mais fraca, menos abates. A rampa e um PONTO
+   FIXO, e por isso ela se mede (`driver_balance ... first,every,ramp`) em vez
+   de se derivar. Nestes numeros, contra o jogo de marco por tempo: pool mediana
+   12/20 -> 20/20, capstone 4/20 -> 7/20, evolucoes 2/20 -> 6/20 e auras de
+   mediana 0 para 1. */
 BALANCE.milestones = {
-  first: 50,        // abates ate o primeiro marco
-  every: 200,       // termo linear do proximo marco
-  ramp: 80,         // termo quadratico: a horda cresce, o preco cresce junto
+  first: 40,        // abates ate o primeiro marco
+  every: 90,        // termo linear do proximo marco
+  ramp: 45,         // termo quadratico: a horda cresce, o preco cresce junto
   cards: 3,         // cartas por etapa
   unlockAt: 5,      // pontos num eixo para ele ganhar slot fixo + carta seca
   spellPoints: 1,   // eixo que uma spell carrega para o eixo dela
   axisPoints: 2,    // eixo da carta seca de um eixo aberto
   /* Fracao do marco atual em que o HUD comeca a avisar — fracao, e nao um
-     numero de corpos, porque o marco custa 250 no comeco e 2 mil no fim: 20
+     numero de corpos, porque o marco custa 40 no comeco e ~1,3 mil no fim: 20
      abates seriam meio minuto de aviso no primeiro e um piscar no ultimo. */
   warnAt: 0.15,
 };
