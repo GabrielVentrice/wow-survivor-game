@@ -104,6 +104,11 @@ class Game {
     this.shieldPerMinion = 0; this.areaLifesteal = 0;
     this.cooldownMul = 1; this.noExternalHeal = false; this.bigHitCrit = false;
     this.dynDamage = 1;
+    /* Subsistema por classe: existe sempre, mas so recebe aspecto se a classe
+       declarar `systems: ["aspect"]`. Instanciar sempre e mais barato que um
+       `if (this.aspects)` em cada ponto de leitura — os canais dele sao
+       neutros enquanto nenhum slot foi registrado. */
+    this.aspects = new AspectSystem(this);
     this.lastBigHit = null;
 
     this.state = STATE.MENU;
@@ -344,7 +349,12 @@ class Game {
   damageEnemy(e, amount, key, big, dotKey) {
     if (!e || e.hp <= 0 || amount <= 0) return 0;
 
-    let amt = amount * this.dynDamage;
+    const asp = this.aspects.ch;
+    let amt = amount * this.dynDamage * asp.damageMul;
+    // Bonus por TAG (Falcao): `tagKeys` e um Set montado quando o aspecto vira,
+    // e nao uma busca nas tags da peca — este funil roda milhares de vezes por
+    // segundo e uma busca por acerto seria trabalho de verdade.
+    if (asp.tagKeys && key && asp.tagKeys.has(key)) amt *= asp.tagMul;
     if (e.marked && this.clock < e.markedUntil) amt *= 1 + e.marked;
     if (big && this.bigHitCrit) amt *= 2;      // capstone Nihilam
 
@@ -353,6 +363,9 @@ class Game {
     if (key) this.damageBy.set(key, (this.damageBy.get(key) || 0) + amt);
 
     if (this.areaLifesteal > 0 && !dotKey) this.healPlayer(amt * this.areaLifesteal);
+    // Vibora: fracao do dano causado vira cura. Fora do tique de DoT pela mesma
+    // razao que `areaLifesteal` — dano continuo curaria por sub-step.
+    if (asp.lifesteal > 0 && !dotKey) this.healPlayer(amt * asp.lifesteal);
 
     const reenter = key && this._chain.has(key);
     if (!reenter && key) this._chain.add(key);
@@ -413,6 +426,7 @@ class Game {
     this.camera.resetShake();
     this.lastBigHit = null;
     this.build.reset(cls);
+    this.aspects.reset();
     this.elapsed = 0;
     this.clock = 0;
     this.milestoneIdx = 0;
@@ -729,6 +743,9 @@ class Game {
     this.updateEnemies(dt);          // move + preenche o grid + contato
     this.tickApex(dt);               // a onda do Apice, com o grid recem-feito
     this.minions.update(dt, this.clock);
+    /* ANTES de `build.tick`: os triggers leem `aspect.rangeMul` no mesmo frame,
+       e um aspecto avaliado depois deles valeria sempre um frame atrasado. */
+    this.aspects.tick(dt, this.clock);
     this.build.tick(dt, this.clock); // triggers de todas as pecas
     this.dots.update(this.clock);    // scheduler por timestamp
     this.updateProjectiles(dt);
@@ -746,6 +763,15 @@ class Game {
     // buff que DURA nao se desenha por evento: evento por pulso e a forma
     // errada para um estado. O render precisa do relogio, e o Player nao o tem.
     this.player.rushing = this.player.speedBoostUntil > this.clock;
+    /* O mesmo argumento do `rushing` logo acima, para os aspectos: o render
+       precisa saber QUAIS estao de pe, e o Player nao conhece o subsistema.
+       A lista e reusada — alocar um array por frame com o teto de tres seria
+       lixo a 60fps para dizer a mesma coisa. */
+    {
+      const marks = this.player.aspectMarks, act = this.aspects.active;
+      marks.length = 0;
+      for (let i = 0; i < act.length; i++) marks.push(ASPECTS[act[i]].rgb);
+    }
 
     this.camera.follow(this.player, dt);
     // o mundo apodrece junto com a run: veios mais vivos, mais brasa no ar
@@ -857,7 +883,11 @@ class Game {
     const p = this.player;
     let speed = p.baseSpeed;
     if (this.clock < (p.speedBoostUntil || 0)) speed *= p.speedBoost;
+    // Guepardo e Tartaruga: canal vivo, recomposto por frame junto do resto.
+    // Escrever em `p.dmgReduction` aqui e seguro porque nada mais o escreve.
+    speed *= this.aspects.ch.speedMul;
     p.speed = speed;
+    p.dmgReduction = this.aspects.ch.dmgReduction;
     p.basePickup = p.pickupForLevel();
     p.pickupRange = p.basePickup;
 

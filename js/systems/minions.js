@@ -246,14 +246,15 @@ class MinionSystem {
         continue;
       }
       m.animTime += dt * 4;
-      // O frenesi vence: devolve passo e cadencia de base. Um `if` por demonio
-      // por sub-step, contra um multiplicador global que valeria para bicho que
-      // nem estava em campo quando o tiro saiu.
-      if (m.hasteUntil && now >= m.hasteUntil) {
-        m.hasteUntil = 0;
-        m.speed = m.baseSpeed;
-        m.attackInterval = m.baseAttack;
-      }
+      /* Passo e cadencia sao DERIVADOS, nao escritos. Dois sistemas mexem
+         neles: `HOOKS.farejarSangue` (frenesi timado, por bicho) e o aspecto
+         Selvagem (estado, global). Escrevendo direto em `m.speed`, o ultimo a
+         rodar vencia e o outro sumia sem erro nenhum — os dois multiplicam
+         agora, e a base fica intacta para poder ser recomposta. */
+      if (m.hasteUntil && now >= m.hasteUntil) { m.hasteUntil = 0; m.hasteMul = 1; }
+      const mul = m.hasteMul * g.aspects.ch.beastMul;
+      m.speed = m.baseSpeed * mul;
+      m.attackInterval = m.baseAttack / mul;
       const ai = MINION_AI[m.ai] || MINION_AI.chase;
       const target = ai(m, dt, g, now);
       if (!target || now < m.cd) continue;
@@ -274,7 +275,8 @@ class MinionSystem {
     if (m.projectile) {
       EFFECTS.projectile(g, m.projectile, c);
     } else {
-      const dealt = g.damageEnemy(target, m.damage, m.source, m.big);
+      const dealt = g.damageEnemy(target, m.damage * g.aspects.ch.beastMul,
+                                  m.source, m.big);
       c.amount = dealt;
       g.events.emit(EVENTS.MINION_HIT, { minion: m, enemy: target, amount: dealt });
       if (m.payload) runEffects(g, m.payload, c);

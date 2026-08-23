@@ -52,6 +52,13 @@ function firePiece(game, inst, x, y, target, dirX, dirY, now, amount, slot) {
 // triggers (cooldown, interval, chargeTime, respawn) para virar mod numerico.
 function cd(game, v) { return v * game.cooldownMul; }
 
+/* O irmao de `cd()`, e existe pela MESMA razao: alcance e um numero cozido em
+   `inst.r` na aquisicao, e a Aguia o muda em tempo de jogo. Reresolver a build
+   a cada virada de aspecto clonaria a arvore de efeitos de toda peca — trabalho
+   de aquisicao, nao de frame. Entao o multiplicador e lido no ponto de uso,
+   que sao os quatro sitios abaixo. */
+function rng(game, v) { return v * game.aspects.ch.rangeMul; }
+
 const TRIGGERS = {
 
   /* Dispara no cooldown, mirando no(s) inimigo(s) mais proximo(s).
@@ -63,12 +70,12 @@ const TRIGGERS = {
       if (now < s.nextAt) return;
       const n = Math.max(1, Math.round(t.targets || 1));
       if (n === 1) {
-        const target = game.nearestEnemy(p.x, p.y, t.range);
+        const target = game.nearestEnemy(p.x, p.y, rng(game, t.range));
         if (!target) return;
         s.nextAt = now + cd(game, t.cooldown);
         firePiece(game, inst, p.x, p.y, target, p.dirX, p.dirY, now);
       } else {
-        const list = game.nearestEnemies(p.x, p.y, t.range, n);
+        const list = game.nearestEnemies(p.x, p.y, rng(game, t.range), n);
         if (!list.length) return;
         s.nextAt = now + cd(game, t.cooldown);
         for (let i = 0; i < list.length; i++) {
@@ -136,7 +143,7 @@ const TRIGGERS = {
       s.charge += dt;
       if (s.charge < cd(game, t.chargeTime)) return;
       s.charge = 0;
-      const target = t.range > 0 ? game.nearestEnemy(p.x, p.y, t.range) : null;
+      const target = t.range > 0 ? game.nearestEnemy(p.x, p.y, rng(game, t.range)) : null;
       if (t.needsTarget && !target) return;
       firePiece(game, inst, p.x, p.y, target, p.dirX, p.dirY, now);
     },
@@ -260,6 +267,25 @@ const TRIGGERS = {
     },
   },
 
+  /* ASPECTO: a stance que liga e desliga sozinha. O trigger nao dispara nada —
+     ele REGISTRA o aspecto no subsistema da classe e sai do caminho.
+
+     E o unico trigger do jogo que nao tem tique, e isso e o ponto: um aspecto
+     nao e uma peca que acontece de tempos em tempos, e um estado que vale
+     enquanto a condicao valer. Quem avalia a condicao e `AspectSystem.tick`,
+     em cadencia propria — se o registro rodasse por sub-step, ele tentaria
+     registrar 3 vezes por frame para sempre.
+
+     `init` roda uma vez por aquisicao (e de novo na evolucao), que e
+     exatamente quando o slot deve ser tomado. */
+  aspect: {
+    init(s, game, t) {
+      s.registered = false;
+      if (game && t && t.aspect) s.registered = game.aspects.register(t.aspect);
+    },
+    tick() {},
+  },
+
   /* Dispara em evento, nao em cooldown. O cooldown existe so como piso
      anti-spam — e ele que impede que uma leva morrendo junto dispare
      cinquenta explosoes no mesmo frame. */
@@ -281,7 +307,7 @@ const TRIGGERS = {
         if (!target) return;
         if (t.dotKey ? !game.dots.find(target, t.dotKey) : !target.dots.length) return;
       }
-      if (t.retarget === "nearest") target = game.nearestEnemy(p.x, p.y, t.range || 400);
+      if (t.retarget === "nearest") target = game.nearestEnemy(p.x, p.y, rng(game, t.range || 400));
       if (t.needsTarget && !target) return;
 
       s.nextAt = now + cd(game, t.cooldown || 0.4);

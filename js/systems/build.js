@@ -243,7 +243,7 @@ class BuildSystem {
     this.pieces.set(def.key, inst);
     if (!free) this.addAxis(def.axis, def.axisPoints != null ? def.axisPoints : 2);
     inst.r = resolvePiece(inst, this);
-    (TRIGGERS[inst.r.trigger.type] || TRIGGERS.auto_target).init(inst.s, this.game);
+    (TRIGGERS[inst.r.trigger.type] || TRIGGERS.auto_target).init(inst.s, this.game, inst.r.trigger);
     this.afterChange();
     return inst;
   }
@@ -336,7 +336,7 @@ class BuildSystem {
     inst.evolvedInto = next.id;
     inst.s = {};
     inst.r = resolvePiece(inst, this);
-    (TRIGGERS[inst.r.trigger.type] || TRIGGERS.auto_target).init(inst.s, this.game);
+    (TRIGGERS[inst.r.trigger.type] || TRIGGERS.auto_target).init(inst.s, this.game, inst.r.trigger);
     return { from: prevName, to: next };
   }
 

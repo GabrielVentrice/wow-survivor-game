@@ -36,6 +36,9 @@ class Player {
     this.moving = false;
     this.rushing = false;              // Game.update: o buff de velocidade esta de pe
     this.speedBoostColor = null;
+    // rgb dos aspectos ATIVOS, montado por Game.update. Estado que dura se
+    // desenha enquanto dura — ver draw().
+    this.aspectMarks = [];
     this.veil = null;                  // fatia da casca de escudo (EFFECTS.shield)
     this.veilRgb = null;
     this.forms = cls.forms || DEFAULT_FORMS;
@@ -306,6 +309,38 @@ class Player {
       // e o corpo queima junto: e ele que esta pagando
       const beat = 0.1 + (Math.sin(t * 9) + 1) * 0.06;
       drawSpriteGlow(ctx, spr, sx, sy, drawH, this.facing < 0, anim, col, beat);
+    }
+
+    /* OS ASPECTOS. Estado que dura NAO pode ser evento: emitir um vfx a cada
+       avaliacao seria o mesmo erro que emitir um evento a cada 0,5s para dizer
+       "voce tem escudo". Entao eles se desenham enquanto duram, como a casca e
+       como o rastro do Burning Rush logo acima.
+
+       Sao pips NO CHAO, aos pes, e nao adornos em volta do corpo: a faixa de
+       cima ja pertence a build acesa e o corpo do personagem e a coisa que a
+       hierarquia de leitura nao deixa cobrir. No chao eles ficam abaixo de
+       tudo que o jogador conjura e ainda assim sempre visiveis, porque o
+       personagem esta sempre no centro da tela.
+
+       Teto natural de tres (`BALANCE.aspect.slots`), entao nao ha o que
+       limitar: tres pips numa elipse de 5 pixels e a leitura inteira. */
+    if (this.aspectMarks && this.aspectMarks.length) {
+      const n = this.aspectMarks.length;
+      ctx.save();
+      for (let i = 0; i < n; i++) {
+        const m = this.aspectMarks[i];
+        const a = (i - (n - 1) / 2) * 0.5;
+        const px = sx + Math.sin(a) * r * 1.15;
+        const py = sy + r * 0.92 - Math.cos(a) * r * 0.16;
+        // pulso lento e dessincronizado: tres pips piscando juntos leem como
+        // um retangulo acendendo, que e o mesmo defeito das riscas do rush
+        const beat = 0.55 + Math.sin(t * 2.2 + i * 1.1) * 0.2;
+        ctx.fillStyle = `rgba(${m},${beat.toFixed(2)})`;
+        ctx.beginPath();
+        ctx.ellipse(px, py, 2.2, 1.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
     }
 
     /* A CASCA. Era um circulo ciano, igual para as seis pecas que dao escudo —
@@ -717,6 +752,7 @@ class Minion {
        porque demonio nasce e morre o tempo todo — um global valeria para quem
        entrou depois do tiro. Restaurados em MinionSystem.update. */
     this.baseAttack = this.attackInterval;
+    this.hasteMul = 1;
     this.hasteUntil = 0;
     this.range = o.range || 260;
     this.speed = o.speed || 200;

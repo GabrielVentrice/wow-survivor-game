@@ -35,16 +35,30 @@ g.selectedClass = CLS;
 g.ui.openLevelUp = function () {
   const o = g.build.getOffers(3);
   if (!o.length) { g.player.pendingLevels = 0; g.state = STATE.PLAYING; return; }
-  g.ui.applyOffer(o[Math.floor(Math.random() * o.length)]);
+  g.build.applyOffer(o[Math.floor(Math.random() * o.length)]);
+  g.player.pendingLevels = Math.max(0, g.player.pendingLevels - 1);
+  g.state = STATE.PLAYING;
 };
 g.ui.openChest = () => { g.state = STATE.PLAYING; };
+/* A tela de etapa PARA o `update`, entao quem a abre tem que fecha-la — e
+   fechar quer dizer decrementar `pendingMilestones` e devolver o estado, que e
+   o que `UI.applyMilestone` faz no jogo de verdade.
+
+   A primeira versao deste override so aplicava a oferta. Resultado: a fila
+   nunca zerava, `update` saia cedo em todo frame seguinte e o relogio de
+   simulacao CONGELAVA. A run parecia ter morrido aos 6,9 min com o orcamento
+   de 16 — e nao tinha morrido, tinha parado. Driver que prende uma tela mede a
+   propria tela. */
 g.ui.openMilestone = function () {
+  if (g.build.axisLeft <= 0) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
   const o = g.build.getMilestoneOffers();
   if (!o.length) { g.pendingMilestones = 0; g.state = STATE.PLAYING; return; }
   // politica "focado": sempre o eixo com mais pontos, spell quando cabe
   let best = o[0];
   for (const c of o) if (g.build.axis[c.axisId] > g.build.axis[best.axisId]) best = c;
-  g.ui.applyMilestone(best, !!best.piece);
+  g.build.applyMilestone(best, !!best.piece);
+  g.pendingMilestones = Math.max(0, g.pendingMilestones - 1);
+  g.state = STATE.PLAYING;
 };
 g.start();
 const MIN = Number(__argv[1] || 12);

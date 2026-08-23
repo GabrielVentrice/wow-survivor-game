@@ -106,6 +106,22 @@ const BALANCE = {
      acendem mais, entao `tiers` e `size` passam a viver quase so no degrau 0.
      Se a intencao for o numero variar de tamanho de novo, e `tiers` que desce,
      nao `window` que sobe. */
+  /* ASPECTO (subsistema do hunter). Os tres numeros que impedem o estado de
+     piscar, e cada um mata um jeito diferente de piscar:
+
+       slots     quantos aspectos cabem ao mesmo tempo. Com seis no catalogo,
+                 tres e o que faz levar um ser recusar outro.
+       interval  de quanto em quanto tempo a condicao e lida. A leitura
+                 `enemies` e consulta de grid, e `update` roda de 2 a 4 vezes
+                 por frame — por sub-step seriam 12 consultas por aspecto por
+                 frame para responder uma pergunta que nao muda nesse ritmo.
+       hold      tempo minimo que um aspecto fica no estado atual antes de
+                 poder virar. E o segundo guarda: o vao entre `on` e `off` mata
+                 o tremor no limiar, e o `hold` mata o pisca de quem atravessa
+                 o vao inteiro depressa — a horda fecha e abre em menos de um
+                 segundo, e sem piso o aspecto seguiria essa cadencia. */
+  aspect: { slots: 3, interval: 0.15, hold: 1.2 },
+
   combo: {
     window: 0.1,                      // segundos entre dois abates da cadeia
     min: 3,                           // a partir daqui a cadeia aparece

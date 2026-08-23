@@ -257,8 +257,7 @@ const HOOKS = {
       const m = list[i];
       if (m.dead) continue;
       m.hasteUntil = Math.max(m.hasteUntil || 0, until);
-      m.speed = m.baseSpeed * (1 + frac);
-      m.attackInterval = m.baseAttack / (1 + frac);
+      m.hasteMul = Math.max(m.hasteMul || 1, 1 + frac);
     }
     if (list.length) game.emitVfx("shock", game.player.x, game.player.y, 120, c.color);
   },
@@ -329,8 +328,7 @@ const HOOKS = {
       const m = list[i];
       if (m.dead) continue;
       m.hasteUntil = Math.max(m.hasteUntil || 0, until);
-      m.speed = m.baseSpeed * 1.5;
-      m.attackInterval = m.baseAttack / 1.5;
+      m.hasteMul = Math.max(m.hasteMul || 1, 1.5);
     }
   },
 };

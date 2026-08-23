@@ -49,6 +49,11 @@ sem tell em tela ganha tarja laranja, e o filtro "só o que não anima" lista as
 25 que hoje mudam o jogo em silêncio. `driver_gallery` reprova card que estoura,
 card mudo e registry que passou na frente da galeria.
 
+`DRIVER=driver_aspect.js node tools/harness.js .` mede o **pisca**: um aspecto
+com a condição certa e sem histerese roda, não estoura, e destrói a sensação de
+jogo. Ele põe o jogador na BORDA da condição e sacode em volta dela, que é o que
+acontece de verdade quando alguém corrige posição num survivors.
+
 `DRIVER=driver_class.js node tools/harness.js . 12` pergunta se uma classe
 **fecha a própria progressão** — pool cheia, capstone, spell fechada — e se
 nada vaza entre classes. As duas perguntas só passaram a existir com a segunda
@@ -99,9 +104,10 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/dots.js` | `DotSystem` — DoT genérico com scheduler por timestamp |
 | `js/systems/minions.js` | `MINION_AI` + `MinionSystem` |
 | `js/systems/triggers.js` | `TRIGGERS` — quando dispara |
+| `js/systems/aspects.js` | `ASPECTS` + `AspectSystem` — o subsistema do hunter |
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
-| `js/content/pieces.*.js` | o catálogo por eixo: 44 do warlock + 45 do hunter |
+| `js/content/pieces.*.js` | o catálogo por eixo: 44 do warlock + 51 do hunter |
 | `js/content/{passives,capstones,minions}.js` | passivas, capstones e o tuning dos demônios |
 | `js/content/hunter.meta.js` | as 8 passivas e os 8 capstones do hunter |
 | `js/render/fx-shapes.js` | `FX_SHAPES` — o gerador de eventos em pixel (`bloom`, `implode`, `nova`, `rip`) |
@@ -365,6 +371,82 @@ perto ele fecha no corpo — sem essa morte ele orbitaria o alvo sem encostar, q
 é o defeito que tirou a órbita de todo demônio com passo próprio. E o raio do
 cerco sai do `radius` do alvo, não de tabela: cercar um ghoul e cercar um chefe
 são distâncias diferentes.
+
+### O Aspecto: canal vivo, porque stat é cozido na aquisição
+
+O subsistema exclusivo do Hunter, declarado em `CLASSES.hunter.systems`. Uma
+stance que liga e desliga **sozinha** conforme o estado do jogo — não há input,
+e o aspecto é a leitura que o motor faz da posição em que o jogador se meteu.
+
+**O pipeline de stats roda uma vez por AQUISIÇÃO, não por tique.** Um aspecto
+que mexesse em `inst.r` teria que re-resolver a build inteira toda vez que
+ligasse, e `resolveAll` clona a árvore de efeitos de toda peça — isso é trabalho
+de aquisição. Então o aspecto **não mexe em stat**: ele escreve em canais vivos,
+lidos no ponto de uso. O precedente já existia e é o mesmo argumento —
+`TRIGGERS.cd()`, que aplica o `cooldownMul` do Nihilam num ponto só *"porque os
+nomes de campo variam demais entre os triggers para virar mod numérico"*.
+
+| canal | lido em | quem usa |
+|---|---|---|
+| `speedMul` | `applyPassives` | Guepardo |
+| `dmgReduction` | `applyPassives` → `Player.takeDamage` | Tartaruga |
+| `damageMul` | `damageEnemy` | Tartaruga |
+| `tagKeys`/`tagMul` | `damageEnemy` | Falcão |
+| `lifesteal` | `damageEnemy` | Víbora |
+| `rangeMul` | `TRIGGERS.rng()`, 4 sítios | Águia |
+| `beastMul` | `MinionSystem.update` e `_attack` | Selvagem |
+
+Regras que caem daí, e cada uma conserta um defeito:
+
+- **O bônus por tag é um `Set` de `key`, montado quando o aspecto vira.**
+  `damageEnemy` roda milhares de vezes por segundo; perguntar
+  `build.pieces.get(key).def.tags.indexOf(...)` ali dentro seria uma busca por
+  acerto. O Set é montado uma vez por virada.
+- **`AspectSystem.tick` roda ANTES de `build.tick`.** Os triggers leem
+  `rangeMul` no mesmo frame, e um aspecto avaliado depois deles valeria sempre
+  um frame atrasado.
+- **A avaliação é gasta em `interval` (0,15s), não por sub-step.** A leitura
+  `enemies` é consulta de grid e `update` roda de 2 a 4 vezes por frame — seriam
+  12 consultas por aspecto por frame para responder uma pergunta que não muda
+  nesse ritmo.
+- **Passo e cadência do bicho viraram DERIVADOS.** Dois sistemas mexem neles —
+  `HOOKS.farejarSangue` (frenesi timado, por bicho) e o aspecto Selvagem
+  (estado, global). Enquanto os dois escreviam direto em `m.speed`, o último a
+  rodar vencia e o outro sumia sem erro nenhum. Hoje `m.baseSpeed` fica intacto
+  e os dois multiplicam.
+
+**A HISTERESE são dois guardas, e cada um mata um jeito diferente de piscar.**
+
+O primeiro é o **vão**: a condição declara `on` e `off`, e a direção é
+implícita — se `on > off` ela é de subida, se `on < off` é de descida. O vão
+entre os dois *é* a histerese, e ele não pode ser esquecido porque não é um
+campo opcional: `driver_aspect` reprova `on === off`. Com a Águia em 5/3, um
+inimigo entrando e saindo do alcance não liga e desliga nada — a conta teria
+que ir de 5 a 2.
+
+O segundo é o **tempo** (`BALANCE.aspect.hold`): o piso de permanência mata o
+pisca de quem atravessa o vão inteiro depressa, e a horda fecha e abre em menos
+de um segundo. Ele vale para os dois lados — ligar cedo demais é tão ruim
+quanto desligar cedo demais.
+
+**A exclusão mútua não desliga o perdedor, ela só não o CONTA.** Dentro de um
+grupo, o de maior `priority` que estiver satisfeito é o único que contribui;
+os outros continuam "ligados" no estado. Desligá-los ali reiniciaria o relógio
+de permanência deles e o pisca voltaria pela porta dos fundos. Guepardo
+(correndo, sem ninguém perto) e Falcão (parado, mirando) são posturas opostas:
+com o campo vazio e o jogador parado as duas condições valem ao mesmo tempo, e
+é justamente aí que o par não pode aparecer aceso junto.
+
+**E o aspecto é ESTADO, então ele não emite evento.** Emitir um vfx a cada
+avaliação seria o mesmo erro que emitir um evento a cada 0,5s para dizer "você
+tem escudo". Ele se desenha enquanto dura: pips **no chão**, aos pés — a faixa
+de cima já pertence à build acesa e o corpo do personagem é a coisa que a
+hierarquia de leitura não deixa cobrir. É a mesma regra da casca do escudo e do
+rastro do Burning Rush. O teto de três é o dos slots, então não há o que limitar.
+
+`driver_aspect` guarda tudo isso, e a medida que importa é a última: o jogador é
+posto **na borda** da condição e sacudido em volta dela — que é o que acontece
+de verdade quando ele corrige posição num survivors.
 
 ### `damageEnemy(e, amount, key, big, dotKey)` é o funil
 
@@ -1088,7 +1170,7 @@ Três regras que caem daí:
   estourar, sentença fecha para dentro conforme o prazo acaba. É o mesmo orbe
   nos cinco casos.
 
-**Estado final: 89 peças, 89 assinaturas distintas, zero mudas.** Nenhuma peça
+**Estado final: 95 peças, 95 assinaturas distintas, zero mudas.** Nenhuma peça
 do jogo desenha o mesmo que outra, e `driver_vfx` reprova a primeira que voltar
 a colidir.
 

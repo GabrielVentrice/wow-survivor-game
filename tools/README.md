@@ -28,6 +28,7 @@ DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câ
 DRIVER=driver_vfx.js   node tools/harness.js .   # vfx: assinatura de cada peça, cor no render, voz de cada evento, ceifa e cadeia
 DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homing não fecha, e alvo próprio por tiro
 DRIVER=driver_trigger.js node tools/harness.js .  # os triggers do hunter: trap inerte/carga/rearme, leading parado, pack em formação
+DRIVER=driver_aspect.js node tools/harness.js .   # aspectos: as seis condições, exclusão mútua, e o pisca
 DRIVER=driver_class.js node tools/harness.js . 12          # a classe fecha a própria progressão, e nada vaza entre classes
 DRIVER=driver_class.js node tools/harness.js . 12 mortal   # o mesmo, sem imortalidade, warlock e hunter lado a lado
 DRIVER=driver_preview.js node tools/harness.js . # escreve tools/telas-preview.html: as 6 telas de UI (revisão visual)
@@ -40,6 +41,34 @@ DRIVER=driver_perf.js node tools/harness.js . 12        # custo de frame com a h
 DRIVER=driver_autopsy.js node tools/harness.js . 8 4          # autopsia: QUEM matou o jogador
 DRIVER=driver_autopsy.js node tools/harness.js . 8 4 sweep    # o mesmo, comparando variantes de tuning
 ```
+
+## `driver_aspect` — a condição liga, desliga, e não pisca
+
+Um aspecto com a condição certa e sem histerese **roda, não estoura, e destrói
+a sensação de jogo**: o estado bate e volta dezenas de vezes por segundo
+exatamente na borda da condição — que é onde o jogador mais fica, porque a
+condição é sobre a posição dele. Nenhum outro driver vê isso.
+
+Seis blocos, e o quinto é o que importa:
+
+| bloco | o que ele cobra |
+|---|---|
+| histerese no dado | toda condição tem **vão** entre ligar e desligar. `on === off` é limiar único, e limiar único **é** o pisca |
+| slots | seis peças de aspecto na build tomam `BALANCE.aspect.slots` (3), não seis |
+| as seis condições | cada uma liga de verdade **e** o canal dela mexe: velocidade, redução, `rangeMul`, o Set de tag, a cura, o passo dos bichos |
+| exclusão mútua | Guepardo e Falcão nunca acesos juntos — com o campo vazio e o jogador parado as duas condições valem, e é aí que o par não pode aparecer |
+| **o pisca** | o jogador é posto **na borda** e sacudido em volta dela; conta as viradas contra o teto que o `hold` permite |
+| warlock | nenhum slot, todos os canais neutros, nenhuma peça com trigger `aspect` |
+
+Duas travas que o próprio driver precisou ganhar:
+
+- **Zero viradas reprova.** Um aspecto que nunca liga também nunca pisca, e
+  passaria pelo teto sem esforço. A trava é dos dois lados.
+- **A mesa de `driver_vfx` crava o aspecto da peça que está assinando.** As seis
+  condições se contradizem (vida baixa E vida cheia, horda perto E campo
+  vazio), então não existe cenário único que ligue as seis — e sem cravar, três
+  peças de aspecto sairiam como "irmãs visuais" por causa da mesa, não por causa
+  delas.
 
 ## `driver_class` — a classe fecha, e não vaza
 
@@ -55,6 +84,13 @@ misturar as duas perguntas fez a primeira versão deste driver "reprovar" o
 hunter por uma coisa que o warlock também faz — morrer aos dois minutos. O modo
 `mortal` roda a mesma política nas duas classes e imprime lado a lado, que é a
 única forma honesta de comparar.
+
+**Driver que prende uma tela mede a própria tela.** A primeira versão deste
+driver aplicava a oferta de etapa e não decrementava `pendingMilestones`. A fila
+nunca zerava, `Game.update` saía cedo em todo frame seguinte e o **relógio de
+simulação congelava** — a run parecia ter morrido aos 6,9 min com orçamento de
+16, e não tinha morrido, tinha parado. Quem abre uma tela que para o `update`
+tem que fechá-la, e fechar quer dizer devolver o estado E baixar a fila.
 
 **Estanque.** Nenhuma peça, passiva ou capstone da outra classe entra na build.
 `driver.js` confere `cls` no dado; este confere o que a build **efetivamente
