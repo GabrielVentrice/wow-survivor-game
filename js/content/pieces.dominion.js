@@ -8,7 +8,7 @@
 Object.assign(PIECES, {
 
   wildImps: {
-    id: "wildImps", key: "wildImps", name: "Wild Imps",
+    id: "wildImps", cls: "warlock", key: "wildImps", name: "Wild Imps",
     color: "#9a4cff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "fire"], vfx: "chain",
     desc: "Mantém um bando de imps vivos perto de você; eles miram e atiram sozinhos no que estiver ao alcance.",
@@ -53,7 +53,7 @@ Object.assign(PIECES, {
   },
 
   dreadstalkers: {
-    id: "dreadstalkers", key: "dreadstalkers", name: "Dreadstalkers",
+    id: "dreadstalkers", cls: "warlock", key: "dreadstalkers", name: "Dreadstalkers",
     color: "#9a4cff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "shadow"],
     desc: "Mantém caçadores vivos: eles perseguem inimigos por conta própria e batem corpo a corpo.",
@@ -97,7 +97,7 @@ Object.assign(PIECES, {
   },
 
   felguard: {
-    id: "felguard", key: "felguard", name: "Felguard",
+    id: "felguard", cls: "warlock", key: "felguard", name: "Felguard",
     color: "#9a4cff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "fel", "guard"],
     desc: "Mantém um guarda ao seu lado: ele intercepta quem chega perto, e cada golpe dele corta em arco.",
@@ -140,7 +140,7 @@ Object.assign(PIECES, {
   },
 
   voidwalker: {
-    id: "voidwalker", key: "voidwalker", name: "Voidwalker",
+    id: "voidwalker", cls: "warlock", key: "voidwalker", name: "Voidwalker",
     color: "#6a28c8", axis: "dominion", axisPoints: 2,
     tags: ["summon", "orbital", "guard"],
     desc: "Massas do Vazio orbitam você: puxam a horda para dentro da órbita e causam dano por contato.",
@@ -184,7 +184,7 @@ Object.assign(PIECES, {
   },
 
   doom: {
-    id: "doom", key: "doom", name: "Doom",
+    id: "doom", cls: "warlock", key: "doom", name: "Doom",
     color: "#c07aff", axis: "dominion", axisPoints: 2,
     tags: ["shadow", "dot", "summon"],
     desc: "Mira sozinha e aplica uma sentença: enquanto ela corre o dano é baixo, e ao vencer nasce um demônio de dentro do alvo.",
@@ -231,7 +231,7 @@ Object.assign(PIECES, {
   },
 
   implosion: {
-    id: "implosion", key: "implosion", name: "Implosion",
+    id: "implosion", cls: "warlock", key: "implosion", name: "Implosion",
     color: "#c07aff", axis: "dominion", axisPoints: 2,
     tags: ["summon", "fel", "reactive"],
     desc: "Quando você toma dano, seus demônios implodem em área em volta de você e devolvem escudo. Pede invocação na build.",
@@ -279,7 +279,7 @@ Object.assign(PIECES, {
   },
 
   netherPortal: {
-    id: "netherPortal", key: "netherPortal", name: "Nether Portal",
+    id: "netherPortal", cls: "warlock", key: "netherPortal", name: "Nether Portal",
     color: "#c07aff", axis: "dominion", axisPoints: 3,
     tags: ["summon", "aura"],
     desc: "A cada poucos segundos abre um portal onde você está: ele fica plantado cuspindo imps enquanto durar.",
@@ -327,7 +327,7 @@ Object.assign(PIECES, {
   /* --- evolucoes ---------------------------------------------------------- */
 
   demonicTyrant: {
-    id: "demonicTyrant", key: "wildImps", name: "Demonic Tyrant",
+    id: "demonicTyrant", cls: "warlock", key: "wildImps", name: "Demonic Tyrant",
     color: "#c07aff", axis: "dominion", axisPoints: 0,
     tags: ["summon", "fel", "tyrant"], evolutionOnly: true, vfx: "chain",
     desc: "Troca o bando por um só demônio grande: ele fica ao seu lado, bate muito mais forte e corta em arco.",
@@ -379,7 +379,7 @@ Object.assign(PIECES, {
   },
 
   grimoireOfSacrifice: {
-    id: "grimoireOfSacrifice", key: "felguard", name: "Grimoire of Sacrifice",
+    id: "grimoireOfSacrifice", cls: "warlock", key: "felguard", name: "Grimoire of Sacrifice",
     color: "#c07aff", axis: "dominion", axisPoints: 0,
     tags: ["fel", "guard", "sacrifice"], evolutionOnly: true, vfx: "blood",
     desc: "Consome o seu guarda: sem o corpo dele, você ganha um pulso de dano em área constante e escudo que se renova sozinho.",

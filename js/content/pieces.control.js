@@ -8,7 +8,7 @@
 Object.assign(PIECES, {
 
   burningRush: {
-    id: "burningRush", key: "burningRush", name: "Burning Rush",
+    id: "burningRush", cls: "warlock", key: "burningRush", name: "Burning Rush",
     color: "#ff8a3c", axis: "cataclysm", axisPoints: 1,
     tags: ["speed", "aura"],
     desc: "Aura constante: você anda muito mais rápido e queima a própria vida por segundo. A queima para num piso — nunca mata.",
@@ -49,7 +49,7 @@ Object.assign(PIECES, {
   },
 
   demonicCircle: {
-    id: "demonicCircle", key: "demonicCircle", name: "Demonic Circle",
+    id: "demonicCircle", cls: "warlock", key: "demonicCircle", name: "Demonic Circle",
     color: "#9a4cff", axis: "dominion", axisPoints: 1,
     tags: ["escape", "aura"],
     desc: "Se inimigos demais fecharem em volta de você, te teleporta para fora do cerco na hora. Automático.",
@@ -94,7 +94,7 @@ Object.assign(PIECES, {
   },
 
   shadowfury: {
-    id: "shadowfury", key: "shadowfury", name: "Shadowfury",
+    id: "shadowfury", cls: "warlock", key: "shadowfury", name: "Shadowfury",
     color: "#e0521a", axis: "cataclysm", axisPoints: 1,
     tags: ["control", "aura"],
     desc: "A cada poucos segundos, um pulso atordoa e machuca todos os inimigos em volta de você.",
@@ -134,7 +134,7 @@ Object.assign(PIECES, {
   },
 
   curseOfExhaustion: {
-    id: "curseOfExhaustion", key: "curseOfExhaustion", name: "Curse of Exhaustion",
+    id: "curseOfExhaustion", cls: "warlock", key: "curseOfExhaustion", name: "Curse of Exhaustion",
     color: "#4a9e2e", axis: "corruption", axisPoints: 1,
     tags: ["control", "aura"],
     desc: "Aura constante: todo inimigo dentro do raio anda mais devagar enquanto estiver nele.",
@@ -173,7 +173,7 @@ Object.assign(PIECES, {
   },
 
   curseOfTongues: {
-    id: "curseOfTongues", key: "curseOfTongues", name: "Curse of Tongues",
+    id: "curseOfTongues", cls: "warlock", key: "curseOfTongues", name: "Curse of Tongues",
     color: "#4a9e2e", axis: "corruption", axisPoints: 1,
     tags: ["control", "aura"],
     desc: "Aura constante: inimigos dentro do raio atacam mais devagar e causam menos dano de contato.",
@@ -211,7 +211,7 @@ Object.assign(PIECES, {
   },
 
   howlOfTerror: {
-    id: "howlOfTerror", key: "howlOfTerror", name: "Howl of Terror",
+    id: "howlOfTerror", cls: "warlock", key: "howlOfTerror", name: "Howl of Terror",
     color: "#6a28c8", axis: "dominion", axisPoints: 1,
     tags: ["control", "reactive"],
     desc: "Quando você toma dano, um grito faz os inimigos em volta fugirem por alguns segundos. Resposta, não prevenção.",
@@ -250,7 +250,7 @@ Object.assign(PIECES, {
   },
 
   mortalCoil: {
-    id: "mortalCoil", key: "mortalCoil", name: "Mortal Coil",
+    id: "mortalCoil", cls: "warlock", key: "mortalCoil", name: "Mortal Coil",
     color: "#4a9e2e", axis: "corruption", axisPoints: 1,
     tags: ["control", "heal", "reactive"],
     desc: "Quando você toma dano com a vida abaixo do limiar, empurra a horda para longe e devolve parte da vida.",
@@ -293,7 +293,7 @@ Object.assign(PIECES, {
   },
 
   banish: {
-    id: "banish", key: "banish", name: "Banish",
+    id: "banish", cls: "warlock", key: "banish", name: "Banish",
     color: "#6a28c8", axis: "dominion", axisPoints: 1,
     tags: ["control"],
     desc: "A cada poucos segundos, prende no lugar um inimigo dentro do alcance — chefe incluído.",
@@ -333,7 +333,7 @@ Object.assign(PIECES, {
   },
 
   enslaveDemon: {
-    id: "enslaveDemon", key: "enslaveDemon", name: "Enslave Demon",
+    id: "enslaveDemon", cls: "warlock", key: "enslaveDemon", name: "Enslave Demon",
     color: "#9a4cff", axis: "dominion", axisPoints: 1,
     tags: ["control", "summon"],
     desc: "A cada poucos segundos, converte um inimigo em aliado temporário: ele passa a lutar do seu lado.",

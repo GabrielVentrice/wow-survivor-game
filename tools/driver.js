@@ -39,24 +39,80 @@ const checkColors = (obj, where, pal) => {
   }
 };
 
-// os tres eixos precisam ficar longe um do outro em matiz, nao so serem "diferentes"
-const AXIS_IDS = Object.keys(AXES);
-for (let i = 0; i < AXIS_IDS.length; i++) {
-  const pal = paletteOf(AXIS_IDS[i]);
-  if (pal.length !== 3) bad(`eixo ${AXIS_IDS[i]}: paleta com ${pal.length} tons (esperado 3)`);
-  if (AXES[AXIS_IDS[i]].color !== (AXES[AXIS_IDS[i]].palette || {}).base) {
-    bad(`eixo ${AXIS_IDS[i]}: color nao e o tom base da paleta`);
-  }
-  for (let j = i + 1; j < AXIS_IDS.length; j++) {
-    const gap = hueGap(hueOf(AXES[AXIS_IDS[i]].color), hueOf(AXES[AXIS_IDS[j]].color));
-    if (gap < 60) bad(`${AXIS_IDS[i]} x ${AXIS_IDS[j]}: so ${gap.toFixed(0)} graus de matiz — as builds se confundem`);
+/* Toda paleta de eixo tem tres tons e o `color` e o base. Isso vale para a
+   uniao inteira: e contrato de dado, nao de classe. */
+for (const id in AXES) {
+  const pal = paletteOf(id);
+  if (pal.length !== 3) bad(`eixo ${id}: paleta com ${pal.length} tons (esperado 3)`);
+  if (AXES[id].color !== (AXES[id].palette || {}).base) {
+    bad(`eixo ${id}: color nao e o tom base da paleta`);
   }
 }
+
+/* A regra de matiz e POR CLASSE, e virou por classe por geometria e nao por
+   gosto. Com corruption em 98, dominion em 266 e cataclysm em 24, sobra UM
+   unico ponto no circulo a 60 graus dos tres — seis familias globais nao
+   cabem, nao sao dificeis. O que precisa ficar longe e o que aparece na MESMA
+   tela, e uma run e uma classe: sao os tres eixos dela.
+
+   Cada classe tambem precisa ter exatamente tres, e eixo sem dono e peso morto
+   pela mesma razao que cor de materia sem uso e — a uniao estaria dizendo que
+   o jogo tem um eixo que ele nao tem. */
+const usados = new Set();
+for (const cid in CLASSES) {
+  const cls = CLASSES[cid];
+  /* Placeholder de menu (o mago) nao declara eixo e nao precisa: ele nao tem
+     catalogo e `available: false` o mantem fora de toda run. O que a regra
+     cobra e que classe JOGAVEL tenha os tres — sem eles, `build.reset` monta um
+     contador vazio e a run inteira fica sem eixo. */
+  if (!cls.axes) { if (cls.available) bad(`classe jogavel ${cid}: sem \`axes\``); continue; }
+  if (cls.axes.length !== 3) bad(`classe ${cid}: ${cls.axes.length} eixos (esperado 3)`);
+  for (const a of cls.axes) {
+    if (!AXES[a]) { bad(`classe ${cid}: eixo inexistente "${a}"`); continue; }
+    usados.add(a);
+  }
+  for (let i = 0; i < cls.axes.length; i++) {
+    for (let j = i + 1; j < cls.axes.length; j++) {
+      const A = AXES[cls.axes[i]], B = AXES[cls.axes[j]];
+      if (!A || !B) continue;
+      const gap = hueGap(hueOf(A.color), hueOf(B.color));
+      if (gap < 60) {
+        bad(`${cid}: ${cls.axes[i]} x ${cls.axes[j]} com so ${gap.toFixed(0)} graus de matiz — as builds se confundem`);
+      }
+    }
+  }
+}
+for (const id in AXES) if (!usados.has(id)) bad(`eixo ${id}: nenhuma classe o usa`);
+
+/* Um eixo pertence a UMA classe. Duas classes dividindo eixo fariam o catalogo
+   vazar de uma para a outra sem que `cls` percebesse: a oferta filtra por
+   classe, mas o capstone le `req` contra o contador de eixo. */
+const donoDoEixo = {};
+for (const cid in CLASSES) {
+  for (const a of CLASSES[cid].axes || []) {
+    if (donoDoEixo[a]) bad(`eixo ${a}: usado por ${donoDoEixo[a]} e ${cid}`);
+    else donoDoEixo[a] = cid;
+  }
+}
+
+/* `cls` explicito em toda entrada, sem default implicito: default e a coisa que
+   envelhece calada — a peca de uma classe nova sem o campo cairia no catalogo
+   da outra e ninguem veria. */
+const daClasse = (def, id, tipo) => {
+  if (!def.cls) { bad(`${tipo} ${id}: sem \`cls\``); return null; }
+  if (!CLASSES[def.cls]) { bad(`${tipo} ${id}: cls inexistente "${def.cls}"`); return null; }
+  return CLASSES[def.cls];
+};
+const noEixoDaClasse = (cls, axis) => cls && (cls.axes || []).indexOf(axis) >= 0;
 
 for (const id in PIECES) {
   const p = PIECES[id];
   if (!p.key) bad(`${id}: sem key`);
   if (!AXES[p.axis]) bad(`${id}: axis invalido "${p.axis}"`);
+  const pc = daClasse(p, id, "peca");
+  if (pc && !noEixoDaClasse(pc, p.axis)) {
+    bad(`${id}: axis "${p.axis}" nao pertence a classe ${p.cls}`);
+  }
   if (!TRIGGERS[p.trigger.type]) bad(`${id}: trigger desconhecido "${p.trigger.type}"`);
   if (!p.paths || Object.keys(p.paths).length !== 3) bad(`${id}: precisa de 3 caminhos`);
   for (const pid in p.paths || {}) {
@@ -69,6 +125,7 @@ for (const id in PIECES) {
       if (!evo) bad(`${id}.${pid}: evolui para "${pth.evolvesInto}" inexistente`);
       else {
         if (evo.key !== p.key) bad(`${id}.${pid}: evolucao ${evo.id} tem key "${evo.key}" != "${p.key}"`);
+        if (evo.cls !== p.cls) bad(`${id}.${pid}: evolucao ${evo.id} e da classe "${evo.cls}", nao de "${p.cls}"`);
         for (const k in p.paths) if (!evo.paths[k]) bad(`${evo.id}: falta o caminho "${k}" da forma base`);
       }
     }
@@ -83,15 +140,16 @@ for (const id in PIECES) {
   if (AXES[p.axis]) checkColors(p, id, paletteOf(p.axis));
   const rq = p.requires;
   if (rq) {
-    if (rq.piece && !Object.values(PIECES).some((o) => o.key === rq.piece)) {
+    if (rq.piece && !Object.values(PIECES).some((o) => o.key === rq.piece && o.cls === p.cls)) {
       bad(`${id}: requires.piece "${rq.piece}" nao e key de nenhuma peca`);
     }
-    if (rq.tag && !Object.values(PIECES).some((o) => (o.tags || []).indexOf(rq.tag) >= 0 && o.key !== p.key)) {
+    if (rq.tag && !Object.values(PIECES).some((o) => (o.tags || []).indexOf(rq.tag) >= 0 && o.key !== p.key && o.cls === p.cls)) {
       bad(`${id}: requires.tag "${rq.tag}" nao existe em nenhuma outra peca`);
     }
   }
 }
 for (const id in PASSIVES) {
+  daClasse(PASSIVES[id], id, "passiva");
   const on = PASSIVES[id].on || {};
   for (const ev in on) if (!HOOKS[on[ev]]) bad(`passiva ${id}: hook "${on[ev]}" nao existe`);
 }
@@ -99,9 +157,15 @@ for (const id in CAPSTONES) {
   const c = CAPSTONES[id];
   const on = c.on || {};
   for (const ev in on) if (!HOOKS[on[ev]]) bad(`capstone ${id}: hook "${on[ev]}" nao existe`);
+  const cc = daClasse(c, id, "capstone");
   if (!AXES[c.axis]) bad(`capstone ${id}: axis invalido "${c.axis}"`);
   else if (paletteOf(c.axis).indexOf(c.color) < 0) {
     bad(`capstone ${id}: cor "${c.color}" fora da paleta de ${c.axis}`);
+  }
+  // `req` e lido contra o contador de eixo da run: um requisito num eixo de
+  // outra classe nunca e satisfeito, ou pior, e satisfeito por `undefined`.
+  for (const a in c.req || {}) {
+    if (!noEixoDaClasse(cc, a)) bad(`capstone ${id}: req no eixo "${a}", que nao e da classe ${c.cls}`);
   }
 }
 console.log(problems ? `X   ${problems} problemas no registry` : "ok  registry validado");

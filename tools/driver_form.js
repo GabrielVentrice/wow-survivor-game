@@ -43,14 +43,34 @@ for (const cid in CLASSES) {
   }
   const base = cls.forms[0];
   if (base.cap || base.spells != null) fail(`${cid}: a forma base tem que valer sem capstone e sem spell`);
-  /* A promessa nova e COBERTURA: um capstone sem forma e um final que o corpo
-     nao sabe contar, e o jogador que fechou justo aquele fica com a silhueta
-     de quem nao fechou nada. */
-  for (const id in CAPSTONES) {
-    if (!covered.has(id)) fail(`${cid}: capstone "${id}" nao tem forma`);
+  /* COBERTURA, e ela e por CLASSE nos dois sentidos.
+
+     Que a lista de capstones seja a da classe e obvio depois que `cls` existe:
+     cobrar do warlock uma forma para "Terra Arrasada" seria cobrar o corpo de
+     uma run que ele nao pode ter.
+
+     O segundo sentido custou uma decisao: a cobertura so e cobrada de quem
+     declara MAIS DE UMA forma. Uma classe com forma unica esta dizendo "o meu
+     corpo nao conta a progressao" — e isso e uma posicao coerente, nao uma
+     lacuna. O que nao pode existir e a cobertura PELA METADE: tres formas para
+     oito finais e o corpo dizendo que a run chegou longe sem dizer para onde,
+     que e exatamente o defeito que tirou a metamorfose do acumulo de pontos. */
+  const meus = Object.keys(CAPSTONES).filter((id) => CAPSTONES[id].cls === cid);
+  if (cls.forms.length > 1) {
+    for (const id of meus) {
+      if (!covered.has(id)) fail(`${cid}: capstone "${id}" nao tem forma`);
+    }
+  } else if (covered.size) {
+    fail(`${cid}: forma unica, mas ela aponta para um capstone — ou cobre todos, ou nenhum`);
+  }
+  for (const id of covered) {
+    if (CAPSTONES[id] && CAPSTONES[id].cls !== cid) {
+      fail(`${cid}: forma aponta para "${id}", que e capstone da classe ${CAPSTONES[id].cls}`);
+    }
   }
   const meio = cls.forms.filter((f) => f.spells != null).length;
-  console.log(`  ok ${cls.name}: ${cls.forms.length} formas — 1 base, ${meio} por spell, ${covered.size} por capstone`);
+  console.log(`  ok ${cls.name}: ${cls.forms.length} formas — 1 base, ${meio} por spell, `
+    + `${covered.size}/${meus.length} por capstone`);
 }
 
 /* --- 2. capstone move a forma, ponto de eixo nao ------------------------- */
@@ -149,7 +169,8 @@ for (const cid in CLASSES) {
     }
   }
 }
-console.log(`  ok ${CLASSES.warlock.forms.length} formas com grade de cast, mesma altura da idle`);
+console.log(`  ok ${Object.values(CLASSES).reduce((n, c) => n + (c.forms ? c.forms.length : 0), 0)}`
+  + ` formas com grade de cast, mesma altura da idle`);
 
 /* E a pose tem que DISPARAR de verdade numa run: e o unico funil por onde toda
    peca passa, entao se ela nao acender aqui, nao acende em lugar nenhum. */

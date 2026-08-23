@@ -27,9 +27,15 @@
 /* A paleta da UI, do handoff. Vive aqui e nao no CSS porque js/ui.js escreve
    cor inline por eixo — e duas listas divergem na primeira mudanca. */
 const UI_PAL = {
-  eixo:    { corruption: "#8FE04C", dominion: "#A96BFF", cataclysm: "#FF8A2E" },
-  brasa:   { corruption: "#C6FF7A", dominion: "#D2B0FF", cataclysm: "#FFC182" },
-  cravado: { corruption: "#1E3310", dominion: "#251543", cataclysm: "#40200A" },
+  /* Indexado por id de EIXO, e a lista e a uniao de todas as classes — a mesma
+     razao de `AXIS_PALETTE`. Um eixo sem entrada aqui cai no osso de
+     `UI.eixoVars`, e a build inteira perderia a cor na UI sem erro nenhum. */
+  eixo:    { corruption: "#8FE04C", dominion: "#A96BFF", cataclysm: "#FF8A2E",
+             pack: "#E8C23F", precision: "#4A88F0", trapping: "#3BE08C" },
+  brasa:   { corruption: "#C6FF7A", dominion: "#D2B0FF", cataclysm: "#FFC182",
+             pack: "#FFE08A", precision: "#9CC4FF", trapping: "#8CFFC2" },
+  cravado: { corruption: "#1E3310", dominion: "#251543", cataclysm: "#40200A",
+             pack: "#382B08", precision: "#101F3F", trapping: "#0A3320" },
   osso:    "#EDE7DA",
   ossoDim: "#67626E",
   obs:     "#0A0910",

@@ -8,7 +8,7 @@
 Object.assign(PIECES, {
 
   incinerate: {
-    id: "incinerate", key: "incinerate", name: "Incinerate",
+    id: "incinerate", cls: "warlock", key: "incinerate", name: "Incinerate",
     color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "bolt"], vfx: "ember",
     desc: "Mira sozinha e lança um projétil teleguiado no inimigo mais próximo. Dano direto, sem condição nenhuma.",
@@ -51,7 +51,7 @@ Object.assign(PIECES, {
   },
 
   immolate: {
-    id: "immolate", key: "immolate", name: "Immolate",
+    id: "immolate", cls: "warlock", key: "immolate", name: "Immolate",
     color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "dot"],
     desc: "Mira sozinha: dano na hora mais um DoT de fogo no alvo. É ela que dá às peças de detonação o que elas precisam.",
@@ -99,7 +99,7 @@ Object.assign(PIECES, {
   },
 
   conflagrate: {
-    id: "conflagrate", key: "conflagrate", name: "Conflagrate",
+    id: "conflagrate", cls: "warlock", key: "conflagrate", name: "Conflagrate",
     color: "#ffb54a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "reactive"], vfx: "ember",
     desc: "Sempre que um DoT é aplicado em alguém, detona aquele alvo em área. Precisa de outra peça que aplique DoT.",
@@ -150,7 +150,7 @@ Object.assign(PIECES, {
   },
 
   rainOfFire: {
-    id: "rainOfFire", key: "rainOfFire", name: "Rain of Fire",
+    id: "rainOfFire", cls: "warlock", key: "rainOfFire", name: "Rain of Fire",
     color: "#ff8a3c", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "area", "rooted"], vfx: "meteor",
     desc: "Enquanto você fica parado, carrega e derruba fogo em volta: zonas que causam dano contínuo em quem estiver dentro.",
@@ -197,7 +197,7 @@ Object.assign(PIECES, {
   },
 
   infernal: {
-    id: "infernal", key: "infernal", name: "Infernal",
+    id: "infernal", cls: "warlock", key: "infernal", name: "Infernal",
     color: "#e0521a", axis: "cataclysm", axisPoints: 3,
     tags: ["fire", "summon"],
     desc: "Invoca um infernal que fica plantado onde caiu e martela em área tudo que se aproximar dele.",
@@ -243,7 +243,7 @@ Object.assign(PIECES, {
   },
 
   shadowburn: {
-    id: "shadowburn", key: "shadowburn", name: "Shadowburn",
+    id: "shadowburn", cls: "warlock", key: "shadowburn", name: "Shadowburn",
     color: "#ffb54a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "shadow", "reactive", "execute"],
     desc: "Sempre que você acerta um inimigo já abaixo do limiar de vida, dispara um golpe de execução com dano multiplicado.",
@@ -286,7 +286,7 @@ Object.assign(PIECES, {
   },
 
   burningTrail: {
-    id: "burningTrail", key: "burningTrail", name: "Burning Trail",
+    id: "burningTrail", cls: "warlock", key: "burningTrail", name: "Burning Trail",
     color: "#e0521a", axis: "cataclysm", axisPoints: 2,
     tags: ["fire", "trail", "area"],
     desc: "Enquanto você anda, o chão pega fogo atrás de você: zonas que causam dano contínuo em quem pisa.",
@@ -331,7 +331,7 @@ Object.assign(PIECES, {
   /* --- evolucoes ---------------------------------------------------------- */
 
   chaosBolt: {
-    id: "chaosBolt", key: "incinerate", name: "Chaos Bolt",
+    id: "chaosBolt", cls: "warlock", key: "incinerate", name: "Chaos Bolt",
     color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "bolt", "rooted"], evolutionOnly: true, vfx: "ember",
     desc: "Enquanto você fica parado, carrega e dispara um projétil único que atravessa a horda e explode em cada inimigo que fura.",
@@ -369,7 +369,7 @@ Object.assign(PIECES, {
   },
 
   wither: {
-    id: "wither", key: "immolate", name: "Wither",
+    id: "wither", cls: "warlock", key: "immolate", name: "Wither",
     color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "dot", "shadow"], evolutionOnly: true,
     desc: "Mira sozinha em vários alvos: dano em área mais um definhamento longo, que empilha e não pode ser removido.",
@@ -412,7 +412,7 @@ Object.assign(PIECES, {
   },
 
   cataclysm: {
-    id: "cataclysm", key: "rainOfFire", name: "Cataclysm",
+    id: "cataclysm", cls: "warlock", key: "rainOfFire", name: "Cataclysm",
     color: "#ffb54a", axis: "cataclysm", axisPoints: 0,
     tags: ["fire", "area", "directional"], evolutionOnly: true, vfx: "meteor",
     desc: "Lança um meteoro na direção em que você corre: dano pesado no impacto e uma cratera em chamas que fica queimando.",

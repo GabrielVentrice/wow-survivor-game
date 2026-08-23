@@ -363,6 +363,9 @@ class Game {
 
   start() {
     const cls = CLASSES[this.selectedClass];
+    // A classe da run fica no Game porque a UI precisa dela para saber QUAIS
+    // eixos desenhar — `AXES` virou a uniao de todas as classes.
+    this.cls = cls;
     this.player.reset(cls);
     this.enemies.clear(); this.projectiles.clear(); this.orbs.clear();
     this.areas.clear(); this.particles.clear(); this.pickups.clear();
@@ -386,7 +389,7 @@ class Game {
     this.comboPulseAt = -99;
     this.camera.resetShake();
     this.lastBigHit = null;
-    this.build.reset();
+    this.build.reset(cls);
     this.elapsed = 0;
     this.clock = 0;
     this.milestoneIdx = 0;

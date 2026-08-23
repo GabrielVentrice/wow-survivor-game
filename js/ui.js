@@ -85,16 +85,19 @@ class UI {
   buildMenu() {
     const g = this.game;
     let html = "";
-    for (const id in CLASSES) {
+    const livres = Object.keys(CLASSES).filter((id) => CLASSES[id].available);
+    for (const id of livres) {
       const c = CLASSES[id];
-      if (!c.available) continue;
+      /* O glifo sai de `cls.glyph`. Estava cravado em "warlock", entao toda
+         classe nova nasceria com a placa desenhando um warlock — e a etiqueta
+         dizia "Única" mesmo quando deixasse de ser verdade. */
       html += `<div class="classe livre ${id === g.selectedClass ? "sel" : ""}" data-cls="${id}">
-        <span class="gl-box" style="width:72px;height:72px">${Glyph.svg("warlock", 46)}</span>
+        <span class="gl-box" style="width:72px;height:72px">${Glyph.svg(c.glyph || id, 46)}</span>
         <span class="classe-txt">
           <span class="classe-nome">${c.name}</span>
           <span class="rotulo">${c.tag}</span>
         </span>
-        <span class="tag tag-raro">Única</span></div>`;
+        ${livres.length === 1 ? `<span class="tag tag-raro">Única</span>` : ""}</div>`;
     }
     this.el.classGrid.innerHTML = html;
     for (const card of this.el.classGrid.children) {
@@ -220,7 +223,7 @@ class UI {
   updateAxisBar() {
     const b = this.game.build;
     let html = "";
-    for (const id in AXES) {
+    for (const id of b.axes) {
       const a = AXES[id], v = b.axis[id];
       html += `<div class="hud-ax" style="${this.eixoVars(id)}" title="${a.name} — ${a.tag}">
         <b class="${v ? "" : "vazio"}"></b>
@@ -483,7 +486,7 @@ class UI {
     const left = b.axisLeft - (extra || 0);
     let best = null;
     for (const id in CAPSTONES) {
-      if (b.capstones.has(id)) continue;
+      if (b.capstones.has(id) || !b.owns(CAPSTONES[id])) continue;
       const c = CAPSTONES[id];
       let missing = 0;
       const gaps = [], paid = [];
@@ -574,7 +577,7 @@ class UI {
     }
 
     let out = "";
-    for (const id in AXES) {
+    for (const id of b.axes) {
       const a = AXES[id], val = b.axis[id];
       const gain = id === axisId ? (add || 0) : 0;
       out += `<div class="lv-ax" style="${this.eixoVars(val || gain ? id : null)}">
@@ -1149,7 +1152,7 @@ class UI {
     const total = rows.reduce((s, r) => s + r.val, 0);
 
     const eixos = [];
-    for (const id in AXES) {
+    for (const id of b.axes) {
       const v = b.axis[id];
       eixos.push(v ? `<i style="color:${UI_PAL.eixo[id]}">${v}</i>`
                    : `<i style="color:var(--osso-200)">0</i>`);
@@ -1199,9 +1202,9 @@ class UI {
     const b = this.game.build;
     if (!rows.length) return "Uma run que acabou antes de a build dizer alguma coisa.";
     let dom = null;
-    for (const id in AXES) if (!dom || b.axis[id] > b.axis[dom]) dom = id;
+    for (const id of b.axes) if (!dom || b.axis[id] > b.axis[dom]) dom = id;
     const zero = [];
-    for (const id in AXES) if (!b.axis[id]) zero.push(AXES[id].name);
+    for (const id of b.axes) if (!b.axis[id]) zero.push(AXES[id].name);
     const top = rows[0];
     const pct = total ? Math.round(top.val / total * 100) : 0;
     const parte = pct >= 50 ? "mais da metade do seu dano" : `${pct}% do seu dano`;
