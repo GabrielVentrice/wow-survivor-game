@@ -426,6 +426,22 @@ todas ofensivas, o sustain precisa estar na BASE das peças que o têm e crescer
 com elas — senão a build fica com dano de sobra e morre com a barra cheia de
 poder e vazia de vida.
 
+#### E o terceiro buraco: `pierce` tinha sumido do catálogo
+
+O caminho "Barragem" do Incinerate dava **perfuração 1 e depois 4**, e a linha
+de Aceleração só herdou `count`. Numa horda densa isso não é um detalhe: um tiro
+que atravessa 4 mata 5, então trocar perfuração por cadência é dividir a vazão
+da peça inicial — a que está em 100% das runs — por um número grande.
+
+Foi o que explicou uma leitura que não fechava: uma build com Incinerate a
+**16x de dps** por tier comprado matava só o dobro de uma sem tier nenhum. Dps
+não era o limite; **alcance de alvo** era.
+
+**Regra que fica: quando `qty` escolhe um stat, verifique se a peça tem DOIS.**
+`count` (quantos tiros saem) e `pierce` (quantos corpos cada tiro toca) são
+vazões diferentes, e a segunda é a que a densidade da horda multiplica. Por isso
+`HASTE` aceita `qty.also`.
+
 **Os nomes das linhas são uma linha de dado** (`LINE_NAMES`, em
 `js/content/paths.js`), e os dos degraus outra (`LINE_TIERS`). Eles aparecem no
 subtítulo da carta e na tira da build; trocar "Aceleração" por "Haste" é essa

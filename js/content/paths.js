@@ -77,7 +77,10 @@ const pctUp = (m) => Math.round((m - 1) * 100);
 
 /* --- Aceleracao ----------------------------------------------------------
    spec.rate  { stat, verb }        — a recarga da peca e o verbo dela
-   spec.qty   { stat, noun, steps } — quantos projeteis/alvos/demonios
+   spec.qty   { stat, noun, steps, also? } — quantos projeteis/alvos/demonios
+              `also` e o segundo stat de vazao, quando a peca tem dois: o
+              Incinerate multiplica projeteis E perfuracao, e num campo denso e
+              a perfuracao que decide (um tiro que atravessa 4 mata 5).
    spec.evolvesInto                 — quando a assinatura desta linha evolui
 
    `qty` e opcional porque nem toda peca tem o que multiplicar: uma aura
@@ -92,8 +95,14 @@ function HASTE(spec, top) {
       tiers.push(T(LINE_TIERS.rate[i], `${verb} ${pctDown(rs[i])}% mais rápido.`,
                    { [spec.rate.stat]: { mul: rs[i] } }));
       const n = spec.qty.steps[i];
-      tiers.push(T(LINE_TIERS.qty[i], `${n} ${spec.qty.noun}.`,
-                   { [spec.qty.stat]: { set: n } }));
+      const mods = { [spec.qty.stat]: { set: n } };
+      let desc = `${n} ${spec.qty.noun}`;
+      if (spec.qty.also) {
+        const w = spec.qty.also.steps[i];
+        mods[spec.qty.also.stat] = { set: w };
+        desc += `, ${spec.qty.also.noun.replace("{n}", w)}`;
+      }
+      tiers.push(T(LINE_TIERS.qty[i], desc + ".", mods));
     }
   } else {
     const rs = LINE_STEPS.rateOnly;
