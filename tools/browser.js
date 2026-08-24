@@ -95,6 +95,12 @@ async function open() {
    (medido: 1842 a 1983 corpos), o que torna impossivel comparar duas variantes
    de render. */
 const BOOT = `
+  /* A ABERTURA, no browser. Aqui nao existe o \`STARTER_TESTE\` do harness — a
+     pagina e a pagina —, e o valor tem que ser o MESMO dele: o \`bench\` compara
+     medianas de ms por quadro entre rodadas, e trocar a peca inicial troca o
+     que esta em campo. \`start()\` sem argumento pararia em STATE.STARTER
+     esperando um clique que ninguem da. */
+  const STARTER_TESTE = "incinerate";
   window.game._loop = () => {};
   let sd = SEED;
   Math.random = () => { sd = (sd * 1103515245 + 12345) % 2147483648; return sd / 2147483648; };
@@ -112,7 +118,7 @@ async function bench(min) {
       if (!o.length) { g.player.pendingLevels = 0; g.state = STATE.PLAYING; return; }
       g.ui.applyOffer(o[Math.floor(Math.random() * o.length)]);
     };
-    g.start();
+    g.start(STARTER_TESTE);
 
     /* Sem folga para o event loop: um setTimeout aqui deixa o rAF da pagina
        rodar entre os passos e o mundo deixa de ser o mesmo entre rodadas. */
@@ -153,7 +159,7 @@ async function shot(tag, ref) {
   const out = await page.evaluate(new Function(`
     ${BOOT.replace("SEED", "5")}
     g.ui.openLevelUp = () => { g.player.pendingLevels = 0; g.state = STATE.PLAYING; };
-    g.start();
+    g.start(STARTER_TESTE);
     g.enemies.clear(); g.particles.clear(); g.projectiles.clear(); g.orbs.clear();
 
     /* Um de cada tipo em grade, MAIS um aglomerado sobreposto: a sombra de um

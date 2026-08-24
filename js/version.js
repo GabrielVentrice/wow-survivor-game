@@ -50,9 +50,12 @@ const CHANGELOG = [
   {
     v: "0.10.0",
     data: "2026-08-24",
-    titulo: "A versão fala",
+    titulo: "A run abre numa escolha",
     notas: [
+      { t: "novo", txt: "A run começa numa escolha: três spells básicas, uma por eixo, e o primeiro quadro do jogo só roda depois dela. Ela não cobra ponto de eixo." },
+      { t: "novo", txt: "O Pacto: assim que dois eixos têm ponto, o terceiro se sela e some das ofertas. Nenhum capstone pede três eixos, e espalhar pelos três era a única forma de terminar a run sem clímax nenhum." },
       { t: "novo", txt: "A versão no canto do menu virou botão: clicar nela abre o que entrou em cada versão, da mais nova para a mais velha." },
+      { t: "ajuste", txt: "O nome é pedido antes de começar: é ele que assina a sua linha no placar dos amigos." },
       { t: "ajuste", txt: "O número da versão passou a sair de um lugar só — o mesmo que o placar carimba em cada run enviada." },
     ],
   },

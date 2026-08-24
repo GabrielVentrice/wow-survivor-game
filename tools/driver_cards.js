@@ -16,7 +16,7 @@ const g = new Game();
 window.game = g;
 let s = 7;
 Math.random = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
-g.start();
+g.start(STARTER_TESTE);
 /* A trava de passiva, nas duas pontas, antes de o resto do driver rodar.
 
    A run comeca no nivel 1, entao sem subir o nivel metade do bolo nunca
@@ -63,7 +63,7 @@ const primeira = () => g.build.pieces.values().next().value;
 {
   // [pontos no eixo, tier em que a trilha para]
   for (const [pontos, teto] of [[0, 2], [1, 3], [4, 3], [5, 4], [9, 4], [10, 5], [15, 5]]) {
-    g.start();
+    g.start(STARTER_TESTE);
     const inst = primeira();
     g.build.axis[inst.def.axis] = pontos;
     const pathId = Object.keys(inst.def.paths)[0];
@@ -76,7 +76,7 @@ const primeira = () => g.build.pieces.values().next().value;
   }
 
   // eixo cheio no eixo ERRADO nao destrava nada
-  g.start();
+  g.start(STARTER_TESTE);
   const inst = primeira();
   const outro = Object.keys(g.build.axis).find((a) => a !== inst.def.axis);
   g.build.axis[outro] = AXIS_RULES.pureAt;
@@ -89,7 +89,7 @@ const primeira = () => g.build.pieces.values().next().value;
   }
 
   // com tudo travado o bolo esvazia, e a tira precisa dizer por que
-  g.start();
+  g.start(STARTER_TESTE);
   const trancada = primeira();
   for (const pid in trancada.paths) { let n = 0; while (g.build.upgradePath(trancada, pid) && n++ < 20); }
   if (g.build.getOffers(9).some((o) => o.kind === "path")) {
@@ -114,7 +114,7 @@ const primeira = () => g.build.pieces.values().next().value;
 /* O resto do driver mede a CARTA, e carta de tier 5 (evolucao, chip de marco)
    so existe com o eixo aberto. O gate ja foi medido acima; aqui ele sai da
    frente. */
-g.start();
+g.start(STARTER_TESTE);
 g.player.level = BALANCE.levelup.passiveAt;
 g.player.pendingLevels = 0;
 for (const inst of g.build.pieces.values()) g.build.axis[inst.def.axis] = AXIS_RULES.pureAt;

@@ -94,7 +94,7 @@ for (const seed of SEEDS) {
      ela decidir este numero e o que fazia o driver reprovar por motivo errado. */
   g.damagePlayer = () => {};
 
-  g.start();
+  g.start(STARTER_TESTE);
 
   const steps = Math.round((MIN * 60) / (1 / 60));
   for (let i = 0; i < steps; i++) {

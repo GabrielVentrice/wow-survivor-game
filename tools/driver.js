@@ -104,6 +104,38 @@ for (const id in CAPSTONES) {
     bad(`capstone ${id}: cor "${c.color}" fora da paleta de ${c.axis}`);
   }
 }
+/* A ABERTURA de cada classe. Ela e a primeira tela da run e a unica peca que
+   entra sem passar por oferta nenhuma — entao o que a valida e este bloco, nao
+   o motor: uma entrada errada aqui e uma run que comeca quebrada.
+
+   O que se cobra e o que a tela promete: uma spell por eixo (a escolha e entre
+   FAMILIAS, nao entre tres cartas quaisquer), todas oferecivel de verdade, e
+   todas fazendo dano no instante da compra — e a mesma regra de "toda peca
+   precisa de numero DESDE A COMPRA", cobrada onde ela mais importa, porque
+   aqui nao existe tier anterior para compensar. */
+const DANO = ["damage", "dps", "dotDps", "blast", "impDamage", "touchDps"];
+for (const cid in CLASSES) {
+  const cls = CLASSES[cid];
+  if (!cls.available) continue;
+  const st = cls.starters;
+  if (!st || !st.length) { bad(`classe ${cid}: sem abertura (starters)`); continue; }
+  const eixos = new Set();
+  for (const id of st) {
+    const p = PIECES[id];
+    if (!p) { bad(`classe ${cid}: abertura "${id}" nao existe`); continue; }
+    if (p.evolutionOnly) bad(`classe ${cid}: abertura "${id}" e evolutionOnly`);
+    if (p.requires) bad(`classe ${cid}: abertura "${id}" tem requires — nada precede a abertura`);
+    if (eixos.has(p.axis)) bad(`classe ${cid}: dois starters no eixo ${p.axis}`);
+    eixos.add(p.axis);
+    if (!DANO.some((k) => p.stats[k] > 0)) {
+      bad(`classe ${cid}: abertura "${id}" nao causa dano nenhum na base`);
+    }
+  }
+  if (eixos.size !== Object.keys(AXES).length) {
+    bad(`classe ${cid}: abertura cobre ${eixos.size} eixos de ${Object.keys(AXES).length}`);
+  }
+}
+
 console.log(problems ? `X   ${problems} problemas no registry` : "ok  registry validado");
 
 // --- simula ---------------------------------------------------------------
@@ -115,7 +147,29 @@ const rnd = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 214748
 Math.random = rnd;
 
 g.selectedSpeed = 3;
+
+/* O smoke abre a ABERTURA de verdade — sem o argumento de `start` — e so o
+   clique vira sorteio. E o unico driver que faz isso, pela mesma razao que ele
+   e o unico que monta a tela de etapa de verdade: metade do codigo novo de uma
+   tela mora na montagem dela, e o stub de DOM aguenta. */
 g.start();
+if (g.state !== STATE.STARTER) bad("start() nao abriu a abertura");
+{
+  const offers = g.ui.stOffers || [];
+  if (!offers.length) bad("a abertura abriu sem oferta nenhuma");
+  for (const o of offers) {
+    let html;
+    try { html = g.ui.stRowHtml(o); }
+    catch (e) { bad(`abertura: stRowHtml explodiu — ${e.message}`); continue; }
+    if (html.includes("undefined")) bad(`abertura ${o.axisId}: linha com "undefined"`);
+  }
+  const pool = g.build.axisTotal;
+  g.ui.takeStarter(offers[Math.floor(rnd() * offers.length)]);
+  if (g.state !== STATE.PLAYING) bad("escolher a abertura nao devolveu o jogo");
+  if (g.build.pieces.size !== 1) bad(`a abertura deixou ${g.build.pieces.size} pecas na build`);
+  // a abertura nao cobra eixo: quem cobra e a etapa, e so ela.
+  if (g.build.axisTotal !== pool) bad("a abertura mexeu no pool de eixo");
+}
 
 let levelUps = 0;
 g.ui.openLevelUp = function () {

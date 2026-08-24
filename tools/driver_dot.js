@@ -5,7 +5,7 @@ g.ui.openLevelUp = () => { g.player.pendingLevels = 0; g.state = STATE.PLAYING; 
 // A etapa tambem PARA o update: sem resolve-la o driver rodaria ate o
 // primeiro marco e chamaria de minutos. Quem mede etapa e `driver_milestone`.
 g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
-g.start();
+g.start(STARTER_TESTE);
 
 let fails = 0;
 const fail = (m) => { console.error("  X " + m); fails++; };
@@ -77,7 +77,7 @@ else console.log("  ok clear() solta os DoTs antes do inimigo voltar ao pool");
    corpo, e que um DoT normal NAO detona. */
 {
   const mk = (flag, key) => {
-    g.start();
+    g.start(STARTER_TESTE);
     g.damageBy.clear();
     const alvo = g.enemies.spawn(ENEMIES.ghoul, 400, 0, { hp: 1, dmg: 1, speed: 0 });
     const viz = g.enemies.spawn(ENEMIES.abomination, 440, 0, { hp: 1, dmg: 1, speed: 0 });
@@ -131,7 +131,7 @@ else console.log("  ok clear() solta os DoTs antes do inimigo voltar ao pool");
   });
   const cam = { left: 0, top: 0 };
 
-  g.start();
+  g.start(STARTER_TESTE);
   g.clock = 620;                                  // dez minutos de run
   const alvo = g.enemies.spawn(ENEMIES.abomination, 0, 0, { hp: 1, dmg: 1, speed: 0 });
   alvo.hp = alvo.maxHp = 1e9;
@@ -164,7 +164,7 @@ else console.log("  ok clear() solta os DoTs antes do inimigo voltar ao pool");
 }
 
 // expiracao natural com o alvo saindo de alcance (o caso do Ceifador/Contagio)
-g.start();
+g.start(STARTER_TESTE);
 g.build.acquirePiece("corruption");
 g.build.acquirePassive("contagio");
 let contagions = 0;

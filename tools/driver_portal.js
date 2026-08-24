@@ -14,7 +14,7 @@ g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; }
 let fails = 0;
 const fail = (m) => { console.error("  X " + m); fails++; };
 
-g.start();
+g.start(STARTER_TESTE);
 
 // espiona drawPortal sem trocar o render de verdade
 const real = drawPortal;

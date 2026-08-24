@@ -228,7 +228,19 @@ console.log("--- nome ---");
     fail("limpaNome nao respeitou o teto de tamanho");
   if (Leaderboard.limpaNome(null) !== "") fail("limpaNome quebrou com null");
 
-  console.log("  ok escapa markup, poda controle e corta no teto");
+  /* O nome e obrigatorio para comecar, entao `temNome` e o portao — e ele nao
+     pode aceitar o que `limpaNome` reduz a nada, senao o jogador comeca a run
+     e so descobre no game over que ela nao entra no placar. */
+  Leaderboard._local = null;
+  if (Leaderboard.temNome()) fail("temNome disse sim com o nome vazio");
+  for (const vazio of ["   ", "\t\n", ""]) {
+    Leaderboard.setNome(vazio);
+    if (Leaderboard.temNome()) fail(`temNome aceitou ${JSON.stringify(vazio)}`);
+  }
+  Leaderboard.setNome("Zé");
+  if (!Leaderboard.temNome()) fail("temNome recusou um nome valido");
+
+  console.log("  ok escapa markup, poda controle, corta no teto e barra nome vazio");
 }
 
 /* --- 6. a camada local funciona sem rede nenhuma -------------------------- */
