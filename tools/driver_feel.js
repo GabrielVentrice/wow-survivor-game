@@ -122,7 +122,7 @@ g.ui.openChest = () => { g.state = STATE.PLAYING; };
 const held = {};
 for (const speed of [1, 3]) {
   g.selectedSpeed = speed;
-  g.start();
+  g.start(STARTER_TESTE);
   g._hitstop = 0; g._hitstopCd = 0;
   g.addHitstop(HS.boss, true);
   let n = 0;
@@ -135,7 +135,7 @@ else console.log(`  ok hitstop dura ${held[1]} frames em qualquer velocidade (re
 /* Run completa pelo `_loop`, que é onde o hitstop mora: quanto do tempo REAL
    o jogo passa congelado quando a build fica grande? */
 g.selectedSpeed = 1;
-g.start();
+g.start(STARTER_TESTE);
 const FR = 1 / 60;
 const MIN = Number(__argv[1] || 8);
 const steps = Math.round((MIN * 60) / FR);
@@ -174,7 +174,7 @@ if (died) console.log(`  -- o piloto morreu aos ${died.toFixed(0)}s; a medida va
    hitstop does. Without the pin this asserts on how long he survives, not on
    whether the charge froze anything — it passed or failed on leftover state
    from the run above. */
-g.start();
+g.start(STARTER_TESTE);
 g._hitstop = 0; g._hitstopCd = 0;
 const cl0 = g.clock;
 for (let i = 0; i < 120; i++) {

@@ -31,7 +31,7 @@ else console.log("  ok arquivo pronto -> Soundtrack usa o arquivo");
 if (g.music.proc.on) fail("a trilha procedural continuou tocando junto com o arquivo");
 else console.log("  ok procedural sai de cena quando o arquivo entra");
 
-g.start();
+g.start(STARTER_TESTE);
 for (let i = 0; i < 240; i++) g.music.update(1 / 60);
 const vJogo = __track.els[g.music.file.cur].volume;
 // compara com a constante, nao com um numero magico: baixar o volume da
@@ -75,7 +75,7 @@ g.music.setState("gameover");
 g.music.update(1 / 60);
 if (f.playing) fail("game over nao parou a trilha");
 else console.log("  ok game over para a trilha");
-g.start();
+g.start(STARTER_TESTE);
 g.music.update(1 / 60);
 if (!f.playing) fail("restart nao voltou a tocar");
 else console.log("  ok restart volta a tocar do inicio");
@@ -112,7 +112,7 @@ g.enableAudio();
 __track.fail();
 g.music.update(1 / 60);
 if (g.music.usingFile) fail("arquivo falhou mas a trilha continuou apostando nele");
-g.start();
+g.start(STARTER_TESTE);
 __audio.nodes = 0;
 for (let i = 0; i < 400; i++) { g.clock += 0.05; g.music.update(1 / 60); }
 if (__audio.nodes < 20) fail(`fallback procedural nao tocou (${__audio.nodes} notas)`);

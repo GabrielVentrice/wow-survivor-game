@@ -37,6 +37,30 @@ class BuildSystem {
   get axisTotal() { return this.axis.corruption + this.axis.dominion + this.axis.cataclysm; }
   get axisLeft() { return AXIS_RULES.pool - this.axisTotal; }
 
+  /* --- o pacto: dois eixos, e o terceiro se fecha ------------------------
+     Ver AXIS_RULES.maxAxes. Um eixo esta ABERTO quando ja tem pelo menos um
+     ponto; quando `maxAxes` deles estao abertos, os que sobraram estao
+     SELADOS e nao recebem mais nada pelo resto da run.
+
+     O predicado e sobre o eixo com ZERO ponto, nunca sobre um que ja andou:
+     eixo aberto continua aberto ate o fim, senao um capstone hibrido poderia
+     ficar sem a perna que ja foi paga. */
+  get axesOpen() {
+    let n = 0;
+    for (const a in this.axis) if (this.axis[a] > 0) n++;
+    return n;
+  }
+  axisSealed(axisId) {
+    return this.axis[axisId] === 0 && this.axesOpen >= AXIS_RULES.maxAxes;
+  }
+  /* Os eixos que o pacto fechou, para a UI e para os toasts. Lista vazia
+     enquanto o segundo eixo nao recebeu o primeiro ponto. */
+  sealedAxes() {
+    const out = [];
+    for (const a in this.axis) if (this.axisSealed(a)) out.push(a);
+    return out;
+  }
+
   /* --- eventos ---------------------------------------------------------- */
 
   /* Um unico despachante por tipo de evento. Trocar a peca (evolucao) nao
@@ -341,7 +365,12 @@ class BuildSystem {
 
   addAxis(axisId, n) {
     if (!axisId || !this.axis.hasOwnProperty(axisId)) return 0;
-    const room = Math.min(
+    /* O PACTO mora aqui pela mesma razao que o Apice: quem sabe que um eixo
+       abriu e quem soma o ponto. Cobrando no credito, bau, capstone e qualquer
+       fonte futura de eixo respeitam o teto de `maxAxes` sem uma linha nova —
+       e a tela de etapa, que pergunta o ganho REAL antes de anunciar, para de
+       oferecer o terceiro eixo de graca. */
+    const room = this.axisSealed(axisId) ? 0 : Math.min(
       AXIS_RULES.capPerAxis - this.axis[axisId],   // teto do eixo
       AXIS_RULES.pool - this.axisTotal,            // pool total
     );
@@ -368,6 +397,7 @@ class BuildSystem {
   // Custo em pontos que uma oferta cobraria; usado para esconder ofertas que
   // nao caberiam mais no pool (senao o jogador escolhe algo que nao pontua).
   axisRoom(axisId, cost) {
+    if (this.axisSealed(axisId)) return false;
     return Math.min(AXIS_RULES.capPerAxis - this.axis[axisId], this.axisLeft) >= cost;
   }
 
@@ -567,8 +597,8 @@ class BuildSystem {
     /* Ganho REAL, nao o de tabela: com o eixo no teto ou o pool no fim,
        `addAxis` entrega menos. Anunciar 2 e creditar 1 e a mentira mais cara
        que esta tela pode contar, porque nao ha como desfazer. */
-    const real = (axisId, want) => Math.max(0, Math.min(want,
-      AXIS_RULES.capPerAxis - this.axis[axisId], this.axisLeft));
+    const real = (axisId, want) => (this.axisSealed(axisId) ? 0 : Math.max(0,
+      Math.min(want, AXIS_RULES.capPerAxis - this.axis[axisId], this.axisLeft)));
 
     // Catalogo disponivel, por eixo — a mesma lista serve ao slot fixo e ao
     // sorteio, entao um eixo esgotado some das duas pontas de uma vez.
@@ -660,6 +690,39 @@ class BuildSystem {
     return out;
   }
 
+  /* --- a ABERTURA ----------------------------------------------------------
+     A primeira tela da run, e a unica que roda antes do primeiro quadro de
+     jogo. Uma spell por eixo, do dado da classe (`CLASSES.<id>.starters`), e
+     o jogador leva UMA.
+
+     Ela nao cobra ponto de eixo — a spell entra `free`, exatamente como o kit
+     que ela substituiu. O que a abertura decide e com o que a run comeca; para
+     onde ela vai continua sendo pergunta da etapa, e misturar as duas
+     devolveria a run pre-comprometida antes do primeiro marco.
+
+     Sem sorteio: sao sempre as mesmas tres. A tela existe para ser a primeira
+     escolha do jogador, e escolha entre tres cartas que mudam a cada run e
+     sorteio com etapa extra — a fase fechada da etapa ja e a parte sorteada da
+     descoberta, e ela chega quarenta abates depois. */
+  getStarterOffers() {
+    const cls = CLASSES[this.game.selectedClass];
+    const out = [];
+    for (const id of (cls && cls.starters) || []) {
+      const def = PIECES[id];
+      if (!def) continue;
+      out.push({ kind: "starter", axisId: def.axis, axis: AXES[def.axis], piece: def });
+    }
+    return out;
+  }
+
+  /* A abertura escolhida. `free` porque nenhum ponto de eixo foi cobrado —
+     ver getStarterOffers. */
+  takeStarter(id) {
+    const inst = this.acquirePiece(id, true);
+    if (!inst) this.afterChange();
+    return inst;
+  }
+
   /* `takePiece` diz qual das maneiras o jogador escolheu. Carta sorteada so tem
      a maneira com spell; carta de eixo aberto tem as duas.
 
@@ -672,14 +735,20 @@ class BuildSystem {
     // lido ANTES do credito: o que anuncia o Apice e a travessia do teto, e
     // depois de somar os dois lados da comparacao sao iguais
     const cheio = this.axis[o.axisId] >= AXIS_RULES.capPerAxis;
+    /* O PACTO se fecha DENTRO deste credito, entao a lista de selados e lida
+       nos dois lados: o que estiver selado depois e nao estava antes acabou de
+       sair da run, e e a unica coisa desta tela que nenhuma linha dela
+       anuncia. Sem o diff, o terceiro eixo sumiria da mesa em silencio. */
+    const antes = this.sealedAxes();
     const gained = step ? this.addAxis(o.axisId, step.want) : 0;
     const apex = !cheio && this.axis[o.axisId] >= AXIS_RULES.capPerAxis
       ? o.axisId : null;
+    const sealed = this.sealedAxes().filter((a) => antes.indexOf(a) < 0);
     if (take) this.acquirePiece(o.piece.id, true);
     else this.afterChange();
     const caps = this.checkCapstones();
     if (caps.length) this.afterChange();
-    return { gained, piece: take ? o.piece : null, caps, apex };
+    return { gained, piece: take ? o.piece : null, caps, apex, sealed };
   }
 
   /* Aplica uma oferta de LEVEL UP. Retorna { caps, evolved, completed } para

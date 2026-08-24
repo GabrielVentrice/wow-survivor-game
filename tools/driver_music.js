@@ -13,7 +13,7 @@ g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; }
 let fails = 0;
 const fail = (m) => { console.error("  X " + m); fails++; };
 
-g.start();
+g.start(STARTER_TESTE);
 __track.fail();                    // sem arquivo: a procedural comanda
 g.music.update(1 / 60);
 const M = g.music.proc;
@@ -109,7 +109,7 @@ try {
   g.resume(); g.music.update(1/60);
   g.gameOver(); g.music.update(1/60);
   g.quitToMenu(); g.music.update(1/60);
-  g.start(); g.music.update(1/60);
+  g.start(STARTER_TESTE); g.music.update(1/60);
   console.log("  ok pausa / game over / menu / restart sem erro");
 } catch (e) { fail("transicao de estado: " + e.message); }
 

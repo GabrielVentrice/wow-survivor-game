@@ -52,7 +52,7 @@ for (const id in PIECES) {
 }
 console.log(`--- ${evos.length} evolucoes ---`);
 for (const [id, pid, into] of evos) {
-  g.start();
+  g.start(STARTER_TESTE);
   abreEixos();
   try {
     const inst = g.build.acquirePiece(id) || g.build.get(PIECES[id].key);
@@ -80,7 +80,7 @@ for (const [id, pid, into] of evos) {
 console.log(`--- ${Object.keys(CAPSTONES).length} capstones ---`);
 for (const cid in CAPSTONES) {
   const cap = CAPSTONES[cid];
-  g.start();
+  g.start(STARTER_TESTE);
   try {
     // pecas de todos os eixos, para os hooks terem com o que trabalhar
     for (const pid of ["corruption", "immolate", "wildImps", "felguard",
@@ -102,7 +102,7 @@ for (const cid in CAPSTONES) {
 
 /* --- 3. regra dos 2 caminhos profundos ----------------------------------- */
 console.log("--- regras estruturais ---");
-g.start();
+g.start(STARTER_TESTE);
 abreEixos();
 const inst = g.build.acquirePiece("corruption") || g.build.get("corruption");
 const ids = Object.keys(inst.def.paths);
@@ -114,7 +114,7 @@ if (got[2] > PATH_RULES.freeTier) fail(`3o caminho passou do tier ${PATH_RULES.f
 else console.log(`  ok caminhos ficaram em ${got.join("/")} (3o travado no tier ${PATH_RULES.freeTier})`);
 
 // pool e teto de eixo
-g.start();
+g.start(STARTER_TESTE);
 let guard = 0;
 while (g.build.axisLeft > 0 && guard++ < 200) {
   const offers = g.build.getOffers(3);
@@ -129,7 +129,7 @@ for (const a in g.build.axis) {
 console.log(`  ok eixos ${Object.values(g.build.axis).join("/")} dentro do teto de ${AXIS_RULES.capPerAxis}`);
 
 // exclusao mutua das passivas
-g.start();
+g.start(STARTER_TESTE);
 g.build.acquirePassive("furiaContida");
 if (!g.build.passiveBlocked("pesDeCinza")) fail("Pes de Cinza deveria estar bloqueada por Furia Contida");
 else console.log("  ok Furia Contida bloqueia Pes de Cinza");

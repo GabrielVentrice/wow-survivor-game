@@ -8,7 +8,7 @@
 const STATE = {
   MENU: "menu", PLAYING: "playing", LEVELUP: "levelup",
   GAMEOVER: "gameover", PAUSED: "paused", CHEST: "chest",
-  MILESTONE: "milestone",
+  MILESTONE: "milestone", STARTER: "starter",
 };
 
 const MAX_FX_DEPTH = 8;   // teto de aninhamento de efeitos (backstop anti-loop)
@@ -416,7 +416,7 @@ class Game {
 
   /* --- ciclo de vida ------------------------------------------------------ */
 
-  start() {
+  start(starterId) {
     const cls = CLASSES[this.selectedClass];
     this.player.reset(cls);
     this.enemies.clear(); this.projectiles.clear(); this.orbs.clear();
@@ -452,14 +452,26 @@ class Game {
     this.camera.x = 0; this.camera.y = 0;
     this.camera.follow(this.player, 1, true);
 
-    for (const id of cls.starting) this.build.acquirePiece(id, true);
-    this.build.afterChange();
-
     this.enableAudio();
     this.music.restart();
     this.music.setState("playing");
-    this.state = STATE.PLAYING;
     this.ui.onStart();
+
+    /* A ABERTURA. O parametro existe para quem NAO tem tela: os drivers
+       chamam `start("incinerate")` e caem direto no jogo com o kit de sempre,
+       que e o que mantem as medicoes comparaveis com as de antes desta tela.
+       Sem ele, a run comeca perguntando. */
+    if (starterId) this.takeStarter(starterId);
+    else { this.state = STATE.STARTER; this.ui.openStarter(); }
+  }
+
+  /* A escolha da abertura, vinda da tela ou do argumento de `start`. So aqui a
+     run passa a rodar: enquanto ela nao acontece, `update` esta parado em
+     STATE.STARTER e o mundo (ja resetado) fica atras da placa. */
+  takeStarter(id) {
+    this.build.takeStarter(id);
+    this.state = STATE.PLAYING;
+    this.ui.updatePieceBar();
   }
 
   gameOver() {

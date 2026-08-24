@@ -511,10 +511,29 @@ const AXES = {
 const AXIS_RULES = {
   pool: 20,        // pontos totais que uma run pode acumular
   capPerAxis: 15,  // teto por eixo
+  maxAxes: 2,      // quantos eixos uma run pode ABRIR — ver "O pacto"
   pureAt: 15,      // limiar do capstone puro
   hybridMain: 10,  // limiar principal do capstone hibrido
   hybridSide: 5,   // limiar secundario do capstone hibrido
 };
+
+/* O PACTO — a run cabe em DOIS eixos, e o terceiro se fecha sozinho.
+
+   `pool`/`capPerAxis` ja tornavam impossivel maximizar dois eixos, e nao
+   diziam nada sobre o terceiro: 7/7/6 era uma build legal, e era a build que
+   nao chega a lugar nenhum — nenhum capstone do jogo pede tres eixos (os oito
+   pedem um ou dois), entao espalhar o pool pelos tres e a unica maneira de
+   gastar a run inteira e terminar sem clímax nenhum.
+
+   `maxAxes` fecha essa porta e a fecha no momento em que ela deixa de importar:
+   assim que DOIS eixos tiverem pelo menos um ponto, o terceiro para de receber
+   — some das cartas de etapa e some da mira do capstone. O que se perde e uma
+   escolha que ja era ruim; o que se ganha e que a segunda etapa da run passa a
+   ser uma decisao de verdade, porque ela sela o que a run nao vai ser.
+
+   Quem cobra e `BuildSystem.axisSealed`, e ele cobra em `addAxis` — a mesma
+   razao pela qual o Apice mora la: bau, capstone ou peca que credite eixo no
+   futuro respeitam o pacto sem uma linha nova. */
 
 /* Regra dos caminhos (Bloons): no maximo 2 caminhos podem passar do tier 2.
 
@@ -556,16 +575,27 @@ const CLASSES = {
     color: "#7a3cff",
     available: true,
     base: { maxHp: 100, speed: 240 },
-    // Kit inicial: UMA peca so, e a mais neutra do catalogo — o tiro que
-    // persegue e nao pede nada do jogador. Entra de graca: o pool de 20 pontos
-    // fica inteiro para as escolhas do jogador.
-    //
-    // Comecar com duas ja entregava meia identidade de graca: quem nascia com
-    // Corruption nascia com o eixo escolhido, e a primeira etapa deixava de ser
-    // descoberta para virar confirmacao. Com uma peca so, a fase fechada da
-    // etapa volta a fazer o trabalho dela — as tres spells sorteadas sao a
-    // primeira coisa que diz para onde a run vai.
-    starting: ["incinerate"],
+    /* A ABERTURA: tres spells, uma por eixo, e o jogador escolhe UMA.
+
+       Antes o kit era `incinerate` entregue de graca, e por isso o primeiro
+       ato do jogador era assistir. Uma peca sorteada por nos e uma peca que
+       ninguem escolheu: ela ensina o jogo (o tiro persegue sozinho, o unico
+       input e movimento) e nao diz nada sobre a run, porque nao houve decisao.
+
+       As tres sao BASICAS e sao de DANO — a mesma pergunta feita de tres
+       maneiras, para a resposta ser sobre gosto e nao sobre quem entendeu a
+       carta. Nenhuma tem `requires`, nenhuma pede posicao, e as tres disparam
+       sozinhas desde o primeiro segundo: e o piso do que uma peca de abertura
+       tem que ser (ver "Toda peca precisa de numero DESDE A COMPRA").
+
+       Ela continua entrando de GRACA, sem ponto de eixo. A abertura diz com o
+       que a run comeca; quem diz para onde ela vai continua sendo a etapa —
+       misturar as duas devolveria a run pre-comprometida antes do primeiro
+       marco, que e o defeito que tirou a segunda peca do kit em primeiro lugar.
+
+       Ordem = ordem de `AXES`, e `driver_cards` cobra uma por eixo: a tela
+       nasce sendo uma escolha entre familias, nao um sorteio de tres cartas. */
+    starters: ["corruption", "wildImps", "incinerate"],
     /* Metamorfose: `caps` = nº de capstones fechados para assumir a forma. A
        última forma cujo `caps` for atingido vence.
 

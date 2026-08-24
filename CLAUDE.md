@@ -671,13 +671,19 @@ borrar. Continua sendo arte gerada em runtime — zero arquivo de imagem.
 |---|---|---|
 | **fantasma** (borda osso, fundo transparente) | reversível, não cobra nada | `Escolher` no level up |
 | **osso** (fundo `--osso-600`) | neutro forte, cobra atenção | `Iniciar`, `Continuar`, `Tentar de novo` |
-| **selo** (fundo na cor do eixo, peso 900) | **irreversível, cobra um ponto de eixo** | **só na etapa** |
+| **selo** (fundo na cor do eixo, peso 900) | **irreversível** | **etapa e abertura** |
 | **recuado** (borda `--obs-500`, hover vermelho) | destrutivo, não convida | `Reiniciar`, `Sair` |
 
 **Nunca dois botões cheios na mesma tela.** O selo é o único botão do jogo
-pintado com cor de eixo, e ele só existe na tela que cobra o ponto que não
-volta. Antes a pausa tinha três pílulas roxas idênticas — sair convidava tanto
-quanto voltar ao jogo.
+pintado com cor de eixo, e ele só existe nas duas telas cuja resposta não volta.
+Antes a pausa tinha três pílulas roxas idênticas — sair convidava tanto quanto
+voltar ao jogo.
+
+**O selo fala de IRREVERSÍVEL, não de custo**, e foi a abertura que cobrou essa
+distinção: ela não tira um ponto de eixo de ninguém e mesmo assim não há como
+devolver a spell com que a run começou. Lida como "cobra um ponto", a regra
+teria mandado a abertura usar botão de osso — e o botão de osso é o `Continuar`
+do baú, que é a tela onde nada está sendo decidido.
 
 #### A reserva do warlock
 
@@ -1482,6 +1488,8 @@ inércia.
 ### Regras estruturais que forçam comprometimento
 
 - Pool de **20** pontos de eixo, teto de **15** por eixo → impossível maximizar dois.
+- **O pacto: a run cabe em DOIS eixos** (`AXIS_RULES.maxAxes`). Assim que dois
+  eixos têm pelo menos um ponto, o terceiro se fecha — ver "O pacto".
 - **Ponto de eixo só vem de etapa.** Level-up não cobra nada e o baú entrega tier
   — as duas moedas nunca mais disputam a mesma escolha (ver "As duas batidas").
 - No máximo **2** caminhos por peça passam do tier 2 → impossível maximizar três.
@@ -1500,16 +1508,11 @@ inércia.
   comprometimento; ela parou de pedir a run inteira antes do primeiro tier 3.
 - Passivas podem declarar `exclusive` → `Fúria Contida` e `Pés de Cinza` nunca coexistem.
 - Peça com `requires` só é oferecida depois que a habilitadora está na build.
-- **O kit inicial é UMA peça só**, e ela entra **de graça**
+- **A run começa numa ESCOLHA, não num presente** (`CLASSES.<id>.starters`) —
+  três spells, uma por eixo, e o jogador leva uma. Ela entra **de graça**
   (`acquirePiece(id, true)`), para o pool de 20 ficar inteiro para as escolhas
   do jogador — e a spell que vem numa etapa também, porque o eixo dela já foi
-  pago pelo ponto que a carta deixou de dar. No warlock é `incinerate`: o tiro
-  que persegue sozinho e não pede nada do jogador, que é o que uma peça
-  entregue antes de qualquer escolha tem que ser.
-  Duas peças davam meia identidade de graça — quem nascia com Corruption
-  nascia com o eixo escolhido, e a primeira etapa deixava de ser descoberta
-  para virar confirmação. Com uma só, as três spells sorteadas da fase fechada
-  voltam a ser a primeira coisa que diz para onde a run vai.
+  pago pelo ponto que a carta deixou de dar. Ver "A abertura".
 - **Baú é a única fonte de tiers grátis**, e por isso é dado: `BALANCE.spawn`
   diz com que frequência ele nasce (avulso pelo spawner a partir dos 45s, e de
   todo Dreadlord morto) e `BALANCE.chest.rarity` diz quantos tiers ele entrega —
@@ -1520,6 +1523,66 @@ inércia.
   baú comum entrega uma linha só e o `CONTINUAR` — 64px de altura, largura
   inteira — vira o elemento mais pesado de uma tela que quase não tem conteúdo,
   e o botão passa a ser o assunto.
+
+### O pacto: duas famílias, e a terceira se fecha
+
+`AXIS_RULES.maxAxes` é 2. Assim que **dois** eixos têm pelo menos um ponto, o
+terceiro para de receber pelo resto da run: some das cartas de etapa, some da
+mira do capstone e some do baú e de qualquer fonte futura de eixo.
+
+**O que ele conserta é uma build legal que não chega a lugar nenhum.** Pool 20 e
+teto 15 já tornavam impossível maximizar dois eixos, e não diziam nada sobre o
+terceiro — 7/7/6 passava. E 7/7/6 é a única maneira de gastar a run inteira e
+terminar sem clímax nenhum, porque **nenhum dos oito capstones pede três eixos**:
+são três puros (15) e cinco híbridos (10+5). Espalhar pelos três é comprar
+distância de todos eles ao mesmo tempo.
+
+Medido, `driver_milestone` com o perfil que mira, as mesmas 20 seeds, e a única
+diferença entre as colunas é `maxAxes`:
+
+| | sem o pacto (`maxAxes: 3`) | com o pacto |
+|---|---|---|
+| runs que fecham capstone | 18/20 | **20/20** |
+| etapa em que o eixo abre | 7 | **6** |
+| pool ao fim | 20/20 | 20/20 |
+| etapas até fechar a pool | 15 | 15 |
+| abates até fechar a pool | 10.120 | 10.120 |
+
+A cadência não muda — nada aqui mexe em quanto custa um marco. O que muda é
+**onde os pontos caem**: sem o pacto, o sorteio da fase fechada empurra ponto
+para o terceiro eixo, e o eixo alvo abre uma etapa inteira mais tarde. E esse é
+o perfil que **mira**; o que se espalha por gosto não tinha nem esse piso.
+
+Cinco regras, e cada uma custou uma decisão:
+
+- **Quem cobra é `addAxis`, e por isso quem quiser creditar eixo no futuro já
+  respeita o pacto.** É a mesma razão pela qual o Ápice mora lá: quem sabe que
+  um eixo abriu é quem soma o ponto. Cobrar na tela de etapa deixaria baú e
+  capstone como brecha — e o baú é justamente a fonte que não passa por
+  `getMilestoneOffers`.
+- **O predicado é sobre o eixo em ZERO, nunca sobre um que já andou.** Eixo
+  aberto continua aberto até o fim; senão a segunda perna de um capstone
+  híbrido poderia ser selada *depois de paga*, e a run perderia um final que
+  já tinha comprado.
+- **Selado ≠ vazio, e a UI tem que dizer isso.** Eixo em que não investi ainda
+  é uma escolha; eixo selado saiu da run. O `0 / 15` de um eixo selado é uma
+  promessa de que ele ainda anda — no HUD e no rodapé da etapa ele vira tarja
+  mais a palavra `selado`, e o número sai. `driver_milestone` cobra as duas
+  pontas: que a marca apareça e que o número não.
+- **O capstone que pede um eixo selado sai da mira** (`UI.nearestCapstone`), e
+  ele sai contando o pacto **depois** da prévia: a carta sob o mouse pode ser
+  justamente a que abre o segundo eixo, e nesse instante o terceiro fecha.
+  Apontar para um capstone daquele terceiro seria a tela prometer um destino
+  que o próprio clique acabou de emparedar.
+- **O fechamento é a segunda coisa irreversível da tela de etapa, e a única que
+  nenhuma linha dela anuncia** — o terceiro eixo simplesmente para de aparecer.
+  `applyMilestone` devolve `sealed` (o diff dos selados antes e depois) e a UI
+  solta um toast. Sem ele a mecânica acontece em silêncio, que é exatamente o
+  defeito que a metamorfose já teve uma vez.
+
+O que **não** muda: o pacto não mexe em `capPerAxis` nem na pool, então toda
+build que já era possível com dois eixos continua idêntica. Ele só apaga as de
+três.
 
 ### O Ápice: encher um eixo varre a tela
 
@@ -1589,6 +1652,66 @@ e as regras que caem daí:
   nada lê como bug de pool.
 
 `driver_apex` guarda as seis primeiras.
+
+### A abertura: a primeira coisa que a run faz é perguntar
+
+Antes, a run começava com `incinerate` na mão e o jogador assistindo. Hoje a
+primeira tela do jogo é uma escolha entre **três spells, uma por eixo**
+(`CLASSES.<id>.starters` — Corruption, Wild Imps, Incinerate no warlock), e o
+jogo só roda o primeiro quadro depois que ela é respondida.
+
+**O defeito era que a peça de abertura não tinha dono.** Uma peça escolhida por
+nós ensina o jogo (o tiro persegue sozinho, o único input é movimento) e não diz
+nada sobre a run, porque não houve decisão — e num roguelike a primeira coisa
+que o jogador faz não pode ser esperar. Pior: sendo sempre a mesma, as três
+primeiras runs de qualquer pessoa começavam idênticas.
+
+O que as três têm que ser, e o que `driver.js` cobra de qualquer classe nova:
+
+- **Uma por eixo.** A escolha é entre **famílias**, não entre três cartas
+  quaisquer — é o que faz a tela ser uma pergunta de identidade em vez de um
+  sorteio com etapa extra.
+- **Dano na base, sem condição.** É a regra de "Toda peça precisa de número
+  DESDE A COMPRA", cobrada onde ela mais importa: aqui não existe tier anterior
+  para compensar, e uma abertura de controle deixaria o jogador sem nada
+  matando pelos primeiros quarenta abates.
+- **Sem `requires` e sem `evolutionOnly`.** Nada precede a abertura.
+- **Elas não são sorteadas.** São sempre as mesmas três, e é de propósito: a
+  parte sorteada da descoberta já existe e chega quarenta abates depois (a fase
+  fechada da etapa). Sortear aqui seria repetir a mesma batida duas vezes e
+  tirar do jogador a única escolha da run que ele pode planejar antes de
+  apertar Iniciar.
+
+**Ela NÃO cobra ponto de eixo**, e essa é a linha que separa esta tela da etapa.
+O que a abertura decide é *com o que* a run começa; para onde ela vai continua
+sendo pergunta da etapa. Misturar as duas devolveria a run pré-comprometida
+antes do primeiro marco — que é exatamente o defeito que tirou a segunda peça do
+kit inicial em primeiro lugar. O preço declarado é que a spell de abertura pode
+ficar órfã: quem começa com Wild Imps e nunca abre Domínio para no tier 2 pelo
+gate de eixo. É a mesma conta de qualquer spell levada num eixo abandonado, e a
+tira do level-up já mostra o `have/need` que explica isso.
+
+**Ela é da família da Etapa, não do Level up**, e o motivo é o tamanho da
+pergunta: level up é uma batida *dentro* da run (o mundo continua vivo atrás),
+abertura é capítulo — o canvas apaga, porque ainda não há run. Daí a mesma placa
+sobre preto, o mesmo título à esquerda e as mesmas linhas.
+
+E o botão é **selo**, apesar de não cobrar ponto. O selo nunca falou de custo,
+falou de **irreversível**: não há como devolver a spell com que a run começou.
+Esta é a única tela além da etapa em que isso vale.
+
+Duas consequências no código:
+
+- **`Game.start(starterId)` aceita a peça por argumento**, e é assim que a pasta
+  `tools/` roda (`STARTER_TESTE` — no `harness.js` para os drivers, declarado no
+  `BOOT` do `browser.js`, que não tem harness). Sem argumento a run para em
+  `STATE.STARTER` esperando o clique — num driver isso seria a run inteira
+  parada **sem erro nenhum**, o pior modo de falha desta pasta. O smoke
+  (`driver.js`) é o único que chama sem argumento, pelo mesmo motivo que é o
+  único que monta a tela de etapa de verdade: metade do código novo de uma tela
+  mora na montagem dela.
+- **`update` já ignora todo estado que não é `PLAYING`**, então a abertura não
+  precisou de nada no loop: o mundo fica resetado e parado atrás da placa.
 
 ### As duas batidas: level-up aprofunda, etapa compromete
 
