@@ -69,7 +69,7 @@ Tudo sai do que `onGameOver` já tem em mãos.
 | Campo | Origem | Por que está aqui |
 |---|---|---|
 | `nome` | `localStorage` | quem foi |
-| `tempo` | `g.elapsed` (segundos, 1 casa) | **a métrica** |
+| `tempo_ms` | `Math.round(g.elapsed * 1000)` | **a métrica**, em inteiro — ver abaixo |
 | `abates` | `g.player.kills` | a coluna que segura o cheese (§7) |
 | `nivel` | `g.player.level` | entra na regra de plausibilidade (§7) |
 | `dano` | soma de `damageRows()` | leitura, e um segundo desempate |
@@ -77,6 +77,13 @@ Tudo sai do que `onGameOver` já tem em mãos.
 | `assinatura` | `damageRows()[0].def.id` | o glifo da linha (§8) |
 | `eixos` | `b.axis` → `"3/11/0"` | a build em três números |
 | `versao` | constante do build | run velha não disputa com run nova depois de um rebalanceamento |
+
+**O tempo viaja em milissegundos inteiros, e isso não é capricho.** O Forms
+grava tudo como texto e o Sheets adivinha o tipo célula a célula — com locale
+pt-BR, `724.5` pode virar **texto** em vez de número, e uma coluna de texto faz
+o `order by` ordenar lexicograficamente: `"9:58"` vencendo `"12:04"`. Inteiro
+não tem ponto decimal, então não tem o que adivinhar. Todo campo numérico do
+payload segue a mesma regra, e o `mm:ss` é formatado na hora de desenhar.
 
 `versao` é o campo que mais gente esquece e o que mais dói depois: o catálogo
 inteiro já teve o dano dobrado uma vez, e a curva de marco já mudou de segundos
@@ -119,40 +126,28 @@ Três armadilhas, e as três são desta opção especificamente:
 
 ## 5. Leitura: a planilha vira JSON
 
-Duas rotas, e a primeira é melhor por um motivo concreto:
-
-**Rota A — `gviz`, com ordenação de graça.** Aceita uma query SQL-like, então o
-`order by` e o `limit` acontecem antes de o dado chegar:
+`tools/setup-leaderboard.gs` já deixa isto resolvido — ele cria a aba derivada
+`placar` e abre a planilha para leitura pública. O jogo busca:
 
 ```
-https://docs.google.com/spreadsheets/d/<SHEET_ID>/gviz/tq
-  ?tqx=out:json&tq=select A,B,C,D order by B desc limit 25
+https://docs.google.com/spreadsheets/d/<SHEET_ID>/gviz/tq?tqx=out:json&sheet=placar
 ```
 
-A resposta **não é JSON puro** — vem embrulhada em
+A resposta **não é JSON puro**: vem embrulhada em
 `/*O_o*/\ngoogle.visualization.Query.setResponse({…});`. Corta-se com
 `t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1)` antes do `JSON.parse`.
 
-**Rota B — CSV publicado, o plano B do plano B.**
+**A aba `placar` existe para o jogo ler uma forma estável.** Ela é um `QUERY`
+sobre a aba de respostas que já ordena por tempo e corta em 50 linhas — então se
+o form ganhar uma coluna amanhã, o leitor do jogo não fica sabendo. Publicar a
+aba crua economizaria um passo e cobraria esse acoplamento depois.
 
-```
-https://docs.google.com/spreadsheets/d/e/<PUB_ID>/pub?gid=0&single=true&output=csv
-```
+**Furar o cache**: acrescentar `&_=${Date.now()}` na URL. O Google cacheia
+agressivamente, e um placar que mostra o de ontem é pior que placar nenhum.
 
-Sem query, mas com CORS confiavelmente aberto para planilhas publicadas. **Se o
-`gviz` der problema de CORS, é para cá que se cai** — e aí a ordenação é feita
-no cliente, o que a esta escala (dezenas de linhas) não custa nada.
-
-Duas notas:
-
-- **Furar o cache**: acrescentar `&_=${Date.now()}` na URL. O Google cacheia
-  agressivamente e um placar que mostra o de ontem é pior que nenhum.
-- **Publicar uma aba DERIVADA, não a de respostas.** Uma segunda aba com
-  `=QUERY('Respostas'!A:J; "select … order by … limit 50")` expõe só o que o
-  placar precisa e deixa a aba crua (e qualquer coluna que o Forms acrescente no
-  futuro) fora do ar.
-
----
+**Se o `gviz` der problema de CORS**, o plano B é publicar a aba `placar` na web
+como CSV (`Arquivo → Compartilhar → Publicar na web`) e parsear texto. Perde-se
+o formato tipado e nada mais — a ordenação já vem pronta da própria aba.
 
 ## 6. A consequência que a escolha do backend cobra
 
@@ -291,10 +286,12 @@ Cada passo vale sozinho, e nenhum depende do seguinte.
 
 1. **Local**: `localStorage`, nome do jogador, recorde pessoal no game over.
    Não toca em rede, não toca no menu.
-2. **O Form e a planilha**: criados à mão, com os nove `entry.<id>` anotados e a
-   aba derivada publicada. Zero código.
+2. **O Form e a planilha**: `tools/setup-leaderboard.gs` faz tudo — cria o form
+   com os nove campos, vincula a planilha, monta a aba `placar`, abre a leitura
+   e **imprime os `entry.<id>` prontos para colar**. Uma execução, uma vez.
 3. **Escrita**: o `fetch` no game over, com a UI honesta sobre não saber se deu
    certo.
 4. **Leitura + placar**: o menu busca, filtra por §7 e desenha §8.
 
-O passo 2 é o único que eu não posso fazer por você — o resto sai daqui.
+No passo 2 só a execução é sua: o script está escrito, e o que ele imprime é o
+`LB` que os passos 3 e 4 consomem.
