@@ -48,6 +48,14 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
+    v: "0.10.1",
+    data: "2026-08-24",
+    titulo: "O nome aceita todas as letras",
+    notas: [
+      { t: "conserto", txt: "O campo de nome não aceitava as letras A, S, D e W — são as teclas de movimento, e o jogo as engolia antes de chegarem ao campo. Digitar M ou N ali também desligava o som." },
+    ],
+  },
+  {
     v: "0.10.0",
     data: "2026-08-24",
     titulo: "A run abre numa escolha",
