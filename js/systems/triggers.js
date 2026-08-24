@@ -14,7 +14,7 @@
    ========================================================================= */
 
 // Dispara a lista de efeitos da peca a partir de um ponto/alvo.
-function firePiece(game, inst, x, y, target, dirX, dirY, now, amount) {
+function firePiece(game, inst, x, y, target, dirX, dirY, now, amount, slot) {
   const c = pushCtx(game);
   c.key = inst.key;
   c.color = inst.def.color;
@@ -30,6 +30,9 @@ function firePiece(game, inst, x, y, target, dirX, dirY, now, amount) {
      evento; quem dispara por cooldown continua comecando do zero, porque nao
      ha nada anterior para herdar. */
   c.amount = amount || 0;
+  // Posicao no leque, so para quem invoca em formacao (`pack`). `pushCtx` ja
+  // zerou, entao quem nao manda nada continua sorteando.
+  if (slot != null) c.slot = slot;
   c._told = false;              // a pilha e reaproveitada; ver telegraph()
   runEffects(game, inst.r.effects, c);
   popCtx(game);
@@ -49,6 +52,13 @@ function firePiece(game, inst, x, y, target, dirX, dirY, now, amount) {
 // triggers (cooldown, interval, chargeTime, respawn) para virar mod numerico.
 function cd(game, v) { return v * game.cooldownMul; }
 
+/* O irmao de `cd()`, e existe pela MESMA razao: alcance e um numero cozido em
+   `inst.r` na aquisicao, e a Aguia o muda em tempo de jogo. Reresolver a build
+   a cada virada de aspecto clonaria a arvore de efeitos de toda peca — trabalho
+   de aquisicao, nao de frame. Entao o multiplicador e lido no ponto de uso,
+   que sao os quatro sitios abaixo. */
+function rng(game, v) { return v * game.aspects.ch.rangeMul; }
+
 const TRIGGERS = {
 
   /* Dispara no cooldown, mirando no(s) inimigo(s) mais proximo(s).
@@ -60,12 +70,12 @@ const TRIGGERS = {
       if (now < s.nextAt) return;
       const n = Math.max(1, Math.round(t.targets || 1));
       if (n === 1) {
-        const target = game.nearestEnemy(p.x, p.y, t.range);
+        const target = game.nearestEnemy(p.x, p.y, rng(game, t.range));
         if (!target) return;
         s.nextAt = now + cd(game, t.cooldown);
         firePiece(game, inst, p.x, p.y, target, p.dirX, p.dirY, now);
       } else {
-        const list = game.nearestEnemies(p.x, p.y, t.range, n);
+        const list = game.nearestEnemies(p.x, p.y, rng(game, t.range), n);
         if (!list.length) return;
         s.nextAt = now + cd(game, t.cooldown);
         for (let i = 0; i < list.length; i++) {
@@ -133,7 +143,7 @@ const TRIGGERS = {
       s.charge += dt;
       if (s.charge < cd(game, t.chargeTime)) return;
       s.charge = 0;
-      const target = t.range > 0 ? game.nearestEnemy(p.x, p.y, t.range) : null;
+      const target = t.range > 0 ? game.nearestEnemy(p.x, p.y, rng(game, t.range)) : null;
       if (t.needsTarget && !target) return;
       firePiece(game, inst, p.x, p.y, target, p.dirX, p.dirY, now);
     },
@@ -171,6 +181,142 @@ const TRIGGERS = {
     },
   },
 
+  /* Planta o efeito A FRENTE do player, no vetor de movimento, a uma distancia
+     configuravel. O irmao de `directional`, e a diferenca e uma linha: aquele
+     exige `p.moving`, este nao.
+
+     Nao e detalhe. `directional` e uma peca que so existe enquanto o jogador
+     anda — a mira E o deslocamento. `leading` e uma peca de ANTECIPACAO: ela
+     cobra o chao para onde o jogador esta indo, e parar de andar nao pode
+     desligar isso, senao a bomba deixa de sair exatamente quando o jogador
+     estanca para deixar a horda chegar.
+
+     `p.dirX/dirY` ja e "ultimo vetor de movimento nao-nulo, normalizado"
+     (Player.reset), entao a regra de "se estiver parado, usa a ultima direcao
+     valida" nao precisa de estado proprio: ela ja e o contrato do campo. */
+  leading: {
+    init(s) { s.nextAt = 0; },
+    tick(game, inst, dt, now) {
+      const s = inst.s, t = inst.r.trigger, p = game.player;
+      if (now < s.nextAt) return;
+      s.nextAt = now + cd(game, t.cooldown);
+      const d = t.distance || 160;
+      firePiece(game, inst, p.x + p.dirX * d, p.y + p.dirY * d, null, p.dirX, p.dirY, now);
+    },
+  },
+
+  /* Mantem uma MATILHA. A populacao e reposta como `autonomous` faz, e o que
+     muda e como ela nasce e como ela anda.
+
+     Duas coisas, e nenhuma cabe no `autonomous`:
+
+     1. Nasce em LEVA (`litter`), nao um por intervalo. Uma matilha que entra
+        um bicho de cada vez nunca e uma matilha em tela: com `interval` de 4s
+        e `count` 5, os dois primeiros ja morreram quando o quinto chega.
+     2. O `angle` do spawn e o INDICE do slot, nao um angulo sorteado.
+        `MINION_AI._slot` ja usa `m.angle` como identidade de posicao no leque
+        — sorteando, dois bichos caem no mesmo ponto do flanco e a formacao
+        vira uma pilha. Quem reparte o leque e o trigger, porque so ele sabe
+        quantos vao existir.
+
+     A IA de cercar mora em `MINION_AI.flank`: o trigger repoe, o `ai` do efeito
+     `summon` decide o comportamento. E a mesma separacao que `autonomous` ja
+     tem, e e ela que deixa uma peca de matilha usar `chase` se o dado quiser. */
+  pack: {
+    init(s) { s.nextAt = 0; s.slot = 0; },
+    tick(game, inst, dt, now) {
+      const s = inst.s, t = inst.r.trigger, p = game.player;
+      if (now < s.nextAt) return;
+      const cap = Math.max(1, Math.round(t.count || 3));
+      const alive = game.minions.countOf(inst.key);
+      if (alive >= cap) return;
+      s.nextAt = now + cd(game, t.interval || 6);
+      const litter = Math.min(cap - alive, Math.max(1, Math.round(t.litter || cap)));
+      for (let i = 0; i < litter; i++) {
+        /* O slot avanca em volta do circulo e nunca reinicia: um bicho que
+           morre e reposto ocupa a proxima posicao do leque em vez de renascer
+           por cima do irmao que sobreviveu. */
+        const slot = (s.slot++ % cap) / cap * Math.PI * 2;
+        firePiece(game, inst, p.x, p.y, null, Math.cos(slot), Math.sin(slot), now, 0, slot);
+      }
+    },
+  },
+
+  /* ARMADILHA. Planta no ponto onde o player esta, fica INERTE, e cobra quando
+     um inimigo encosta. Cargas limitadas, rearme por cooldown.
+
+     "Carga" aqui e quantas podem estar plantadas AO MESMO TEMPO, e ela e
+     contada no mundo (`game.countArmed`) em vez de num contador do trigger. E
+     a mesma escolha de `orbital` e `autonomous`, que perguntam
+     `minions.countOf` em vez de guardarem populacao propria — e ela existe
+     porque o trigger nao e avisado quando a armadilha dispara. Um contador
+     local sairia do ar no primeiro inimigo que pisasse, e a peca pararia de
+     rearmar sem ninguem perceber.
+
+     A armadilha em si e uma `area_persistent` com `armed: true`: o motor ja
+     tinha posicao fixa, raio, vida, consulta pelo grid e payload. O que faltava
+     era o estado inerte — ver Game.updateAreas. */
+  trap: {
+    init(s) { s.nextAt = 0; },
+    tick(game, inst, dt, now) {
+      const s = inst.s, t = inst.r.trigger, p = game.player;
+      if (now < s.nextAt) return;
+      if (game.countArmed(inst.key) >= Math.max(1, Math.round(t.charges || 1))) return;
+      s.nextAt = now + cd(game, t.cooldown || 4);
+      firePiece(game, inst, p.x, p.y, null, p.dirX, p.dirY, now);
+    },
+  },
+
+  /* ASPECTO: a stance que liga e desliga sozinha. O trigger nao dispara nada —
+     ele REGISTRA o aspecto no subsistema da classe e sai do caminho.
+
+     E o unico trigger do jogo que nao tem tique, e isso e o ponto: um aspecto
+     nao e uma peca que acontece de tempos em tempos, e um estado que vale
+     enquanto a condicao valer. Quem avalia a condicao e `AspectSystem.tick`,
+     em cadencia propria — se o registro rodasse por sub-step, ele tentaria
+     registrar 3 vezes por frame para sempre.
+
+     `init` roda uma vez por aquisicao (e de novo na evolucao), que e
+     exatamente quando o slot deve ser tomado. */
+  aspect: {
+    init(s, game, t) {
+      s.nextAt = 0;
+      s.registered = false;
+      if (game && t && t.aspect) s.registered = game.aspects.register(t.aspect);
+    },
+    /* E ele PULSA enquanto a postura estiver de pe — mas so entao.
+
+       A primeira versao tinha `tick() {}`, e isso era um bug que nada pegou: os
+       `effects` das seis pecas de aspecto nunca rodavam numa run. O driver de
+       vfx as assinava porque a mesa dele chama `firePiece` a mao, entao elas
+       apareciam desenhando coisas que o jogo nunca desenhou.
+
+       O pulso e a forma certa de consertar, e nao um remendo: o efeito da peca
+       passa a ser a RECOMPENSA da postura estar ligada, que e o que a peca
+       promete no `desc`. E de quebra ele da as tres linhas algo para trabalhar
+       — sem cadencia, a linha de Aceleracao de uma stance nao tem o que
+       acelerar.
+
+       `whileActive: false` e a excecao, e ela tem uma regra e nao um capricho:
+       PULSO QUE PRODUZ A PROPRIA CONDICAO NAO PODE SER COBRADO POR ELA. O
+       Selvagem liga com a matilha grande em campo e o pulso dele E o que poe
+       lobo em campo — gatilhado pela postura, ele nunca teria o primeiro lobo,
+       nunca alcançaria o limiar, e a peca ficaria morta para sempre. Medido:
+       zero dano em todos os seis cenarios do banco, com o caminho fechado.
+
+       Nesses casos a postura deixa de ser o interruptor do pulso e passa a ser
+       so o que ela sempre foi — o multiplicador nos canais vivos. */
+    tick(game, inst, dt, now) {
+      const s = inst.s, t = inst.r.trigger, p = game.player;
+      if (!t.interval || !s.registered) return;
+      if (t.whileActive !== false && !game.aspects.isActive(t.aspect)) return;
+      if (now < s.nextAt) return;
+      s.nextAt = now + cd(game, t.interval);
+      firePiece(game, inst, p.x, p.y, game.nearestEnemy(p.x, p.y, rng(game, t.range || 420)),
+                p.dirX, p.dirY, now);
+    },
+  },
+
   /* Dispara em evento, nao em cooldown. O cooldown existe so como piso
      anti-spam — e ele que impede que uma leva morrendo junto dispare
      cinquenta explosoes no mesmo frame. */
@@ -192,7 +338,7 @@ const TRIGGERS = {
         if (!target) return;
         if (t.dotKey ? !game.dots.find(target, t.dotKey) : !target.dots.length) return;
       }
-      if (t.retarget === "nearest") target = game.nearestEnemy(p.x, p.y, t.range || 400);
+      if (t.retarget === "nearest") target = game.nearestEnemy(p.x, p.y, rng(game, t.range || 400));
       if (t.needsTarget && !target) return;
 
       s.nextAt = now + cd(game, t.cooldown || 0.4);

@@ -112,7 +112,18 @@ function cell(pieceId, cfg, sc, seed) {
   g.ui.openLevelUp = () => { g.player.pendingLevels = 0; g.state = STATE.PLAYING; };
   g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
   g.ui.openChest = () => { g.state = STATE.PLAYING; };
-  g.start(STARTER_TESTE);
+  /* A run e da CLASSE da peca, e pelo mesmo argumento do kit inicial logo
+     abaixo: medir uma peca de hunter dentro de uma run de warlock e medir um
+     mundo que o jogo nunca entrega. Pior, e um mundo em que ela nao funciona —
+     `build.axis` so tem as chaves da classe da run, entao `addAxis` para o eixo
+     dela devolve zero e o kit em campo e de outra classe. */
+  const cls0 = (pieceId && PIECES[pieceId] && PIECES[pieceId].cls) || "warlock";
+  g.selectedClass = cls0;
+  /* O warlock continua abrindo com `STARTER_TESTE` e nao com `starters[0]`:
+     TODA medida deste banco foi calibrada com ele em campo, e trocar a abertura
+     move o piso de 44 pecas para consertar 51 outras. Quem muda de abertura e
+     so a classe que ainda nao tinha uma. */
+  g.start(cls0 === "warlock" ? STARTER_TESTE : aberturaDaClasse(cls0));
 
   // o spawner sai: a populacao e a do cenario, e so ela
   g.spawner.update = () => {};
@@ -144,6 +155,7 @@ function cell(pieceId, cfg, sc, seed) {
     const en = Object.keys(PIECES).find((x) => {
       const d = PIECES[x];
       if (x === pieceId || d.evolutionOnly || d.requires) return false;
+      if (d.cls !== def.cls) return false;   // habilitadora de outra classe nao existe na run
       if (def.requires.piece) return x === def.requires.piece;
       return (d.tags || []).includes(def.requires.tag);
     });

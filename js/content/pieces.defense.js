@@ -7,7 +7,7 @@
 Object.assign(PIECES, {
 
   drainLife: {
-    id: "drainLife", key: "drainLife", name: "Drain Life",
+    id: "drainLife", cls: "warlock", key: "drainLife", name: "Drain Life",
     color: "#4a9e2e", axis: "corruption", axisPoints: 1,
     tags: ["shadow", "heal", "aura"], vfx: "blood",
     desc: "Aura constante: causa dano em volta de você e devolve parte dele como cura. Não pede alvo nem posição.",
@@ -36,7 +36,7 @@ Object.assign(PIECES, {
   },
 
   soulLeech: {
-    id: "soulLeech", key: "soulLeech", name: "Soul Leech",
+    id: "soulLeech", cls: "warlock", key: "soulLeech", name: "Soul Leech",
     color: "#e0521a", axis: "cataclysm", axisPoints: 1,
     tags: ["shield", "reactive"],
     desc: "Sempre que você causa dano, uma fração dele vira escudo, até um teto. Quanto mais dano a build faz, mais grossa a casca.",
@@ -63,7 +63,7 @@ Object.assign(PIECES, {
   },
 
   unendingResolve: {
-    id: "unendingResolve", key: "unendingResolve", name: "Unending Resolve",
+    id: "unendingResolve", cls: "warlock", key: "unendingResolve", name: "Unending Resolve",
     color: "#6a28c8", axis: "dominion", axisPoints: 1,
     tags: ["shield", "reactive"],
     desc: "Quando você toma dano com a vida abaixo do limiar, ganha um escudo grande e empurra quem estiver colado. Tem recarga.",
@@ -92,7 +92,7 @@ Object.assign(PIECES, {
   },
 
   demonSkin: {
-    id: "demonSkin", key: "demonSkin", name: "Demon Skin",
+    id: "demonSkin", cls: "warlock", key: "demonSkin", name: "Demon Skin",
     color: "#6a28c8", axis: "dominion", axisPoints: 1,
     tags: ["shield", "aura", "summon"],
     desc: "Aura constante: repõe escudo a cada segundo, e cada demônio vivo aumenta o teto desse escudo.",
@@ -119,7 +119,7 @@ Object.assign(PIECES, {
   },
 
   healthstone: {
-    id: "healthstone", key: "healthstone", name: "Healthstone",
+    id: "healthstone", cls: "warlock", key: "healthstone", name: "Healthstone",
     color: "#e0521a", axis: "cataclysm", axisPoints: 1,
     tags: ["heal", "reactive"],
     desc: "Quando sua vida cai abaixo do limiar, a pedra se parte sozinha e cura de uma vez. Volta a existir depois da recarga.",
@@ -143,7 +143,7 @@ Object.assign(PIECES, {
   },
 
   netherWard: {
-    id: "netherWard", key: "netherWard", name: "Nether Ward",
+    id: "netherWard", cls: "warlock", key: "netherWard", name: "Nether Ward",
     color: "#6a28c8", axis: "dominion", axisPoints: 1,
     tags: ["shield", "aura"],
     desc: "Aura constante: desmancha os projéteis inimigos que entram no raio e ainda repõe um pouco de escudo.",
@@ -171,7 +171,7 @@ Object.assign(PIECES, {
   },
 
   soulstone: {
-    id: "soulstone", key: "soulstone", name: "Soulstone",
+    id: "soulstone", cls: "warlock", key: "soulstone", name: "Soulstone",
     color: "#4a9e2e", axis: "corruption", axisPoints: 1,
     tags: ["heal", "revive"],
     desc: "Guarda uma alma: quando você morre, ela se gasta e te levanta de volta com parte da vida.",

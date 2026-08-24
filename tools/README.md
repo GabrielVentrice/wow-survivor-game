@@ -34,6 +34,12 @@ DRIVER=driver_vfx.js   node tools/harness.js .   # vfx: assinatura de cada peça
 DRIVER=driver_dano.js  node tools/harness.js .   # número de dano: as três travas, a densidade no minuto 8, e a resposta de vida baixa
 DRIVER=driver_dano.js  node tools/harness.js . 11  # o mesmo, medindo a cauda (~130s)
 DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homing não fecha, e alvo próprio por tiro
+DRIVER=driver_trigger.js node tools/harness.js .  # os triggers do hunter: trap inerte/carga/rearme, leading parado, pack em formação
+DRIVER=driver_aspect.js node tools/harness.js .   # aspectos: as seis condições, exclusão mútua, e o pisca
+DRIVER=driver_class.js node tools/harness.js . 12          # a classe fecha a própria progressão, e nada vaza entre classes
+DRIVER=driver_class.js node tools/harness.js . 12 imortal 6  # o mesmo em 6 seeds, com placar de medianas
+DRIVER=driver_class.js node tools/harness.js . 12 mortal   # sem imortalidade, warlock e hunter lado a lado
+DRIVER=driver_class.js node tools/harness.js . 12 imortal 5 ambas  # completável nas DUAS classes — a linha de base
 DRIVER=driver_bench.js node tools/harness.js .   # banco: dano de cada peça em 6 cenários controlados
 DRIVER=driver_bench.js node tools/harness.js . 20 full        # 20s/célula, os três caminhos
 DRIVER=driver_bench.js node tools/harness.js . 12 "" cataclysm  # só um eixo (~7s, para iterar)
@@ -48,6 +54,136 @@ DRIVER=driver_autopsy.js node tools/harness.js . 8 4          # autopsia: QUEM m
 DRIVER=driver_autopsy.js node tools/harness.js . 8 4 sweep    # o mesmo, comparando variantes de tuning
 ```
 
+## `driver_aspect` — a condição liga, desliga, e não pisca
+
+Um aspecto com a condição certa e sem histerese **roda, não estoura, e destrói
+a sensação de jogo**: o estado bate e volta dezenas de vezes por segundo
+exatamente na borda da condição — que é onde o jogador mais fica, porque a
+condição é sobre a posição dele. Nenhum outro driver vê isso.
+
+Seis blocos, e o quinto é o que importa:
+
+| bloco | o que ele cobra |
+|---|---|
+| histerese no dado | toda condição tem **vão** entre ligar e desligar. `on === off` é limiar único, e limiar único **é** o pisca |
+| slots | seis peças de aspecto na build tomam `BALANCE.aspect.slots` (3), não seis |
+| as seis condições | cada uma liga de verdade **e** o canal dela mexe: velocidade, redução, `rangeMul`, o Set de tag, a cura, o passo dos bichos |
+| exclusão mútua | Guepardo e Falcão nunca acesos juntos — com o campo vazio e o jogador parado as duas condições valem, e é aí que o par não pode aparecer |
+| **o pisca** | o jogador é posto **na borda** e sacudido em volta dela; conta as viradas contra o teto que o `hold` permite |
+| warlock | nenhum slot, todos os canais neutros, nenhuma peça com trigger `aspect` |
+
+**E ele não vê a condição ser ALCANÇADA.** É o limite mais importante deste
+driver: uma mesa monta a condição à mão, então ela prova que o mecanismo
+funciona — não que o jogo chega lá. Medidos numa run de verdade, quatro dos seis
+limiares originais não eram condição nenhuma (Guepardo 1,3% do tempo, Falcão
+0,0%, Águia 98%, Selvagem 100%-ou-0%), e este driver passava verde em todos. Ver
+"A condição se MEDE" no `CLAUDE.md`: quem responde isso é medida em run, e a
+leitura tem que ser escala-livre (`press`, a razão entre os dois anéis) porque
+contagem crua de corpos mede o minuto da run.
+
+Quatro travas que o próprio driver precisou ganhar:
+
+- **Zero viradas reprova.** Um aspecto que nunca liga também nunca pisca, e
+  passaria pelo teto sem esforço. A trava é dos dois lados.
+- **A mesa fecha as telas de escolha.** Level up e etapa param o `update`, e com
+  elas abertas o relógio de simulação congela: medido, 8 segundos de
+  `update(0.025)` avançaram 1,4s de `clock`. O aspecto avalia em `clock`, então
+  ele simplesmente não rodava — e a mesa da Águia reprovava por isso, não pela
+  condição. É a mesma lição de `driver_class`, por outro caminho.
+- **A vida é cravada nas mesas que não falam de vida.** Dez ghouls imortais
+  colados matam o jogador em pouco mais de um segundo, e morto o `update` para.
+  Turtle e Víbora não cravam, obviamente: nelas a vida **é** a condição.
+- **Auto-referência é o banco que pega, não este driver.** O Selvagem pulsava
+  só com a postura de pé, e a postura pedia matilha cheia — a peça não tinha
+  como sair do zero. Aqui ela passava (a mesa monta a matilha à mão); no
+  `driver_bench` ela apareceu como "peça de dano com caminho fechado que não
+  causa dano nenhum". Os dois drivers juntos é que fecham a pergunta.
+- **A mesa de uma razão controla ONDE o corpo cai, não quantos são.** Com o
+  limiar em contagem bastava despejar oito corpos em qualquer lugar do anel;
+  com a razão, oito a 60 unidades ligam e os mesmos oito a 300 não — e o
+  driver cobra as duas pontas, senão ele não estaria medindo uma razão.
+- **A mesa de `driver_vfx` crava o aspecto da peça que está assinando.** As seis
+  condições se contradizem (vida baixa E vida cheia, horda perto E campo
+  vazio), então não existe cenário único que ligue as seis — e sem cravar, três
+  peças de aspecto sairiam como "irmãs visuais" por causa da mesa, não por causa
+  delas.
+
+## `driver_class` — a classe fecha, e não vaza
+
+Duas perguntas, e as duas só passaram a existir quando o jogo ganhou a segunda
+classe.
+
+**Completável.** Uma run que mira um eixo chega à pool cheia, ao capstone e à
+spell fechada? Um catálogo pode validar inteiro no registry e mesmo assim nunca
+fechar nada — foi exatamente o que aconteceu com o warlock antes da separação
+das duas telas de escolha (0 capstones em 16 runs). O jogador é **imortal** aqui
+de propósito, como em `driver.js`: quem mede sobrevivência é `driver_balance`, e
+misturar as duas perguntas fez a primeira versão deste driver "reprovar" o
+hunter por uma coisa que o warlock também faz — morrer aos dois minutos.
+
+**Sozinho, nenhum número deste driver quer dizer nada.** Por isso há dois
+regimes comparativos: `mortal` roda a mesma política nas duas classes, e
+`ambas` (5º argumento) roda o regime **completável** nas duas. Uma medida só do
+hunter diz "a pool fecha em 11/20" e não diz se a do warlock fecha em 20 ou em
+11 — sem a linha de base, todo número vira regressão aparente na primeira vez
+que o balanceamento do jogo inteiro se mexe. Foi exatamente o que quase
+aconteceu depois do merge das três linhas.
+
+**E o `mortal` não mede sobrevivência.** As duas classes morrem em 0,3 min com
+a política de movimento daqui, que é um círculo apertado — o número mede o bot,
+não a classe. Tempo de vida é pergunta de `driver_balance`.
+
+**Driver que prende uma tela mede a própria tela.** A primeira versão deste
+driver aplicava a oferta de etapa e não decrementava `pendingMilestones`. A fila
+nunca zerava, `Game.update` saía cedo em todo frame seguinte e o **relógio de
+simulação congelava** — a run parecia ter morrido aos 6,9 min com orçamento de
+16, e não tinha morrido, tinha parado. Quem abre uma tela que para o `update`
+tem que fechá-la, e fechar quer dizer devolver o estado E baixar a fila.
+
+**Uma run não responde nada.** O 4º argumento é o número de seeds, e ele existe
+porque a pergunta é estatística: mudar o catálogo desloca **todo** sorteio
+seguinte, então duas fases não produzem a mesma run nem com a mesma semente. Uma
+run só não distingue "a fase piorou a classe" de "esta mão veio ruim" — é o
+mesmo erro que `driver_balance` já documenta, e ele custou uma leitura errada na
+fase das evoluções: uma run despencou de 8,6 para 2,0 min e a causa era a mão,
+não a mudança. O placar sai em **mediana** e não média, pela bimodalidade por
+política que `driver_balance` também documenta.
+
+**Estanque.** Nenhuma peça, passiva ou capstone da outra classe entra na build.
+`driver.js` confere `cls` no dado; este confere o que a build **efetivamente
+recebeu** numa run inteira, que é o lado por onde o vazamento apareceria.
+
+## `driver_trigger` — o contrato de cada trigger novo
+
+Um trigger novo é fácil de escrever e fácil de escrever errado de um jeito que
+nenhum outro driver vê: ele roda, não estoura, e silenciosamente é uma cópia do
+`autonomous` com outro nome. O que este driver mede é a **regra que faz cada um
+existir**, e as regras foram escolhidas por serem as que quebram calado.
+
+| trigger | o que ele cobra |
+|---|---|
+| `trap` | planta no pé do jogador · fica **inerte** (não cobra de quem não pisou) · dispara no contato e abre o `onEnd` · quem pisou chega como **alvo** · para no teto de cargas · **rearma** por cooldown · vence **sem detonar** quando ninguém pisa |
+| `leading` | cai à frente, na distância declarada · **continua disparando parado**, na última direção válida (é a única diferença real para `directional`) · respeita o cooldown |
+| `pack` | nasce em **leva**, não um por intervalo · para no teto · **slots distintos** (dois bichos no mesmo ângulo cercam pelo mesmo lado) · os bichos chegam por **lados diferentes** |
+
+Mais um bloco que não fala de hunter nenhum: que **nenhuma peça do warlock** usa
+os triggers novos nem nasce com zona armada. É o que garante que a fase 2 não
+mexeu na classe que já existia.
+
+Três coisas que este driver já pegou, e as três valem para trigger novo:
+
+- **Contador de mundo precisa de filtro.** `trap` conta cargas perguntando
+  quantas zonas da peça estão no chão — e a poça que a própria armadilha abre
+  tem a mesma `source`. Com `charges: 2` e uma poça de 6s no chão, a peça
+  consumia a própria carga e parava de rearmar. Hoje quem conta é `countArmed`.
+- **Medida no fim da simulação mede a caminhada, não a peça.** A bomba do
+  `leading` fica parada e o jogador continua andando a 250u/s: um segundo
+  depois ela está atrás dele. A distância se mede no quadro em que a zona
+  aparece, com folga de um sub-step de movimento.
+- **Cenário adversarial reprova código certo.** O bloco de rearme media
+  armadilhas em pé com um inimigo imortal parado em cima do jogador — toda
+  armadilha nova era pisada no quadro em que nascia. Conta plantios, não
+  sobreviventes.
 ## `run-all` — a bateria em paralelo
 
 A bateria era serial por acidente e nao por necessidade. Cada driver e um

@@ -37,8 +37,25 @@ function simulate(seconds) {
   const steps = Math.round(seconds / 0.025);
   for (let i = 0; i < steps; i++) {
     g.player.hp = g.player.maxHp;
-    g.input.keys = new Set(((i / 80) % 1) > 0.6 ? [] : ["d", "s"]);
+    /* A janela de PARADO tem que caber a maior `chargeTime` do catalogo, senao
+       nenhuma peca `rooted` carrega e a mesa mede a propria politica de
+       movimento em vez de medir a peca. Com 80 passos e 40% parado a janela
+       era de 0,8s — menor que TODA peca `rooted` do jogo, inclusive as do
+       warlock. 160 passos com metade parada da 2s, que e o teto do catalogo. */
+    g.input.keys = new Set(((i / 160) % 1) > 0.5 ? [] : ["d", "s"]);
     if (g.enemies.active.length < 20) populate(20);
+    /* Um golpe DE VERDADE pelo funil, de vez em quando. Sem ele o driver so
+       consegue provocar quem dispara por cooldown, e uma peca `reactive` sai
+       como "nao causou dano nenhum" por causa da MESA e nao por causa dela.
+
+       Kill Shot foi quem escancarou isso: ele so acorda com `enemy_low`, que
+       so e emitido quando alguem cai abaixo de 20% de vida — e numa mesa onde
+       ele e a unica peca da build, nada leva ninguem ate la. `driver_vfx` ja
+       tinha aprendido a mesma licao com o zero de escudo do Soul Leech. */
+    if (i % 8 === 0) {
+      const alvo = g.enemies.active[i % Math.max(1, g.enemies.active.length)];
+      if (alvo && alvo.hp > 0) g.damageEnemy(alvo, alvo.maxHp * 0.45, "fixture", true);
+    }
     g.update(0.025);
   }
 }
@@ -52,7 +69,12 @@ for (const id in PIECES) {
 }
 console.log(`--- ${evos.length} evolucoes ---`);
 for (const [id, pid, into] of evos) {
-  g.start(STARTER_TESTE);
+  /* Run da CLASSE da peca. Abrindo tudo como warlock, uma peca de hunter entra
+     numa build que nao e a dela: `abreEixos` crava os eixos do warlock, e o
+     gate de eixo da peca le `axis["precision"]` — `undefined`, que passa por
+     acidente. O teste mediria uma peca fora do lugar dela. */
+  g.selectedClass = PIECES[id].cls || "warlock";
+  g.start(aberturaDaClasse(g.selectedClass));
   abreEixos();
   try {
     const inst = g.build.acquirePiece(id) || g.build.get(PIECES[id].key);
@@ -75,18 +97,82 @@ for (const [id, pid, into] of evos) {
     }
   } catch (e) { fail(`${id}.${pid}: erro`, e); console.error(e.stack); }
 }
+g.selectedClass = "warlock";
+
+/* --- 1b. a CORRENTE de duas evolucoes ------------------------------------
+   Arcane Shot -> Aimed Shot -> Kill Shot e a primeira peca do jogo que evolui
+   DUAS vezes, e ela existe so porque a `key` atravessa a troca. Tres coisas
+   tem que valer, e as tres sao o que a `key` serve para segurar:
+
+     - a `key` e a MESMA nas tres formas (medidor de dano, anti-recursao, e a
+       origem dos eventos);
+     - o medidor nao zera na troca — dano feito como Arcane Shot continua
+       contado depois de virar Kill Shot;
+     - a segunda evolucao sai de um caminho DIFERENTE do primeiro, porque o
+       que evoluiu ja esta no tier 5 e nao sobe mais.
+
+   `maxDeep` permite exatamente dois caminhos passarem do tier 2, entao a
+   corrente cabe — e cabe com folga zero, que e o comprometimento que ela cobra. */
+console.log("--- corrente de evolucao ---");
+{
+  g.selectedClass = "hunter";
+  g.start(aberturaDaClasse("hunter"));
+  abreEixos();
+  const inst = g.build.acquirePiece("arcaneShot");
+  const key0 = inst.key;
+  /* As LINHAS, e nao os caminhos inventados de antes: desde `paths.js` toda
+     peca sobe por `haste`/`mastery`/`crit`, e a corrente e Maestria (vira Aimed
+     Shot) e depois Critico (vira Kill Shot). Ela continua precisando de duas
+     linhas diferentes pelo mesmo motivo de sempre — a que evoluiu ja esta no
+     tier 5 e nao sobe mais. */
+  for (let t = 0; t < PATH_RULES.tiers; t++) g.build.upgradePath(inst, "mastery");
+  const formaB = inst.def.id;
+  populate(20);
+  simulate(3);
+  const meioDano = g.damageBy.get(key0) || 0;
+  for (let t = 0; t < PATH_RULES.tiers; t++) g.build.upgradePath(inst, "crit");
+  const formaC = inst.def.id;
+  simulate(3);
+  const fimDano = g.damageBy.get(key0) || 0;
+
+  if (formaB !== "aimedShot") fail(`corrente: 1a evolucao deu "${formaB}", esperado aimedShot`);
+  else if (formaC !== "killShot") fail(`corrente: 2a evolucao deu "${formaC}", esperado killShot`);
+  else if (inst.key !== key0) fail(`corrente: a key mudou (${key0} -> ${inst.key})`);
+  else if (!meioDano) fail("corrente: a forma do meio nao causou dano — nao da para medir se o medidor sobreviveu");
+  else if (fimDano <= meioDano) {
+    fail(`corrente: o medidor nao andou depois da 2a troca (${meioDano} -> ${fimDano})`);
+  } else {
+    console.log(`  ok arcaneShot -> ${formaB} -> ${formaC}, key "${key0}" nas tres`);
+    console.log(`  ok o medidor atravessou as duas trocas: ${Math.round(meioDano)} -> ${Math.round(fimDano)}`);
+  }
+  // e a segunda evolucao veio de OUTRO caminho: o primeiro esta no teto
+  if (inst.paths.mastery !== PATH_RULES.tiers || inst.paths.crit !== PATH_RULES.tiers) {
+    fail(`corrente: caminhos em ${inst.paths.mastery}/${inst.paths.crit}, esperado 5/5`);
+  } else {
+    console.log(`  ok os dois caminhos fechados (5/5), dentro do teto de ${PATH_RULES.maxDeep} profundos`);
+  }
+  g.selectedClass = "warlock";
+}
 
 /* --- 2. capstones -------------------------------------------------------- */
 console.log(`--- ${Object.keys(CAPSTONES).length} capstones ---`);
+/* A run tem que ser da CLASSE do capstone. `checkCapstones` filtra por `cls`, e
+   `build.axis` so tem as chaves dos eixos daquela classe — cravar
+   `axis.trapping` numa run de warlock nao destrava nada, so cria uma chave que
+   ninguem le. Foi essa a regra que o filtro por classe introduziu, e ela e a
+   mesma que impede o capstone do hunter de abrir sozinho num warlock. */
+const PECAS_DA_CLASSE = {
+  warlock: ["corruption", "immolate", "wildImps", "felguard", "incinerate", "agony", "rainOfFire"],
+  hunter: ["killCommand", "wildThrash", "tarTrap", "arcaneShot", "serpentSting",
+           "shellCover", "raptorStrike"],
+};
 for (const cid in CAPSTONES) {
   const cap = CAPSTONES[cid];
-  g.start(STARTER_TESTE);
+  g.selectedClass = cap.cls;
+  g.start(aberturaDaClasse(cap.cls));
   try {
-    // pecas de todos os eixos, para os hooks terem com o que trabalhar
-    for (const pid of ["corruption", "immolate", "wildImps", "felguard",
-                       "incinerate", "agony", "rainOfFire"]) {
-      g.build.acquirePiece(pid);
-    }
+    // pecas da classe, para os hooks terem com o que trabalhar
+    for (const pid of PECAS_DA_CLASSE[cap.cls] || []) g.build.acquirePiece(pid);
     for (const a in cap.req) g.build.axis[a] = cap.req[a];
     const newly = g.build.checkCapstones();
     g.build.afterChange();
@@ -94,11 +180,12 @@ for (const cid in CAPSTONES) {
     populate(40);
     simulate(10);
     let total = 0;
-    for (const v of g.damageBy.values()) total += v;
+    for (const [k, v] of g.damageBy) if (k !== "fixture") total += v;
     console.log(`  ok ${cap.name.padEnd(12)} ${newly.length} ativado(s), ${Math.round(total / 1000)}k de dano, ` +
                 `${g.minions.active.length} demonios, ${g.dots.active.length} dots`);
   } catch (e) { fail(`${cid}: erro`, e); console.error(e.stack); }
 }
+g.selectedClass = "warlock";
 
 /* --- 3. regra dos 2 caminhos profundos ----------------------------------- */
 console.log("--- regras estruturais ---");

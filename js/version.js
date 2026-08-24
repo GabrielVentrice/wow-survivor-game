@@ -48,6 +48,18 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
+    v: "0.11.0",
+    data: "2026-08-24",
+    titulo: "O Hunter entra em campo",
+    notas: [
+      { t: "novo", txt: "Segunda classe jogável: o Hunter, com três eixos próprios — Matilha, Precisão e Armadilha — e um catálogo de 51 spells que não se cruza com o do Warlock." },
+      { t: "novo", txt: "Os Aspectos: posturas que ligam e desligam sozinhas conforme onde você se meteu. Na borda da horda você corre mais; cercado de perto, tudo alcança mais longe; parado, seus tiros batem mais forte. Cabem três por run." },
+      { t: "novo", txt: "Armadilha fica inerte no chão até alguém pisar, e ela é visível: o aro tracejado mostra o raio exato em que ela pega." },
+      { t: "novo", txt: "A matilha cerca por lados diferentes em vez de empilhar na mesma linha, e nasce em leva — cinco bichos entrando um por vez nunca estariam em campo juntos." },
+      { t: "novo", txt: "Arcane Shot evolui duas vezes: vira Aimed Shot e depois Kill Shot. É a primeira spell do jogo com duas conversões na mesma linhagem, e ela pede os dois caminhos profundos que a run permite." },
+    ],
+  },
+  {
     v: "0.10.1",
     data: "2026-08-24",
     titulo: "O nome aceita todas as letras",

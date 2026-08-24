@@ -70,6 +70,42 @@ function dpsRate(t, cooldownMul) {
     case "directional": return F.moving / safe(t.cooldown, 1);
     // Evento nao tem taxa propria: o que segura a conta e o piso anti-spam.
     case "reactive":    return Math.min(F.events, 1 / safe(t.cooldown, 0.4));
+
+    /* --- os tres triggers do hunter que TEM cadencia ---------------------
+       Sem eles a regua devolve zero, e zero na carta nao e "nao sei": e a
+       barra dizendo que a peca nao faz nada. Todo o catalogo de Armadilha do
+       hunter apareceria assim. */
+
+    /* `leading` e `directional` menos a exigencia de andar — e a diferenca
+       importa AQUI mais do que em qualquer outro lugar: ele cobra o chao
+       para onde o jogador vai, entao a cadencia dele e cheia e nao `F.moving`.
+       Foi exatamente para isso que o trigger existe. */
+    case "leading":     return 1 / safe(t.cooldown, 2);
+
+    /* A ARMADILHA e populacao, nao taxa: `charges` ficam plantadas e o
+       cooldown so repoe o que disparou. A conta e quantas disparam por
+       segundo, e o que a segura e a reposicao — uma armadilha parada no chao
+       nao rende nada ate alguem pisar, e o regime estavel e "toda carga
+       reposta acaba sendo pisada".
+
+       `F.moving` entra porque quem pisa e a horda andando em cima de um ponto
+       que o jogador escolheu e deixou para tras: cobrar cadencia cheia daria a
+       uma armadilha a vazao de um tiro. */
+    case "trap":        return F.moving * Math.max(1, Math.round(t.charges || 1))
+                               / safe(t.cooldown, 4);
+
+    /* O ASPECTO pulsa, mas so enquanto a postura vale — entao a cadencia dele e
+       a do intervalo VEZES a fracao do tempo em que a condicao esta satisfeita.
+       Essa fracao e uma suposicao, e por isso mora em `BALANCE.dps` junto das
+       outras: postura sem `interval` e stance pura e nao rende nada. */
+    /* A postura vale `aspectUptime` do tempo — menos quando o pulso nao e
+       cobrado por ela (`whileActive: false`), e ai a cadencia e cheia. */
+    case "aspect":      return t.interval
+                          ? (t.whileActive === false ? 1 : F.aspectUptime) / safe(t.interval, 2)
+                          : 0;
+
+    // `pack` e populacao e nao taxa. Quem o mede e `dpsSummon`, pela populacao,
+    // como ja faz com `orbital` e `autonomous`.
     default:            return 0;
   }
 }
@@ -84,7 +120,11 @@ function dpsRate(t, cooldownMul) {
 function dpsSummon(e, t, rate, minionDurationMul, permanent) {
   const def = MINIONS[e.kind] || MINIONS.imp;
   const per = Math.max(1, Math.round(e.count || 1));
-  const pop = t && (t.type === "orbital" || t.type === "autonomous")
+  /* `pack` entra aqui junto de `orbital` e `autonomous` porque os tres sao o
+     mesmo regime: o trigger repoe ate `count` e para, entao a populacao E
+     `count`. A diferenca do `pack` — nascer em leva em vez de um por vez — e
+     sobre quando a matilha esta inteira em campo, nao sobre quantos sao. */
+  const pop = t && (t.type === "orbital" || t.type === "autonomous" || t.type === "pack")
     ? Math.max(per, Math.round(t.count || 1))
     : Math.min(e.cap || 99, per * rate *
         (permanent || e.permanent ? 30
@@ -172,6 +212,12 @@ function dpsEffects(list, rate, ctx) {
         const live = n * (e.duration || 3) * rate;
         out += live * (e.dps || 0) * hits;
         out += dpsEffects(e.onTick, live * hits / Math.max(0.05, e.tickInterval || 0.35), ctx);
+        /* `onEnd` cobra na taxa em que as zonas ACABAM, que em regime estavel e
+           a mesma em que elas nascem. Sem ele a regua enxergava zero em toda
+           armadilha do hunter: a armadilha e uma zona ARMADA cujo payload
+           inteiro mora no `onEnd`, entao o que ela faz era exatamente o que a
+           conta nao olhava. Medido: regua 0 contra 405 de campo no Tar Trap. */
+        out += dpsEffects(e.onEnd, rate * n, ctx);
         break;
       }
       case "summon": {

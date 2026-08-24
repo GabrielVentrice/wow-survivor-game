@@ -106,6 +106,22 @@ const BALANCE = {
      acendem mais, entao `tiers` e `size` passam a viver quase so no degrau 0.
      Se a intencao for o numero variar de tamanho de novo, e `tiers` que desce,
      nao `window` que sobe. */
+  /* ASPECTO (subsistema do hunter). Os tres numeros que impedem o estado de
+     piscar, e cada um mata um jeito diferente de piscar:
+
+       slots     quantos aspectos cabem ao mesmo tempo. Com seis no catalogo,
+                 tres e o que faz levar um ser recusar outro.
+       interval  de quanto em quanto tempo a condicao e lida. A leitura
+                 `enemies` e consulta de grid, e `update` roda de 2 a 4 vezes
+                 por frame — por sub-step seriam 12 consultas por aspecto por
+                 frame para responder uma pergunta que nao muda nesse ritmo.
+       hold      tempo minimo que um aspecto fica no estado atual antes de
+                 poder virar. E o segundo guarda: o vao entre `on` e `off` mata
+                 o tremor no limiar, e o `hold` mata o pisca de quem atravessa
+                 o vao inteiro depressa — a horda fecha e abre em menos de um
+                 segundo, e sem piso o aspecto seguiria essa cadencia. */
+  aspect: { slots: 3, interval: 0.15, hold: 1.2 },
+
   combo: {
     window: 0.1,                      // segundos entre dois abates da cadeia
     min: 50,                          // a partir daqui a cadeia aparece
@@ -339,6 +355,10 @@ BALANCE.dps = {
      que separa Malefic Rapture — que so rasga quem ja esta apodrecendo — de
      uma peca de area comum, e sem ele a regua conta a horda inteira. */
   dotted: 0.25,
+  /* Fracao do tempo em que uma postura do hunter esta de pe. As seis condicoes
+     sao sobre a posicao em que o jogador se meteu, entao nenhuma vale sempre —
+     e a que valesse sempre nao seria uma postura, seria uma passiva. */
+  aspectUptime: 0.4,
 };
 
 /* ETAPAS: a batida lenta da run, e a UNICA fonte de ponto de eixo.
@@ -592,10 +612,34 @@ const ENEMIES = {
    shades — `base` for the signature pieces, `light` for the loud ones (evos,
    detonations, capstones puros), `deep` for curses and defense. The default
    driver rejects any color outside the palette of its own axis. */
+/* AXIS_PALETTE is the UNION of every class's families, not "the three axes".
+   Each class picks three of these in `CLASSES.<id>.axes`, and only those three
+   are ever on screen at once — a run is one class.
+
+   That is what makes six families fit at all. The hue rule (>= 60 degrees
+   between families, checked in tools/driver.js) is geometry: with corruption at
+   98, dominion at 266 and cataclysm at 24, only ONE more hue on the whole
+   circle sits 60 degrees clear of all three. Six global families are
+   impossible, so the rule became per CLASS — the hunter's three are 103, 68 and
+   171 degrees apart from each other, which is the separation that actually
+   matters, because the warlock's three are never in the same frame.
+
+   The hunter's three come from the WoW hunter, one per specialization:
+   `pack` is the tawny gold of fur and fang (Beast Mastery, Bestial Wrath),
+   `precision` the cold steel-blue of an arrowhead (Marksmanship), and
+   `trapping` the jade of venom and tar (Survival — Serpent Sting, Wildfire).
+
+   Red stays out of both sets on purpose: it is reserved for the health bar,
+   the hard-phase clock and the game over eyebrow (see the identity rules). */
 const AXIS_PALETTE = {
+  // warlock
   corruption: { base: "#7fdc4a", light: "#a8f05c", deep: "#4a9e2e" },
   dominion:   { base: "#9a4cff", light: "#c07aff", deep: "#6a28c8" },
   cataclysm:  { base: "#ff8a3c", light: "#ffb54a", deep: "#e0521a" },
+  // hunter
+  pack:       { base: "#e0b833", light: "#f5d45c", deep: "#9c7a12" },
+  precision:  { base: "#3878e0", light: "#6ea6f5", deep: "#1c4aa8" },
+  trapping:   { base: "#2fd47e", light: "#5cf0a4", deep: "#12915a" },
 };
 
 const AXES = {
@@ -608,6 +652,16 @@ const AXES = {
   cataclysm:  { id: "cataclysm",  name: "Cataclismo",
                 color: AXIS_PALETTE.cataclysm.base, palette: AXIS_PALETTE.cataclysm,
                 tag: "Golpes grandes, fogo, detonação" },
+
+  pack:       { id: "pack",       name: "Matilha",
+                color: AXIS_PALETTE.pack.base, palette: AXIS_PALETTE.pack,
+                tag: "Bichos vivos, matilha, presença" },
+  precision:  { id: "precision",  name: "Precisão",
+                color: AXIS_PALETTE.precision.base, palette: AXIS_PALETTE.precision,
+                tag: "Golpe único, execução, mira" },
+  trapping:   { id: "trapping",   name: "Armadilha",
+                color: AXIS_PALETTE.trapping.base, palette: AXIS_PALETTE.trapping,
+                tag: "Terreno controlado, veneno, emboscada" },
 };
 
 const AXIS_RULES = {
@@ -668,7 +722,25 @@ const PATH_RULES = {
   // tier 3 com 1 ponto, tier 4 com `hybridSide`, tier 5 com `hybridMain`
   axisGate: [0, 0, 1, AXIS_RULES.hybridSide, AXIS_RULES.hybridMain],
 };
-// Classes como data. Só Warlock jogável; resto é placeholder de UI.
+/* Classes como data — e agora a classe e quem diz QUAL catalogo existe.
+
+   Tres campos carregam isso, e os tres sao a abstracao inteira:
+
+     `axes`    os tres eixos desta classe, na ordem em que o HUD os desenha.
+               `AXES` deixou de ser "os tres eixos" e virou a uniao; quem itera
+               (HUD, level up, etapa, pausa, game over) itera ESTA lista.
+     `systems` subsistemas exclusivos da classe. Vazio no warlock, `["aspect"]`
+               no hunter. Sem este campo, "o hunter tem aspecto" viraria um
+               `if (selectedClass === ...)` dentro do loop, que e exatamente o
+               que js/hooks.js existe para nao deixar acontecer.
+     `glyph`   a grade que desenha a placa da classe no menu. Estava cravada em
+               "warlock" para toda placa, entao toda classe nova nasceria
+               desenhando um warlock.
+
+   O pertencimento do CONTEUDO nao mora aqui: cada peca, passiva e capstone
+   declara `cls`. Um namespace so, filtrado na oferta — a alternativa (um
+   registry por classe) obrigaria a reescrever resolvePiece, evolve, hooks.js e
+   o driver inteiro, e nada disso precisa saber que classes existem. */
 const CLASSES = {
   warlock: {
     id: "warlock",
@@ -676,6 +748,9 @@ const CLASSES = {
     tag: "Sombra · Fogo Fel · DoT",
     color: "#7a3cff",
     available: true,
+    glyph: "warlock",
+    axes: ["corruption", "dominion", "cataclysm"],
+    systems: [],
     base: { maxHp: 100, speed: 240 },
     /* A ABERTURA: tres spells, uma por eixo, e o jogador escolhe UMA.
 
@@ -750,8 +825,41 @@ const CLASSES = {
         desc: "Coroa de ferro negro e um sino rachado pendurado no peito." },
     ],
   },
+  /* O hunter ja declara eixos e subsistema porque isso e DADO e nao muda
+     comportamento nenhum: sem peca, sem capstone e com `available: false` ele
+     nao entra em run alguma. Declarar cedo e o que deixa a regra de matiz ser
+     verificada agora, antes de qualquer peca depender da cor. */
+  hunter: {
+    id: "hunter",
+    name: "Hunter",
+    tag: "Matilha · Mira · Emboscada",
+    color: "#e0b833",
+    available: true,
+    glyph: "hunter",
+    axes: ["pack", "precision", "trapping"],
+    systems: ["aspect"],
+    base: { maxHp: 110, speed: 250 },
+    /* Kit inicial: UMA peca, e a mesma regra do warlock — a mais neutra do
+       catalogo, entrando de graca para o pool de 20 ficar inteiro. Kill Command
+       mira sozinha e nao pede nada do jogador, entao a primeira etapa continua
+       sendo descoberta e nao confirmacao. */
+    /* A ABERTURA, na forma que o warlock passou a ter: tres spells, uma por
+       eixo, e o jogador escolhe UMA. As tres sao basicas, de DANO, sem
+       `requires` e disparam sozinhas desde o primeiro segundo — a mesma
+       pergunta feita de tres maneiras, para a resposta ser sobre gosto e nao
+       sobre quem entendeu a carta.
+
+       Ordem = ordem de `axes`, e `driver.js` cobra uma por eixo DA CLASSE. */
+    starters: ["killCommand", "arcaneShot", "serpentSting"],
+    /* FORMA UNICA, e e uma posicao declarada e nao uma lacuna: o corpo do
+       hunter nao conta a progressao da run. `driver_form` cobra cobertura de
+       capstone so de quem declara mais de uma forma — o que ele proibe e a
+       cobertura pela METADE, tres formas para oito finais. */
+    forms: [
+      { sprite: "hunter", scale: 3.375 },
+    ],
+  },
   mage:   { id: "mage",   name: "Mage",   tag: "Em breve", color: "#3fa9f5", available: false },
-  hunter: { id: "hunter", name: "Hunter", tag: "Em breve", color: "#6fdc4a", available: false },
 };
 
 /* ITEMS: drops raros dos inimigos. dropChance por abate (x10 em bosses).

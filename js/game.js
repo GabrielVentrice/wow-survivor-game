@@ -146,6 +146,11 @@ class Game {
     this.shieldPerMinion = 0; this.areaLifesteal = 0;
     this.cooldownMul = 1; this.noExternalHeal = false; this.bigHitCrit = false;
     this.dynDamage = 1;
+    /* Subsistema por classe: existe sempre, mas so recebe aspecto se a classe
+       declarar `systems: ["aspect"]`. Instanciar sempre e mais barato que um
+       `if (this.aspects)` em cada ponto de leitura — os canais dele sao
+       neutros enquanto nenhum slot foi registrado. */
+    this.aspects = new AspectSystem(this);
     this.lastBigHit = null;
 
     this.state = STATE.MENU;
@@ -271,6 +276,29 @@ class Game {
   }
   /* Ate `count` inimigos mais proximos. Insercao ordenada num par de buffers
      reaproveitados: nunca ordena a horda inteira e nunca aloca. */
+  /* Quantas armadilhas daquela peca estao ARMADAS no chao. E o que da "carga"
+     ao trigger `trap`: ele nao e avisado quando uma dispara, entao um contador
+     local sairia do ar no primeiro inimigo que pisasse.
+
+     `armed` no filtro nao e detalhe — foi um bug medido. Contando toda zona da
+     peca, a poca que a propria armadilha abre entra na conta e consome a
+     propria carga: com `charges` 2 e uma poca de 6s no chao, a peca parava de
+     rearmar ate a poca vencer. O que a carga conta e o que esta ESPERANDO
+     alguem pisar, e poca aberta ja disparou.
+
+     Varredura linear e o certo aqui: o pico medido e de 26 zonas, e um indice
+     por `source` seria um mapa a manter em toda criacao e toda morte para
+     poupar uma volta de 26. */
+  countArmed(key) {
+    const list = this.areas.active;
+    let n = 0;
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
+      if (!a.dead && a.armed && !a.sprung && a.source === key) n++;
+    }
+    return n;
+  }
+
   nearestEnemies(x, y, maxDist, count) {
     const ds = this._nearD, es = this._nearE;
     ds.length = 0; es.length = 0;
@@ -380,7 +408,12 @@ class Game {
   damageEnemy(e, amount, key, big, dotKey, cont) {
     if (!e || e.hp <= 0 || amount <= 0) return 0;
 
-    let amt = amount * this.dynDamage;
+    const asp = this.aspects.ch;
+    let amt = amount * this.dynDamage * asp.damageMul;
+    // Bonus por TAG (Falcao): `tagKeys` e um Set montado quando o aspecto vira,
+    // e nao uma busca nas tags da peca — este funil roda milhares de vezes por
+    // segundo e uma busca por acerto seria trabalho de verdade.
+    if (asp.tagKeys && key && asp.tagKeys.has(key)) amt *= asp.tagMul;
     if (e.marked && this.clock < e.markedUntil) amt *= 1 + e.marked;
 
     /* O CRITICO e sorteado aqui, uma vez por acerto, a partir dos stats da
@@ -413,6 +446,9 @@ class Game {
     if (key) this.damageBy.set(key, (this.damageBy.get(key) || 0) + amt);
 
     if (this.areaLifesteal > 0 && !dotKey) this.healPlayer(amt * this.areaLifesteal);
+    // Vibora: fracao do dano causado vira cura. Fora do tique de DoT pela mesma
+    // razao que `areaLifesteal` — dano continuo curaria por sub-step.
+    if (asp.lifesteal > 0 && !dotKey) this.healPlayer(amt * asp.lifesteal);
 
     const reenter = key && this._chain.has(key);
     if (!reenter && key) this._chain.add(key);
@@ -449,6 +485,9 @@ class Game {
 
   start(starterId) {
     const cls = CLASSES[this.selectedClass];
+    // A classe da run fica no Game porque a UI precisa dela para saber QUAIS
+    // eixos desenhar — `AXES` virou a uniao de todas as classes.
+    this.cls = cls;
     this.player.reset(cls);
     this.enemies.clear(); this.projectiles.clear(); this.orbs.clear();
     this.areas.clear(); this.particles.clear(); this.pickups.clear();
@@ -473,7 +512,8 @@ class Game {
     this.comboPulseAt = -99;
     this.camera.resetShake();
     this.lastBigHit = null;
-    this.build.reset();
+    this.build.reset(cls);
+    this.aspects.reset();
     this.elapsed = 0;
     this.clock = 0;
     this.milestoneIdx = 0;
@@ -835,6 +875,9 @@ class Game {
     this.updateEnemies(dt);          // move + preenche o grid + contato
     this.tickApex(dt);               // a onda do Apice, com o grid recem-feito
     this.minions.update(dt, this.clock);
+    /* ANTES de `build.tick`: os triggers leem `aspect.rangeMul` no mesmo frame,
+       e um aspecto avaliado depois deles valeria sempre um frame atrasado. */
+    this.aspects.tick(dt, this.clock);
     this.build.tick(dt, this.clock); // triggers de todas as pecas
     this.dots.update(this.clock);    // scheduler por timestamp
     this.updateProjectiles(dt);
@@ -852,6 +895,15 @@ class Game {
     // buff que DURA nao se desenha por evento: evento por pulso e a forma
     // errada para um estado. O render precisa do relogio, e o Player nao o tem.
     this.player.rushing = this.player.speedBoostUntil > this.clock;
+    /* O mesmo argumento do `rushing` logo acima, para os aspectos: o render
+       precisa saber QUAIS estao de pe, e o Player nao conhece o subsistema.
+       A lista e reusada — alocar um array por frame com o teto de tres seria
+       lixo a 60fps para dizer a mesma coisa. */
+    {
+      const marks = this.player.aspectMarks, act = this.aspects.active;
+      marks.length = 0;
+      for (let i = 0; i < act.length; i++) marks.push(ASPECTS[act[i]].rgb);
+    }
 
     this.camera.follow(this.player, dt);
     // o mundo apodrece junto com a run: veios mais vivos, mais brasa no ar
@@ -963,7 +1015,11 @@ class Game {
     const p = this.player;
     let speed = p.baseSpeed;
     if (this.clock < (p.speedBoostUntil || 0)) speed *= p.speedBoost;
+    // Guepardo e Tartaruga: canal vivo, recomposto por frame junto do resto.
+    // Escrever em `p.dmgReduction` aqui e seguro porque nada mais o escreve.
+    speed *= this.aspects.ch.speedMul;
     p.speed = speed;
+    p.dmgReduction = this.aspects.ch.dmgReduction;
     p.basePickup = p.pickupForLevel();
     p.pickupRange = p.basePickup;
 
@@ -1146,7 +1202,31 @@ class Game {
       if (a.follow) { a.x = p.x; a.y = p.y; }
       a.life -= dt;
       a.tickTimer -= dt;
-      if (a.tickTimer <= 0) {
+      /* ARMADILHA: inerte ate alguem encostar. Ela nao cobra `dps`, nao roda
+         `payload` por tique e nao envelhece de forma diferente — o que ela faz
+         e procurar o PRIMEIRO corpo dentro do raio e, achando, morrer com a
+         vida zerada para que o `onEnd` (a detonacao) role pelo caminho que ja
+         existe. Um segundo caminho de disparo seria duas listas de efeitos
+         para divergir.
+
+         A busca e gastada no mesmo `tickInterval` do resto: por sub-step seria
+         de tres a quatro consultas de grid por armadilha por frame, e com
+         `charges` 3 e o modo rapido isso e trabalho por nada — a horda nao
+         atravessa um raio de 70 unidades em 0.1s. */
+      if (a.armed) {
+        if (a.tickTimer <= 0) {
+          a.tickTimer += a.tickInterval;
+          let pisou = null;
+          this.grid.forRadius(a.x, a.y, a.radius, (e) => {
+            if (pisou || e.hp <= 0 || e.charmed) return;
+            const dx = e.x - a.x, dy = e.y - a.y, rr = a.radius + e.radius;
+            if (dx * dx + dy * dy <= rr * rr) pisou = e;
+          });
+          if (pisou) { a.sprung = true; a.sprungOn = pisou; a.life = 0; }
+        }
+        if (a.life > 0) continue;
+      }
+      if (!a.armed && a.tickTimer <= 0) {
         a.tickTimer += a.tickInterval;
         const dmg = a.dps * a.tickInterval;
         this.grid.forRadius(a.x, a.y, a.radius, (e) => {
@@ -1165,10 +1245,19 @@ class Game {
         });
       }
       if (a.life <= 0) {
+        // Armadilha que venceu o prazo sem ninguem pisar NAO detona: ela
+        // expira. Detonar no vencimento faria o `onEnd` ser o comportamento
+        // normal da peca em vez da recompensa por acertar o posicionamento.
+        if (a.armed && !a.sprung) { a.dead = true; continue; }
         if (a.onEnd) {
           const c = pushCtx(this);
           c.key = a.source; c.color = a.color; c.now = this.clock;
-          c.x = a.x; c.y = a.y; c.target = null;
+          c.x = a.x; c.y = a.y;
+          /* Quem pisou vira o alvo. Sem isso, `Freezing Trap` congelaria "o
+             raio" e nao o corpo que a pisou, e todo efeito que mira (`stun`,
+             `mark`, `damage_over_time`) perderia o unico alvo que a armadilha
+             tem certeza de ter. Poca que expira continua sem alvo: nao ha um. */
+          c.target = a.sprungOn;
           c.dirX = p.dirX; c.dirY = p.dirY;
           runEffects(this, a.onEnd, c);
           popCtx(this);

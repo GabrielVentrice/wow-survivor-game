@@ -192,6 +192,28 @@ function assinar(id) {
   const inst = g.build.acquirePiece(id, true);
   if (!inst) return null;
 
+  /* Peca de ASPECTO: a mesa assume que a condicao dela vale.
+
+     E a mesma decisao que poe a vida em 25% logo abaixo, e pelo mesmo motivo:
+     toda condicao que uma peca declara tem que caber na mesa, senao "muda"
+     quer dizer "nao consegui provocar". So que aqui uma mesa nao basta — as
+     seis condicoes se contradizem (vida baixa E vida cheia, horda perto E
+     campo vazio), entao nao existe cenario unico que ligue as seis. O que a
+     mesa faz e cravar o estado do aspecto DESTA peca e parar a reavaliacao:
+     quem mede se a condicao liga na hora certa e `driver_aspect`; aqui a
+     pergunta e o que a peca DESENHA. */
+  if (inst.r.trigger.type === "aspect" && inst.r.trigger.aspect) {
+    const aid = inst.r.trigger.aspect;
+    g.aspects.active.length = 0;
+    g.aspects.active.push(aid);
+    const b = ASPECTS[aid].buff;
+    const ch = g.aspects.ch;
+    if (b.speedMul) ch.speedMul = b.speedMul;
+    if (b.rangeMul) ch.rangeMul = b.rangeMul;
+    if (b.beastMul) ch.beastMul = b.beastMul;
+    g.aspects.nextAt = Infinity;      // congela a reavaliacao pela janela toda
+  }
+
   /* Vida em 25%: as pecas de emergencia so existem quando o jogador esta
      apanhando, e cada uma declara o proprio limiar — o Healthstone so paga
      abaixo de 30%. Com a barra cheia elas sairiam como mudas por causa do
@@ -242,6 +264,10 @@ function assinar(id) {
       desenha.add("veil:" + ((g.player.veil && g.player.veil.sides) || "?"));
     }
     for (const z of g.areas.active) desenha.add("area:" + (z.look || "fire"));
+    /* O ASPECTO e uma SOBREPOSICAO no jogador, e sobreposicao conta como
+       desenho — um driver que so olhasse `emitVfx` diria que ela nao existe, do
+       mesmo jeito que diria das marcas de estado e da casca do escudo. */
+    for (const id of g.aspects.active) desenha.add("aspecto:" + id);
     for (const m of g.minions.active) if (!vistoAntes.has(m)) desenha.add("minion:" + m.kind);
     const now2 = g.clock;
     for (const e of alvo) {

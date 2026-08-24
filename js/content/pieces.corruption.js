@@ -16,7 +16,7 @@
 Object.assign(PIECES, {
 
   corruption: {
-    id: "corruption", key: "corruption", name: "Corruption",
+    id: "corruption", cls: "warlock", key: "corruption", name: "Corruption",
     color: "#7fdc4a", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "dot"], vfx: "rot",
     desc: "Mira sozinha no inimigo mais próximo e planta um DoT de podridão. Reaplicar renova a duração; não pede mira nem posição.",
@@ -48,7 +48,7 @@ Object.assign(PIECES, {
   },
 
   agony: {
-    id: "agony", key: "agony", name: "Agony",
+    id: "agony", cls: "warlock", key: "agony", name: "Agony",
     color: "#4a9e2e", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "dot"], vfx: "sigil",
     desc: "Mira sozinha e aplica uma dor que dói mais a cada segundo em que o alvo continua vivo. Empilha em cima de si mesma.",
@@ -80,7 +80,7 @@ Object.assign(PIECES, {
   },
 
   unstableAffliction: {
-    id: "unstableAffliction", key: "unstableAffliction", name: "Unstable Affliction",
+    id: "unstableAffliction", cls: "warlock", key: "unstableAffliction", name: "Unstable Affliction",
     color: "#a8f05c", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "dot"],
     desc: "Mira sozinha e planta um DoT curto que explode em área ao terminar. O tique é pequeno; o fim é o dano.",
@@ -127,7 +127,7 @@ Object.assign(PIECES, {
      dano inteiro da peca. Quem compra isto nao compra dano por segundo, compra
      um pulso pesado em area a cada conjuracao. */
   soulRupture: {
-    id: "soulRupture", key: "soulRupture", name: "Soul Rupture",
+    id: "soulRupture", cls: "warlock", key: "soulRupture", name: "Soul Rupture",
     color: "#4a9e2e", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "dot"], vfx: "sigil",
     desc: "Mira sozinha e planta uma ruptura na alma: o tique é fraco, e o dano vem todo de um estouro em área quando o prazo vence — mesmo que o corpo caia antes.",
@@ -165,7 +165,7 @@ Object.assign(PIECES, {
   },
 
   seedOfCorruption: {
-    id: "seedOfCorruption", key: "seedOfCorruption", name: "Seed of Corruption",
+    id: "seedOfCorruption", cls: "warlock", key: "seedOfCorruption", name: "Seed of Corruption",
     color: "#7fdc4a", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "reactive"], vfx: "thorn",
     desc: "Quando um inimigo que carrega DoT morre, o corpo dele explode em área. Você não conjura nada: só deixa a horda apodrecer e cair.",
@@ -194,7 +194,7 @@ Object.assign(PIECES, {
   },
 
   haunt: {
-    id: "haunt", key: "haunt", name: "Haunt",
+    id: "haunt", cls: "warlock", key: "haunt", name: "Haunt",
     color: "#a8f05c", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "summon"],
     desc: "Invoca um olho do Vazio que atira sozinho e marca quem acerta — alvo marcado recebe mais dano de TUDO na sua build.",
@@ -222,7 +222,7 @@ Object.assign(PIECES, {
   },
 
   maleficRapture: {
-    id: "maleficRapture", key: "maleficRapture", name: "Malefic Rapture",
+    id: "maleficRapture", cls: "warlock", key: "maleficRapture", name: "Malefic Rapture",
     color: "#a8f05c", axis: "corruption", axisPoints: 2,
     tags: ["shadow", "rooted"],
     desc: "Enquanto você fica parado, carrega e pulsa dano instantâneo em todos os inimigos ao redor que carregam um DoT seu.",
@@ -251,7 +251,7 @@ Object.assign(PIECES, {
   /* --- pecas de evolucao: nao aparecem no sorteio, so por conversao ------- */
 
   vileTaint: {
-    id: "vileTaint", key: "corruption", name: "Vile Taint",
+    id: "vileTaint", cls: "warlock", key: "corruption", name: "Vile Taint",
     color: "#a8f05c", axis: "corruption", axisPoints: 0,
     tags: ["shadow", "dot", "trail"], evolutionOnly: true, vfx: "rot",
     desc: "Enquanto você anda, deixa poças de podridão no rastro: elas causam dano contínuo e aplicam DoT em quem pisa.",
@@ -280,7 +280,7 @@ Object.assign(PIECES, {
   },
 
   soulRot: {
-    id: "soulRot", key: "drainLife", name: "Soul Rot",
+    id: "soulRot", cls: "warlock", key: "drainLife", name: "Soul Rot",
     color: "#a8f05c", axis: "corruption", axisPoints: 0,
     tags: ["shadow", "dot", "aura", "heal"], evolutionOnly: true, vfx: "blood",
     desc: "Aura constante em volta de você: causa dano, aplica DoT e devolve parte do dano causado como cura.",

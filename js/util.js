@@ -22,7 +22,14 @@ const CAST_GAP = 0.85;
 // some dentro da propria build e o jogador perde a unica coisa que ele
 // precisa achar na tela. As demais continuam existindo na cor do halo.
 const MAX_PIECE_VFX = 3;
-const DEFAULT_FORMS = [{ sprite: "warlock", caps: 0, scale: 2.9 }];
+// Fallback para classe sem `forms`. `caps` saiu junto com o sistema antigo de
+// metamorfose por contagem — driver_form o reprova em toda forma de classe, e
+// deixa-lo aqui era o campo morto esperando a proxima classe para reaparecer.
+/* Fallback para classe sem `forms`. Ele desenha o WARLOCK, entao uma classe
+   nova que caia aqui aparece em campo com o corpo de outra — silenciosamente.
+   Toda classe jogavel declara `forms` (driver_form cobra), e este valor existe
+   so para o codigo que monta um Player fora de uma run (as galerias). */
+const DEFAULT_FORMS = [{ sprite: "warlock", scale: 2.9 }];
 
 /* XP para sair do nível `l`.
 

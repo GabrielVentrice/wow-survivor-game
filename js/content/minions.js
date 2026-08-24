@@ -28,4 +28,15 @@ Object.assign(MINIONS, {
   portal:       { radius: 16, color: "#b23cff", sprite: "portal",       scale: 3.75, gait: "static", ai: "turret", range: 360, attackInterval: 1.3, duration: 14 },
   tyrant:       { radius: 24, color: "#ffd24a", sprite: "tyrant",       scale: 2.50, gait: "walk",   ai: "anchor", speed: 235, range: 360, attackInterval: 0.55, orbitRadius: 58, duration: 22 },
   darkglare:    { radius: 15, color: "#c850ff", sprite: "darkglare",    scale: 3.00, gait: "float",  ai: "turret", range: 440, attackInterval: 1.0, duration: 12 },
+
+  /* --- hunter -------------------------------------------------------------
+     `scale` 3.0 sobre raio 11 da 33 unidades desenhadas, que e 11 linhas x
+     PIXEL_UNIT: degrau 1, o mesmo do resto do elenco. Nao e um numero
+     arredondado — e o unico que nao poe o lobo em outra resolucao. */
+  wolf:         { radius: 11, color: "#e0b833", sprite: "wolf",          scale: 3.00, gait: "walk",   ai: "flank",  speed: 320, range: 440, attackInterval: 0.7, orbitRadius: 84, duration: 14 },
+  boar:         { radius: 12, color: "#96694a", sprite: "boar",          scale: 2.75, gait: "walk",   ai: "chase",  speed: 355, range: 420, attackInterval: 0.9, orbitRadius: 78, duration: 14 },
+  bear:         { radius: 13, color: "#cfa473", sprite: "bear",          scale: 3.00, gait: "walk",   ai: "anchor", speed: 250, range: 240, attackInterval: 1.1, orbitRadius: 60, duration: 18 },
+  wyvern:       { radius: 11, color: "#9c8272", sprite: "wyvern",        scale: 3.00, gait: "float",  ai: "ranged", speed: 300, range: 400, attackInterval: 0.9, orbitRadius: 96, duration: 14 },
+  turtle:       { radius: 12, color: "#8790a8", sprite: "turtle",        scale: 2.50, gait: "static", ai: "turret", range: 220, attackInterval: 1.2, duration: 12 },
+  spectre:      { radius: 10, color: "#4f76b0", sprite: "spectre",       scale: 3.30, gait: "float",  ai: "hunter", speed: 330, range: 460, attackInterval: 0.8, duration: 10 },
 });

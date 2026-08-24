@@ -480,6 +480,13 @@ const PAL = {
   vio0: "#1a1028", vio1: "#3a2456", vio2: "#5f3b80", vio3: "#8a5fab",
   emb0: "#5e2711", emb1: "#9c471b", emb2: "#d67f33",
   gold0: "#5e3618", gold1: "#b0842a", gold2: "#f2d878",
+  /* Fur: the hunter's beasts. Four steps so two creatures can share the ramp
+     and differ by WHICH three — the boar takes fur0..2 and the bear fur1..3,
+     the same relationship the ghoul and the vilefiend already have. Adding a
+     ramp instead of reusing one is what keeps them from reading as recolours
+     of a demon; adding it with four steps is what keeps the pack from reading
+     as one animal in two sizes. */
+  fur0: "#2b1a26", fur1: "#5c3a2e", fur2: "#96694a", fur3: "#cfa473",
   void0: "#0d1430", void1: "#2a3f73", void2: "#4f76b0", void3: "#7ba3d8",
 
   // energy: eyes, runes, fire. Small areas only — see rule 1.
@@ -488,6 +495,11 @@ const PAL = {
   fel0: AXIS_PALETTE.corruption.deep, fel1: AXIS_PALETTE.corruption.base, fel2: AXIS_PALETTE.corruption.light,
   arc0: AXIS_PALETTE.dominion.deep,   arc1: AXIS_PALETTE.dominion.base,   arc2: AXIS_PALETTE.dominion.light,
   pyr0: AXIS_PALETTE.cataclysm.deep,  pyr1: AXIS_PALETTE.cataclysm.base,  pyr2: AXIS_PALETTE.cataclysm.light,
+  // The hunter's three, by the same construction. Referenced, never copied: a
+  // hand-typed hex drifts the first time AXIS_PALETTE is tuned.
+  paw0: AXIS_PALETTE.pack.deep,       paw1: AXIS_PALETTE.pack.base,       paw2: AXIS_PALETTE.pack.light,
+  aim0: AXIS_PALETTE.precision.deep,  aim1: AXIS_PALETTE.precision.base,  aim2: AXIS_PALETTE.precision.light,
+  ven0: AXIS_PALETTE.trapping.deep,   ven1: AXIS_PALETTE.trapping.base,   ven2: AXIS_PALETTE.trapping.light,
   // Enemy eyes. Pink-shifted on purpose: a pure red at 2px reads as cataclysm
   // orange in motion, which is why red left the effect palette in the first place.
   blood0: "#d92f4a", blood1: "#ff5f7a",
@@ -506,7 +518,63 @@ const PAL = {
 
 // definições dos sprites (grids de pixels + paleta por char)
 const SPRITE_DATA = {
-  // Aprendiz. O rosto ainda humano dentro do capuz — a forma de antes de qualquer coisa fechar.
+  /* HUNTER, forma base e unica. Capuz, capa curta de couro e o arco de aco na
+     mao esquerda — o arco e o que a silhueta precisa dizer de longe, entao ele
+     e a unica coisa que sai da largura do corpo.
+
+     18 linhas, as mesmas do warlock: `scale` 3.375 sobre o raio 16 do player da
+     54 unidades, que e 18 x PIXEL_UNIT. Degrau 1, como todo o elenco.
+
+     Rampa `meat0..2` (couro) com `bone2` no rosto e `steel1/2` no arco. Ele NAO
+     usa osso puro em lugar nenhum: `#EDE7DA` continua sendo reserva do warlock,
+     e e por isso que o rosto aqui e `bone2` e nao branco.
+
+     A `cast` tem as mesmas 18 linhas (o degrau sai da altura) e e mais larga: o
+     braco ABRE para puxar a corda, e largura nao entra na conta do degrau. */
+  hunter: {
+    pal: { o: PAL.inkWarm, d: PAL.meat0, m: PAL.meat1, l: PAL.meat2,
+           B: PAL.bone2, s: PAL.steel1, S: PAL.steel2, e: PAL.paw1 },
+    rows: [
+      "....oooooo....",
+      "...oollmddo...",
+      "..ollmmmmddo..",
+      "..olloBBBodo..",
+      "..olleBBBedo..",
+      "..olldBBBddo..",
+      "...oldmmmdo...",
+      "s..ommmmmmdo..",
+      "Ss.ommmdmmmdo.",
+      "sS.olmmdmmmdo.",
+      "sS.olmmdmmmdol",
+      "Ss.olmmdmmmdo.",
+      "s..olmmdmmmdo.",
+      "...ommmdmmmo..",
+      "...oddddddo...",
+      "...odo..odo...",
+      "...odo..odo...",
+      "...ooo..ooo...",
+    ],
+    cast: [
+      "......oooooo......",
+      ".....oollmddo.....",
+      "....ollmmmmddo....",
+      "....olloBBBodo....",
+      "....olleBBBedo....",
+      "....olldBBBddo....",
+      ".....oldmmmdo.....",
+      "s....ommmmmmdo....",
+      "Ss..ommmdmmmdo....",
+      "sSooolmmdmmmdoooSS",
+      "sS...olmmdmmmdol..",
+      "Ss...olmmdmmmdo...",
+      "s....olmmdmmmdo...",
+      ".....ommmdmmmo....",
+      ".....oddddddo.....",
+      ".....odo..odo.....",
+      ".....odo..odo.....",
+      ".....ooo..ooo.....",
+    ],
+  },
   // Aprendiz. O rosto ainda humano dentro do capuz — a forma de antes de qualquer coisa fechar.
   warlock: {
     pal: { o: PAL.inkDeep, d: PAL.vio1, m: PAL.vio2, l: PAL.vio3, D: PAL.meat0, M: PAL.meat1, L: PAL.meat2, e: PAL.fel1 },
@@ -1421,6 +1489,131 @@ const SPRITE_DATA = {
       "..olo...oldo.....",
       "..olo....olo.....",
       "..ooo....ooo.....",
+    ],
+  },
+  /* Lobo da matilha. Quadrupede de lado, virado para a direita como o resto do
+     elenco que anda.
+
+     A rampa e `gold0..2` — a unica rampa de MATERIA quente que nenhum corpo
+     usava ainda (o infernal so a toca como acento). Pelo fulvo pede exatamente
+     ela, e a regra de fatia continua valendo: quem vier depois pega outros tres
+     passos, nao estes.
+
+     Um unico pixel de energia, o olho. O bicho e materia — se ele acendesse
+     como a spell, com cinco em campo a matilha competiria com o que a build
+     desenha, que e a hierarquia de leitura ao contrario. */
+  wolf: {
+    pal: { o: PAL.inkWarm, d: PAL.gold0, m: PAL.gold1, l: PAL.gold2, B: PAL.bone2, e: PAL.paw1 },
+    rows: [
+      "..............o.o",
+      ".ll..........olol",
+      "olmo.......oollll",
+      ".olmoooooolllellB",
+      "..olmmmmmmmlllBBo",
+      "..ommmmmmmmmmdddo",
+      "..odmmmmmmmmdddo.",
+      "..oddddddddddoo..",
+      "...od.oo.od.o....",
+      "...od.oo.od.o....",
+      "...oo.oo.oo.o....",
+    ],
+  },
+  /* Javali. Baixo e largo, cabeca enorme com presas — a silhueta e o oposto do
+     lobo (que e comprido e leve), e e por isso que os dois cabem na mesma
+     matilha sem virarem o mesmo bicho de dois tamanhos. Fatia `fur0..2`. */
+  boar: {
+    pal: { o: PAL.inkWarm, d: PAL.fur0, m: PAL.fur1, l: PAL.fur2, B: PAL.bone2 },
+    rows: [
+      "..............",
+      "..o.......oo..",
+      ".olo.....olllo",
+      "olmlooooolmmml",
+      ".ommmmmmmmmmBl",
+      ".ommmmmmmmmdBo",
+      ".odmmmmmmmddo.",
+      "..oddddddddo..",
+      "..od.oo.od.o..",
+      "..od.oo.od.o..",
+      "..oo.oo.oo.o..",
+    ],
+  },
+  /* Urso. Massa: ombros pesados e mais alto que largo na frente. Fatia
+     `fur1..3` — mesma pelagem do javali, tres passos acima, entao os dois leem
+     como o mesmo material sob luzes diferentes em vez de dois marrons sem
+     parentesco. */
+  bear: {
+    pal: { o: PAL.inkWarm, d: PAL.fur1, m: PAL.fur2, l: PAL.fur3, B: PAL.bone2 },
+    rows: [
+      "...............",
+      "..oo.......oo..",
+      ".ollo.....olllo",
+      ".olllooooollmlo",
+      "olmmmmmmmmmmBlo",
+      "olmmmmmmmmmmmBo",
+      "ommmmmmmmmmmdo.",
+      "ommmmmmmmmmddo.",
+      ".odmmmmmmmddo..",
+      ".oddddddddddo..",
+      ".od.ooo.odd.o..",
+      ".od.ooo.odd.o..",
+      ".oo.ooo.ooo.o..",
+    ],
+  },
+  /* Wyvern. Asas abertas e cauda com ferrao: a unica da matilha que PAIRA, e a
+     silhueta tem que dizer isso parada. Pedra em vez de pelo — couro de asa nao
+     e pelagem. */
+  wyvern: {
+    pal: { o: PAL.inkCold, d: PAL.stone0, m: PAL.stone1, l: PAL.stone2,
+           B: PAL.bone2, e: PAL.paw1 },
+    rows: [
+      "..o........o..",
+      ".olo......olo.",
+      "olmlo....olmlo",
+      "olmmlooooolmml",
+      ".olmmmmmmmmml.",
+      "..ommBeBmmmo..",
+      "..odmmmmmdo...",
+      "...oddddo.....",
+      "....odo.......",
+      "...odBo.......",
+      "...oBo........",
+    ],
+  },
+  /* Tartaruga. Casco alto e plantada — ela nao caca, ela fica. O casco e placa
+     (`steel`) e nao pelo, porque o que a peca dela promete e reducao de dano. */
+  turtle: {
+    pal: { o: PAL.inkCold, d: PAL.steel0, s: PAL.steel1, S: PAL.steel2,
+           l: PAL.bone1, B: PAL.bone2 },
+    rows: [
+      "...ooooo....",
+      "..oSSSSSo...",
+      ".oSssSssSo..",
+      "oSssSssSsSo.",
+      "oSsSssSssSoo",
+      "oSssSssSsSlo",
+      ".osssssssoBo",
+      ".oddddddoo..",
+      "..o.oo.o....",
+      "..o.oo.o....",
+    ],
+  },
+  /* Espectro. Sem pernas e a cauda se dissolve — e o unico da lista que nao e
+     bicho, e a silhueta tem que dizer isso antes da cor. O olho e `aim1`, a
+     energia da Precisao: ele nasce de Black Arrow, que e peca daquele eixo. */
+  spectre: {
+    pal: { o: PAL.inkCold, d: PAL.void0, m: PAL.void1, l: PAL.void2, e: PAL.aim1 },
+    rows: [
+      "...ooo...",
+      "..olllo..",
+      ".olemelo.",
+      ".olmmmlo.",
+      "olmmmmmlo",
+      "olmmmmmlo",
+      ".olmmmlo.",
+      "..oldlo..",
+      "..oldo...",
+      "...odo...",
+      "...oo....",
     ],
   },
   // Infernal: bloco de pedra com veios de fel e a cabeca em brasa.

@@ -36,6 +36,9 @@ class Player {
     this.moving = false;
     this.rushing = false;              // Game.update: o buff de velocidade esta de pe
     this.speedBoostColor = null;
+    // rgb dos aspectos ATIVOS, montado por Game.update. Estado que dura se
+    // desenha enquanto dura — ver draw().
+    this.aspectMarks = [];
     this.veil = null;                  // fatia da casca de escudo (EFFECTS.shield)
     this.veilRgb = null;
     this.forms = cls.forms || DEFAULT_FORMS;
@@ -306,6 +309,38 @@ class Player {
       // e o corpo queima junto: e ele que esta pagando
       const beat = 0.1 + (Math.sin(t * 9) + 1) * 0.06;
       drawSpriteGlow(ctx, spr, sx, sy, drawH, this.facing < 0, anim, col, beat);
+    }
+
+    /* OS ASPECTOS. Estado que dura NAO pode ser evento: emitir um vfx a cada
+       avaliacao seria o mesmo erro que emitir um evento a cada 0,5s para dizer
+       "voce tem escudo". Entao eles se desenham enquanto duram, como a casca e
+       como o rastro do Burning Rush logo acima.
+
+       Sao pips NO CHAO, aos pes, e nao adornos em volta do corpo: a faixa de
+       cima ja pertence a build acesa e o corpo do personagem e a coisa que a
+       hierarquia de leitura nao deixa cobrir. No chao eles ficam abaixo de
+       tudo que o jogador conjura e ainda assim sempre visiveis, porque o
+       personagem esta sempre no centro da tela.
+
+       Teto natural de tres (`BALANCE.aspect.slots`), entao nao ha o que
+       limitar: tres pips numa elipse de 5 pixels e a leitura inteira. */
+    if (this.aspectMarks && this.aspectMarks.length) {
+      const n = this.aspectMarks.length;
+      ctx.save();
+      for (let i = 0; i < n; i++) {
+        const m = this.aspectMarks[i];
+        const a = (i - (n - 1) / 2) * 0.5;
+        const px = sx + Math.sin(a) * r * 1.15;
+        const py = sy + r * 0.92 - Math.cos(a) * r * 0.16;
+        // pulso lento e dessincronizado: tres pips piscando juntos leem como
+        // um retangulo acendendo, que e o mesmo defeito das riscas do rush
+        const beat = 0.55 + Math.sin(t * 2.2 + i * 1.1) * 0.2;
+        ctx.fillStyle = `rgba(${m},${beat.toFixed(2)})`;
+        ctx.beginPath();
+        ctx.ellipse(px, py, 2.2, 1.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
     }
 
     /* A CASCA. Era um circulo ciano, igual para as seis pecas que dao escudo —
@@ -728,8 +763,16 @@ class Minion {
     this.color = o.color || "#ff8a3c";
     this.damage = o.damage || 0;
     this.attackInterval = o.attackInterval || 1;
+    /* Valores de BASE, para o frenesi da matilha (`HOOKS.farejarSangue`) poder
+       ser desfeito. A pressa e gravada no bicho e nao num multiplicador global
+       porque demonio nasce e morre o tempo todo — um global valeria para quem
+       entrou depois do tiro. Restaurados em MinionSystem.update. */
+    this.baseAttack = this.attackInterval;
+    this.hasteMul = 1;
+    this.hasteUntil = 0;
     this.range = o.range || 260;
     this.speed = o.speed || 200;
+    this.baseSpeed = this.speed;
     this.orbitRadius = o.orbitRadius || 72;
     this.angle = o.angle || 0;
     this.spawnedAt = o.spawnedAt || 0;   // abertura do portal / entrada em cena
@@ -762,6 +805,13 @@ class AreaEffect {
     this.follow = o.follow || false;     // gruda no player (auras persistentes)
     this.look = o.look || "fire";        // fatia do aro — ver draw()
     this.onEnd = o.onEnd || null;
+    /* ARMADA: a zona nao cobra nada ate alguem encostar, e some no primeiro
+       corpo que pisar. E o estado que separa uma armadilha de uma poca — ver
+       Game.updateAreas. `sprung` guarda que ela ja disparou, para o `onEnd`
+       (que e o `payload` da detonacao) nao rodar duas vezes. */
+    this.armed = o.armed || false;
+    this.sprung = false;
+    this.sprungOn = null;              // quem pisou — vira `c.target` no onEnd
     this.dead = false;
   }
   /* Zona com borda, nao mancha. O preenchimento diz "aqui queima" e por isso e
@@ -797,6 +847,34 @@ class AreaEffect {
       for (let i = 0; i < 5; i++) {
         const a0 = t * 0.55 + (i / 5) * Math.PI * 2;
         ctx.beginPath(); ctx.arc(sx, sy, R, a0, a0 + 0.72); ctx.stroke();
+      }
+      return;
+    }
+    if (this.look === "trap") {
+      /* A armadilha e VISIVEL, e o aro esta no raio real como o de toda zona:
+         com input so de movimento, armadilha escondida nao muda decisao
+         nenhuma do jogador — ela vira sorteio, que e a mesma objecao do
+         meteoro sem sombra no chao.
+
+         O que a separa de uma poca e o desenho estar ESPERANDO: um anel
+         tracejado fino (ela nao queima nada agora) mais quatro presas apontando
+         para dentro, que e a forma que diz "isto fecha". Pulsa devagar, porque
+         parado neste raio ela lê como decalque no chão. */
+      const pulse = 0.72 + Math.sin(t * 3.4) * 0.28;
+      ctx.strokeStyle = `rgba(${this.rgb},${(a * 0.62 * pulse).toFixed(2)})`;
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 16; i++) {
+        const a0 = (i / 16) * Math.PI * 2;
+        ctx.beginPath(); ctx.arc(sx, sy, R, a0, a0 + 0.16); ctx.stroke();
+      }
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 4; i++) {
+        const a0 = (i / 4) * Math.PI * 2 + t * 0.6;
+        const ca = Math.cos(a0), sa = Math.sin(a0);
+        ctx.beginPath();
+        ctx.moveTo(sx + ca * R, sy + sa * R);
+        ctx.lineTo(sx + ca * R * 0.58, sy + sa * R * 0.58);
+        ctx.stroke();
       }
       return;
     }

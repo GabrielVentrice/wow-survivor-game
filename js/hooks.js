@@ -218,4 +218,126 @@ const HOOKS = {
     game.emitVfx("rip", p.x, p.y, 44, c.color);
     game.emitVfx("heal", p.x, p.y, 50, c.color);
   },
+
+  /* --- hunter -------------------------------------------------------------
+     Os tres hooks do hunter, e os tres estao aqui pela mesma razao: eles leem
+     o ESTADO DA MATILHA, que e uma coisa que dado declarativo nao alcanca. O
+     eixo Matilha escala com o numero de bichos vivos, e "numero de bichos
+     vivos" nao e um stat — e uma consulta ao mundo, feita no instante do
+     disparo. */
+
+  /* Kill Command: dano extra por bicho vivo. O bonus e cobrado como um golpe
+     separado no mesmo alvo em vez de somado ao `amount` do efeito anterior,
+     porque somar exigiria que o efeito de dano soubesse contar demonios — e
+     entao TODO efeito de dano carregaria essa pergunta. */
+  comandoDaMatilha(game, e, c) {
+    const alvo = c.target;
+    if (!alvo || alvo.hp <= 0) return;
+    const n = game.minions.count();
+    if (n <= 0) return;
+    game.damageEnemy(alvo, (e.amount || 0) * n, c.key, n >= 4);
+    /* O filamento do bicho mais proximo ate o alvo. E o terceiro formato de
+       distincao que o jogo tem, depois de forma e cor: a RELACAO. Sem ele o
+       comando so pisca no alvo, e o jogador nao ve que foi a matilha. */
+    if (e.link) {
+      const m = game.minions.pool.active[0];
+      if (m && !m.dead) game.emitVfx("link", m.x, m.y, 0, c.color, alvo.x, alvo.y);
+    }
+  },
+
+  /* Barbed Shot e Bestial Wrath: o cheiro de sangue acelera a matilha inteira.
+
+     A pressa e gravada NO BICHO e nao num multiplicador global porque os
+     demonios nascem e morrem o tempo todo: um multiplicador global valeria
+     para quem entrou depois do tiro, e a peca promete acelerar "a sua matilha",
+     nao "toda matilha futura". `MinionSystem.update` devolve os valores de base
+     quando o prazo vence. */
+  farejarSangue(game, e, c) {
+    const frac = e.frac || 0.3, until = c.now + (e.duration || 3);
+    const list = game.minions.pool.active;
+    for (let i = 0; i < list.length; i++) {
+      const m = list[i];
+      if (m.dead) continue;
+      m.hasteUntil = Math.max(m.hasteUntil || 0, until);
+      m.hasteMul = Math.max(m.hasteMul || 1, 1 + frac);
+    }
+    if (list.length) game.emitVfx("shock", game.player.x, game.player.y, 120, c.color);
+  },
+
+  /* Dire Beast: "nunca se sabe qual vem" e a peca, entao o sorteio mora aqui.
+
+     Ele NAO pode sortear no dado: `kind` e resolvido uma vez por aquisicao
+     (ver o pipeline de stats), entao uma peca com `kind` sorteado teria
+     sorteado uma vez na vida e chamado o mesmo bicho pela run inteira. */
+  bichoDaMata(game, e, c) {
+    const bichos = ["wolf", "boar", "bear", "wyvern"];
+    const kind = bichos[(Math.random() * bichos.length) | 0];
+    const onHit = [];
+    if (e.slow) onHit.push({ type: "slow", factor: e.slow, duration: 2 });
+    EFFECTS.summon(game, {
+      kind: kind, ai: kind === "bear" ? "anchor" : kind === "wyvern" ? "ranged" : "flank",
+      count: 1, cap: e.cap || 1,
+      damage: e.damage || 100, duration: e.duration || 12,
+      speed: e.speed || 300, attackInterval: e.attackInterval || 0.9,
+      onHit: onHit.length ? onHit : null,
+    }, c);
+  },
+
+  /* --- capstones do hunter -------------------------------------------------
+     Os quatro hibridos, e cada um existe porque a promessa dele CRUZA dois
+     sistemas — dado declarativo alcanca um lado de cada vez. */
+
+  // Batedor (Mat 10 / Pre 5): todo golpe de bicho marca o alvo. O bicho nao
+  // sabe nada sobre marcas e a marca nao sabe nada sobre bichos: quem cruza os
+  // dois e o evento.
+  batedor(game, p) {
+    const e = p.enemy;
+    if (!e || e.hp <= 0) return;
+    e.marked = Math.max(e.marked, 0.45);
+    e.markedUntil = game.clock + 5;
+  },
+
+  /* Ranger Sombria (Pre 10 / Mat 5): inimigo morto por golpe PESADO levanta
+     como espectro. "Pesado" e a metade que importa — sem ela o capstone
+     dispararia em toda morte da horda, que sao dezenas por segundo, e a tela
+     viraria uma parede de espectros. */
+  rangerSombria(game, p) {
+    if (!p.big) return;
+    const e = p.enemy;
+    if (!e) return;
+    const c = pushCtx(game);
+    c.key = "rangerSombria"; c.color = CAPSTONES.rangerSombria.color;
+    c.now = game.clock;
+    c.x = e.x; c.y = e.y; c.target = null;
+    c.dirX = game.player.dirX; c.dirY = game.player.dirY;
+    EFFECTS.summon(game, {
+      kind: "spectre", ai: "hunter", count: 1, cap: 12,
+      damage: 240, duration: 9, attackInterval: 0.8,
+    }, c);
+    popCtx(game);
+  },
+
+  /* Domador (Mat 10 / Arm 5): armadilha que dispara poe a matilha em frenesi.
+     O gancho e `enemy_hit` filtrado pela fonte, porque o motor nao emite um
+     evento de "armadilha disparou" — e nao deveria: o unico fato observavel e
+     que alguem tomou dano de uma peca com trigger `trap`. */
+  domador(game, p) {
+    const inst = game.build.pieces.get(p.key);
+    if (!inst || inst.r.trigger.type !== "trap") return;
+    const list = game.minions.pool.active;
+    const until = game.clock + 4;
+    for (let i = 0; i < list.length; i++) {
+      const m = list[i];
+      if (m.dead) continue;
+      m.hasteUntil = Math.max(m.hasteUntil || 0, until);
+      m.hasteMul = Math.max(m.hasteMul || 1, 1.5);
+    }
+  },
+
+  /* O tier 5 de toda peca de aspecto: a postura fica TEIMOSA — liga mais cedo e
+     sai mais tarde. Ele e um hook e nao um mod porque o que ele mexe nao e um
+     stat da peca: e o limiar da CONDICAO, que mora no subsistema. */
+  posturaTeimosa(game, e, c) {
+    if (e.aspect) game.aspects.loosen(e.aspect);
+  },
 };

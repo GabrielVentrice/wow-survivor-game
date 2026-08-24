@@ -15,17 +15,32 @@ class BuildSystem {
     this.pieces = new Map();       // key -> instancia
     this.passives = new Map();     // id -> nivel (1)
     this.capstones = new Set();
-    this.axis = { corruption: 0, dominion: 0, cataclysm: 0 };
+    /* A classe da run decide os eixos, entao eles nao podem ser um literal de
+       tres campos. `axes` e a lista ordenada (a ordem do HUD) e `axis` o
+       contador por id — os dois nascem de `CLASSES.<id>.axes` no reset. */
+    /* Nasce com a classe PADRAO em vez de vazio: quem monta um `Game` sem
+       chamar `start()` (as galerias, o driver do placar) leria `axes` vazio e
+       produziria uma run sem eixo nenhum — que e o mesmo defeito que
+       `DEFAULT_FORMS` existe para evitar do lado do sprite. `reset(cls)`
+       sobrescreve na primeira run de verdade. */
+    const padrao = CLASSES[game.selectedClass] || CLASSES.warlock;
+    this.clsId = padrao.id;
+    this.axes = (padrao.axes || []).slice();
+    this.axis = {};
+    for (const a of this.axes) this.axis[a] = 0;
     this.reactives = new Map();    // evento -> [instancias]
     this.vfx = [];                 // pecas com efeito visual no personagem
     this.apexed = new Set();       // eixos que ja soltaram o Apice nesta run
   }
 
-  reset() {
+  reset(cls) {
     this.pieces.clear();
     this.passives.clear();
     this.capstones.clear();
-    this.axis.corruption = 0; this.axis.dominion = 0; this.axis.cataclysm = 0;
+    this.clsId = cls.id;
+    this.axes = cls.axes.slice();
+    this.axis = {};
+    for (const a of this.axes) this.axis[a] = 0;
     this.reactives.clear();
     this.vfx.length = 0;
     this.apexed.clear();
@@ -34,7 +49,17 @@ class BuildSystem {
     this.applyGlobals();
   }
 
-  get axisTotal() { return this.axis.corruption + this.axis.dominion + this.axis.cataclysm; }
+  /* O filtro que substitui os registries por classe. Um namespace so, e cada
+     entrada diz de quem e — sem isto `checkCapstones` abriria os capstones do
+     hunter numa run de warlock, e em silencio: `this.axis.trapping` e
+     `undefined`, e `undefined < 15` e falso, entao o requisito passa. */
+  owns(def) { return def && def.cls === this.clsId; }
+
+  get axisTotal() {
+    let n = 0;
+    for (const a of this.axes) n += this.axis[a];
+    return n;
+  }
   get axisLeft() { return AXIS_RULES.pool - this.axisTotal; }
 
   /* --- o pacto: dois eixos, e o terceiro se fecha ------------------------
@@ -264,7 +289,7 @@ class BuildSystem {
     this.pieces.set(def.key, inst);
     if (!free) this.addAxis(def.axis, def.axisPoints != null ? def.axisPoints : 2);
     inst.r = resolvePiece(inst, this);
-    (TRIGGERS[inst.r.trigger.type] || TRIGGERS.auto_target).init(inst.s, this.game);
+    (TRIGGERS[inst.r.trigger.type] || TRIGGERS.auto_target).init(inst.s, this.game, inst.r.trigger);
     this.afterChange();
     return inst;
   }
@@ -357,7 +382,7 @@ class BuildSystem {
     inst.evolvedInto = next.id;
     inst.s = {};
     inst.r = resolvePiece(inst, this);
-    (TRIGGERS[inst.r.trigger.type] || TRIGGERS.auto_target).init(inst.s, this.game);
+    (TRIGGERS[inst.r.trigger.type] || TRIGGERS.auto_target).init(inst.s, this.game, inst.r.trigger);
     return { from: prevName, to: next };
   }
 
@@ -404,7 +429,7 @@ class BuildSystem {
   checkCapstones() {
     const newly = [];
     for (const id in CAPSTONES) {
-      if (this.capstones.has(id)) continue;
+      if (this.capstones.has(id) || !this.owns(CAPSTONES[id])) continue;
       const req = CAPSTONES[id].req;
       let ok = true;
       for (const a in req) if (this.axis[a] < req[a]) { ok = false; break; }
@@ -547,6 +572,13 @@ class BuildSystem {
       }
       if (!ok) return false;
     }
+    /* `slot` e a vaga num subsistema da classe. Sem ele a peca de aspecto que
+       chega com os tres slots cheios entra na build e nao faz NADA: o trigger
+       `aspect` pergunta se conseguiu registrar e sai calado quando nao. Carta
+       que nao faz nada e a mesma coisa que a carta de +0 que o sorteio ja pula
+       — e pior, porque esta cobra o ponto de eixo da etapa antes de nao fazer
+       nada. Quem responde e o subsistema, que e quem sabe o proprio teto. */
+    if (r.slot === "aspect" && !this.game.aspects.hasRoom(def)) return false;
     return true;
   }
 
@@ -605,6 +637,7 @@ class BuildSystem {
       ? this.game.player.level - this.game.player.pendingLevels : 1;
     if (lv >= BALANCE.levelup.passiveAt) {
       for (const id in PASSIVES) {
+        if (!this.owns(PASSIVES[id])) continue;
         if (this.passives.has(id) || this.passiveBlocked(id)) continue;
         pool.push({ kind: "passive", id, def: PASSIVES[id] });
       }
@@ -666,6 +699,7 @@ class BuildSystem {
     const porEixo = {}, todas = [];
     for (const id in PIECES) {
       const def = PIECES[id];
+      if (!this.owns(def)) continue;
       if (def.evolutionOnly || this.pieces.has(def.key)) continue;
       if (!this.meetsRequires(def)) continue;
       (porEixo[def.axis] || (porEixo[def.axis] = [])).push(def);
@@ -686,7 +720,7 @@ class BuildSystem {
     // 1. slots fixos: um por eixo aberto, na ordem em que os eixos estao no
     //    dado (estavel entre etapas — carta fixa que dança de lugar deixa de
     //    ser referencia visual).
-    for (const axisId in AXES) {
+    for (const axisId of this.axes) {
       if (this.axis[axisId] < M.unlockAt) continue;
       /* Maneira que credita ZERO nao entra. A regra ja valia para as cartas
          sorteadas e faltava aqui: com o eixo comprometido no teto de 15, o slot
@@ -734,7 +768,7 @@ class BuildSystem {
        ultima carta em vez de estourar o teto de `cards`. */
     if (!out.some((o) => (o.dry && o.dry.gain > 0) || (o.wet && o.wet.gain > 0))) {
       let melhor = null;
-      for (const axisId in AXES) {
+      for (const axisId of this.axes) {
         const g = real(axisId, M.axisPoints);
         if (!melhor || g > melhor.g) melhor = { axisId, g };
       }

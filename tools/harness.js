@@ -234,6 +234,23 @@ for (const tag of TAGS) {
 
 console.log(`ok  ${PAGE}: ${files} arquivos + ${inline} inline`);
 
+/* `aberturaDaClasse(cls)` — a abertura DA CLASSE, para o driver que roda mais de uma.
+
+   `STARTER_TESTE` e uma peca do warlock: um driver que troque `selectedClass`
+   e passe ele para `start()` abre uma run de hunter com uma spell de warlock,
+   que e exatamente o vazamento entre classes que `driver_class` existe para
+   pegar. Primeiro `starter` e nao sorteio, pelo mesmo motivo que
+   `STARTER_TESTE` e fixo: medicao entre rodadas tem que ser comparavel.
+
+   Ele e injetado AQUI, dentro do contexto, e nao como propriedade do sandbox:
+   `const CLASSES` e declaracao lexica e nao vira propriedade do objeto de
+   contexto (a mesma razao pela qual o driver tambem roda la dentro). */
+vm.runInContext(
+  "function aberturaDaClasse(clsId) {\n" +
+  "  const c = typeof CLASSES !== 'undefined' && CLASSES[clsId];\n" +
+  "  return c && c.starters && c.starters.length ? c.starters[0] : STARTER_TESTE;\n" +
+  "}", sandbox, { filename: "harness:abertura" });
+
 // Declaracoes lexicais (const/class) de cada <script> NAO viram propriedades do
 // objeto de contexto — vivem no escopo lexical global dele, exatamente como no
 // browser. Entao o driver de teste tambem precisa rodar dentro do contexto.

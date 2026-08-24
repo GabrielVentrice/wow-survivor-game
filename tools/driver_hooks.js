@@ -43,8 +43,14 @@ function simulate(sec) {
 }
 
 let fails = 0;
+/* Uma cesta por classe. O hook de um capstone e escrito contra o que a build
+   daquela classe poe em campo: `rangerSombria` precisa de golpe PESADO,
+   `domador` precisa de uma armadilha disparando e `batedor` precisa de bicho
+   mordendo — nenhum deles acontece numa build de warlock. */
 const PIECES_ALL = ["corruption", "immolate", "wildImps", "felguard", "incinerate",
-                    "agony", "rainOfFire", "unstableAffliction", "shadowburn"];
+                    "agony", "rainOfFire", "unstableAffliction", "shadowburn",
+                    "killCommand", "wildThrash", "tarTrap", "raptorStrike",
+                    "arcaneShot", "aimedShot", "shellCover", "animalCompanion"];
 
 /* Colheita exige uma condicao especifica (inimigo com 3+ DoTs MORRENDO) que
    uma simulacao aleatoria pode nao produzir. Provocamos a condicao a mao: o
@@ -81,8 +87,12 @@ for (const cid in CAPSTONES) {
   const hookNames = Object.values(cap.on || {});
   if (!hookNames.length) { console.log(`  -- ${cap.name}: sem hook (só global)`); continue; }
   if (cid === "colheita") { testColheita(cap); continue; }
-  g.start(STARTER_TESTE);
-  for (const id of PIECES_ALL) g.build.acquirePiece(id);
+  /* Run da CLASSE do capstone: `checkCapstones` filtra por `cls` e `build.axis`
+     so tem as chaves dos eixos daquela classe. E as pecas tambem — um hook do
+     hunter que espera bicho em campo nunca dispara numa build de warlock. */
+  g.selectedClass = cap.cls;
+  g.start(aberturaDaClasse(cap.cls));
+  for (const id of PIECES_ALL) if (PIECES[id].cls === cap.cls) g.build.acquirePiece(id);
   for (const a in cap.req) g.build.axis[a] = cap.req[a];
   g.build.checkCapstones();
   g.build.afterChange();

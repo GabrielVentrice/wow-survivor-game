@@ -93,7 +93,10 @@ if (AXIS_RULES.maxAxes * AXIS_RULES.capPerAxis < AXIS_RULES.pool) {
   window.game = g0;
   g0.start(STARTER_TESTE);
   const b = g0.build;
-  const eixos = Object.keys(AXES);
+  /* Os eixos DA RUN, e nao `Object.keys(AXES)`: a uniao tem os das duas
+     classes, entao contra ela um warlock selaria "4 de 6" e o teste cobraria
+     um numero que o `build.axis` dele nao tem como produzir. */
+  const eixos = b.axes;
   if (b.sealedAxes().length) bad("run recem-comecada ja nasce com eixo selado");
   b.addAxis(eixos[0], 1);
   if (b.sealedAxes().length) bad("um eixo aberto ja selou o resto");

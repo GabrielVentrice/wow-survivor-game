@@ -10,8 +10,8 @@ metamorfose faz literalmente no corpo), está no `<title>` e no menu, mas não f
 decidido. O repositório e as pastas continuam `wow-survivor-game`; trocar isso é
 decisão do dono do projeto, não consequência do handoff.
 
-Survivors-like (Vampire Survivors) com tema WoW, classe Warlock, e um sistema de
-build roguelike inspirado em Bloons TD 6 (caminhos de upgrade que trocam a
+Survivors-like (Vampire Survivors) com tema WoW, duas classes jogáveis
+(Warlock e Hunter), e um sistema de build roguelike inspirado em Bloons TD 6 (caminhos de upgrade que trocam a
 identidade da peça) e Echoes of Mystralia (composição livre de efeitos).
 
 O que Bloons empresta hoje é a **profundidade**, não o vocabulário: os três
@@ -52,6 +52,24 @@ projétil, cada um tocando sozinho. O valor não está só no que anima: mecâni
 sem tell em tela ganha tarja laranja, e o filtro "só o que não anima" lista as
 25 que hoje mudam o jogo em silêncio. `driver_gallery` reprova card que estoura,
 card mudo e registry que passou na frente da galeria.
+
+`DRIVER=driver_aspect.js node tools/harness.js .` mede o **pisca**: um aspecto
+com a condição certa e sem histerese roda, não estoura, e destrói a sensação de
+jogo. Ele põe o jogador na BORDA da condição e sacode em volta dela, que é o que
+acontece de verdade quando alguém corrige posição num survivors.
+
+`DRIVER=driver_class.js node tools/harness.js . 12` pergunta se uma classe
+**fecha a própria progressão** — pool cheia, capstone, spell fechada — e se
+nada vaza entre classes. As duas perguntas só passaram a existir com a segunda
+classe, e a primeira delas um registry válido não responde: o warlock validava
+inteiro e fechava zero capstones em 16 runs antes da separação das telas.
+
+`DRIVER=driver_trigger.js node tools/harness.js .` cobra o **contrato de cada
+gatilho novo** — a coisa que um driver de fumaça não vê, porque um trigger
+errado roda, não estoura, e é só uma cópia do `autonomous` com outro nome.
+Armadilha inerte que rearma, bomba que não desliga quando o jogador para,
+matilha que cerca por lados diferentes. Foi ele que achou a poça consumindo a
+própria carga.
 
 `DRIVER=driver_preview.js node tools/harness.js .` escreve
 `tools/telas-preview.html`, com as **sete telas de UI** montadas a partir de
@@ -134,10 +152,13 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/minions.js` | `MINION_AI` + `MinionSystem` |
 | `js/systems/triggers.js` | `TRIGGERS` — quando dispara |
 | `js/systems/dps.js` | a régua da tela de level up: quanto uma peça faz por segundo |
+| `js/systems/aspects.js` | `ASPECTS` + `AspectSystem` — o subsistema do hunter |
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
 | `js/content/paths.js` | `HASTE`/`MASTERY`/`CRIT` — as três linhas de upgrade, geradas |
-| `js/content/*.js` | o catálogo: 44 peças, passivas, capstones, demônios |
+| `js/content/pieces.*.js` | o catálogo por eixo: 44 do warlock + 51 do hunter (9 delas só por evolução) |
+| `js/content/{passives,capstones,minions}.js` | passivas, capstones e o tuning dos demônios |
+| `js/content/hunter.meta.js` | as 8 passivas e os 8 capstones do hunter |
 | `js/render/fx-shapes.js` | `FX_SHAPES` — o gerador de eventos em pixel (`bloom`, `implode`, `nova`, `rip`) |
 | `js/render/tiles.js` | `TILE_ROWS` — as 8 lajes do chão, desenhadas em grade de 42x42 |
 | `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
@@ -163,7 +184,7 @@ Schema de uma peça:
 
 ```js
 {
-  id, key, name, color, axis, axisPoints, tags, desc,
+  id, cls, key, name, color, axis, axisPoints, tags, desc,
   requires?,      // { piece: "<key>" } ou { tag: "<tag>" } — gate de oferta
   vfx?,           // nome em PIECE_VFX
   evolutionOnly?, // true = só chega por evolução, não entra no sorteio
@@ -216,6 +237,89 @@ fica plantado onde nasceu, e `orbit` é o **Voidwalker**, cuja peça inteira é 
 órbita — trigger `orbital`, caminho "Órbita", tiers de raio de anel e velocidade
 de giro. Ali o giro é a mecânica, não o transporte.
 
+### A classe decide QUAL catálogo existe
+
+`PIECES`, `PASSIVES`, `CAPSTONES` e `MINIONS` continuam sendo **um namespace
+só** — e cada entrada declara de quem é, num campo `cls`. A oferta filtra
+(`BuildSystem.owns`); o resto do motor nunca precisa saber que classes existem.
+
+A alternativa — um registry por classe (`PIECES.warlock.*`) — obrigaria a
+reescrever `resolvePiece`, `evolve`, `js/hooks.js`, o `PIECES[path.evolvesInto]`
+de `upgradePath` e o validador inteiro. Isso é refatoração de motor para
+resolver um problema de pertencimento, que é uma linha de dado.
+
+Três campos em `CLASSES` carregam a abstração inteira:
+
+| campo | o que faz |
+|---|---|
+| `axes` | os três eixos da classe, **na ordem em que o HUD os desenha** |
+| `systems` | subsistemas exclusivos (`[]` no warlock, `["aspect"]` no hunter) |
+| `glyph` | a grade da placa do menu |
+
+**`AXES` deixou de ser "os três eixos" e virou a UNIÃO de todas as classes.**
+Quem itera itera `build.axes`, não `AXES` — eram 11 sítios, sete em `js/ui.js` e
+quatro em `js/systems/build.js`, e não pode voltar a ter um décimo segundo.
+
+Quatro coisas que caem daí, e as duas primeiras são bugs que a mudança preveniu:
+
+- **`checkCapstones` sem filtro abre capstone de outra classe, em silêncio.**
+  Ele lê `req` contra o contador de eixo, e numa run de warlock
+  `this.axis.trapping` é `undefined` — `undefined < 15` é **false**, então o
+  requisito passa. Não dá erro, não dá toast estranho: dá capstones errados.
+- **`this.axis` não pode ser literal.** Ele nasce de `cls.axes` no `reset`, e
+  `axisTotal` soma a lista em vez de somar três nomes.
+- **A regra de matiz do driver virou POR CLASSE, e por geometria.** Com
+  corruption em 98°, dominion em 266° e cataclysm em 24°, sobra **um** único
+  ponto no círculo a 60° dos três: seis famílias globais não cabem, não são
+  difíceis. O que precisa ficar longe é o que divide tela, e uma run é uma
+  classe. Um eixo pertence a uma classe só — duas dividindo eixo fariam o
+  catálogo vazar sem que `cls` percebesse.
+- **`driver_form` cobra cobertura de capstone por classe, e só de quem declara
+  mais de uma forma.** Forma única é uma posição coerente ("o meu corpo não
+  conta a progressão"); o que não pode existir é cobertura pela metade — três
+  formas para oito finais é o corpo dizendo que a run chegou longe sem dizer
+  para onde, que é o defeito que tirou a metamorfose do acúmulo de pontos.
+
+As cores do Hunter saem das três especializações do WoW, uma cada: **Matilha**
+`#e0b833` (ouro fulvo de pelo e presa, Beast Mastery), **Precisão** `#3878e0`
+(azul-aço de ponta de flecha, Marksmanship), **Armadilha** `#2fd47e` (jade de
+veneno e alcatrão, Survival). Separação entre elas: 103° / 68° / 171°. Vermelho
+ficou de fora dos dois conjuntos — é reserva da barra de vida, do relógio da
+fase dura e do eyebrow do game over.
+
+### O Hunter: uma forma só, e isso é uma posição
+
+O warlock tem dez formas porque o corpo dele **conta a progressão** — uma por
+capstone, mais o Iniciado. O hunter tem **uma**, e a diferença não é dívida de
+arte: são duas respostas diferentes para "o que o corpo diz sobre a run".
+
+`driver_form` cobra cobertura de capstone **só de quem declara mais de uma
+forma**. Forma única é coerente ("o meu corpo não conta a progressão"); o que
+ele continua proibindo é a cobertura pela metade — três formas para oito finais
+é o corpo dizendo que a run chegou longe sem dizer para onde, que é o defeito
+que tirou a metamorfose do acúmulo de pontos. E ele também reprova forma única
+que aponte para um capstone: ou cobre todos, ou nenhum.
+
+Quatro coisas do hunter que valem para classe nova:
+
+- **A abertura da classe é uma por eixo, e a mais neutra vem primeiro.** Desde
+  que o kit inicial virou a pergunta da abertura (ver "A abertura"), o que a
+  classe declara em `starters` são três spells — uma de cada eixo — e o jogador
+  escolhe. No hunter são `killCommand` (Matilha), `arcaneShot` (Precisão) e
+  `serpentSting` (Armadilha). A regra que sobrevive é a de cobertura: uma por
+  eixo, senão a abertura decide o eixo antes de o jogador escolher.
+- **`DEFAULT_FORMS` desenha o WARLOCK.** Classe nova sem `forms` aparece em
+  campo com o corpo de outra, em silêncio. Ele existe só para quem monta um
+  `Player` fora de uma run (as galerias); toda classe jogável declara `forms`.
+- **Bicho novo pede grade nova.** `driver_render` reprova tipo de demônio sem
+  sprite próprio, então a matilha custou seis grades: lobo, javali, urso,
+  wyvern, tartaruga e espectro. O javali pega `fur0..2` e o urso `fur1..3` —
+  mesma pelagem, três passos acima, que é a regra da fatia que já separa o
+  ghoul do vilefiend.
+- **A rampa `fur` nasceu com QUATRO passos de propósito.** Três passos servem um
+  bicho; quatro servem dois, e é isso que impede a matilha de ler como um
+  animal em dois tamanhos.
+
 ### `key` é a identidade estável, `id` é a aparência
 
 `id`, `name`, `icon`, `trigger` e `effects` mudam na evolução. **`key` nunca.**
@@ -223,6 +327,83 @@ de giro. Ali o giro é a mecânica, não o transporte.
 chave do medidor de dano, guarda anti-recursão e origem dos eventos. Uma
 evolução com `key` diferente da forma base zera o medidor e quebra os efeitos
 ligados à fonte — o validador do harness rejeita isso.
+
+**E a evolução carrega os MESMOS ids de caminho da forma base.** Não é
+convenção: `inst.paths` sobrevive à troca, então um caminho que a forma nova
+não declarasse ficaria com o contador preso num objeto que ninguém lê — e os
+tiers já comprados deixariam de ser aplicados. O que muda entre as duas é o
+CONTEÚDO dos tiers, nunca a chave deles. O validador cobra
+(`falta o caminho "<id>" da forma base`), e é isso que faz o tier 3 comprado
+como Arcane Shot continuar valendo depois de virar Aimed Shot.
+
+**A CORRENTE de duas evoluções.** `Arcane Shot → Aimed Shot → Kill Shot` é a
+primeira peça do jogo que evolui duas vezes, e ela só é possível porque as duas
+regras acima seguram: a `key` é `arcaneShot` nas três formas e os ids de
+caminho — que desde as três linhas são sempre `haste`/`mastery`/`crit` —
+atravessam inteiras.
+
+Três coisas caem daí:
+
+- **A segunda evolução sai de um caminho DIFERENTE do primeiro.** O que evoluiu
+  já está no tier 5 e não sobe mais, então a corrente precisa de dois caminhos
+  fechados — e `PATH_RULES.maxDeep` permite exatamente dois. Ela cabe com folga
+  zero, que é o comprometimento que ela cobra. Na corrente do Arcane Shot a
+  primeira conversão mora em `mastery` e a segunda em `crit`.
+- **O medidor de dano atravessa as duas trocas**, porque a `key` não muda.
+  Medido em `driver_evo`: 6420 como Aimed Shot → 24470 como Kill Shot, mesma
+  entrada de `damageBy`.
+- **Uma corrente é uma decisão de conteúdo, não uma mecânica nova.** O motor já
+  fazia isso desde sempre; ninguém tinha declarado dois `evolvesInto` na mesma
+  linhagem.
+
+**E o que a evolução custa, medido — contra a outra classe, sempre.**
+`driver_class ... imortal 5 ambas`, política de level-up aleatória:
+
+| | warlock | hunter |
+|---|---|---|
+| pool ao fim (mediana) | 20/20 | 8/20 |
+| abates (mediana) | 19,3 mil | 3,3 mil |
+| runs com capstone | 4/5 | 1/5 |
+| runs com evolução | 2/5 | 1/5 |
+
+**Sem a coluna do warlock nenhum desses números quer dizer nada**, e é por isso
+que o regime `ambas` existe. Uma medida só do hunter diz "a pool fecha em 11/20"
+e não diz se a do warlock fecha em 20 ou em 11 — sem a linha de base, todo
+número deste driver vira regressão aparente na primeira vez que o
+balanceamento do jogo inteiro se mexe.
+
+(Cinco seeds é pouco, e mexer no catálogo desloca todo sorteio seguinte: entre
+duas medidas o hunter oscilou entre 8/20 e 11/20 sem nenhuma mudança de
+balanceamento entre elas. O que não oscila é a distância para a coluna do
+warlock, que ficou idêntica nas duas.)
+
+O que a tabela diz é que **o hunter fecha a progressão pior que o warlock, por
+cerca de 3× em abates**, e abate é a moeda do marco. Três coisas que a causa
+**não** é, cada uma descartada por medida:
+
+- **Não é peça fraca.** No `driver_bench` o catálogo do hunter rende mais que o
+  do warlock nos seis cenários (pico mediano fechado 3,1k contra 1,2k), e os
+  tetos são da mesma ordem (rainOfFire 165k e incinerate 52k contra
+  explosiveShot 76k e trueshotAura 32k).
+- **Não é a abertura.** As três spells iniciais do hunter batem mais que as do
+  warlock no tier 0 (killCommand 90/500/610/1300 contra corruption 28/27/103/15).
+- **Não é o corpo.** `CLASSES.hunter.base` tem mais vida e mais passo que o do
+  warlock (110/250 contra 100/240).
+
+O que sobra é a **conversão na horda densa**: numa run de 8 min o warlock põe
+28,5M de dano com 17 peças, todas registrando dano, e o hunter põe 5,0M com 13.
+Quem mede isso é `driver_balance` — com políticas e seeds —, não este driver, e
+enquanto ninguém rodar essa bateria com o hunter o número acima é um diagnóstico
+em aberto, não um alvo já perseguido.
+
+Sobre evolução especificamente: só 9 das 51 peças do hunter têm caminho que
+evolui, e o tier 5 pede 10 pontos no eixo DA PEÇA — é a mesma escolha que a
+separação das duas telas documentou ("o custo é profundidade").
+
+**E `driver_class` não responde sobrevivência.** O regime `mortal` roda as duas
+classes com a mesma política de movimento e as duas morrem em 0,3 min — o que
+esse número mede é o círculo que o bot anda, não a classe. Quem mede tempo de
+vida é `driver_balance`, que tem políticas para isso.
 
 ### O pipeline de stats
 
@@ -538,6 +719,234 @@ o comportamento sem tocar em código: é literalmente o que a evolução faz.
 Todo agendamento usa `game.clock` (relógio de simulação). **`update(dt)` roda
 várias vezes por frame** (sub-stepping) — um trigger que contasse frames
 dispararia 2–4× por frame em timeScale 3x.
+
+**Trigger novo é uma entrada em `TRIGGERS`, e nada mais.** O Hunter trouxe três,
+e cada um existe por uma regra que o `autonomous` não tem — sem ela seria uma
+cópia com outro nome, que é exatamente o que `driver_trigger` reprova:
+
+| trigger | a regra que o faz existir |
+|---|---|
+| `leading` | cai **à frente**, no vetor de movimento, e **não desliga quando o jogador para** |
+| `pack` | nasce em **leva** e reparte o leque de formação em slots |
+| `trap` | fica **inerte** até alguém pisar; carga é o que está plantado, não um contador |
+
+**`leading` é `directional` menos uma linha, e a linha é a peça.** `directional`
+exige `p.moving` porque a mira *é* o deslocamento; `leading` é antecipação —
+cobra o chão para onde o jogador está indo. Parar de andar não pode desligá-lo,
+senão a bomba some exatamente quando o jogador estanca para deixar a horda
+chegar. A regra "parado, usa a última direção válida" não precisa de estado
+próprio: `p.dirX/dirY` já *é* o último vetor não-nulo normalizado.
+
+**No `pack`, o `angle` do spawn é o número do slot — e quem o reparte é o
+trigger.** `MINION_AI._slot` e `MINION_AI.flank` usam `m.angle` como identidade
+de posição, e `MinionSystem.summon` sorteava a fase. Sorteando, dois bichos
+caem no mesmo ponto do flanco e a matilha volta a ser um borrão. Só o trigger
+sabe quantos vão existir, então é ele que reparte — via `c.slot`, que
+**`pushCtx` zera na fonte**: a pilha de contexto é reaproveitada, e um campo
+opcional que só um trigger escreve vaza para a próxima peça daquela
+profundidade. `_told` já ensinou isso uma vez.
+
+E nascer em leva não é estética: com `interval` de 6s e `count` 5, entrando um
+por vez, os dois primeiros já morreram quando o quinto chega — a matilha nunca
+está em campo inteira, que é a única coisa que o eixo Matilha mede.
+
+**A armadilha é uma `area_persistent` com `armed: true`.** O motor já tinha
+posição fixa, raio, vida, consulta pelo grid e payload; o que faltava era o
+estado inerte. Quatro regras caem daí, e a primeira foi um bug medido:
+
+- **Carga é o que está ESPERANDO, e `countArmed` filtra por isso.** Contando
+  toda zona da peça, a poça que a própria armadilha abre entra na conta — mesma
+  `source` — e consome a própria carga: com `charges: 2` e uma poça de 6s no
+  chão, a peça parava de rearmar até a poça vencer. A contagem mora no mundo e
+  não num contador do trigger porque **o trigger não é avisado quando a
+  armadilha dispara**; contador local sairia do ar no primeiro inimigo que
+  pisasse.
+- **Quem pisou vira `c.target` do `onEnd`.** Sem isso `Freezing Trap` congelaria
+  "o raio" e não o corpo, e todo efeito que mira perderia o único alvo que a
+  armadilha tem certeza de ter. Poça que expira continua sem alvo — não há um.
+- **Vencer o prazo NÃO detona.** Detonar no vencimento faria o `onEnd` virar o
+  comportamento normal da peça, e ela deixaria de cobrar posicionamento.
+- **A busca é gasta no `tickInterval`, não por sub-step.** Por sub-step seriam
+  3–4 consultas de grid por armadilha por frame, e a horda não atravessa um raio
+  de 70 unidades em 0,1s.
+
+**E a armadilha é VISÍVEL** (`look: "trap"` — aro tracejado com quatro presas
+apontando para dentro, no raio real). É a mesma objeção do meteoro sem sombra no
+chão: com input só de movimento, armadilha escondida não muda decisão nenhuma
+do jogador, ela vira sorteio. O aro fica no raio exato como o de toda zona,
+porque é ele que informa onde o efeito pega.
+
+**`MINION_AI.flank` é a outra metade do `pack`.** `chase` leva todo bicho pela
+mesma linha — a que liga ele ao inimigo mais próximo —, então cinco bichos
+empilham no mesmo lado e a matilha lê como um bicho grande e borrado. O que faz
+cinco parecerem uma matilha é chegarem por lados **diferentes**. O deslocamento
+do slot **morre conforme o bicho chega**: longe ele corre para o flanco dele,
+perto ele fecha no corpo — sem essa morte ele orbitaria o alvo sem encostar, que
+é o defeito que tirou a órbita de todo demônio com passo próprio. E o raio do
+cerco sai do `radius` do alvo, não de tabela: cercar um ghoul e cercar um chefe
+são distâncias diferentes.
+
+### O Aspecto: canal vivo, porque stat é cozido na aquisição
+
+O subsistema exclusivo do Hunter, declarado em `CLASSES.hunter.systems`. Uma
+stance que liga e desliga **sozinha** conforme o estado do jogo — não há input,
+e o aspecto é a leitura que o motor faz da posição em que o jogador se meteu.
+
+**O pipeline de stats roda uma vez por AQUISIÇÃO, não por tique.** Um aspecto
+que mexesse em `inst.r` teria que re-resolver a build inteira toda vez que
+ligasse, e `resolveAll` clona a árvore de efeitos de toda peça — isso é trabalho
+de aquisição. Então o aspecto **não mexe em stat**: ele escreve em canais vivos,
+lidos no ponto de uso. O precedente já existia e é o mesmo argumento —
+`TRIGGERS.cd()`, que aplica o `cooldownMul` do Nihilam num ponto só *"porque os
+nomes de campo variam demais entre os triggers para virar mod numérico"*.
+
+| canal | lido em | quem usa |
+|---|---|---|
+| `speedMul` | `applyPassives` | Guepardo |
+| `dmgReduction` | `applyPassives` → `Player.takeDamage` | Tartaruga |
+| `damageMul` | `damageEnemy` | Tartaruga |
+| `tagKeys`/`tagMul` | `damageEnemy` | Falcão |
+| `lifesteal` | `damageEnemy` | Víbora |
+| `rangeMul` | `TRIGGERS.rng()`, 4 sítios | Águia |
+| `beastMul` | `MinionSystem.update` e `_attack` | Selvagem |
+
+Regras que caem daí, e cada uma conserta um defeito:
+
+- **O bônus por tag é um `Set` de `key`, montado quando o aspecto vira.**
+  `damageEnemy` roda milhares de vezes por segundo; perguntar
+  `build.pieces.get(key).def.tags.indexOf(...)` ali dentro seria uma busca por
+  acerto. O Set é montado uma vez por virada.
+- **`AspectSystem.tick` roda ANTES de `build.tick`.** Os triggers leem
+  `rangeMul` no mesmo frame, e um aspecto avaliado depois deles valeria sempre
+  um frame atrasado.
+- **A avaliação é gasta em `interval` (0,15s), não por sub-step.** A leitura
+  `enemies` é consulta de grid e `update` roda de 2 a 4 vezes por frame — seriam
+  12 consultas por aspecto por frame para responder uma pergunta que não muda
+  nesse ritmo.
+- **Passo e cadência do bicho viraram DERIVADOS.** Dois sistemas mexem neles —
+  `HOOKS.farejarSangue` (frenesi timado, por bicho) e o aspecto Selvagem
+  (estado, global). Enquanto os dois escreviam direto em `m.speed`, o último a
+  rodar vencia e o outro sumia sem erro nenhum. Hoje `m.baseSpeed` fica intacto
+  e os dois multiplicam.
+
+#### A condição se MEDE, e a contagem crua mede o relógio
+
+A histerese abaixo impede o aspecto de piscar. Ela não diz nada sobre o aspecto
+**acontecer** — e essa é a outra metade, que custou uma rodada inteira para
+aparecer porque nenhum driver olhava para ela.
+
+Os seis limiares nasceram de intuição sobre o jogo. Medidos numa run de verdade
+(8 min, política de movimento do bot), quatro dos seis não eram condição
+nenhuma:
+
+| aspecto | condição original | quanto tempo ficava ligada |
+|---|---|---|
+| Guepardo | zero inimigos em 340 | **1,3%** |
+| Falcão | parado há 2s | **0,0%** |
+| Águia | 5+ inimigos em 360 | **98%** |
+| Selvagem | 3+ bichos | 100% na build de Matilha, 0% em toda outra |
+
+Duas nunca ligavam e duas nunca desligavam. Postura que nunca liga é carta
+morta; postura que nunca desliga é buff fixo com nome de postura. E o defeito
+não aparecia em `driver_aspect`, porque uma mesa monta a condição à mão — ela
+prova que o mecanismo FUNCIONA, e não que o jogo o alcança.
+
+**A causa é uma só: contagem crua de inimigos mede o relógio da run, não a
+posição do jogador.** A densidade dentro de 360 unidades vai de 21 corpos no
+minuto 3 a 160 no minuto 7 — oito vezes. Um limiar em número de corpos liga pelo
+minuto em que a run está, que é o contrário do que um aspecto é.
+
+O conserto é a leitura `press`: a **razão** entre o anel de dentro e o de fora.
+Ela é estável na mesma run — 0,20 · 0,22 · 0,22 · 0,22 · 0,21 · 0,23 · 0,20 ·
+0,17 por minuto, enquanto a contagem crua multiplicava por oito — porque mede o
+que o jogador controla (estar no meio ou na beirada) e não o quanto o spawner já
+cresceu. A linha de base é geométrica: com densidade uniforme a razão seria
+`inner²/range²`.
+
+Com os limiares tirados da distribuição medida, as três posturas posicionais
+viraram posturas de verdade — Guepardo **30,5%**, Falcão **11,8%**, Águia
+**31,9%**, com o vão e o `hold` segurando o pisca.
+
+**E três dos seis são FASE, não postura, porque a variável é lenta.** Vida e
+tamanho da matilha andam num sentido só dentro de uma run: Tartaruga (60%),
+Víbora (38%) e Selvagem (55%) ligam uma vez e ficam. Isso é coerente — "quando
+você está para morrer, você se fecha no casco" é uma fase —, mas é bom saber que
+o subsistema tem duas espécies dentro dele, e que só a posicional responde ao
+único input do jogo.
+
+**Leitura que inventa um número que o jogo não tem mede a própria invenção.** O
+Selvagem passou por uma versão com denominador — bichos vivos sobre a
+"capacidade da build", somando os tetos dos efeitos `summon` resolvidos — e o
+número estava errado por construção: o motor **não mantém** essa conta. O teto é
+cobrado por peça (`countOf(c.key)`), hook também invoca sem declarar `summon`, e
+o resultado media 14 bichos contra um teto calculado de 8. A fração saturava em
+1 e o aspecto ficava 95,7% ligado. Ele voltou para contagem crua com o limiar
+medido (8/5, que é onde uma build de Matilha se sustenta no tier 0).
+
+#### Pulso que produz a própria condição não pode ser cobrado por ela
+
+O trigger `aspect` pulsa **enquanto a postura estiver de pé**, e isso é o certo
+para cinco das seis peças: o efeito é a recompensa de a postura estar ligada.
+
+O Selvagem é a exceção, e ela tem regra. A postura dele liga com a matilha
+grande em campo, e o pulso dele **é** o que põe lobo em campo. Gatilhado pela
+postura, ele nunca teria o primeiro lobo, nunca alcançaria o limiar e a peça
+ficaria morta para sempre — medido no banco, **zero dano nos seis cenários com o
+caminho fechado**, que é exatamente a regra que `driver_bench` reprova.
+
+`whileActive: false` no trigger desliga a cobrança. A postura deixa de ser o
+interruptor do pulso e volta a ser só o que sempre foi: o multiplicador nos
+canais vivos. E a régua acompanha — `dpsTrigger` usa cadência cheia em vez de
+`aspectUptime` quando o campo está declarado, senão a carta prometeria 40% do
+que a peça entrega.
+
+Vale para qualquer peça futura cujo efeito alimente a leitura da própria
+condição — é auto-referência, não um caso especial do Selvagem.
+
+#### O slot cheio tem que sumir da oferta
+
+Com seis aspectos e três slots, a quarta peça de aspecto entra na build e **não
+faz nada**: `register` recusa, e o trigger `aspect` não pulsa sem registro. É a
+mesma coisa que a carta de +0 que o sorteio já pula, e pior — esta cobra o ponto
+de eixo da etapa antes de não fazer nada.
+
+Quem responde é o subsistema, porque é quem sabe o próprio teto:
+`requires: { slot: "aspect" }` no dado da peça, e `AspectSystem.hasRoom` em
+`meetsRequires`. Peça já possuída continua cabendo, senão o level up não poderia
+oferecer **tier** dela.
+
+**A HISTERESE são dois guardas, e cada um mata um jeito diferente de piscar.**
+
+O primeiro é o **vão**: a condição declara `on` e `off`, e a direção é
+implícita — se `on > off` ela é de subida, se `on < off` é de descida. O vão
+entre os dois *é* a histerese, e ele não pode ser esquecido porque não é um
+campo opcional: `driver_aspect` reprova `on === off`. Com a Águia em 0,32/0,24,
+um corpo atravessando o anel de dentro não liga e desliga nada — a razão teria
+que cair um terço.
+
+O segundo é o **tempo** (`BALANCE.aspect.hold`): o piso de permanência mata o
+pisca de quem atravessa o vão inteiro depressa, e a horda fecha e abre em menos
+de um segundo. Ele vale para os dois lados — ligar cedo demais é tão ruim
+quanto desligar cedo demais.
+
+**A exclusão mútua não desliga o perdedor, ela só não o CONTA.** Dentro de um
+grupo, o de maior `priority` que estiver satisfeito é o único que contribui;
+os outros continuam "ligados" no estado. Desligá-los ali reiniciaria o relógio
+de permanência deles e o pisca voltaria pela porta dos fundos. Guepardo
+(na borda da horda) e Falcão (parado, mirando) são posturas opostas:
+com o campo vazio e o jogador parado as duas condições valem ao mesmo tempo, e
+é justamente aí que o par não pode aparecer aceso junto.
+
+**E o aspecto é ESTADO, então ele não emite evento.** Emitir um vfx a cada
+avaliação seria o mesmo erro que emitir um evento a cada 0,5s para dizer "você
+tem escudo". Ele se desenha enquanto dura: pips **no chão**, aos pés — a faixa
+de cima já pertence à build acesa e o corpo do personagem é a coisa que a
+hierarquia de leitura não deixa cobrir. É a mesma regra da casca do escudo e do
+rastro do Burning Rush. O teto de três é o dos slots, então não há o que limitar.
+
+`driver_aspect` guarda tudo isso, e a medida que importa é a última: o jogador é
+posto **na borda** da condição e sacudido em volta dela — que é o que acontece
+de verdade quando ele corrige posição num survivors.
 
 ### `damageEnemy(e, amount, key, big, dotKey)` é o funil
 
@@ -1349,7 +1758,7 @@ criaturas do mesmo material diferem por QUAIS três passos da rampa".
 | o que dura | a fatia | quem lê |
 |---|---|---|
 | casca de escudo | `veil: { sides, spin, thick, spikes }` | `EFFECTS.shield` → `Player.setVeil` |
-| zona no chão | `look: "fire" \| "rot" \| "ash"` | `EFFECTS.area_persistent` → `AreaEffect.draw` |
+| zona no chão | `look: "fire" \| "rot" \| "ash" \| "trap"` | `EFFECTS.area_persistent` → `AreaEffect.draw` |
 | orbe de DoT | `look: "rot" \| "fire" \| "curse" \| "unstable" \| "doom"` | `DotSystem.apply` → `Enemy.drawDotOver` |
 
 Três regras que caem daí:
@@ -1369,9 +1778,23 @@ Três regras que caem daí:
   estourar, sentença fecha para dentro conforme o prazo acaba. É o mesmo orbe
   nos cinco casos.
 
-**Estado final: 43 peças, 43 assinaturas distintas, zero mudas.** Nenhuma peça
+**Estado final: 95 peças, 95 assinaturas distintas, zero mudas.** Nenhuma peça
 do jogo desenha o mesmo que outra, e `driver_vfx` reprova a primeira que voltar
 a colidir.
+
+O catálogo do hunter dobrou o número de peças e o driver cobrou cada colisão —
+onze delas. **Nenhuma foi paga com desenho novo**, e é isso que prova que os
+canais de distinção que já existiam bastam:
+
+| o que colidia | o que separou |
+|---|---|
+| seis peças de tiro, todas `proj` | o que cada tiro FAZ ao acertar: `arcaneShot` enfraquece, `aimedShot` soca, `rapidFire` incendeia, `multiShot` abre em leque, `aspectOfTheHydra` envenena |
+| duas peças que só davam escudo | a fatia do `veil` — 6 lados com espinho contra 9 girando ao contrário |
+| Kill Command contra outro `rip` | a **relação**: o filamento do bicho até o alvo, que é o que a peça literalmente é |
+| dois sangramentos `rot` | o `look` do orbe: estilhaço cravado é `unstable`, não podridão |
+
+A lição é a de sempre neste arquivo: quando duas peças desenham igual, quase
+nunca falta arte — falta a peça dizer em tela o que ela já faz na simulação.
 
 ### Mecânica que cobra, avisa
 
@@ -2826,7 +3249,9 @@ informação de combate.
 
 1. Escolha o arquivo de `js/content/` pelo eixo.
 2. Adicione a entrada em `Object.assign(PIECES, { ... })` seguindo o schema.
-3. `key` igual ao `id`, a menos que seja evolução de outra peça.
+3. `key` igual ao `id`, a menos que seja evolução de outra peça. E **`cls`
+   explícito** — não há default: peça sem dono cairia no catálogo da outra
+   classe e ninguém veria. O `axis` tem que ser um dos três de `cls`.
 4. Todo número em `stats`; trigger e efeitos só com `"@ref"`.
    **Não há campo `icon`**: o ícone sai de `Glyph.svg(id)` — mapeie o `id` em
    `GLIFO_SPRITE` (se a peça invoca um demônio que já tem grade) ou em

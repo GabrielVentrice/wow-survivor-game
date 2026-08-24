@@ -145,6 +145,7 @@
 <script src="js/systems/effects.js"></script>
 <script src="js/systems/dots.js"></script>
 <script src="js/systems/minions.js"></script>
+<script src="js/systems/aspects.js"></script>
 <script src="js/systems/triggers.js"></script>
 <script src="js/hooks.js"></script>
 <script src="js/content/paths.js"></script>
@@ -154,6 +155,11 @@
 <script src="js/content/pieces.cataclysm.js"></script>
 <script src="js/content/pieces.defense.js"></script>
 <script src="js/content/pieces.control.js"></script>
+<script src="js/content/pieces.hunter.pack.js"></script>
+<script src="js/content/pieces.hunter.precision.js"></script>
+<script src="js/content/pieces.hunter.trapping.js"></script>
+<script src="js/content/pieces.hunter.survival.js"></script>
+<script src="js/content/pieces.hunter.aspects.js"></script>
 <script src="js/content/passives.js"></script>
 <script src="js/content/capstones.js"></script>
 <script src="js/render/fx-shapes.js"></script>
@@ -198,6 +204,21 @@ const PIECE_FILES = {
   "js/content/pieces.cataclysm.js": ["incinerate", "immolate", "conflagrate", "rainOfFire", "infernal", "shadowburn", "burningTrail", "chaosBolt", "wither", "cataclysm"],
   "js/content/pieces.defense.js": ["drainLife", "soulLeech", "unendingResolve", "demonSkin", "healthstone", "netherWard", "soulstone"],
   "js/content/pieces.control.js": ["burningRush", "demonicCircle", "shadowfury", "curseOfExhaustion", "curseOfTongues", "howlOfTerror", "mortalCoil", "banish", "enslaveDemon"],
+  "js/content/pieces.hunter.pack.js": ["killCommand", "barbedShot", "beastCleave",
+    "wildThrash", "callOfTheWild", "direBeast", "stampede", "howlOfThePackLeader",
+    "bestialWrath", "animalCompanion"],
+  "js/content/pieces.hunter.precision.js": ["arcaneShot", "aimedShot", "rapidFire",
+    "multiShot", "trickShots", "killShot", "sentinelsMark", "aspectOfTheHydra",
+    "volley", "blackArrow"],
+  "js/content/pieces.hunter.trapping.js": ["tarTrap", "freezingTrap", "explosiveTrap",
+    "bindingShot", "wildfireBomb", "shrapnelBomb", "explosiveShot", "flamebreak",
+    "raptorStrike", "mongooseBite", "serpentSting"],
+  "js/content/pieces.hunter.survival.js": ["exhilaration", "survivalOfTheFittest",
+    "feignDeath", "shellCover", "roarOfSacrifice", "mendPet", "disengage",
+    "camouflage", "trueshotAura", "intimidation", "tranquilizingShot",
+    "concussiveShot", "scareBeast", "harpoon"],
+  "js/content/pieces.hunter.aspects.js": ["aspectOfTheCheetah", "aspectOfTheHawk",
+    "aspectOfTheTurtle", "aspectOfTheViper", "aspectOfTheEagle", "aspectOfTheWild"],
 };
 function pieceFile(id) {
   for (const f in PIECE_FILES) if (PIECE_FILES[f].indexOf(id) >= 0) return f;
@@ -355,6 +376,9 @@ function spawnArea(w, e, x, y, col) {
   a.reset(null, {
     x: x, y: y, radius: e.radius || 60, life: Math.min(4, e.duration || 3),
     color: e.color || col, follow: !!e.follow, dps: e.dps || 0,
+    // `look` decide o ARO, que é a única coisa que separa poça de armadilha:
+    // sem passar por aqui, o card do `trap` desenharia uma poça de fogo.
+    look: e.look, armed: !!e.armed,
   });
   w.areas.push(a);
 }
@@ -507,6 +531,60 @@ function playHook(w, name, x, y, target, col) {
     case "voraz":
       if (target) { target.dots.length = 0; w.vfx.emit("burst", target.x, target.y, 70, CAPSTONES.voraz.color); }
       break;
+
+    /* --- hunter ---------------------------------------------------------- */
+
+    // Kill Command: o comando é uma RELAÇÃO entre a matilha e o alvo, e é o
+    // filamento que a desenha. Sem ele a peça só pisca no alvo.
+    case "comandoDaMatilha": {
+      const m = w.minions[0] || spawnMinion(w, "wolf", col, false);
+      if (target && m) {
+        w.vfx.emit("link", m.x, m.y, 0, col, target.x, target.y);
+        w.vfx.emit("rip", target.x, target.y, 46, col);
+        target.hitFlash = 0.1;
+      }
+      break;
+    }
+    // Barbed Shot / Bestial Wrath: o frenesi é um estado da matilha inteira.
+    case "farejarSangue":
+      if (!w.minions.length) for (let i = 0; i < 3; i++) spawnMinion(w, "wolf", col, false);
+      w.vfx.emit("shock", p.x, p.y, 120, col);
+      for (const m of w.minions) w.vfx.emit("summon", m.x, m.y, m.radius * 2.2, col);
+      break;
+    // Dire Beast: nunca se sabe qual vem — e é isso que o card mostra.
+    case "bichoDaMata": {
+      const kinds = ["wolf", "boar", "bear", "wyvern"];
+      spawnMinion(w, kinds[(w.diraIdx = ((w.diraIdx || 0) + 1)) % kinds.length], col, false);
+      break;
+    }
+    // Batedor: todo golpe de bicho marca. A marca é 9×9 sobre a cabeça.
+    case "batedor":
+      if (target) { target.marked = 0.45; target.markedUntil = w.t + 5; target.hitFlash = 0.1; }
+      break;
+    // Ranger Sombria: o que morre de golpe pesado levanta como espectro.
+    case "rangerSombria":
+      if (target) {
+        w.vfx.emit("implode", target.x, target.y, 60, col);
+        spawnMinion(w, "spectre", col, false);
+      }
+      break;
+    /* O tier 5 de toda peça de aspecto. O card mostra os DOIS limiares andando
+       juntos — é essa a regra: mover um contra o outro fecharia o vão, e vão
+       fechado é o pisca de volta, embrulhado como recompensa. */
+    case "posturaTeimosa": {
+      const pips = [hexRgb(ASPECTS.eagle.color), hexRgb(ASPECTS.viper.color)];
+      w.player.aspectMarks = (w.t % 4) < 2.6 ? pips : pips.slice(0, 1);
+      w.vfx.emit("shock", p.x, p.y, 90, col);
+      break;
+    }
+    // Domador: armadilha que dispara põe a matilha inteira em frenesi.
+    case "domador": {
+      if (!w.minions.length) for (let i = 0; i < 2; i++) spawnMinion(w, "boar", col, false);
+      spawnArea(w, { radius: 60, duration: 1.0, look: "rot" }, p.x + 60, p.y + 8, col);
+      w.vfx.emit("shock", p.x + 60, p.y + 8, 70, col);
+      for (const m of w.minions) w.vfx.emit("summon", m.x, m.y, m.radius * 2.2, col);
+      break;
+    }
     case "contagion": {
       const other = w.enemies.find((en) => en !== target);
       if (target) w.vfx.emit("jump", target.x, target.y, 20, target.dotColor || col);
@@ -851,6 +929,60 @@ const TRIGGER_INFO = {
   autonomous: { name: "população autônoma", tell: "repõe população: o que se vê é a invocação nascendo e expirando",
     setup(w) { w.enemies.push(dummyEnemy("ghoul", 100, -16)); },
     tick(w) { every(w, "c", 3.2, () => spawnMinion(w, "wildImp", axc(), false)); } },
+  leading: { name: "à frente do movimento", tell: "cai à frente, no vetor de movimento — e continua caindo PARADO, na última direção válida",
+    gap: true,
+    setup(w) { w.walkPlayer = true; w.enemies.push(dummyEnemy("ghoul", 120, -10)); },
+    tick(w) {
+      /* Sem o `if (w.player.moving)` do `directional`, e é essa a diferença que
+         o card existe para mostrar: quando o player para, a zona continua
+         saindo do mesmo lado. */
+      every(w, "c", 1.2, () => {
+        spawnArea(w, { radius: 46, duration: 1.8 },
+                  w.player.x + (w.player.dirX || 1) * 110,
+                  w.player.y + (w.player.dirY || 0) * 110, axc());
+      });
+    } },
+  pack: { name: "matilha em formação", tell: "nasce em LEVA e cada bicho toma um slot do leque — o cerco por lados diferentes é o tell",
+    size: 300,
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 100, -16)); },
+    tick(w) { every(w, "c", 5.0, () => {
+      for (let i = 0; i < 3; i++) spawnMinion(w, "wolf", axc(), false);
+    }); } },
+  trap: { name: "armadilha armada", tell: "aro tracejado com quatro presas, no raio EXATO — fica inerte e só cobra quando alguém pisa",
+    size: 260,
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 150, -12)); },
+    tick(w) {
+      /* Duas batidas no mesmo ciclo, e é a sequência que o card existe para
+         mostrar: a armadilha ESPERA (aro tracejado, sem cobrar nada) e só
+         então alguém pisa. O card não simula colisão, então o "pisou" é
+         encenado — `armado` guarda em que metade do ciclo estamos. */
+      const ciclo = 3.6, fase = w.t % ciclo;
+      if (!w.armado && fase < 0.1) {
+        w.armado = true;
+        spawnArea(w, { radius: 60, duration: 3.4, look: "trap", armed: true },
+                  w.player.x + 60, w.player.y + 8, axc());
+      }
+      if (w.armado && fase > 2.4) {
+        w.armado = false;
+        for (const a of w.areas) if (a.armed) a.life = 0;
+        w.vfx.emit("implode", w.player.x + 60, w.player.y + 8, 60, axc());
+        spawnArea(w, { radius: 78, duration: 1.2, look: "rot" },
+                  w.player.x + 60, w.player.y + 8, axc());
+      }
+    } },
+  aspect: { name: "postura automática", tell: "pips no CHÃO aos pés, um por aspecto de pé — estado que dura se desenha enquanto dura, nunca por evento",
+    size: 260,
+    setup(w) { w.enemies.push(dummyEnemy("ghoul", 110, -12)); },
+    tick(w) {
+      /* O card mostra a coisa que o sistema existe para não fazer: ele alterna
+         entre um e três aspectos DEVAGAR, na cadência do `hold`. Um card que
+         piscasse os pips estaria desenhando exatamente o defeito. */
+      const ciclo = BALANCE.aspect.hold * 3;
+      const fase = Math.floor((w.t % (ciclo * 2)) / ciclo);
+      const cores = [hexRgb(ASPECTS.cheetah.color), hexRgb(ASPECTS.eagle.color),
+                     hexRgb(ASPECTS.wild.color)];
+      w.player.aspectMarks = fase ? cores : cores.slice(0, 1);
+    } },
   reactive: { name: "reativo a evento", tell: "dispara em EVENTO, não em cooldown — o tell é o efeito, no lugar do evento",
     gap: true,
     setup(w) { for (let i = 0; i < 2; i++) w.enemies.push(dummyEnemy("skeleton", 90 + i * 30, -20 + i * 40)); },
@@ -1041,6 +1173,13 @@ const HOOK_INFO = {
   soulstone: { owner: "peça Soulstone", tell: "cruz de cura no player a cada carga reposta", demo: "soulstone" },
   blink: { owner: "peça Demonic Circle", tell: "blink na saída E na chegada — dois anéis, um teleporte", demo: "blink" },
   healthstone: { owner: "peça Healthstone", tell: "cruz de cura quando a vida cai do limiar", demo: "healthstone" },
+  comandoDaMatilha: { owner: "peça Kill Command", tell: "filamento do bicho até o alvo: o comando é uma RELAÇÃO, não um piscar no alvo", demo: "comandoDaMatilha" },
+  farejarSangue: { owner: "peça Barbed Shot / Bestial Wrath", tell: "pulso no player + um anel por bicho: o frenesi é da matilha inteira", demo: "farejarSangue" },
+  bichoDaMata: { owner: "peça Dire Beast", tell: "nunca se sabe qual vem — lobo, javali, urso ou wyvern, um por chamado", demo: "bichoDaMata" },
+  batedor: { owner: "capstone Batedor", tell: "marca de 9×9 sobre a cabeça de quem o bicho mordeu", demo: "batedor" },
+  rangerSombria: { owner: "capstone Ranger Sombria", tell: "implosão no corpo e o espectro subindo dele", demo: "rangerSombria" },
+  domador: { owner: "capstone Domador", tell: "a armadilha dispara e a matilha inteira acende junto", demo: "domador" },
+  posturaTeimosa: { owner: "tier 5 de toda peça de aspecto", tell: "a postura fica teimosa: os dois limiares andam juntos, e o vão entre eles — que É a histerese — sobrevive inteiro", demo: "posturaTeimosa" },
 };
 
 function hookItems() {
@@ -1273,6 +1412,12 @@ function tellOf(vis, def) {
       else if (e.type === "convert") out.push("conversão");
       else if (e.type === "reflect") out.push("onda de choque");
       else if (e.type === "spread_on_death") out.push("propagação");
+      else if (e.type === "self_speed") out.push("riscas de pressa no chão");
+      else if (e.type === "weaken") out.push("marca de enfraquecido");
+      else if (e.type === "mark") out.push("marca de alvo");
+      else if (e.type === "knockback") out.push("rastro de deslocamento");
+      else if (e.type === "pull") out.push("rastro de puxão");
+      else if (e.type === "chain") out.push("filamento de salto");
       else if (e.type === "hook" && HOOK_INFO[e.name]) out.push("hook " + e.name);
       walk(e.onHit, depth + 1); walk(e.onTick, depth + 1);
       walk(e.effects, depth + 1); walk(e.onEnd, depth + 1);
@@ -1282,6 +1427,8 @@ function tellOf(vis, def) {
   if (def.vfx) out.push("aura " + def.vfx + " ao concluir");
   if (vis.trigger.type === "aura") out.push("anel de aura");
   if (vis.trigger.type === "rooted") out.push("anel de carga");
+  if (vis.trigger.type === "aspect") out.push("pips de postura aos pés");
+  if (vis.trigger.type === "trap") out.push("aro de armadilha armada");
   const uniq = [];
   for (let i = 0; i < out.length; i++) if (uniq.indexOf(out[i]) < 0) uniq.push(out[i]);
   return uniq;
