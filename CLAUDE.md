@@ -112,6 +112,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
+| `js/leaderboard.js` | `LB` + `Leaderboard` — recorde local, envio ao form, leitura da planilha |
 | `js/ui-icons.js` | `UI_ICONS` — a grade 16x16 de cada peça, passiva e capstone |
 | `js/ui-glyph.js` | `UI_PAL` + `Glyph` — a paleta da UI e o que substitui todo emoji |
 | `js/ui.js` | `UI` — HUD, tela de level-up, tela de etapa, pausa, baú, game over |
@@ -1934,6 +1935,47 @@ brilhar tanto quanto uma spell, a spell para de significar alguma coisa.
 
 `Scenery.corruption` (0..1) vem de `elapsed / hardAt` e faz o mundo apodrecer
 junto com a run — veios mais vivos, mais brasa no ar, vinheta mais fechada.
+
+### O placar: sem servidor, a validação vira filtro de LEITURA
+
+O quadro dos amigos mora num Google Form (escrita) e numa planilha (leitura),
+e essa escolha decide o resto: **não há servidor, então não há validação na
+escrita.** Qualquer um posta `tempo: 99999`. A regra migra para o outro lado —
+`Leaderboard.valid` roda na **leitura**, a planilha guarda tudo e o placar só
+desenha o plausível. O que ela reprova vira contagem no rodapé (`3 fora da
+curva`), nunca sumiço em silêncio: filtro invisível é filtro que ninguém
+percebe que quebrou.
+
+Seis regras, e as quatro primeiras já custaram um defeito cada:
+
+- **Nenhuma constante copiada nos limites.** `minKillsFor` soma `xpForLevel` e
+  `maxKillsFor` lê `BALANCE.spawn` — uma tabela escrita à mão envelheceria no
+  primeiro rebalanceamento e passaria a reprovar **run honesta**, que é o pior
+  defeito que um filtro pode ter. `driver_leaderboard` mexe nas duas fontes e
+  cobra que o filtro se mexa junto.
+- **O tempo viaja em milissegundo INTEIRO.** O Forms grava tudo como texto e o
+  Sheets adivinha o tipo célula a célula: com vírgula decimal um `724.5` cai
+  como texto, e coluna de texto ordena `"9"` acima de `"12"` — a métrica
+  ranquearia ao contrário.
+- **Uma linha por amigo.** O `QUERY` da planilha corta em 50 linhas ordenadas
+  por tempo; sem `melhorPorJogador`, quem tem as 50 melhores runs **é** o placar
+  inteiro. E só recorde pessoal é enviado, pela mesma razão: um quadro de melhor
+  de sempre nunca desenha uma run que nem o próprio dono bateu.
+- **O nome é conteúdo de terceiro.** Ele vem de uma planilha que qualquer um
+  escreve e é desenhado com `innerHTML`. `UI.esc` é o que separa "meu amigo pôs
+  um nome bobo" de "meu amigo pôs um `<script>` na página inicial de todos".
+- **A UI nunca diz "enviado".** `no-cors` devolve resposta opaca: não há status,
+  não há corpo. Por isso também não há retry — sem resposta, um retry não
+  distingue falha de sucesso, ele só duplica a linha.
+- **Abates fica ao lado do tempo, e não é opcional.** A métrica é sobrevivência,
+  e sobrevivência premia fugir em círculo. A coluna de abates transforma isso em
+  informação pública sem o placar precisar acusar ninguém.
+
+A camada local (`localStorage`: nome e recorde pessoal) é a metade que **sempre**
+funciona: sem rede, sem form, sem planilha. Ela nunca lança — storage bloqueado
+devolve estado vazio, senão o game over inteiro morreria junto. O plano completo,
+com o que ficou de fora e por quê, está em `PLANO-RANKING.md`; o setup do form é
+`tools/setup-leaderboard.gs`, que roda uma vez e imprime as constantes.
 
 ### Assets: dois, e ambos com plano B
 

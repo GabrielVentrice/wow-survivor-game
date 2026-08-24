@@ -368,6 +368,55 @@
   .menu-apoio s { width:6px; height:1px; background:var(--osso-100); text-decoration:none; }
   .ax-corr { color:var(--corr-500); } .ax-dom { color:var(--dom-500); } .ax-cat { color:var(--cat-500); }
 
+  /* --- 9.1b O placar -----------------------------------------------------
+     Placa de osso: o tempo e o nome sao neutros e a UNICA cor da tabela e o
+     glifo da assinatura — a peca que mais deu dano, na cor do eixo dela. E a
+     mesma regra da tira do HUD (cor diz o eixo, silhueta diz a familia), e e o
+     que faz voce reconhecer a build do amigo antes de ler o nome.
+
+     ABATES fica ao lado do tempo e nao e opcional: e a coluna que transforma
+     "sobrevivi fugindo" em informacao publica, sem o placar acusar ninguem. */
+  .menu-placar {
+    position:absolute; right:56px; top:50%; transform:translateY(-50%);
+    width:430px; padding:var(--e5); pointer-events:auto;
+    display:flex; flex-direction:column; gap:var(--e4);
+  }
+  .lb-head { display:flex; align-items:baseline; justify-content:space-between; gap:var(--e3); }
+  .lb-rows { display:flex; flex-direction:column; }
+  /* min-height, nunca height: nome longo quebra e transbordaria. */
+  .lb-row {
+    display:grid; grid-template-columns:20px 22px 1fr auto auto; gap:var(--e3);
+    align-items:center; min-height:34px; border-top:1px solid var(--obs-500);
+  }
+  .lb-row:first-child { border-top:0; }
+  .lb-pos  { font-family:var(--fonte-dado); font-size:var(--rotulo); color:var(--osso-300); }
+  .lb-gli  { display:flex; align-items:center; justify-content:center; }
+  .lb-gli svg { width:20px; height:20px; display:block; }
+  .lb-nome-c { font-family:var(--fonte-display); font-size:19px; font-weight:800;
+               letter-spacing:.06em; text-transform:uppercase; color:var(--osso-600);
+               overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lb-t { font-family:var(--fonte-dado); font-size:var(--dado-m); color:var(--osso-600); }
+  .lb-k { font-family:var(--fonte-dado); font-size:var(--rotulo); color:var(--osso-300);
+          min-width:70px; text-align:right; }
+  .lb-eu .lb-nome-c, .lb-eu .lb-t { color:#fff; }
+  .lb-vazio { padding:var(--e4) 0; color:var(--osso-300); font-size:var(--rotulo);
+              font-family:var(--fonte-dado); }
+  .lb-pe { display:flex; align-items:center; gap:var(--e3); }
+  .lb-input {
+    flex:1; min-width:0; min-height:var(--alvo); padding:0 var(--e3);
+    background:var(--obs-800); border:1px solid var(--osso-200); color:var(--osso-600);
+    font-family:var(--fonte-display); font-size:18px; font-weight:800;
+    letter-spacing:.06em; text-transform:uppercase;
+  }
+  .lb-input:focus { outline:none; border-color:var(--osso-600); }
+
+  /* O cartaz e a prioridade: abaixo disso o placar SAI em vez de espremer. */
+  @media (max-width:1240px) { .menu-placar { display:none; } }
+
+  .go-placar { display:flex; flex-direction:column; gap:var(--e1); }
+  .go-recorde b { color:var(--osso-600); }
+  .go-novo b { color:#fff; }
+
   .menu-tag { margin-bottom:44px; max-width:560px; font-size:22px; line-height:1.45; color:var(--osso-400); }
 
   .classe {
@@ -808,6 +857,22 @@
         <span class="rotulo dim">Enter</span>
       </div>
     </div>
+    <!-- 9.1b O placar. Mora no vao DIREITO do cartaz, que e o unico espaco
+         vazio do menu — a coluna da esquerda continua intocada. Some abaixo de
+         1200px em vez de espremer: o cartaz e a prioridade da tela. -->
+    <aside id="lbPanel" class="menu-placar placa ch3">
+      <div class="lb-head">
+        <h3 class="display-s">Placar</h3>
+        <span class="rotulo dim" id="lbEstado">carregando</span>
+      </div>
+      <div id="lbRows" class="lb-rows"></div>
+      <div class="lb-pe">
+        <label class="rotulo dim" for="lbNome">Seu nome</label>
+        <input id="lbNome" class="lb-input" maxlength="16" spellcheck="false"
+               autocomplete="off" placeholder="sem nome">
+      </div>
+    </aside>
+
     <div class="menu-rodape rotulo">Mover <b>WASD</b> · Pausa <b>ESC</b> · Som <b>M</b> · Música <b>N</b></div>
     <div class="menu-versao">v0.9</div>
   </div>
@@ -925,6 +990,8 @@
             <p class="texto-l" id="goLine"></p>
             <div class="painel-div"></div>
             <div id="goExtra"></div>
+            <div class="painel-div"></div>
+            <div id="goPlacar" class="go-placar"></div>
           </div>
           <div class="go-acoes">
             <button class="btn btn-osso ch1 btn-64" id="restartBtn">Tentar de novo</button>
@@ -972,6 +1039,7 @@
 <script src="js/render/vfx.js"></script>
 <script src="js/ui-icons.js"></script>
 <script src="js/ui-glyph.js"></script>
+<script src="js/leaderboard.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/game.js"></script>
 </body>

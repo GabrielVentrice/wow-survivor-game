@@ -282,7 +282,8 @@ fluxos de RNG é o pré-requisito das duas coisas.
 
 ## 10. Ordem de construção
 
-Cada passo vale sozinho, e nenhum depende do seguinte.
+**Estado: os quatro passos estão feitos.** O que mudou em relação ao plano está
+anotado abaixo. Cada passo vale sozinho, e nenhum depende do seguinte.
 
 1. **Local**: `localStorage`, nome do jogador, recorde pessoal no game over.
    Não toca em rede, não toca no menu.
@@ -293,5 +294,19 @@ Cada passo vale sozinho, e nenhum depende do seguinte.
    certo.
 4. **Leitura + placar**: o menu busca, filtra por §7 e desenha §8.
 
-No passo 2 só a execução é sua: o script está escrito, e o que ele imprime é o
-`LB` que os passos 3 e 4 consomem.
+### O que a implementação mudou no plano
+
+Duas coisas só apareceram construindo, e as duas viraram regra:
+
+- **Uma linha por amigo, e só recorde pessoal é enviado.** O `QUERY` corta em 50
+  linhas por tempo — enviando toda run, um jogador com as 50 melhores tomaria o
+  placar inteiro. `Leaderboard.melhorPorJogador` deduplica na leitura, e o envio
+  passou a exigir recorde: um quadro de melhor de sempre nunca vai desenhar uma
+  run que nem o próprio dono bateu.
+- **O nome precisa ser escapado.** Ele vem de uma planilha que qualquer um pode
+  escrever e é desenhado com `innerHTML` na página inicial de todos os amigos.
+  `UI.esc` cobre isso e `driver_leaderboard` cobra.
+
+**O que continua sem verificação automática é a rede**, e é só ela: o POST no
+form e o GET no gviz. `driver_leaderboard` cobre payload, parser, filtro,
+deduplicação, escape e camada local — tudo que quebra em silêncio.

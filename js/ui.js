@@ -41,6 +41,8 @@ class UI {
       gameover: $("gameover"), goNums: $("goNums"), goDmg: $("goDmg"),
       goLine: $("goLine"), goExtra: $("goExtra"),
       classGrid: $("classGrid"), startBtn: $("startBtn"),
+      lbPanel: $("lbPanel"), lbRows: $("lbRows"), lbEstado: $("lbEstado"),
+      lbNome: $("lbNome"), goPlacar: $("goPlacar"),
     };
     $("restartBtn").onclick = () => this.game.start();
     $("goMenuBtn").onclick = () => this.game.quitToMenu();
@@ -48,6 +50,8 @@ class UI {
     $("resumeBtn").onclick = () => this.game.resume();
     $("pauseRestartBtn").onclick = () => this.game.start();
     $("quitBtn").onclick = () => this.game.quitToMenu();
+
+    this.mountBoard();
 
     /* Toast e fila, nao pilha livre: o teto de tres e o que separa "o jogo me
        avisou" de "o jogo despejou". `toastCount` conta os eventos ANUNCIADOS,
@@ -125,6 +129,7 @@ class UI {
   }
 
   toMenu() {
+    this.loadBoard();
     this.el.pause.classList.add("hidden");
     this.el.gameover.classList.add("hidden");
     this.el.hud.classList.add("hidden");
@@ -1137,6 +1142,83 @@ class UI {
     return rows;
   }
 
+  /* --- o placar (9.1b) -----------------------------------------------------
+     Tres estados, e eles sao DIFERENTES: vazio convida, fora do ar informa, e
+     carregando passa. O quarto — spinner eterno — e o unico inaceitavel, e
+     quem o impede e o `timeout` de `Leaderboard.load`. */
+
+  /* O nome vem de uma planilha que qualquer um pode escrever, e ele e desenhado
+     com `innerHTML`. Escapar aqui e o que separa "meu amigo pos um nome bobo"
+     de "meu amigo pos um <script> na minha pagina inicial". */
+  esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  mountBoard() {
+    const e = this.el;
+    if (!e.lbPanel) return;
+    e.lbNome.value = Leaderboard.nome();
+    e.lbNome.onchange = () => {
+      e.lbNome.value = Leaderboard.setNome(e.lbNome.value);
+      this.drawBoard();   // so a marca do "sou eu" muda: nao recarrega a rede
+    };
+    this.loadBoard();
+  }
+
+  loadBoard() {
+    const e = this.el;
+    if (!e.lbPanel || typeof Leaderboard === "undefined") return;
+    this._board = null; this._boardErr = false;
+    this.drawBoard();
+    Leaderboard.load()
+      .then((b) => { this._board = b; this.drawBoard(); })
+      .catch(() => { this._boardErr = true; this.drawBoard(); });
+  }
+
+  drawBoard() {
+    const e = this.el;
+    if (!e.lbPanel) return;
+    const meu = Leaderboard.nome();
+
+    if (this._boardErr) {
+      e.lbEstado.textContent = "fora do ar";
+      e.lbRows.innerHTML = '<div class="lb-vazio">Não deu para carregar o placar. O jogo funciona igual.</div>';
+      return;
+    }
+    const b = this._board;
+    if (!b) { e.lbEstado.textContent = "carregando"; e.lbRows.innerHTML = ""; return; }
+    if (!b.rows.length) {
+      e.lbEstado.textContent = "vazio";
+      e.lbRows.innerHTML = '<div class="lb-vazio">Ninguém sobreviveu ainda. Seja o primeiro.</div>';
+      return;
+    }
+
+    e.lbEstado.textContent = b.fora
+      ? `${b.fora} fora da curva` : `${b.rows.length} runs`;
+
+    const melhores = Leaderboard.melhorPorJogador(b.rows, LB_CFG.linhas);
+
+    let h = "";
+    melhores.forEach((r, i) => {
+      /* A UNICA cor da tabela: o glifo da peca que mais deu dano, no eixo dela.
+         Sem assinatura o lugar fica vazio — inventar um icone diria que a run
+         teve uma build que ela nao teve. */
+      const def = PIECES[r.assinatura];
+      const cor = def && UI_PAL.eixo[def.axis];
+      const gli = def && cor
+        ? `<span class="lb-gli" style="color:${cor}">${Glyph.svg(def.id, 20)}</span>`
+        : '<span class="lb-gli"></span>';
+      const nome = Leaderboard.limpaNome(r.nome);
+      h += `<div class="lb-row${nome && nome === meu ? " lb-eu" : ""}">
+        <span class="lb-pos">${i + 1}</span>${gli}
+        <span class="lb-nome-c">${this.esc(nome)}</span>
+        <span class="lb-t">${mmss(Number(r.tempo_ms) / 1000)}</span>
+        <span class="lb-k">${fmtNum(Number(r.abates))} abates</span></div>`;
+    });
+    e.lbRows.innerHTML = h;
+  }
+
   /* --- game over (9.5) -----------------------------------------------------
      Altura FIXA por construcao. Uma build de 30 pecas ocupa exatamente a mesma
      altura de uma de 6, porque a lista e `slice(0,5)` e o resto e uma linha; o
@@ -1188,6 +1270,30 @@ class UI {
     this.el.goExtra.innerHTML = this.marcosHtml() +
       `<div class="pa-linha"><span>Auras acesas</span><b>${auras}</b></div>` +
       `<div class="pa-linha"><span>Maior cadeia</span><b>${fmtNum(g.comboBest)}</b></div>`;
+
+    /* O placar. A ordem importa: o recorde local e cobrado ANTES do envio,
+       porque ele e a metade que funciona sem rede nenhuma. */
+    const run = Leaderboard.runFrom(g, total, rows.length ? rows[0].def.id : "");
+    const recorde = Leaderboard.remember(run);
+    const best = Leaderboard.best();
+    const temNome = !!Leaderboard.nome();
+    /* SO recorde pessoal e enviado, e a razao e o que o placar E: um quadro de
+       melhor de sempre nunca vai desenhar uma run que nem o seu proprio dono
+       bateu. Mandar as outras seria gravar linha que nada le — e encher as 50
+       linhas do QUERY com as tentativas de uma pessoa so.
+
+       `no-cors` nao devolve status, entao a tela NUNCA diz "enviado": ela diz
+       que partiu e manda conferir onde da para ver de verdade. */
+    const partiu = temNome && recorde && Leaderboard.submit(run);
+    let ph = "";
+    if (recorde) ph += `<div class="pa-linha go-novo"><span>Recorde pessoal</span><b>NOVO</b></div>`;
+    ph += `<div class="pa-linha go-recorde"><span>Seu melhor</span><b>${
+      best ? mmss(best.tempo_ms / 1000) : "—"}</b></div>`;
+    ph += `<div class="pa-linha"><span>Placar</span><b>${
+      !temNome ? "defina seu nome no menu"
+        : !recorde ? "só recorde entra"
+          : partiu ? "a caminho · confira no menu" : "sem conexão"}</b></div>`;
+    this.el.goPlacar.innerHTML = ph;
 
     this.el.gameover.classList.remove("hidden");
   }
