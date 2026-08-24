@@ -619,12 +619,23 @@ class Projectile {
     else this.hits = null;
     // rastro: buffer plano [x0,y0,...] amostrado por DISTANCIA, nao por frame,
     // p/ o rastro ter o mesmo comprimento em qualquer fps/velocidade de jogo.
+    /* `rgb` fica FORA do ramo do rastro, e ja esteve dentro dele.
+
+       Quem usa nao e so o cometa: `draw` fecha o gradiente do tiro comum em
+       `rgba(${this.rgb},0)`, e sem o campo isso vira `rgba(undefined,0)` — que
+       o canvas do harness aceita calado e o browser recusa, lancando de dentro
+       de `addColorStop`. Como `render` estoura ali, `present()` nao roda e o
+       quadro inteiro nao e apresentado: a tela repete o anterior, sem erro
+       visivel. Pegava todo tiro sem rastro — os dois inimigos ranged e toda
+       peca cujo projetil nao declara `trail` — menos quando o slot do pool
+       vinha de um cometa e carregava o `rgb` VELHO, que e a versao silenciosa
+       do mesmo defeito: o tiro desbotava na cor do tiro anterior. */
+    this.rgb = hexRgb(this.color);
     if (o.trail) {
       this.trailMax = 24;
       this.trailStep = o.trail / this.trailMax;
       this.trail = this.trail || [];
       this.trail.length = 0;
-      this.rgb = hexRgb(this.color);
       this.age = 0;
     } else this.trail = null;
     this.dead = false;
