@@ -95,6 +95,11 @@ const Leaderboard = {
 
   nome() { return this.local().nome; },
 
+  /* O nome e OBRIGATORIO para comecar uma run: sem ele a run nao teria como
+     entrar no placar, e o jogador so descobriria isso no game over — depois de
+     doze minutos, quando nao ha mais o que fazer a respeito. */
+  temNome() { return this.limpaNome(this.nome()).length > 0; },
+
   setNome(n) {
     this.local().nome = this.limpaNome(n);
     this._save();

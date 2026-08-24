@@ -179,6 +179,8 @@
   .btn-fantasma:hover { border-color:var(--osso-600); color:var(--osso-600); background:rgba(237,231,218,.05); }
   .btn-osso { border:0; background:var(--osso-600); color:var(--obs-800); }
   .btn-osso:hover { background:#fff; }
+  .btn:disabled { cursor:default; }
+  .btn-osso:disabled, .btn-osso:disabled:hover { background:var(--osso-200); color:var(--obs-700); }
   .btn-recuado { border:1px solid var(--obs-500); background:none; color:var(--osso-300); }
   .btn-recuado:hover { border-color:var(--vida); color:var(--vida); }
   .btn-56 { min-height:56px; padding:0 40px; }
@@ -401,7 +403,9 @@
   .lb-eu .lb-nome-c, .lb-eu .lb-t { color:#fff; }
   .lb-vazio { padding:var(--e4) 0; color:var(--osso-300); font-size:var(--rotulo);
               font-family:var(--fonte-dado); }
-  .lb-pe { display:flex; align-items:center; gap:var(--e3); }
+  .menu-nome { display:flex; align-items:center; gap:var(--e3); width:560px;
+               max-width:100%; margin-bottom:var(--e4); }
+  .menu-nome label { flex:none; }
   .lb-input {
     flex:1; min-width:0; min-height:var(--alvo); padding:0 var(--e3);
     background:var(--obs-800); border:1px solid var(--osso-200); color:var(--osso-600);
@@ -409,6 +413,8 @@
     letter-spacing:.06em; text-transform:uppercase;
   }
   .lb-input:focus { outline:none; border-color:var(--osso-600); }
+  /* O placeholder herda o peso do campo e competia com o nome digitado. */
+  .lb-input::placeholder { color:var(--osso-300); font-weight:500; letter-spacing:.04em; }
 
   /* O cartaz e a prioridade: abaixo disso o placar SAI em vez de espremer. */
   @media (max-width:1240px) { .menu-placar { display:none; } }
@@ -896,9 +902,17 @@
       <p class="menu-tag">Você só se move. Tudo dispara sozinho. A build decide o resto — e uma decisão por etapa não volta.</p>
       <div id="classGrid"></div>
       <div class="menu-trancado rotulo">Mago e Caçador · trancados</div>
+      <!-- O nome e obrigatorio, entao ele mora AQUI e nao no painel do placar:
+           aquele some abaixo de 1240px, e um campo obrigatorio que desaparece
+           com a largura da janela tranca o jogo em tela estreita. -->
+      <div class="menu-nome">
+        <label class="rotulo dim" for="lbNome">Seu nome</label>
+        <input id="lbNome" class="lb-input" maxlength="16" spellcheck="false"
+               autocomplete="off" placeholder="como você aparece no placar">
+      </div>
       <div class="menu-acao">
         <button class="btn btn-osso ch1" id="startBtn">Iniciar</button>
-        <span class="rotulo dim">Enter</span>
+        <span class="rotulo dim" id="startDica">Enter</span>
       </div>
     </div>
     <!-- 9.1b O placar. Mora no vao DIREITO do cartaz, que e o unico espaco
@@ -910,11 +924,6 @@
         <span class="rotulo dim" id="lbEstado">carregando</span>
       </div>
       <div id="lbRows" class="lb-rows"></div>
-      <div class="lb-pe">
-        <label class="rotulo dim" for="lbNome">Seu nome</label>
-        <input id="lbNome" class="lb-input" maxlength="16" spellcheck="false"
-               autocomplete="off" placeholder="sem nome">
-      </div>
     </aside>
 
     <div class="menu-rodape rotulo">Mover <b>WASD</b> · Pausa <b>ESC</b> · Som <b>M</b> · Música <b>N</b></div>

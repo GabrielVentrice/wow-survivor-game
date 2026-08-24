@@ -2381,6 +2381,25 @@ Seis regras, e as quatro primeiras já custaram um defeito cada:
   e sobrevivência premia fugir em círculo. A coluna de abates transforma isso em
   informação pública sem o placar precisar acusar ninguém.
 
+**O nome é obrigatório para começar, e por isso ele SAIU do painel do placar.**
+O painel some abaixo de 1240px — o cartaz é a prioridade da tela —, e um campo
+obrigatório que desaparece com a largura da janela tranca o jogo em tela
+estreita. Ele mora na coluna do menu, junto do `Iniciar`, porque virou parte de
+entrar no jogo e não de olhar o quadro. Vale como regra: **o que bloqueia uma
+ação não pode morar num elemento que a responsividade esconde.**
+
+Três detalhes que caem daí:
+
+- **O portão é `Leaderboard.temNome()`, que pergunta ao `limpaNome`.** Um nome
+  de três espaços passaria num `!== ""` e o jogador só descobriria no game over
+  — depois de doze minutos, quando não há mais o que fazer a respeito.
+- **Quem ensina o que falta é o cursor, não o clique.** Botão `disabled` não
+  recebe evento, então o `focus()` do `onclick` é última defesa e não caminho
+  normal: o campo já abre focado quando não há nome, e o rótulo ao lado do
+  botão troca `Enter` por `digite um nome para começar`.
+- **O campo escuta `input`, não `change`.** O botão depende dele, e um botão que
+  só destrava quando o campo perde o foco parece quebrado.
+
 A camada local (`localStorage`: nome e recorde pessoal) é a metade que **sempre**
 funciona: sem rede, sem form, sem planilha. Ela nunca lança — storage bloqueado
 devolve estado vazio, senão o game over inteiro morreria junto. O plano completo,

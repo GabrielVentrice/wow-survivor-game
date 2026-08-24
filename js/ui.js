@@ -42,7 +42,7 @@ class UI {
       goLine: $("goLine"), goExtra: $("goExtra"),
       classGrid: $("classGrid"), startBtn: $("startBtn"),
       lbPanel: $("lbPanel"), lbRows: $("lbRows"), lbEstado: $("lbEstado"),
-      lbNome: $("lbNome"), goPlacar: $("goPlacar"),
+      lbNome: $("lbNome"), startDica: $("startDica"), goPlacar: $("goPlacar"),
     };
     $("restartBtn").onclick = () => this.game.start();
     $("goMenuBtn").onclick = () => this.game.quitToMenu();
@@ -109,7 +109,13 @@ class UI {
         card.classList.add("sel");
       };
     }
-    this.el.startBtn.onclick = () => g.start();
+    /* Sem nome o botao nao inicia — e ele FOCA o campo em vez de nao fazer
+       nada. Botao morto que nao explica o que falta e a mesma tela cobrando
+       atencao e devolvendo vazio que o nivel sem oferta ja conserta. */
+    this.el.startBtn.onclick = () => {
+      if (!Leaderboard.temNome()) { this.el.lbNome.focus(); return; }
+      g.start();
+    };
   }
 
   onStart() {
@@ -130,6 +136,8 @@ class UI {
 
   toMenu() {
     this.loadBoard();
+    this.syncStart();
+    this.focaNome();
     this.el.pause.classList.add("hidden");
     this.el.gameover.classList.add("hidden");
     this.el.hud.classList.add("hidden");
@@ -1287,18 +1295,48 @@ class UI {
 
   mountBoard() {
     const e = this.el;
-    if (!e.lbPanel) return;
+    if (!e.lbNome) return;
     e.lbNome.value = Leaderboard.nome();
+    /* `input` e nao `change`: o botao de Iniciar depende deste campo, e um
+       botao que so destrava quando o campo perde o foco parece quebrado. */
+    e.lbNome.oninput = () => { Leaderboard.setNome(e.lbNome.value); this.syncStart(); };
     e.lbNome.onchange = () => {
-      e.lbNome.value = Leaderboard.setNome(e.lbNome.value);
+      e.lbNome.value = Leaderboard.setNome(e.lbNome.value);  // poda a vista
+      this.syncStart();
       this.drawBoard();   // so a marca do "sou eu" muda: nao recarrega a rede
     };
+    // Enter no campo comeca a run: o foco esta aqui, entao o botao nao o recebe.
+    e.lbNome.onkeydown = (ev) => {
+      if (ev.key === "Enter" && Leaderboard.temNome()) {
+        e.lbNome.blur();
+        this.game.start();
+      }
+    };
+    this.syncStart();
+    this.focaNome();
     this.loadBoard();
+  }
+
+  /* Botao `disabled` nao recebe clique, entao o `focus()` do onclick e a
+     ultima defesa e nao o caminho normal: quem ensina o que falta e o cursor
+     ja piscando no campo quando o menu abre sem nome. */
+  focaNome() {
+    const e = this.el;
+    if (!e.lbNome || Leaderboard.temNome()) return;
+    try { e.lbNome.focus(); } catch (err) { /* stub sem foco: nao e erro */ }
+  }
+
+  /* O estado do botao e do rotulo ao lado dele, num lugar so: os dois dizem a
+     mesma coisa e nao podem divergir. */
+  syncStart() {
+    const e = this.el, ok = Leaderboard.temNome();
+    if (e.startBtn) e.startBtn.disabled = !ok;
+    if (e.startDica) e.startDica.textContent = ok ? "Enter" : "digite um nome para começar";
   }
 
   loadBoard() {
     const e = this.el;
-    if (!e.lbPanel || typeof Leaderboard === "undefined") return;
+    if (!e.lbRows || typeof Leaderboard === "undefined") return;
     this._board = null; this._boardErr = false;
     this.drawBoard();
     Leaderboard.load()
@@ -1308,7 +1346,7 @@ class UI {
 
   drawBoard() {
     const e = this.el;
-    if (!e.lbPanel) return;
+    if (!e.lbRows) return;
     const meu = Leaderboard.nome();
 
     if (this._boardErr) {
