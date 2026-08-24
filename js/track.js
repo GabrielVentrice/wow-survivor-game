@@ -144,18 +144,77 @@ class Track {
    se o arquivo não carregar. As duas nunca tocam juntas.
    ========================================================================= */
 
+/* As trilhas, na ordem em que a tecla N as percorre — e a PRIMEIRA é a que o
+   jogo abre.
+
+   Vigília vem antes de Tempestade porque ela é a única das duas desenhada para
+   ficar horas no fundo sem cobrar atenção: nada acontece nela, o volume não
+   passeia (1,4 dB contra 6,8 dB da Tempestade ao longo do loop) e nenhuma
+   janela de 250 ms salta acima do fundo (a Tempestade tem sete, que são os
+   trovões e as viradas). Um jogo em que a run dura doze minutos é fundo, não
+   faixa. O argumento inteiro e a medição estão em `audio/README.md`.
+
+   Carregar é preguiçoso, uma trilha por vez: as duas juntas são 3,2 MB, e a
+   segunda só desce se alguém pedir. */
+const TRACKS = [
+  { id: "vigil", name: "Vigília", src: "audio/focus-vigil.mp3" },
+  { id: "storm", name: "Tempestade", src: "audio/rain-lofi.mp3" },
+];
+
 /* Volume por estado. Trilha de fundo tem que ficar bem ATRAS dos efeitos: se
    competir com o som de morte e de acerto, o jogador perde informacao de
-   combate. Todo o ajuste de "esta alta demais" mora nestes quatro numeros. */
+   combate. Todo o ajuste de "esta alta demais" mora nestes quatro numeros —
+   um so par de niveis para as duas trilhas, porque elas estao a 0,3 dB de RMS
+   uma da outra e um volume por faixa seria uma segunda tabela para divergir. */
 const TRACK_LEVEL = { menu: 0.07, playing: 0.055, paused: 0.022, gameover: 0, off: 0 };
 
 class Soundtrack {
-  constructor(src, opts) {
-    this.file = new Track(src, opts);
+  // aceita a lista de trilhas ou um src solto (uma trilha so)
+  constructor(list, opts) {
+    this.list = Array.isArray(list) ? list : [{ id: "track", name: "Trilha", src: list, opts }];
+    this.tracks = this.list.map(() => null);
+    this.idx = 0;
+    this._nextIdx = null;      // trilha pedida, ainda carregando
+    this.file = this._track(0);
     this.proc = new Music();
     this.state = "menu";
     this.muted = false;
     this._decided = false;
+  }
+
+  _track(i) {
+    if (!this.tracks[i]) {
+      const d = this.list[i];
+      this.tracks[i] = new Track(d.src, d.opts);
+    }
+    return this.tracks[i];
+  }
+
+  get trackName() { return this.list[this.idx].name; }
+
+  /* Pede a troca. Quem efetiva e `_route`, e so quando o arquivo novo estiver
+     pronto: a segunda trilha custa 1,9 MB, e parar a que esta tocando para
+     esperar o download deixaria o jogo mudo por segundos justo no gesto em
+     que o jogador esta mexendo no som. Se o novo arquivo falhar, fica o
+     antigo. */
+  setTrack(i) {
+    i = ((i % this.list.length) + this.list.length) % this.list.length;
+    if (i === this.idx && this._nextIdx == null) return;
+    this._nextIdx = i;
+    this._track(i).load();
+  }
+
+  /* A tecla N. O ciclo e trilha 1 -> trilha 2 -> ... -> mudo -> trilha 1:
+     silencio e um estado do ciclo e nao uma segunda tecla, porque "desligar a
+     musica" e "trocar a musica" sao a mesma pergunta ("o que eu quero ouvir
+     agora?") e duas teclas para uma pergunta e uma a mais.
+     Devolve a trilha que passou a tocar, ou null se agora esta mudo. */
+  cycleTrack() {
+    if (this.muted) { this.setMuted(false); this.setTrack(0); return this.list[0]; }
+    const nx = (this._nextIdx == null ? this.idx : this._nextIdx) + 1;
+    if (nx >= this.list.length) { this.setMuted(true); return null; }
+    this.setTrack(nx);
+    return this.list[nx];
   }
 
   attach(ctx) {
@@ -190,10 +249,23 @@ class Soundtrack {
     this.file.setTarget(lvl);
   }
 
+  /* A troca pedida por `setTrack` so acontece aqui, quando o arquivo novo esta
+     pronto — ate la continua tocando o antigo. */
+  _swap() {
+    if (this._nextIdx == null) return;
+    const next = this.tracks[this._nextIdx];
+    if (next.failed) { this._nextIdx = null; return; }
+    if (!next.ready) return;
+    if (next !== this.file) { this.file.stop(); this.file = next; }
+    this.idx = this._nextIdx;
+    this._nextIdx = null;
+  }
+
   /* Enquanto o arquivo ainda está carregando, a procedural toca — assim o
      menu nunca fica em silêncio esperando 1 MB de download. Quando o arquivo
      fica pronto, ela sai e ele entra. */
   _route() {
+    this._swap();
     if (this.usingFile) {
       if (!this._decided) { this._decided = true; this.proc.setState("off"); }
       this._applyFile();

@@ -537,12 +537,20 @@ registry e aparece na galeria na mesma leva, ou o driver reclama. A tarja
 laranja "sem animação própria", ao contrário, **não** é falha: é a lista do que
 o jogo muda sem avisar em tela — hoje 25 mecânicas.
 
-`make_track.py` não é driver: é o gerador da trilha de fundo
-(`audio/rain-lofi.mp3`, o lofi de chuva). Precisa de numpy e scipy, roda em ~7 s
-e imprime o nível de cada barramento e o degrau no ponto de volta do loop —
-degrau menor que o típico entre amostras é a prova de que a faixa emenda e pode
-rodar com `loop` nativo. Como reencodar, e por que a chuva entra depois da
-fita, está em `audio/README.md`.
+`make_track.py` e `make_focus_track.py` não são drivers: são os geradores das
+duas trilhas de fundo — `audio/rain-lofi.mp3` (Tempestade, o lofi de chuva) e
+`audio/focus-vigil.mp3` (Vigília, o leito de foco, que é a padrão). Precisam de
+numpy e scipy, rodam em ~7 s e ~25 s, e os dois imprimem o nível de cada
+barramento e o degrau no ponto de volta do loop — degrau menor que o típico
+entre amostras é a prova de que a faixa emenda e pode rodar com `loop` nativo.
+
+**O gerador de foco imprime mais dois números, e eles são o teste da faixa**:
+o passeio de RMS em janela de 2 s (alvo `< 1,5 dB`) e o maior salto de 250 ms
+sobre o fundo dos 6 s anteriores (alvo: zero janelas acima de 6 dB). É o que
+separa um leito de fundo de uma faixa — a Tempestade mede 6,8 dB e sete saltos,
+que é o certo para ela e o errado para o fundo de uma run de doze minutos. O
+argumento inteiro, a tabela comparativa e como reencodar estão em
+`audio/README.md`.
 
 O stub de `AudioContext` monta o grafo de verdade e explode em rampa
 exponencial com alvo <= 0, então erro de WebAudio aparece aqui e não só no
