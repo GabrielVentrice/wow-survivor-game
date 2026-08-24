@@ -227,12 +227,13 @@ Object.assign(PIECES, {
     tags: ["shadow", "rooted"],
     desc: "Enquanto você fica parado, carrega e pulsa dano instantâneo em todos os inimigos ao redor que carregam um DoT seu.",
     requires: { tag: "dot" },
-    stats: { ...CRIT_BASE, chargeTime: 1.1, damage: 116, radius: 340 },
+    stats: { ...CRIT_BASE, chargeTime: 1.1, damage: 116, radius: 340, heal: 0.08 },
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: 0 },
     effects: [
       { type: "damage_instant", amount: "@damage", radius: "@radius", onlyDotted: true, big: true,
         // ela RASGA o que ja estava apodrecendo — e o talho, nao a bola de fogo
-        shape: "rip" },
+        shape: "rip",
+        onHit: [{ type: "heal", frac: "@heal" }] },
     ],
     paths: {
       haste: HASTE({ rate: { stat: "chargeTime", verb: "Carrega" } },
@@ -243,8 +244,7 @@ Object.assign(PIECES, {
           { damage: { mul: 3 }, radius: { mul: 2 } })),
       crit: CRIT({},
         T("Voracidade", "Todo pulso crita e cura 20% do dano causado.",
-          { crit: { set: 1 } },
-          { "effects.0.onHit": [{ type: "heal", frac: 0.2 }] })),
+          { crit: { set: 1 }, heal: { set: 0.2 } })),
     },
   },
 

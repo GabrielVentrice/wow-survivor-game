@@ -164,17 +164,19 @@ Object.assign(PIECES, {
     tags: ["fire", "shadow", "reactive", "execute"],
     desc: "Sempre que você acerta um inimigo já abaixo do limiar de vida, dispara um golpe de execução com dano multiplicado.",
     stats: { ...CRIT_BASE, damage: 80, threshold: 0.2, executeMul: 6,
-             cooldown: 0.4, range: 420, radius: 0 },
+             cooldown: 0.4, range: 420, radius: 0, heal: 12 },
     trigger: { type: "reactive", event: "enemy_hit", condition: "enemy_below",
                pct: "@threshold", cooldown: "@cooldown", needsTarget: true },
     effects: [
       { type: "execute", amount: "@damage", threshold: "@threshold",
         executeMul: "@executeMul", radius: "@radius" },
+      // a execucao volta a ALIMENTAR: era o caminho "Alma", desde o tier 1
+      { type: "heal", amount: "@heal" },
     ],
     paths: {
       haste: HASTE({ rate: { stat: "cooldown", verb: "Executa" } },
         T("Ceifada Larga", "A execução pega todos num raio de 150.", { radius: { set: 150 } })),
-      mastery: MASTERY({ dmg: "damage" },
+      mastery: MASTERY({ dmg: ["damage", "heal"], noun: "dano e cura" },
         T("Fim de Linha", "Triplica a execução e ceifa abaixo de 40% de vida.",
           { executeMul: { mul: 3 }, threshold: { set: 0.4 } })),
       crit: CRIT({},
@@ -184,7 +186,7 @@ Object.assign(PIECES, {
            acontece continua sendo zero. */
         T("Colheita", "Toda execução crita, ceifa abaixo de 35% e espalha os DoTs do alvo.",
           { crit: { set: 1 }, threshold: { set: 0.35 } },
-          { "effects.1": { type: "spread_on_death", radius: 150, full: true, maxTargets: 5 } })),
+          { "effects.2": { type: "spread_on_death", radius: 150, full: true, maxTargets: 5 } })),
     },
   },
 

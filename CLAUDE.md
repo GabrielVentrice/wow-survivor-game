@@ -395,6 +395,37 @@ coisa que as três linhas multiplicam.** Se o que ela faz só existe depois de u
 tier, ela é uma carta morta na tela — e carta morta numa tela de três ofertas é
 um terço da tela.
 
+#### E o sustain tem que CRESCER, porque as três linhas são todas ofensivas
+
+Este é o segundo buraco, e ele é mais sutil que o primeiro: com a build inteira
+em paridade de dano, o piloto continuava morrendo aos 3 min sob as políticas que
+MIRAM um eixo. A curva de vida diz o que acontece — a base mergulha a 90% e
+**volta a 100%**, e a grade mergulha e morre.
+
+O motivo é estrutural: no catálogo antigo os três caminhos de uma peça eram
+três **espécies** diferentes de upgrade, e uma boa parte dos terceiros caminhos
+era sustain — "Alma" no Shadowburn (cura por execução), "Sacrifício" no Felguard
+(escudo por golpe), "Sustento" no Malefic Rapture, "Aura" no Drain Life (a
+fração curada indo de 25% a 80%). Comprar profundidade trazia sustain junto,
+sem o jogador pedir.
+
+Nas três linhas **tudo é ofensivo**, então uma build que aprofunda termina o
+começo da run com dano de sobra e zero cura. Medido no probe de política, 6
+seeds: as runs que morrem antes dos 3 min curaram/escudaram **0 de vida**; as
+que chegam aos 6 min curaram 2200–2600.
+
+O conserto foi devolver o sustain à base das quatro peças que o perdiam, com a
+Maestria multiplicando ele junto com o dano (`MASTERY({ dmg: [...], also })`):
+cura por execução no Shadowburn, escudo por golpe no Felguard, cura por pulso no
+Malefic Rapture e a fração curada crescendo no Drain Life. Sob a política
+`focado`, isso levou a mediana de **3:28 para 6:00** — o teto do probe, que é
+onde a base também está.
+
+**Regra que fica: linha nova não pode ser só dano.** Se as três linhas forem
+todas ofensivas, o sustain precisa estar na BASE das peças que o têm e crescer
+com elas — senão a build fica com dano de sobra e morre com a barra cheia de
+poder e vazia de vida.
+
 **Os nomes das linhas são uma linha de dado** (`LINE_NAMES`, em
 `js/content/paths.js`), e os dos degraus outra (`LINE_TIERS`). Eles aparecem no
 subtítulo da carta e na tira da build; trocar "Aceleração" por "Haste" é essa
