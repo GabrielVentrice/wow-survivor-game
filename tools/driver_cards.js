@@ -123,7 +123,7 @@ for (const inst of g.build.pieces.values()) g.build.axis[inst.def.axis] = AXIS_R
 // estavel quando alguem mexer no gate.
 s = 7;
 
-const seen = { path: 0, passive: 0, evo: 0, delta: 0, rec: 0 };
+const seen = { path: 0, passive: 0, evo: 0, delta: 0, regua: 0, zero: 0 };
 // A etiqueta de tipo e a unica coisa que separa as ofertas sem depender de
 // cor — a cor da linha e a do eixo, nao a do tipo.
 const KIND = { path: "Melhoria", passive: "Passiva" };
@@ -178,7 +178,37 @@ for (let round = 0; round < 400; round++) {
        `.lv-plain` sumir do HTML, a carta passa a ser lida pelo rotulo. */
     if (!html.includes('class="lv-plain"')) bad(`${o.kind} (${o.def.name}): carta sem manchete`);
     if (v.delta.length) seen.delta++;
-    if (v.rec) seen.rec++;
+
+    /* --- a REGUA (9.3) ---------------------------------------------------
+       O heroi da carta e o ganho em dano/s, e ele so vale se for COMPARAVEL:
+       a barra e comparativa, entao o que ela mede tem que ser um numero, ter
+       a mesma unidade nas tres cartas e nunca ser negativo — um tier que
+       PIORASSE a peca seria uma barra crescendo para tras.
+
+       Zero e resposta legitima (controle, cura, deslocamento nao movem a
+       regua), e por isso a carta nao pode imprimir "+0": "+0 dano/s" le como
+       peca quebrada quando o que houve foi a regua nao medir aquilo. */
+    if (typeof v.dps !== "number" || !isFinite(v.dps)) {
+      bad(`${o.kind} (${o.def.name}): ganho em dano/s nao e numero (${v.dps})`);
+    } else if (v.dps < -0.5) {
+      bad(`${o.kind} (${o.def.name}): a oferta PIORA a peca (${v.dps.toFixed(1)} dano/s)`);
+    } else if (v.dps > 0.5) seen.regua++;
+    else { seen.zero++; if (html.includes("+0")) bad(`${o.kind} (${o.def.name}): carta com "+0"`); }
+    if (!html.includes("lv-escala")) bad(`${o.kind} (${o.def.name}): carta sem a barra da regua`);
+    /* O slot em Eczar diz COMO a peca se comporta e nunca repete o numero.
+       528 dos 660 tiers sao gerados e o texto deles e puro numero — o mesmo
+       dado que a regua imprime em mono 38 e que os valores crus imprimem em
+       "antes -> depois". Tier puramente numerico cede o slot para o `desc` da
+       peca; tier estrutural fica com o proprio texto. */
+    if (o.kind === "path" && o.tier.mods && !o.tier.patch &&
+        v.plain !== LINE_ABOUT[o.pathId]) {
+      bad(`path ${o.def.name} (${o.pathId}): tier numerico repetindo o numero ` +
+          `no slot de comportamento`);
+    }
+    // A tecla substitui os tres botoes `ESCOLHER`, e ela e o rotulo do input
+    // certo desta tela: 17 a 70 escolhas por run.
+    if (!html.includes("lv-tecla")) bad(`${o.kind} (${o.def.name}): carta sem a tecla`);
+    if (html.includes("btn-fantasma")) bad(`${o.kind} (${o.def.name}): o botao ESCOLHER voltou`);
 
     if (o.kind === "path") {
       if (!html.includes(o.def.name)) bad(`path ${o.def.name}: carta nao diz qual peca melhora`);
@@ -271,5 +301,6 @@ if (missing.length) bad(`nunca aconteceu: ${missing.join(", ")}`);
 
 console.log(problems ? `X   ${problems} problemas na tela de level-up`
   : `ok  level-up validado — ${seen.path} caminho (${seen.evo} evolucao), ` +
-    `${seen.passive} passiva, ${seen.delta} com antes/depois, ${seen.rec} com chip de marco`);
+    `${seen.passive} passiva, ${seen.delta} com antes/depois, ` +
+    `${seen.regua} com ganho medido, ${seen.zero} sem ganho de dano`);
 if (problems) __exit(1);

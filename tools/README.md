@@ -27,6 +27,7 @@ DRIVER=driver_form.js  node tools/harness.js .   # metamorfose por capstone e au
 DRIVER=driver_apex.js  node tools/harness.js .   # o Ápice: eixo cheio, a onda que varre a tela, o chefe que sobra
 DRIVER=driver_pixel.js node tools/harness.js .   # grid de pixel: buffer, câmera, escala igual p/ todos, laje
 DRIVER=driver_palette.js node tools/harness.js . # paleta mestre: cor fora da PAL, rampa chapada, corpo aceso
+DRIVER=driver_leaderboard.js node tools/harness.js . # placar: payload inteiro, parser gviz, filtro, escape, camada local
 DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câmera, curvas de evento
 DRIVER=driver_vfx.js   node tools/harness.js .   # vfx: assinatura de cada peça, cor no render, voz de cada evento, ceifa e cadeia
 DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homing não fecha, e alvo próprio por tiro
@@ -187,6 +188,21 @@ O que ele reprova, e por isso e driver e nao relatorio:
   viraram uma grade so (`js/content/paths.js`), o modo `full` e o unico lugar
   que mede as tres: o modo padrao fecha o PRIMEIRO caminho, que hoje e sempre a
   Aceleracao.
+
+- **a REGUA discordando do CAMPO** (bloco `REGUA x CAMPO`). `js/systems/dps.js`
+  e o numero que a tela de level up imprime, e ele e um modelo fechado: nao roda
+  o motor, resolve uma conta. Um modelo que ninguem confere vira a segunda lista
+  que o projeto passa o tempo inteiro evitando, e esta e a unica lista contra a
+  qual da para conferir — porque ela e a medida. O que se cobra e ORDEM e nao
+  valor (a barra da carta e comparativa: "a mais longa ganha mais"), pelo rho de
+  Spearman entre as duas ordens: **0.75 hoje, piso 0.6**. O piso e frouxo de
+  proposito — o modelo assume UM campo e o banco mede seis, dois deles de alvo
+  unico, entao peca de area sai subestimada la e o desacordo e do cenario. E ele
+  reprova mudez nos dois sentidos: regua zero onde o campo mede dano (a carta
+  diria "nao muda o dano" sobre uma peca que muda) e regua com dano onde o campo
+  mede zero (a carta prometeria um numero que nao existe). A isenção é a mesma
+  que a reprovacao de peca muda ja carrega: `player_below` e `enemy_below` nunca
+  viram verdade num campo em que o jogador e imortal e os dummies tambem.
 
 O que ele NAO responde, e nao deve: se o jogador CHEGA ao tier 5. O banco
 credita o gate de eixo de uma vez e nunca chama `checkCapstones`, porque o
@@ -391,11 +407,27 @@ sempre, para as medições continuarem comparáveis). Sem argumento a run para e
 level-up** e **escolha de level-up que mova o pool de eixo** — as duas são a
 mesma regressão vista de dois lados: uma tela em que largura e profundidade
 disputam a mesma escolha, e largura ganha sempre. Depois que a tela virou
-cartas, ele cobra mais três: **carta sem `.lv-plain`** (a manchete é o efeito, e
-numa carta o nome vem antes no espaço — só o tamanho segura a hierarquia),
-**`lv-ax` de volta na tira** (eixo não é assunto desta tela) e a **trava de
-nível das passivas**, verificada no nível 1 antes de subir o nível para medir o
-resto.
+cartas, ele cobra mais três: **carta sem `.lv-plain`** (o slot em Eczar existe em
+toda carta), **`lv-ax` de volta na tira** (eixo não é assunto desta tela) e a
+**trava de nível das passivas**, verificada no nível 1 antes de subir o nível
+para medir o resto.
+
+Desde a **régua comum** ele cobra outras quatro, e as quatro são sobre o número
+que virou o herói da carta:
+
+- o ganho em dano/s é **número finito e nunca negativo** — uma oferta que
+  piorasse a peça seria uma barra crescendo para trás;
+- **a barra existe** (`lv-escala`) e **a tecla existe** (`lv-tecla`), e o botão
+  `ESCOLHER` não voltou: 44px de largura inteira, três vezes, repetindo a mesma
+  palavra, contra 34px no canto;
+- ganho zero **não imprime `+0`** — "+0 dano/s" lê como peça quebrada quando o
+  que houve foi a régua não medir aquilo;
+- **tier numérico não repete o número no slot em Eczar**: 528 dos 660 tiers são
+  gerados e o texto deles é puro número, o mesmo dado que a régua e os valores
+  crus já imprimem. Ali vai `LINE_ABOUT[pathId]`, a frase da linha.
+
+Quem confere se a régua ORDENA como o campo é `driver_bench`, não este — ver o
+bloco `REGUA x CAMPO` acima.
 
 `driver_milestone` guarda a tela em suas duas fases, e a parte que mais importa
 é que ele **refaz a conta da cadência por simulação** em vez de conferir uma

@@ -415,6 +415,67 @@ class BuildSystem {
     return newly;
   }
 
+  /* --- a regua da tela de level up ---------------------------------------
+     "Quanto esta oferta acrescenta, em dano por segundo?" — a unica pergunta
+     que a carta de level up precisa responder, e a que o jogador nao consegue
+     responder sozinho porque as ofertas chegam em unidades diferentes
+     (`27/s -> 38/s` contra `270 -> 378`).
+
+     Tudo aqui e SOMBRA: nada muda de estado. Um objeto com `def` e `paths`
+     trocados atravessa o mesmo `resolvePiece` que o motor usa, entao a
+     previsao sai do mesmo pipeline que o jogo vai executar quando a carta for
+     clicada — e nao de uma segunda tabela para divergir da primeira.
+
+     A conta em si mora em `js/systems/dps.js`; aqui so mora o "e se". */
+
+  pieceDpsNow(inst) { return pieceDps(inst.r, this.game); }
+
+  _shadowDps(def, paths, inst) {
+    const shadow = { key: inst.key, defId: def.id, def, paths, s: {}, r: null };
+    // A forma evoluida tem os MESMOS tres caminhos (ids fixos), mas peca nova
+    // pode nao ter: o que nao existe do outro lado nao conta.
+    for (const p in def.paths) if (shadow.paths[p] == null) shadow.paths[p] = 0;
+    for (const p in shadow.paths) if (!def.paths[p]) delete shadow.paths[p];
+    return pieceDps(resolvePiece(shadow, this), this.game);
+  }
+
+  // A build inteira, resolvida AGORA — inclusive com uma passiva que ainda nao
+  // foi comprada, se ela estiver temporariamente no mapa.
+  _dpsAll(fresh) {
+    let out = 0;
+    for (const inst of this.pieces.values()) {
+      out += pieceDps(fresh ? resolvePiece(inst, this) : inst.r, this.game);
+    }
+    return out * dpsDynamic(this.passives);
+  }
+
+  /* O ganho de uma oferta de level up, em dano/s. Zero e uma resposta legitima
+     — tier de controle, de cura ou de deslocamento nao move a regua —, e a
+     carta diz isso com palavra em vez de fingir um numero. */
+  offerGain(o) {
+    if (o.kind === "path") {
+      const paths = Object.assign({}, o.inst.paths);
+      paths[o.pathId] = o.tierIndex + 1;
+      const def = o.isEvo && o.evo ? o.evo : o.inst.def;
+      return this._shadowDps(def, paths, o.inst) - this.pieceDpsNow(o.inst);
+    }
+    if (o.kind === "passive") {
+      /* Passiva multiplica a build INTEIRA, e metade delas nao mexe em stat
+         nenhum: elas ligam multiplicador global (`dotHaste`, `cooldownMul`).
+         Por isso a previsao passa por `applyGlobals`, que recalcula do zero —
+         entao desfazer e exato, e nao uma tentativa de subtrair o que foi
+         somado. */
+      const before = this._dpsAll(false);
+      this.passives.set(o.id, 1);
+      this.applyGlobals();
+      const after = this._dpsAll(true);
+      this.passives.delete(o.id);
+      this.applyGlobals();
+      return after - before;
+    }
+    return 0;
+  }
+
   /* --- passivas ---------------------------------------------------------- */
 
   acquirePassive(id) {
