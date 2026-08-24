@@ -2522,6 +2522,13 @@ Três detalhes que caem daí:
   botão troca `Enter` por `digite um nome para começar`.
 - **O campo escuta `input`, não `change`.** O botão depende dele, e um botão que
   só destrava quando o campo perde o foco parece quebrado.
+- **Campo de texto com foco COME a tecla** (`digitando`, em `js/util.js`). O
+  `InputManager` dá `preventDefault` em w/a/s/d para a página não rolar, e isso
+  apagava essas quatro letras de dentro do nome — a letra A simplesmente não
+  entrava. M e N eram pior: mutavam o som no meio de uma palavra. Todo `keydown`
+  do jogo consulta `digitando` antes de qualquer coisa, e `driver_leaderboard`
+  cobra isso lendo o fonte, porque o harness descarta listeners e nenhum driver
+  consegue disparar uma tecla.
 
 A camada local (`localStorage`: nome e recorde pessoal) é a metade que **sempre**
 funciona: sem rede, sem form, sem planilha. Ela nunca lança — storage bloqueado

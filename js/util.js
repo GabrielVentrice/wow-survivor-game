@@ -120,6 +120,17 @@ function setPath(obj, path, value) {
   cur[parts[parts.length - 1]] = value;
 }
 
+/* Um campo de texto com foco COME a tecla: enquanto alguem digita, o jogo nao
+   escuta. Sem isto o `preventDefault` do WASD apaga as letras a, s, d e w do
+   proprio nome do jogador — e M e N mutam o som no meio de uma palavra. */
+function digitando(e) {
+  const t = e && e.target;
+  if (!t) return false;
+  if (t.isContentEditable) return true;
+  const tag = (t.tagName || "").toLowerCase();
+  return tag === "input" || tag === "textarea" || tag === "select";
+}
+
 function mmss(sec) {
   const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;

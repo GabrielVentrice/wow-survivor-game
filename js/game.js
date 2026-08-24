@@ -161,6 +161,7 @@ class Game {
     this.ui = new UI(this);
     this._loop = this._loop.bind(this);
     addEventListener("keydown", (e) => {
+      if (digitando(e)) return;   // M e N mutariam o som no meio de um nome
       const k = e.key.toLowerCase();
       if (k === "m") {                      // M: tudo
         this.sfx.muted = !this.sfx.muted;
