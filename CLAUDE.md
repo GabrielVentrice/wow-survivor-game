@@ -63,9 +63,26 @@ irreversível da run.
 
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
 Antes de commitar, rode a bateria headless — **`node tools/run-all.js`**, que
-roda os 24 drivers em paralelo com o mais lento na frente (~70s, contra 175s em
-série). `node tools/run-all.js fast` é o subconjunto de ~8s que cabe a cada
-edit. Detalhe em `tools/README.md`.
+roda os 24 drivers em paralelo com o mais lento na frente (~140s, contra 260s
+em série). `node tools/run-all.js fast` é o subconjunto de ~8s que cabe a cada
+edit. **O pior caso da bateria é o `chest`**, e ele custa ~140s de propósito:
+"40% dos baús dão prêmio grande" é uma propriedade distribucional e uma run de
+12 min abre ~24 baús, amostra em que o piso cai dentro do ruído — medido, o
+mesmo jogo dá de 33% a 74% conforme a seed. As quatro seeds que ele agrega são
+o que compra a amostra, e o segundo argumento dele em `run-all.js` é onde esse
+preço se negocia. Detalhe em `tools/README.md`.
+
+**`node tools/browser.js` é a única verificação que roda num browser de
+verdade, e ela existe porque o stub de canvas do harness aceita tudo.** Um bug
+que derrubava um quadro inteiro do jogo — `rgba(undefined,0)` no gradiente de
+todo tiro sem rastro, que faz `render` estourar antes do `present()` — passou
+por 24 drivers verdes, porque `addColorStop` só recusa a string num
+rasterizador real. O stub também não tem preço: ele **conta** chamadas de
+desenho e não diz quanto custam. `bench` mede ms por quadro; `shot` fotografa
+uma cena fixa e responde "o desenho mudou?" com hash pixel a pixel — é ele que
+transforma otimização de render em medição em vez de aposta. Fica fora do
+`run-all.js` de propósito: o playwright mora fora do repo, e a bateria não pode
+depender do que o repo não carrega. Detalhe em `tools/README.md`.
 
 **`DRIVER=driver_bench.js` é o banco de provas: a peça sozinha, em campo
 controlado.** `driver_balance` responde "esta RUN funciona?" e não responde

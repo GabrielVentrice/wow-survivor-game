@@ -83,6 +83,53 @@ CPU da bateria sao quatro processos construindo o mesmo mundo. Um unico run de
 12 min com quatro conjuntos de sondas custaria o tempo de um deles. O preco e
 isolamento: hoje um driver que estoura nao derruba os outros tres.
 
+## `browser.js` — o que o stub nao ve
+
+Todo o resto desta pasta sobe um stub de DOM/canvas no node. E isso que torna
+a bateria barata, e e tambem o teto dela: **o canvas stub aceita tudo**.
+
+Um bug real passou por 24 drivers verdes por causa disso. `Projectile.reset`
+gravava `rgb` so no ramo do cometa, e o tiro comum fechava o gradiente em
+`rgba(undefined,0)` — string que o stub engole e o browser recusa, lancando de
+dentro de `addColorStop`. Como a excecao escapava de `render`, `present()` nao
+rodava e o quadro inteiro nao era apresentado. Nao travava (o `_loop` reagenda
+na primeira linha), entao lia como o jogo perdendo quadros perto de tiro
+inimigo. Nenhum driver podia ver isso.
+
+E o stub nao tem preco: ele CONTA chamadas de desenho e nao pode dizer quanto
+cada uma custa. `driver_perf` mede a simulacao; quem mede o render e aqui.
+
+```bash
+# playwright fica FORA do repo — nao ha package.json aqui e nao vai haver
+mkdir -p ~/.pacto-browser && cd ~/.pacto-browser && npm init -y && npm i playwright
+npx playwright install chromium
+cd -
+
+export NODE_PATH=~/.pacto-browser/node_modules
+node tools/browser.js bench 4          # ms por quadro, horda de ~1850 corpos
+node tools/browser.js shot ref         # fotografa a cena fixa como "ref"
+node tools/browser.js shot novo ref    # ... e compara a de agora com ela
+```
+
+Por isso ele fica **fora do `run-all.js`**: a bateria nao pode depender de algo
+que o repo nao carrega. Ele sai por pedido, quando se mexe em render.
+
+**`bench` mede, `shot` protege.** Otimizar render sem o segundo e apostar — e
+duas das tres tentativas de acelerar a sombra do inimigo sairiam se nao
+houvesse com que conferir. `shot` monta uma cena FIXA (um corpo de cada tipo em
+grade, mais um aglomerado sobreposto, camera cravada) e devolve o hash da
+imagem: ou e identica pixel a pixel, ou ele diz de quanto foi o desvio. Um
+quadro de batalha nao serve de referencia, porque ele depende da run inteira.
+
+**O ruido do `bench` entre rodadas e ~0.5ms**, e a maquina varia mais que isso
+sob carga. Diferenca menor nao e diferenca: rode as duas variantes
+INTERCALADAS, tres vezes cada, e compare as medianas. Foi assim que tres
+otimizacoes de sombra que pareciam boas foram medidas e descartadas — a de
+cache empatou, a que juntava tudo num path so ficou 60% mais lenta (o
+rasterizador passa a computar a uniao de 1850 sub-elipses), e o custo real
+acabou sendo overhead POR CHAMADA, nao a forma desenhada. Depois do culling,
+canvas2d nao tem mais o que dar aqui sem desenhar menos coisas.
+
 ## `driver_bench` — a peca sozinha, em cenario controlado
 
 `driver_balance` responde "esta RUN funciona?". Ele nao responde "esta PECA faz
