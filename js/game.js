@@ -173,7 +173,14 @@ class Game {
         const t = this.music.cycleTrack();
         this.ui.toast({ head: "Trilha", name: t ? t.name : "silêncio" });
       }
-      if (e.key === "Escape") this.togglePause();
+      /* ESC closes whatever is on top BEFORE pausing. The version notes open
+         over the menu, where `togglePause` is a no-op — but without this order
+         the key that closes every screen in the game would be the only one
+         that does not close this one. */
+      if (e.key === "Escape") {
+        if (this.ui.logOpen) this.ui.closeChangelog();
+        else this.togglePause();
+      }
       // 1/2/3 escolhem a carta do level up. A tela e quem sabe se ela esta
       // aberta e quantas cartas tem; aqui so chega a tecla.
       if (this.ui.levelUpKey(k)) e.preventDefault();

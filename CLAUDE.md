@@ -54,16 +54,17 @@ sem tell em tela ganha tarja laranja, e o filtro "só o que não anima" lista as
 card mudo e registry que passou na frente da galeria.
 
 `DRIVER=driver_preview.js node tools/harness.js .` escreve
-`tools/telas-preview.html`, com as **seis telas de UI** montadas a partir de
+`tools/telas-preview.html`, com as **sete telas de UI** montadas a partir de
 builds de verdade: o level-up em quatro estados (build crua, média, tira no teto
-e evolução na mesa), a etapa nas duas fases, e HUD, pausa, baú e game over.
+e evolução na mesa), a etapa nas duas fases, e HUD, pausa, baú, game over e as
+notas da versão.
 Mesmo argumento da galeria: tela que só aparece por segundos, em estados
 sorteados, não se revisa jogando — e a etapa carrega a única decisão
 irreversível da run.
 
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
 Antes de commitar, rode a bateria headless — **`node tools/run-all.js`**, que
-roda os 24 drivers em paralelo com o mais lento na frente (~140s, contra 260s
+roda os 26 drivers em paralelo com o mais lento na frente (~140s, contra 260s
 em série). `node tools/run-all.js fast` é o subconjunto de ~8s que cabe a cada
 edit. **O pior caso da bateria é o `chest`**, e ele custa ~140s de propósito:
 "40% dos baús dão prêmio grande" é uma propriedade distribucional e uma run de
@@ -118,6 +119,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `sprites.html` | galeria de toda a arte gerada em runtime — revisão visual, fora do jogo |
 | `vfx.html` | galeria de tudo que se mexe: uma cena viva por mecânica, com o que não anima marcado |
 | `js/util.js` | helpers puros (`xpForLevel`, `fmtNum`, `hexRgb`, `deepClone`, `setPath`) |
+| `js/version.js` | `VERSION` + `CHANGELOG` + `CHANGELOG_TIPOS` — a versão e o que entrou nela |
 | `js/balance.js` | `BALANCE`, `ENEMIES`, `AXES`, `AXIS_RULES`, `PATH_RULES`, `CLASSES`, `ITEMS` |
 | `js/sprites.js` | `SPRITE_DATA`, `STATE_MARKS` + geração de pixel-art, chão e estilhaços |
 | `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
@@ -496,7 +498,7 @@ nos dois lados. É o estado da grade **depois** dos quatro consertos acima:
 | runs com evolução | 13/30 | 1/30 |
 | runs com capstone | 14/30 | 4/30 |
 
-Ler isto com honestidade: **a grade está entregue e o motor está verde** (os 24
+Ler isto com honestidade: **a grade está entregue e o motor está verde** (os 26
 drivers passam), mas o clímax da run — evolução, capstone, metamorfose — quase
 não acontece mais. O perfil que joga ao acaso melhorou; os que **miram** um eixo
 e o que **alarga** a build pioraram muito, e são justamente eles que o
@@ -2387,6 +2389,83 @@ devolve estado vazio, senão o game over inteiro morreria junto. O plano complet
 com o que ficou de fora e por quê, está em `PLANO-RANKING.md`; o setup do form é
 `tools/setup-leaderboard.gs`, que roda uma vez e imprime as constantes.
 
+### A versão e o changelog: uma lista só, e ela é a fonte
+
+`js/version.js` é o arquivo inteiro: `CHANGELOG` é a lista de versões (a mais
+nova **no topo**) e `VERSION` **cai dela** — `CHANGELOG[0].v`, nunca digitado.
+Amarrados assim, subir a versão sem dizer o que entrou deixa de ser possível:
+a menor mudança que o jogo aceita é uma entrada com pelo menos uma nota.
+
+O número já morava em **dois** lugares — cravado no `.menu-versao` do
+`index.html` e cravado de novo em `LB_CFG.versao`, com um comentário pedindo
+que os dois andassem juntos. Comentário não é mecanismo, e a cópia que
+envelhecesse carimbaria toda run enviada ao placar com uma versão que o jogo
+não tem mais, em silêncio. Hoje os dois **leem** de `VERSION`, e o rodapé do
+menu é escrito por `UI.mountVersao`.
+
+**Os dados moram em JS e não num `CHANGELOG.md`** pelo mesmo motivo que não há
+`fetch` em lugar nenhum: o jogo abre por `file://`, onde origem opaca bloqueia
+a leitura. Um markdown ao lado teria que ser lido em runtime — ou copiado à mão
+para cá, que é a segunda lista de novo.
+
+Formato de uma entrada, e cada campo tem um consumidor:
+
+```js
+{ v: "0.10.0", data: "2026-08-24", titulo: "A versao fala",
+  notas: [ { t: "novo" | "ajuste" | "conserto", txt: "..." } ] }
+```
+
+- **`v` é SemVer**, e a régua deste jogo é: **maior** = a run muda de forma
+  (uma classe nova, outra tela de escolha); **menor** = conteúdo ou sistema
+  novo (peça, capstone, placar, este changelog); **patch** = conserto e ajuste
+  de número, incluindo rebalanceamento que não muda a forma de nada.
+- **`data` é o dia em que aquilo SUBIU para a master**, não o dia em que foi
+  escrito — é a data que a tela mostra e a única que o jogador pode conferir
+  contra a própria memória.
+- **A nota diz o que mudou para QUEM JOGA, na voz do jogo.** "As três cartas
+  passam a ser comparadas na mesma régua, em dano por segundo" é uma nota;
+  "refatora `offerGain`" não é. Mecanismo e medição moram aqui no CLAUDE.md,
+  que é onde alguém os procura — a nota é a linha que o jogador lê no menu.
+- **Três tipos, e são poucos de propósito.** Com sete rótulos ninguém escolhe o
+  mesmo duas vezes e a etiqueta para de significar algo.
+
+**A tela (9.9)** abre ao clicar na versão, no canto do menu: trilho de versões à
+esquerda, notas à direita — a mesma silhueta do placar, e de propósito, porque
+as duas respondem "o que aconteceu fora desta run". Três coisas que caem daí:
+
+- **Ela não apaga o canvas.** Apagar o canvas é o que separa a tela de etapa de
+  todas as outras, e esta não cobra nada.
+- **O botão de fechar é fantasma**, e o único cheio do menu continua sendo o
+  `Iniciar` — preenchimento é custo, e escolher versão não custa.
+- **Zero cor de eixo.** Uma nota de versão não fala de Corrupção, Domínio nem
+  Cataclismo (R2): tudo ali é osso sobre obsidiana.
+
+`driver_version` guarda sete coisas: que `VERSION` é a entrada mais nova, que a
+lista desce sem repetir versão nem inverter data, que toda entrada tem data ISO,
+título e ao menos uma nota, que o número **não** existe num segundo lugar (ele
+faz `grep` no `index.html` e compara `LB_CFG.versao`), que a tela desenha uma
+linha por versão e as notas certas, que a nota é **escapada** (ela é texto,
+nunca markup) e que o `ESC` fecha as notas **antes** de pausar.
+
+#### Ao subir para a master: bumpar e escrever a nota, na mesma mudança
+
+**Toda mudança que chega na `master` mexe em `js/version.js`** — não há exceção
+por tamanho: conserto de uma linha é um `patch`, e um `patch` sem nota é o
+defeito que esta lista existe para impedir.
+
+O fluxo, e ele é curto de propósito:
+
+1. **Decida o degrau** pela régua acima (maior / menor / patch).
+2. **Se a versão do topo ainda não foi para a master, ACRESCENTE a nota nela**
+   em vez de criar uma entrada nova. Uma versão por trabalho, não por commit —
+   dez entradas de um dia só é a lista de commits com outro nome, e ninguém lê
+   a lista de commits.
+3. **Entrada nova vai no TOPO**, com a data do dia em que ela sobe.
+4. Rode `node tools/run-all.js` (ou ao menos `fast`, que inclui o
+   `driver_version`) — ele reprova ordem, data e versão repetida.
+5. O commit que sobe leva `js/version.js` junto. `VERSION` acompanha o código
+   que ela nomeia: bumpar depois é carimbar run com a versão errada até lá.
+
 ### Duas trilhas, e a padrão é a que NÃO acontece
 
 `TRACKS` (`js/track.js`) é a lista, e a tecla `N` percorre ela mais o silêncio:
@@ -2487,6 +2566,9 @@ informação de combate.
   em `Game`, não um acesso a `game` dentro do dado.
 - Comportamento genuinamente imperativo vai para `js/hooks.js`, nomeado, e é
   referenciado por string — nunca `if` espalhado dentro das peças.
+- **Mudança que sobe para a `master` mexe em `js/version.js`**: bumpe a versão
+  e escreva a nota do que entrou, na mesma mudança. A regra do degrau e o fluxo
+  estão em "A versão e o changelog".
 
 ## Como adicionar uma peça nova
 

@@ -1,4 +1,4 @@
-/* Nao mede nada: ESCREVE `tools/telas-preview.html`, as SEIS telas de UI
+/* Nao mede nada: ESCREVE `tools/telas-preview.html`, as SETE telas de UI
    montadas com builds de verdade — as mesmas que a run produz — para revisar o
    layout sem ter que jogar ate o nivel 20.
 
@@ -322,6 +322,31 @@ frame("game over · altura fixa por construção", "tela-go",
     </div>
   </div>`);
 
+/* The version notes. The preview assembles the rail by hand from the children
+   the UI created, because `drawChangelog` uses `appendChild` (each row needs
+   its own `onclick`) and the stub does not reflect that back in `innerHTML` —
+   the content is still exactly what the game drew. */
+g.ui.openChangelog(0);
+let logNav = "";
+for (const b of g.ui.el.logNav.children.slice(-CHANGELOG.length)) {
+  logNav += `<button class="${b.className}">${b.innerHTML}</button>`;
+}
+shell("logNav"); shell("logNotes");   // checks the ids still exist
+frame("notas da versão · trilho à esquerda, o que entrou à direita", "tela-log",
+  `<div class="log-wrap">
+    <header class="log-head">
+      <div><div class="rotulo log-eyebrow">O que entrou</div>
+        <h2 class="display-l">Notas da versão</h2></div>
+      <button class="btn btn-fantasma ch1">Fechar</button>
+    </header>
+    <div class="log-body">
+      <nav class="log-nav">${logNav}</nav>
+      <section class="log-notes placa ch3">${shell("logNotes")}</section>
+    </div>
+    <div class="log-pe"><span class="rotulo dim">ESC para voltar</span>
+      <span class="rotulo dim">${document.getElementById("logCount").textContent}</span></div>
+  </div>`);
+
 body += telas;
 
 const css = src.slice(src.indexOf("<style>") + 7, src.indexOf("</style>"));
@@ -346,4 +371,4 @@ ${fonts}<style>${css}
          text-transform: uppercase; color: var(--osso-300); margin-bottom: 8px; }
 </style></head><body>${body}</body></html>
 `);
-console.log(`ok  tools/telas-preview.html — ${shots.length} de level up + ${msShots.length} de etapa + 4 outras telas`);
+console.log(`ok  tools/telas-preview.html — ${shots.length} de level up + ${msShots.length} de etapa + 5 outras telas`);

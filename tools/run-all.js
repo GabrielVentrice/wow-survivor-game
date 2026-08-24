@@ -67,6 +67,7 @@ const BATTERY = [
   { name: "cards",     driver: "driver_cards.js",     tier: "fast", weight: 95 },
   { name: "palette",   driver: "driver_palette.js",   tier: "fast", weight: 75 },
   { name: "placar",    driver: "driver_leaderboard.js", tier: "fast", weight: 90 },
+  { name: "versao",    driver: "driver_version.js",   tier: "fast", weight: 90 },
 
   /* O banco fica no `full` e nao no `fast`, e a razao e a mesma que separa os
      dois tiers: 450 celulas custam 20s, que e mais que a soma de todo o resto
