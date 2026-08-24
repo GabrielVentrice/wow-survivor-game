@@ -62,6 +62,25 @@ const CRIT_STEPS = [
 
 const LINE_NAMES = { haste: "Aceleração", mastery: "Maestria", crit: "Crítico" };
 
+/* O que a LINHA faz com a peca, em uma frase — o slot em Eczar da carta de
+   level up.
+
+   Ele nao carrega o `desc` da peca por um motivo medido na propria tela: duas
+   das tres cartas costumam ser da MESMA spell em linhas diferentes, e o `desc`
+   da peca sairia identico nas duas. O que precisa diferir entre elas e
+   exatamente o que a linha muda — o resto (nome, icone, tira da build) ja diz
+   qual spell e.
+
+   E ele nao carrega numero, nunca: o numero ja esta duas vezes na carta (a
+   regua em mono 38 e os valores crus logo abaixo), e repetir o que e IGUAL
+   entre as ofertas enquanto o que DIFERE fica pequeno era o defeito inteiro da
+   tela antiga. */
+const LINE_ABOUT = {
+  haste: "A linha da frequência: a peça acontece mais vezes, e no fim da linha ela sai em mais de uma por vez.",
+  mastery: "A linha do peso: cada vez que a peça acontece, ela acontece mais forte.",
+  crit: "A linha da sorte: uma fatia dos acertos passa a valer o dobro, e a fatia cresce.",
+};
+
 // Nomes dos degraus. Sao SUBTITULO na carta (o slot do nome carrega a spell),
 // entao eles marcam a posicao na linha em vez de inventar identidade.
 const LINE_TIERS = {

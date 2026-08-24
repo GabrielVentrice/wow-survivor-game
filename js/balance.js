@@ -239,6 +239,47 @@ BALANCE.levelup = {
   passiveAt: 10,   // nivel a partir do qual passiva pode ser oferecida
 };
 
+/* --- O CAMPO PADRAO: a regua da tela de level up -------------------------
+   A carta de level up mede a oferta em DANO POR SEGUNDO, e as tres barras
+   compartilham a mesma escala — o jogador compara sem converter unidade.
+   Para isso existir, alguem tem que responder "quanto esta peca faz por
+   segundo", e a resposta depende do campo: um golpe de raio 460 num alvo
+   sozinho vale um corpo, e no cerco vale doze.
+
+   Este bloco E esse campo, e ele e DADO porque e uma suposicao e nao um fato.
+   `js/systems/dps.js` le daqui e de mais nada.
+
+   Ele nao substitui `driver_bench`: o banco mede a peca com o motor rodando e
+   e a verdade; isto e um modelo fechado que roda em microssegundos dentro de
+   uma tela parada. `driver_dps` cobra que os dois concordem na ORDEM — a
+   regua nao promete o numero exato, ela promete que a barra mais longa ganha
+   mais. */
+BALANCE.dps = {
+  crowd: 4,        // corpos dentro de um circulo de `crowdRef`
+  crowdRef: 120,   // o raio em que `crowd` foi contado
+  crowdMax: 14,    // teto: raio de tela inteira nao pega a horda inteira
+  moving: 0.7,     // fracao do tempo em que o jogador anda (trail, directional)
+  still: 0.3,      // e a fracao em que ele para (rooted) — as duas somam 1
+  speed: 240,      // px/s, a velocidade base de BALANCE.player.speed
+  /* Reativo nao tem cadencia propria: ele dispara em evento. O que segura a
+     conta e o cooldown anti-spam, e o que o jogo entrega e horda morrendo em
+     leva — entao o piso e alto e quem manda quase sempre e o cooldown. */
+  events: 6,       // eventos por segundo disponiveis para um gatilho reativo
+  /* Execucao: a fracao do tempo em que o alvo esta abaixo do limiar. Nesta
+     horda — densa e fragil — quase todo corpo passa por la, mas por pouco
+     tempo. */
+  executeFrac: 0.35,
+  /* Quanto tempo o jogador fica seguido no mesmo estado — parado ou andando.
+     E o que decide o quanto Furia Contida e Pes de Cinza chegam a acumular:
+     as duas sobem 2% por segundo e zeram na primeira troca, entao o que
+     importa nao e a fracao do tempo, e o TAMANHO da sequencia. */
+  streak: 6,
+  /* Fracao da horda que carrega um DoT seu. `onlyDotted` nao e detalhe: e o
+     que separa Malefic Rapture — que so rasga quem ja esta apodrecendo — de
+     uma peca de area comum, e sem ele a regua conta a horda inteira. */
+  dotted: 0.25,
+};
+
 /* ETAPAS: a batida lenta da run, e a UNICA fonte de ponto de eixo.
 
    O level up passou a ser so profundidade (um tier de uma spell que voce ja

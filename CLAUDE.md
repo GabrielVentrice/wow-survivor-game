@@ -99,6 +99,12 @@ quebrada) e `requires` é honrado (o jogo não oferece Conflagrate sem um DoT na
 build). Ele reprova peça de dano que não causa dano em cenário nenhum e caminho
 fechado que rende menos que a peça crua.
 
+E ele é também **o único lugar onde a régua da tela de level up é conferida**
+(bloco `REGUA x CAMPO`): `js/systems/dps.js` é um modelo fechado, e um modelo
+que ninguém confere vira a segunda lista que este projeto passa o tempo inteiro
+evitando. A comparação mora aqui porque o banco já mediu toda peça com o motor
+rodando — ver "A régua" na seção da tela de level-up.
+
 **Scripts são clássicos (`<script src>`), nunca `type="module"`.** Módulo ES é
 buscado com CORS e `file://` tem origem opaca — o browser bloquearia e "abrir o
 index.html direto" pararia de funcionar. O preço é escopo global compartilhado e
@@ -125,6 +131,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/dots.js` | `DotSystem` — DoT genérico com scheduler por timestamp |
 | `js/systems/minions.js` | `MINION_AI` + `MinionSystem` |
 | `js/systems/triggers.js` | `TRIGGERS` — quando dispara |
+| `js/systems/dps.js` | a régua da tela de level up: quanto uma peça faz por segundo |
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
 | `js/content/paths.js` | `HASTE`/`MASTERY`/`CRIT` — as três linhas de upgrade, geradas |
@@ -1865,40 +1872,79 @@ voltou a aparecer. Enquanto as cartas eram uma por eixo e o kit inicial não
 semeava Domínio, ninguém escolhia aquele eixo e o catálogo de demônios ficava
 sem uso — `driver_balance` listava dez peças em `NUNCA ESCOLHIDA`.
 
-### A tela de level-up: três cartas em coluna
+### A tela de level-up: a régua comum
 
-Três **cartas verticais** lado a lado, e abaixo uma tira com a build de agora.
+Três **cartas verticais** de 348x436 lado a lado, e abaixo uma tira com a build
+de agora. O mundo continua atrás — é isso, e não a cor, que separa esta tela do
+preto chapado da etapa —, mas a **8%**: com mil inimigos em campo os pontos
+brancos do canvas ficavam mais claros que o texto das cartas, e o mundo tem que
+dizer "você está numa run", não competir com a leitura. **O HUD inteiro sai**
+(`openLevelUp` esconde `#hud`): tira de peças, painel de eixos, barra de vida e
+cadeia seguiam acesos numa tela onde o jogo está parado e nada disso decide
+nada. Só o relógio fica, e ele é o da própria tela.
 
-**Ela já foi três linhas, e a razão era boa enquanto valia.** Enquanto a tela
-oferecia três coisas *diferentes* — spell nova, melhoria, passiva —, comparar
-significava correr o mesmo campo nas três, e linha com colunas fixas (o que é /
-o que muda / custo) é a forma que deixa o olho fazer isso na vertical. Depois
-que spell nova mudou para a tela de etapa, as ofertas viraram a mesma coisa: um
-degrau numa spell que o jogador já tem. Grade de três colunas para comparar
-campos que não divergem mais é só moldura, e a coluna de custo já tinha virado
-progresso porque não havia mais custo.
+**O problema não era estética, era carga cognitiva.** As cartas mostravam em
+destaque o que era **igual** entre as opções (`+40% de dano`, duas vezes) e
+escondiam em mono cinza no rodapé o que **diferia** (`27/s → 38/s` contra
+`270 → 378`) — duas unidades diferentes que o jogador tinha que converter de
+cabeça, 17 a 70 vezes por run. Sem denominador comum ninguém compara: ou chuta,
+ou escolhe sempre a mesma coisa, e nos dois casos a escolha deixou de ser
+decisão.
 
-**A hierarquia interna é a regra que sobrevive à mudança de forma:**
+O jogo já sabe cadência, alvos e dano de cada peça. Ele pode fazer a conta que o
+jogador não faz — e é isso que a régua é.
 
-1. **`.lv-plain`, 19px** — o que muda no jogo, o item mais claro da carta.
-2. **o delta** logo abaixo, com o número que o jogador vai passar a ter.
-3. nome da spell, subtítulo e etiqueta de tipo — um degrau abaixo.
-4. `.lv-why`, ícone, pips e botão — o fundo da pilha.
+**A hierarquia interna, e ela trocou de dono:**
 
-Numa carta o nome vem **antes no espaço**, então ele tem que perder no
-**tamanho** — senão a leitura pousa no rótulo em vez de no efeito, que é
-exatamente o defeito que esta tela já corrigiu uma vez. `driver_cards` reprova
-carta sem `.lv-plain`.
+1. **a régua** — o ganho em **dano/s** em mono 38, e a barra de 12px logo
+   abaixo. É o maior elemento da carta depois do nome.
+2. **os valores crus** em `rotulo`, com o valor novo na **brasa** do eixo
+   (`crítico 5% → 30% · dano crítico 2x → 2.5x`). Continuam ali para quem
+   quiser conferir; deixaram de ser o único lugar onde a diferença aparecia.
+3. nome da spell, linha de contexto e etiqueta de tipo.
+4. o slot em Eczar, `.lv-why`, ícone, pips e tecla.
+
+**As três barras compartilham a mesma escala** (`UI.lvScale`, calculada sobre a
+mesa e não dentro de `offerView`, que só vê uma oferta por vez): a mais longa
+ganha mais, e isso se lê **sem número**. A legenda embaixo do título ensina a
+régua uma vez; depois disso o jogador só lê as barras.
+
+Regras que caem daí:
+
+- **A régua é honesta, não promocional.** Ela não sabe o que é espetacular —
+  ela sabe quanto rende. Se a evolução não for o maior ganho, ela não é marcada
+  como maior ganho: uma régua que só confirmasse a opção mais vistosa não
+  estaria informando nada.
+- **`MAIOR GANHO` é osso, nunca cor de eixo.** "Esta rende mais" é um fato
+  aritmético, não um eixo falando. A marcação é luz de 2px no topo + moldura de
+  osso + o rótulo na régua + a tecla em osso cheio.
+- **Empate não marca ninguém.** Duas cartas em osso cheio na mesma tela
+  colidiriam, e "as duas rendem igual" não é o que a marcação existe para dizer.
+- **O piso da barra é 3%.** Uma evolução pode render trinta vezes o tier
+  vizinho, e a barra proporcional daquele vizinho sairia com meio pixel — que
+  lê como zero, e zero é outra coisa ("esta oferta não move o dano"). O piso
+  mantém a distinção que importa sem mexer na ordem.
+- **Ganho zero não vira `+0`.** `+0 dano/s` lê como peça quebrada quando o que
+  houve foi a régua não medir aquilo: a carta escreve `—` e diz `não muda o
+  dano` (controle, cura, deslocamento) ou `ganho fora da régua` (passiva ligada
+  a hook, que roda código imperativo que o modelo não percorre).
+- **A tecla substitui os três botões `ESCOLHER`.** 34px no canto em vez de 44px
+  na largura inteira, três vezes, repetindo a mesma palavra. A carta inteira
+  continua sendo o alvo de clique; `1`/`2`/`3` são o input certo de uma tela que
+  aparece 70 vezes por run (`UI.levelUpKey`, chamada do `keydown` do `Game`).
+
+**O eixo aparece em quatro lugares pequenos** — quadrado de 9px, barra da
+régua, brasa nos valores crus, pips — e **nunca na moldura**: moldura de eixo
+faria a carta ser lida pela cor antes de ser lida pelo número, e o número é o
+assunto desta tela. Foi por isso que o chip de recomendação (`acende a aura`)
+saiu: ele era um quinto lugar em cor de eixo, e o mesmo fato cabe no veredito
+do rodapé em texto.
 
 Regras que continuam valendo:
 
 - **O slot do nome carrega a SPELL, não o nome do tier.** O jogador reconhece
-  "Incinerate" de imediato; "Brasa" não quer dizer nada até ser lido. O nome do
-  tier desce para o subtítulo. Em evolução o nome é a **forma nova**.
-- **A carta inteira é clicável, então o botão é lembrete e não alvo** — vazado
-  em repouso, enche no hover. Na tela de **etapa** é o contrário, e de
-  propósito: lá os botões *são* a decisão, porque cada um carrega um número
-  diferente que precisa ser comparado antes de mirar o mouse.
+  "Incinerate" de imediato; "Brasa" não quer dizer nada até ser lido. Em
+  evolução o nome é a **forma nova**.
 - **O tipo é carregado por forma, nunca por cor.** A cor da carta é a do
   **eixo**, então melhoria verde e evolução verde são a mesma cor. Quem separa é
   etiqueta com glifo — `▲` melhoria, `★` evolução, `✦` passiva —, tile redondo
@@ -1909,14 +1955,13 @@ Regras que continuam valendo:
   E o peso da etiqueta também informa: **melhoria e passiva são contornadas**
   (falam de categoria) e **evolução é cheia em osso** (fala de raridade) — ela
   não é um degrau a mais, é conversão.
-- **Veredito, não coordenada.** O subtítulo já diz "caminho · tier N de 5"; o
-  rodapé da carta diz o que aquilo *significa* (`Fecha o caminho` / `A um tier
-  do fim`).
-- **`.lv-why` só aparece quando acrescenta.** Na linha ele carregava sempre o
-  que a spell é, porque a coluna existia de qualquer jeito. Numa carta o nome
-  está logo acima e repetir a identidade é ruído — sobram os dois casos em que
-  há informação nova: passiva **exclusiva** (fecha uma porta) e **evolução** (a
-  peça troca de identidade inteira).
+- **Veredito, não coordenada.** A linha de contexto já diz `Aceleração · tier
+  2 → 3`; o rodapé diz o que aquilo *significa* (`Fecha o caminho`, `A um tier
+  do fim`). Ele deixou de imprimir `Tier N de 5` justamente porque isso era a
+  coordenada duas vezes na mesma carta.
+- **`.lv-why` só aparece quando acrescenta** — passiva **exclusiva** (fecha uma
+  porta) e **evolução** (a peça troca de identidade inteira). Numa carta o nome
+  está logo acima, e repetir a identidade é ruído.
 
 **Passiva só entra a partir do nível `BALANCE.levelup.passiveAt`** (10). Uma
 passiva não constrói nada sozinha — ela **multiplica** o que já está lá
@@ -1924,7 +1969,9 @@ passiva não constrói nada sozinha — ela **multiplica** o que já está lá
 ela multiplica quase nada, e pior: ocupa uma das três cartas disputando com o
 tier que abriria a trilha. São oito passivas para uma run de dezenas de níveis,
 então adiar não custa variedade — custa só o começo, que é onde a spell precisa
-de tier e não de multiplicador.
+de tier e não de multiplicador. A linha de contexto dela conta **quantas peças
+ela toca** (`UI.passiveReach`, pelo mesmo `_matches` do pipeline de stats): é o
+que separa "multiplica quase nada" de "multiplica a build inteira".
 
 **E `pendingLevels` sai da conta.** O nível que importa é o que *esta* escolha
 paga, não o topo da fila — é a mesma leitura que o rótulo da tela já faz. Sem
@@ -1940,11 +1987,11 @@ sai do que já existe:
 
 | Campo da carta | De onde vem |
 |---|---|
-| frase principal | `tier.desc` / `def.desc` — já são frases em pt-BR |
+| ganho em dano/s | `BuildSystem.offerGain` → `js/systems/dps.js` |
 | antes → depois | `tier.mods` aplicado a `inst.r.stats` (`UI.tierDelta`) |
+| frase em Eczar | `LINE_ABOUT[pathId]` no tier numérico, `tier.desc` no estrutural |
 | onde chega | `tierIndex` contra `PATH_RULES.tiers` |
 | porquê | só em evolução e passiva exclusiva |
-| chip na cor do eixo | fecha um caminho (acende a aura) |
 | tira inteira | `build.pieces`, `build.passives` |
 
 Consequências:
@@ -1958,10 +2005,65 @@ Consequências:
   segundos, `frac: 0.06` é seis por cento e `radius: 440` não tem sufixo — sem
   a tabela o delta imprimiria "limiar 0.35 → 0.5". Stat sem entrada não aparece,
   e `driver_cards` reprova mod que mexa em stat fora da tabela.
-- **Chip de recomendação só com gancho real.** Sobrou um, e é o certo: fechar um
-  caminho acende a aura. O de capstone migrou para a tela de etapa — apontar
-  para ele numa tela que não entrega ponto de eixo seria apontar para uma porta
-  que está na outra sala.
+- **O slot em Eczar nunca repete o número, e por isso ele não é o `desc` da
+  peça.** 528 dos 660 tiers são gerados e o texto deles é puro número ("+40% de
+  dano.") — o mesmo dado que a régua imprime em mono 38 e que os valores crus
+  imprimem em "antes → depois". Trocar por `def.desc` conserta a repetição e
+  cria outra: **duas das três cartas costumam ser da mesma spell em linhas
+  diferentes**, e o `desc` sairia idêntico nas duas. Quem ocupa o slot é
+  `LINE_ABOUT` (`js/content/paths.js`), a frase da **linha** — o que precisa
+  diferir entre as duas cartas é exatamente o que a linha muda; nome, ícone e
+  tira já dizem qual spell é. Tier estrutural fica com o próprio texto: ali ele
+  **é** o comportamento novo. `driver_cards` cobra a regra.
+
+#### A régua: `js/systems/dps.js`
+
+O ganho é a única coisa da carta que **não** sai do catálogo — ele é simulado.
+`BuildSystem.offerGain(o)` monta uma **sombra** (um objeto com `def` e `paths`
+trocados) e a passa pelo mesmo `resolvePiece` que o motor usa, então a previsão
+vem do mesmo pipeline que vai rodar quando a carta for clicada. Passiva é o
+mesmo truque pelo outro lado: ela entra no mapa, `applyGlobals` recalcula do
+zero, a build inteira é re-resolvida, e o desfazer é exato porque `applyGlobals`
+não soma — ele reconstrói.
+
+Três regras mantêm o modelo honesto:
+
+1. **Ele lê a instância RESOLVIDA** (`inst.r`), não o catálogo. Não há uma
+   segunda lista de números para divergir da primeira, que é o defeito que este
+   arquivo já documenta em paleta, em voz e em galeria.
+2. **O campo é dado** (`BALANCE.dps`). Quantos corpos um raio pega, quanto
+   tempo o jogador anda, que fração da horda carrega um DoT seu — tudo isso é
+   **suposição**, e suposição escondida no meio de um `switch` é a que ninguém
+   revisa.
+3. **Ele promete ORDEM, não valor.** A barra é comparativa, então errar a
+   escala não mente para ninguém; inverter duas ofertas mente.
+
+**Quem cobra a terceira é o próprio `driver_bench`**, no bloco `REGUA x CAMPO`:
+ele já mede toda peça com o motor rodando, então a comparação mora ao lado da
+medida em vez de virar um segundo banco. Hoje o **rho de Spearman entre as duas
+ordens é 0.75**, com piso de 0.6 — frouxo de propósito, porque o modelo assume
+**um** campo e o banco mede seis, dois deles de alvo único. E ele reprova mudez
+nos dois sentidos: régua zero com campo medindo dano (a carta diria "não muda o
+dano" sobre uma peça que muda) e régua com dano onde o campo mede zero (a carta
+prometeria um número que não existe). A isenção é a mesma que o banco já
+carrega: `player_below` e `enemy_below` nunca viram verdade num campo em que o
+jogador é imortal e os dummies também.
+
+Quatro coisas que o modelo aprendeu medindo, e que valem para efeito novo:
+
+- **DoT não rende "dano × duração por aplicação".** Ele rende o que está
+  ardendo por segundo, e quem decide isso é a regra de pilha: `refresh` satura
+  em um (Immolate a cada 2s num DoT de 6s rende o próprio dps, não o triplo) e
+  `stack` empilha até `max` — é por isso que Agony, 18/s de tabela, mede **73/s**
+  em campo. `ramp` é o terceiro fator.
+- **`onExpire` cobra na taxa de VENCIMENTO, não na de aplicação.** Doom
+  reaplica a cada 4s uma sentença de 8s: no mesmo alvo ela nunca vence, e o
+  demônio que ela prometia nunca nasce.
+- **`pierce` é a segunda vazão da peça**, e é a que a densidade da horda
+  multiplica. É a mesma lição que a grade das três linhas já custou uma vez.
+- **`onlyDotted` corta o alvo, não o raio.** Sem ele, Malefic Rapture — que só
+  rasga quem já está apodrecendo — era contada como peça de área comum, e
+  aparecia 20x acima do que o campo mede.
 
 **A build virou uma TIRA, não um painel.** Era uma coluna de 316px com densidade
 automática, teto de linhas, contador de excedente, chips, três barras de eixo e

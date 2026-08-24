@@ -41,11 +41,14 @@ const take = (id, label, offers, hoverIdx) => {
   if (took[id]) return;
   took[id] = true;
   g.ui.lvOffers = offers;
-  g.ui.lvViews = offers.map((o) => g.ui.offerView(o));
+  // A escala e compartilhada entre as tres cartas, entao a previa tem que
+  // passar pelo mesmo calculo da tela — senao ela mostra tres barras vazias.
+  g.ui.lvViews = g.ui.lvScale(offers.map((o) => g.ui.offerView(o)));
   let cards = "";
-  for (const v of g.ui.lvViews) {
-    cards += `<div class="lv-card ch2" style="${g.ui.eixoVars(v.axisId)}">` +
-             `${g.ui.cardHtml(v)}</div>`;
+  for (let i = 0; i < g.ui.lvViews.length; i++) {
+    const v = g.ui.lvViews[i];
+    cards += `<div class="lv-card ch2${v.top ? " lv-top" : ""}" style="${g.ui.eixoVars(v.axisId)}">` +
+             `${g.ui.cardHtml(v, i + 1)}</div>`;
   }
   shots.push({
     lv: g.player.level, cards,
@@ -147,18 +150,22 @@ for (const sh of shots) {
   <div class="frame"><div class="screen lv">
     <div class="lv-timer">
       <div>07:05</div>
-      <div class="rotulo">6.869 abates</div>
+      <div class="lv-parou">O relógio parou</div>
     </div>
     <div class="lv-wrap">
       <div class="lv-head">
         <div class="lv-eyebrow">Nível ${sh.lv} → ${sh.lv + 1}</div>
         <div class="lv-title">Aprofunde uma</div>
+        <div class="lv-legenda">a barra mede o ganho de dano por segundo — a mais longa ganha mais</div>
       </div>
       <div class="lv-cards">${sh.cards}</div>
     </div>
     <div class="lv-base">
       <div class="lv-strip">${sh.panel}</div>
-      <div class="lv-foot">Nada aqui custa ponto de eixo · a próxima escolha corrige esta</div>
+      <div class="lv-foot">
+        <span>Nada aqui custa ponto de eixo · a próxima escolha corrige esta</span>
+        <span>1 2 3 para escolher</span>
+      </div>
     </div></div></div>`;
 }
 

@@ -29,7 +29,7 @@ class UI {
       pieceBar: $("pieceBar"), axisBar: $("axisBar"), toasts: $("toasts"),
       combo: $("combo"), comboNum: $("comboNum"), comboFuse: $("comboFuse"),
       levelup: $("levelup"), lvRows: $("lvRows"), lvBuild: $("lvBuild"),
-      lvEyebrow: $("lvEyebrow"), lvClock: $("lvClock"), lvCtx: $("lvCtx"),
+      lvEyebrow: $("lvEyebrow"), lvClock: $("lvClock"),
       milestone: $("milestone"), msRows: $("msRows"), msEyebrow: $("msEyebrow"),
       msSub: $("msSub"), msPool: $("msPool"), msCap: $("msCap"),
       pause: $("pause"), pausePanel: $("pauseBody"),
@@ -295,15 +295,23 @@ class UI {
   }
 
   /* --- level up (9.3) ------------------------------------------------------
-     Tres CARTAS verticais sobre o mundo vivo, e o relogio fica em 32% no topo:
-     isto e uma batida dentro da run, nao um capitulo. O contraste com o preto
-     chapado da Etapa e a distincao mais forte que existe entre as duas telas,
-     e nao custa um pixel de cor.
+     Tres CARTAS verticais sobre o mundo APAGADO, e so o relogio sobrevive do
+     HUD. O mundo continua atras — e isso, e nao a cor, que separa esta tela do
+     preto chapado da Etapa —, mas a 8%: com mil inimigos em campo os pontos
+     brancos ficavam mais claros que o texto das cartas.
 
-     A hierarquia interna e a regra que sobrevive a qualquer mudanca de forma:
-     `.lv-plain` — o que muda no jogo — e o item mais claro da carta, ACIMA do
-     nome da spell. Numa carta o nome vem antes no espaco, entao ele tem que
-     perder no TAMANHO, senao a leitura pousa no rotulo em vez de no efeito. */
+     A HIERARQUIA INTERNA mudou de dono, e a razao e medida. Antes o item mais
+     claro da carta era a frase do tier (`.lv-plain`), e o que decidia a compra
+     — `27/s -> 38/s` contra `270 -> 378` — ficava em mono cinza no rodape. Duas
+     unidades diferentes, convertidas de cabeca, 17 a 70 vezes por run: o que
+     era IGUAL entre as ofertas ("+40% de dano", duas vezes) estava grande e o
+     que DIFERIA estava pequeno.
+
+     Hoje o heroi e a REGUA: o ganho em dano/s (`js/systems/dps.js`) em mono 38
+     e uma barra em escala COMPARTILHADA entre as tres cartas — a mais longa
+     ganha mais, e isso se le sem numero. A frase do tier desce para o corpo e
+     passa a dizer a unica coisa que o numero nao diz: COMO a peca se comporta.
+     Ela nunca repete o numero. */
 
   openLevelUp() {
     const g = this.game;
@@ -341,18 +349,18 @@ class UI {
     const lv = g.player.level - g.player.pendingLevels;
     this.el.lvEyebrow.textContent = `Nível ${lv} → ${lv + 1}`;
     this.el.lvClock.textContent = mmss(g.elapsed);
-    this.el.lvCtx.textContent = `${fmtNum(g.player.kills)} abates`;
 
     this.lvOffers = offers;
     this.lvViews = offers.map((o) => this.offerView(o));
+    this.lvScale(this.lvViews);
     this.lvHover = -1;
     this.el.lvRows.innerHTML = "";
     for (let i = 0; i < offers.length; i++) {
       const v = this.lvViews[i];
       const row = document.createElement("div");
-      row.className = "lv-card ch2";
+      row.className = "lv-card ch2" + (v.top ? " lv-top" : "");
       row.setAttribute("style", this.eixoVars(v.axisId));
-      row.innerHTML = this.cardHtml(v);
+      row.innerHTML = this.cardHtml(v, i + 1);
       row.onclick = () => this.applyOffer(offers[i]);
       // O hover so re-renderiza a TIRA: mexer nas cartas mataria a transicao
       // que o CSS esta rodando naquele instante.
@@ -361,7 +369,57 @@ class UI {
       this.el.lvRows.appendChild(row);
     }
     this.el.lvBuild.innerHTML = this.buildStripHtml(-1);
+    /* O HUD SAI. Tira de pecas, painel de eixos, barra de vida e cadeia
+       seguiam acesos numa tela onde o jogo esta parado e nada disso decide
+       nada — quatro camadas pedindo atencao contra tres cartas. So o relogio
+       fica, e ele e o proprio da tela (`.lv-timer`). */
+    this.el.hud.classList.add("hidden");
     this.el.levelup.classList.remove("hidden");
+  }
+
+  /* A ESCALA COMPARTILHADA. Ela e a tela inteira: comparar tres barras so
+     significa alguma coisa se as tres estiverem na mesma regua, e e por isso
+     que ela e calculada sobre a MESA e nao dentro de `offerView`, que so ve
+     uma oferta por vez.
+
+     So uma carta pode ser marcada como maior ganho, e a marcacao e um FATO
+     aritmetico, nao uma recomendacao de estilo de jogo — por isso ela e osso e
+     nao cor de eixo. Empate nao marca ninguem: duas cartas em osso cheio na
+     mesma tela colidiriam, e "as duas rendem igual" nao e o que a marcacao
+     existe para dizer. */
+  lvScale(views) {
+    let topo = 0, topoIdx = -1, empate = false;
+    for (let i = 0; i < views.length; i++) {
+      const d = views[i].dps;
+      if (!(d > 0)) continue;
+      if (d > topo * 1.001) { topo = d; topoIdx = i; empate = false; }
+      else if (d > topo * 0.999) empate = true;
+    }
+    if (empate) topoIdx = -1;
+    for (let i = 0; i < views.length; i++) {
+      const v = views[i];
+      /* PISO DE 3%. Uma evolucao pode render trinta vezes o que o tier vizinho
+         rende, e a barra proporcional daquele vizinho sai com meio pixel — o
+         que le como zero, e zero e outra coisa: "esta oferta nao move o dano".
+         O piso mantem a distincao que importa (rende alguma coisa / nao rende)
+         sem mexer na ordem, que e o que a barra promete. */
+      v.pct = topo > 0 && v.dps > 0
+        ? Math.max(3, Math.min(100, v.dps / topo * 100)) : 0;
+      v.top = i === topoIdx;
+    }
+    return views;
+  }
+
+  /* As tres cartas atendem por `1`, `2` e `3`. Nao e atalho de conveniencia: e
+     o input CERTO desta tela. Sao 17 a 70 escolhas por run, e mirar o mouse em
+     uma de tres colunas custa mais que a decisao em si depois da decima vez.
+     A carta continua clicavel — a tecla e o rotulo, nao a unica porta. */
+  levelUpKey(k) {
+    if (this.game.state !== STATE.LEVELUP) return false;
+    const i = "123".indexOf(k);
+    if (i < 0 || !this.lvOffers || i >= this.lvOffers.length) return false;
+    this.applyOffer(this.lvOffers[i]);
+    return true;
   }
 
   lvHoverTo(i) {
@@ -378,7 +436,16 @@ class UI {
      primeiro rebalanceamento. */
   offerView(o) {
     const axis = o.axis || null;
-    const v = { axisId: axis ? axis.id : null, axis, pips: null, delta: [], rec: "" };
+    const v = { axisId: axis ? axis.id : null, axis, pips: null, delta: [] };
+    /* A REGUA. O ganho em dano/s e a unica coisa da carta que nao sai do
+       catalogo: ele e simulado contra a build de agora (`BuildSystem.offerGain`
+       -> `js/systems/dps.js`), entao ele ja tem tier, passiva e capstone
+       dentro. Zero e resposta legitima — tier de controle, de cura ou de
+       deslocamento nao move a regua —, e a carta diz isso com palavra em vez
+       de fingir um numero. */
+    v.dps = this.game.build.offerGain(o);
+    v.pct = 0;
+    v.top = false;
 
     if (o.kind === "passive") {
       v.kind = "Passiva";
@@ -387,7 +454,22 @@ class UI {
       v.tagCls = "tag-cat"; // categoria, nao raridade
       v.id = o.def.id;
       v.name = o.def.name;
-      v.subtitle = "não dispara · afeta a build inteira";
+      /* A linha de contexto de uma passiva conta QUANTAS pecas ela toca: e o
+         que separa "multiplica quase nada" de "multiplica a build inteira", e
+         e a unica coisa que faz o ganho dela ser lido como grande ou pequeno
+         com razao. */
+      v.hits = this.passiveReach(o.def);
+      v.subtitle = `não dispara · ${v.hits} peça${v.hits === 1 ? "" : "s"} na build`;
+      /* A linha de valores crus so existe quando ha valor. "Soma das 5 pecas
+         afetadas" embaixo de "nao muda o dano" seria a carta se contradizendo
+         na mesma coluna. */
+      v.crus = v.dps > 0.5 ? `Soma das ${v.hits} peças afetadas` : "";
+      /* A regua nao ve HOOK. Passiva ligada a evento (`on`) roda codigo
+         imperativo em `js/hooks.js` — Eco do Vazio repete golpe grande,
+         Contagio faz o DoT saltar —, e nada disso esta no dado que o modelo
+         percorre. Dizer "nao muda o dano" ali seria a carta MENTINDO sobre
+         uma passiva que muda o dano; ela diz que o ganho nao cabe na regua. */
+      v.foraDaRegua = !!o.def.on;
       v.plain = o.def.desc;
       /* `why` so aparece quando ACRESCENTA. Numa carta o nome esta logo acima e
          repetir a identidade e ruido; sobram os dois casos com informacao nova
@@ -396,7 +478,10 @@ class UI {
       v.why = o.def.exclusive
         ? `Fecha a porta de ${PASSIVES[o.def.exclusive].name} — a build tem que optar.`
         : "";
-      v.progHead = "Vale para a build inteira";
+      /* VEREDITO, nao coordenada — e a linha de contexto logo acima ja diz a
+         coordenada. Repetir "toda a build" aqui seria a mesma informacao duas
+         vezes na mesma carta, que e metade do defeito que esta tela conserta. */
+      v.progHead = "Multiplica o que a build já tem";
     } else {
       const evo = o.isEvo && o.evo ? o.evo : null;
       /* Evolucao ganha etiqueta propria em vez de "Melhoria": ela nao e um
@@ -415,13 +500,30 @@ class UI {
          jogador reconhece "Incinerate" de imediato; "Brasa" nao quer dizer nada
          ate ser lido. O nome do tier desce para o subtitulo. */
       v.name = evo ? evo.name : o.def.name;
+      /* A linha de contexto diz de ONDE para ONDE, em uma unidade so: o tier
+         que sai e o que entra. O nome de fantasia do tier saiu daqui junto com
+         a regua — o slot e estreito, e "Brasa" nao ajuda a decidir. */
       v.subtitle = evo
-        ? `${o.def.name} · ${o.path.name} · tier ${PATH_RULES.tiers} de ${PATH_RULES.tiers}`
-        : `${o.tier.name} · ${o.path.name} · tier ${o.tierIndex + 1} de ${PATH_RULES.tiers}`;
+        ? `${o.def.name} · tier ${o.tierIndex} → ${o.tierIndex + 1}`
+        : `${o.path.name} · tier ${o.tierIndex} → ${o.tierIndex + 1}`;
       /* O `desc` dos tiers de evolucao comeca com "EVOLUÇÃO — ", de quando a
          carta nao tinha onde marcar isso. Agora a etiqueta marca. Tirado na
          exibicao, nao no dado: o `desc` continua servindo a quem le o catalogo. */
-      const plain = o.tier.desc.replace(/^EVOLUÇÃO\s*[—-]\s*/, "");
+      /* O SLOT EM ECZAR NUNCA REPETE O NUMERO. 528 dos 660 tiers do catalogo
+         sao gerados e o texto deles e puro numero ("+40% de dano.", "Dispara
+         25% mais rapido.") — o mesmo dado que a regua ja imprime em mono 38 e
+         que os valores crus ja imprimem em "antes -> depois". Tres vezes a
+         mesma coisa, e nenhuma delas dizendo o que a compra muda no jogo.
+
+         Tier puramente numerico (tem `mods`, nao tem `patch`) cede o slot para
+         `LINE_ABOUT` — a frase da LINHA, e nao o `desc` da peca: duas das tres
+         cartas costumam ser da mesma spell em linhas diferentes, e o `desc`
+         sairia identico nas duas. Tier estrutural fica com o proprio texto:
+         ali ele E o comportamento novo, e essa e a unica carta em que ele
+         aparece. */
+      const numerico = !!(o.tier.mods && !o.tier.patch);
+      const plain = ((numerico && LINE_ABOUT[o.pathId]) || o.tier.desc)
+        .replace(/^EVOLUÇÃO\s*[—-]\s*/, "");
       v.plain = plain.charAt(0).toUpperCase() + plain.slice(1);
       v.why = evo ? evo.desc : "";
       v.delta = this.tierDelta(o);
@@ -431,11 +533,39 @@ class UI {
       const falta = PATH_RULES.tiers - (o.tierIndex + 1);
       v.progHead = falta === 0 ? "Fecha o caminho"
         : falta === 1 ? "A um tier do fim"
-        : `Tier ${o.tierIndex + 1} de ${PATH_RULES.tiers}`;
+        : `Faltam ${falta} para fechar`;
+      /* O gancho da aura vira TEXTO no veredito em vez de um chip na cor do
+         eixo. O eixo ja aparece em quatro lugares nesta carta (quadrado, barra
+         da regua, brasa e pips) e um quinto faria a carta ser lida pela cor
+         antes de ser lida pelo numero. */
+      if (falta === 0 && !this.game.build.isComplete(o.inst)) {
+        v.progHead = "Fecha o caminho · acende a aura";
+      }
+      /* Os valores crus continuam ali, para quem quiser conferir — em mono,
+         embaixo do numero que decide, e nao no lugar dele. O valor novo sai na
+         BRASA do eixo: e a unica cor da linha, e ela marca exatamente o que
+         mudou. */
+      v.crus = v.delta.length
+        ? v.delta.map((d) => `${d[0]} → <em>${d[1]}</em>`).join(" · ")
+        : "";
+      /* Evolucao nao promete numero: ela troca trigger, efeitos e forma, entao
+         a regua dela e uma ESTIMATIVA de uma peca que ainda nao foi jogada.
+         Dizer isso e o que impede a carta mais espetacular da tela de parecer
+         uma promessa aritmetica. */
+      if (evo) v.crus = "Estimado · muda como a peça joga";
     }
 
-    v.rec = this.recFor(o, v);
     return v;
+  }
+
+  /* Quantas pecas da build uma passiva toca. `_matches` e a mesma funcao que o
+     pipeline de stats usa — perguntar de outro jeito seria uma segunda regra
+     de casamento para divergir da primeira. */
+  passiveReach(def) {
+    const b = this.game.build;
+    let n = 0;
+    for (const inst of b.pieces.values()) if (b._matches(inst.def, def.match, inst)) n++;
+    return n;
   }
 
   /* "antes -> depois" saido dos MODS do tier, aplicados aos stats JA resolvidos
@@ -463,18 +593,6 @@ class UI {
     return out;
   }
 
-  /* Chip de recomendacao so com gancho REAL. Sem gancho ele nao aparece:
-     recomendacao decorativa vira ruido e o jogador para de ler o chip que
-     importa. No level up sobrou um, e ele e o certo — fechar um caminho acende
-     a aura da spell em volta do warlock. */
-  recFor(o, v) {
-    const b = this.game.build;
-    if (o.kind === "path" && o.tierIndex + 1 === PATH_RULES.tiers && !b.isComplete(o.inst)) {
-      return "acende a aura";
-    }
-    return "";
-  }
-
   /* Capstone mais perto de abrir, contando `extra` pontos que ainda nao foram
      gastos. Capstone que nao cabe mais no pool nao entra: apontar para um alvo
      inalcancavel e pior que nao apontar nenhum. */
@@ -499,15 +617,21 @@ class UI {
     return best;
   }
 
-  /* A carta, 300x352, em retrato. O EIXO aparece em tres lugares PEQUENOS —
-     quadrado de 8px, delta e pips — e nunca na moldura inteira: a carta e
-     translucida e o mundo atras ja e colorido. */
-  cardHtml(v) {
-    let delta = "";
-    for (const d of v.delta) {
-      delta += `<div class="lv-delta"><span class="was">${d[0]}</span>` +
-               `<span class="arrow">→</span><span class="now">${d[1]}</span></div>`;
-    }
+  /* A carta, 348 x min-height 436, em retrato. Da frente para tras: etiqueta
+     de tipo, cabecalho, REGUA, efeito, rodape.
+
+     O eixo aparece em QUATRO lugares pequenos — quadrado de 9px, barra da
+     regua, brasa nos valores crus, pips — e nunca na moldura: a marcacao de
+     maior ganho e osso, e osso e cor de eixo na mesma moldura brigariam por
+     dizer coisas diferentes sobre a mesma carta. */
+  cardHtml(v, tecla) {
+    /* O ganho zero nao vira "+0": "+0 dano/s" le como uma peca quebrada, e o
+       que esta acontecendo e outra coisa — a oferta muda controle, cura ou
+       deslocamento, que a regua nao mede. A carta diz isso com palavra. */
+    const zero = !(v.dps > 0.5);
+    const num = zero ? "—" : `+${fmtNum(Math.round(v.dps))}`;
+    const un = !zero ? "dano/s"
+      : v.foraDaRegua ? "ganho fora da régua" : "não muda o dano";
     return `
       <div class="lv-topo">
         <span class="tag ${v.tagCls} lv-kind ch1"><i>${v.glyph}</i>${v.kind}</span>
@@ -521,18 +645,22 @@ class UI {
           <div class="lv-subtitle">${v.subtitle}</div>
         </div>
       </div>
-      <div class="lv-change">
-        <div class="lv-plain">${v.plain}</div>
-        ${delta}
-        ${v.why ? `<div class="lv-why">${v.why}</div>` : ""}
+      <div class="lv-hr"></div>
+      <div class="lv-regua">
+        ${v.top ? `<div class="lv-top-lbl">Maior ganho</div>` : ""}
+        <div class="lv-ganho"><b>${num}</b><span>${un}</span></div>
+        <div class="lv-escala"><i style="width:${v.pct.toFixed(1)}%"></i></div>
+        ${v.crus ? `<div class="lv-crus">${v.crus}</div>` : ""}
       </div>
+      <div class="lv-hr"></div>
+      <div class="lv-plain">${v.plain}</div>
+      ${v.why ? `<div class="lv-why">${v.why}</div>` : ""}
       <div class="lv-foot-card">
-        <div class="lv-prog-line">
-          <span class="lv-prog-head">${v.progHead}</span>
-          ${v.pips != null ? this.pipsHtml(v.pips) : ""}
+        <div class="lv-prog-head">${v.progHead}</div>
+        <div class="lv-foot-row">
+          ${v.pips != null ? this.pipsHtml(v.pips) : "<span></span>"}
+          <span class="lv-tecla">${tecla || 1}</span>
         </div>
-        ${v.rec ? `<span class="tag tag-eixo lv-rec ch1">${v.rec}</span>` : ""}
-        <div class="btn btn-fantasma ch1 lv-pick">Escolher</div>
       </div>`;
   }
 
@@ -683,7 +811,9 @@ class UI {
     g.player.pendingLevels--;
     this.el.levelup.classList.add("hidden");
     if (g.player.pendingLevels > 0) this.openLevelUp();
-    else g.state = STATE.PLAYING;
+    // O HUD so volta quando a FILA acaba: com varios niveis enfileirados ele
+    // piscaria uma vez por carta escolhida.
+    else { this.el.hud.classList.remove("hidden"); g.state = STATE.PLAYING; }
   }
 
   /* Aura: a spell fechou um caminho ate o fim e passou a arder em volta do

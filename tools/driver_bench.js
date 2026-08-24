@@ -160,7 +160,12 @@ function cell(pieceId, cfg, sc, seed) {
   }
   const key = inst.key;
 
-  return runField(g, sc, key);
+  /* A ESTIMATIVA, tirada da mesma build que vai para o campo. E aqui que ela
+     e barata: o banco ja montou a peca com gate comprado, `requires` honrado e
+     tiers aplicados — a mesma coisa que a tela de level up ve. */
+  const out = runField(g, sc, key);
+  if (out) out.model = pieceDps(inst.r, g);
+  return out;
 }
 
 /* --- o campo e o passo --------------------------------------------------- */
@@ -299,14 +304,14 @@ for (const id of ids) {
 const ms = __now() - t0;
 
 /* --- saida --------------------------------------------------------------- */
-const n = (v) => (v == null ? "     -" : v >= 1000 ? (v / 1000).toFixed(1) + "k" : v.toFixed(0));
+const n2 = (v) => (v == null ? "     -" : v >= 1000 ? (v / 1000).toFixed(1) + "k" : v.toFixed(0));
 const W = 20;
 
 console.log(`\nDANO POR SEGUNDO — ${cells} celulas de ${SIM}s em ${(ms / 1000).toFixed(1)}s\n`);
 console.log("  " + "peca".padEnd(W) + "cfg".padEnd(6) +
   SCENARIOS.map((s) => s.label.slice(0, 8).padStart(9)).join("") + "   +abates/s");
 for (const r of rows) {
-  const line = SCENARIOS.map((s) => n(r.by[s.id] && r.by[s.id].dps).padStart(9)).join("");
+  const line = SCENARIOS.map((s) => n2(r.by[s.id] && r.by[s.id].dps).padStart(9)).join("");
   // abates ACIMA da referencia: o que esta peca acrescenta ao que o kit ja fazia
   const leva = r.by.leva ? r.by.leva.dkps.toFixed(1) : "-";
   console.log("  " + r.id.slice(0, W - 1).padEnd(W) + r.cfg.padEnd(6) + line +
@@ -325,7 +330,7 @@ for (const r of rows) {
     return "·:+*#"[Math.min(4, Math.floor(f * 5))] + "";
   }).join("");
   console.log("  " + r.id.slice(0, W - 1).padEnd(W) + r.cfg.padEnd(6) + bars +
-    "   " + n(tot / SCENARIOS.length) + " dps medio");
+    "   " + n2(tot / SCENARIOS.length) + " dps medio");
 }
 
 /* --- as duas reprovacoes -------------------------------------------------- */
@@ -364,6 +369,85 @@ for (const r of rows) {
 }
 if (piores.length) fail(`caminho fechado rende MENOS que a peca crua: ${piores.join("; ")}`);
 else console.log("  ok todo caminho fechado rende ao menos tanto quanto a peca crua");
+
+/* --- A REGUA CONTRA O CAMPO ----------------------------------------------
+   `js/systems/dps.js` e o que a tela de level up imprime, e ele e um modelo
+   fechado: nao roda o motor, resolve uma conta. Um modelo que ninguem confere
+   vira a segunda lista que o projeto passa o tempo inteiro evitando — e esta
+   e a unica lista contra a qual da para conferir, porque ela e a medida.
+
+   O que se cobra e ORDEM e nao valor. A barra da carta e comparativa ("a mais
+   longa ganha mais"), entao errar a escala nao mente para ninguem; inverter
+   duas pecas mente. A comparacao usa o dano MEDIO dos seis cenarios, porque o
+   modelo assume um campo padrao com corpo em volta e nenhuma coluna sozinha e
+   esse campo.
+
+   As duas reprovacoes sao mudez, nos dois sentidos, e por isso valem:
+     - o modelo diz zero e o campo mede dano: a carta diria "nao muda o dano"
+       sobre uma peca que muda;
+     - o modelo diz dano e o campo mede zero: a carta prometeria um numero que
+       nao existe. */
+{
+  const linhas = [];
+  for (const r of rows) {
+    if (r.cfg !== "base") continue;
+    const cells = SCENARIOS.map((sc) => r.by[sc.id]).filter(Boolean);
+    if (!cells.length) continue;
+    const campo = cells.reduce((a, c) => a + c.dps, 0) / cells.length;
+    const modelo = cells[0].model || 0;
+    linhas.push({ id: r.id, campo, modelo, hurts: cells.some((c) => c.hurts) });
+  }
+
+  /* A MESMA ISENCAO que a reprovacao de peca muda ja carrega, e pelo mesmo
+     motivo: o jogador do banco e imortal por contrato e os dummies dos
+     cenarios de referencia tambem, entao `player_below` e `enemy_below` nunca
+     viram verdade aqui. O campo mede zero, e nao porque a peca nao faz nada.
+     Cobrar isso seria o driver cobrando um estado que ele proprio se recusa a
+     produzir. */
+  const CEGO = { player_below: 1, enemy_below: 1 };
+  const mudas = [];
+  for (const l of linhas) {
+    if (!l.hurts) continue;              // peca que nao causa dano: os dois zeram
+    const def = PIECES[l.id];
+    if (def && CEGO[def.trigger.condition]) continue;
+    if (l.modelo < 1 && l.campo > 20) mudas.push(`${l.id}: regua 0, campo ${l.campo.toFixed(0)}`);
+    if (l.modelo > 20 && l.campo < 1) mudas.push(`${l.id}: regua ${l.modelo.toFixed(0)}, campo 0`);
+  }
+
+  /* Spearman: a correlacao entre as duas ORDENS. Sobre as pecas em que os dois
+     lados medem alguma coisa — peca muda nos dois nao diz nada sobre ordem. */
+  const vivos = linhas.filter((l) => l.campo > 1 && l.modelo > 1);
+  const rank = (key) => {
+    const ord = vivos.slice().sort((a, b) => a[key] - b[key]);
+    const m = new Map();
+    ord.forEach((l, i) => m.set(l.id, i));
+    return m;
+  };
+  const rc = rank("campo"), rm = rank("modelo");
+  let d2 = 0;
+  for (const l of vivos) { const d = rc.get(l.id) - rm.get(l.id); d2 += d * d; }
+  const n = vivos.length;
+  const rho = n > 2 ? 1 - (6 * d2) / (n * (n * n - 1)) : 1;
+
+  console.log(`\nREGUA x CAMPO — ${n} pecas comparaveis, rho de Spearman ${rho.toFixed(2)}`);
+  const piores = vivos
+    .map((l) => ({ ...l, d: Math.abs(rc.get(l.id) - rm.get(l.id)) }))
+    .sort((a, b) => b.d - a.d).slice(0, 5);
+  for (const l of piores) {
+    console.log("  " + l.id.slice(0, W - 1).padEnd(W) +
+      `campo ${n2(l.campo).padStart(7)}   regua ${n2(l.modelo).padStart(7)}   ${l.d} posicoes`);
+  }
+
+  if (mudas.length) fail(`a regua e o campo discordam sobre EXISTIR dano: ${mudas.join("; ")}`);
+  else console.log("  ok a regua nunca chama de muda uma peca que o campo mede, nem o contrario");
+  /* O piso e 0.6 e a medida de hoje e 0.75. Ele e frouxo de proposito: o modelo
+     assume UM campo — corpo em volta, jogador andando parte do tempo — e o
+     banco mede seis, dois deles de alvo unico. Peca de area sai subestimada la
+     e o desacordo nao e do modelo, e do cenario. O que o piso protege e a
+     unica coisa que a barra promete: ordenar. */
+  if (rho < 0.6) fail(`a regua nao ordena como o campo (rho ${rho.toFixed(2)}, piso 0.6)`);
+  else console.log(`  ok a regua ordena como o campo (rho ${rho.toFixed(2)})`);
+}
 
 if (fails) { console.error(`\n${fails} falha(s)`); __exit(1); }
 console.log(`\nok banco: ${rows.length} builds x ${SCENARIOS.length} cenarios ` +

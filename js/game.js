@@ -166,6 +166,9 @@ class Game {
       }
       if (k === "n") this.music.setMuted(!this.music.isMuted);  // N: so a trilha
       if (e.key === "Escape") this.togglePause();
+      // 1/2/3 escolhem a carta do level up. A tela e quem sabe se ela esta
+      // aberta e quantas cartas tem; aqui so chega a tecla.
+      if (this.ui.levelUpKey(k)) e.preventDefault();
     });
     /* O browser so cria AudioContext depois de um gesto do usuario, entao a
        trilha do menu comeca no primeiro clique — nao na carga da pagina. */

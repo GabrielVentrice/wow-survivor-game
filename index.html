@@ -388,43 +388,63 @@
   .menu-versao { position:absolute; right:56px; bottom:56px; font-family:var(--fonte-dado);
                  font-size:var(--rotulo); letter-spacing:.18em; color:var(--obs-500); }
 
-  /* --- 9.3 LEVEL UP — silhueta: tres verticais sobre mundo vivo ------------
-     O canvas CONTINUA VIVO, so escurecido, e o relogio permanece em 32%: isto
-     e uma batida dentro da run, nao um capitulo. O contraste com o preto
-     chapado da Etapa e a distincao mais forte que existe entre as duas telas,
-     e nao custa um pixel de cor. */
-  .lv { background:rgba(4,3,8,.72); align-items:center; justify-content:center; padding:var(--e8) 120px 72px; }
+  /* --- 9.3 LEVEL UP — silhueta: tres verticais sobre mundo apagado --------
+     O mundo CONTINUA atras, mas muito mais escuro que na primeira versao. A
+     regra antiga dizia "escurecido", e em campo, com mil inimigos, os pontos
+     brancos ficavam mais claros que o texto das cartas: o mundo tem que dizer
+     "voce esta numa run", nao competir com a leitura. Ainda NAO e o preto
+     chapado da Etapa — essa diferenca e o que distingue as duas telas de
+     escolha, e ela nao custa um pixel de cor.
+
+     E o HUD SAI (`openLevelUp` esconde `#hud`). Tira de pecas, painel de eixos
+     e barra de vida seguiam acesos numa tela onde o jogo esta parado e nada
+     disso decide nada. So o relogio fica — e ele e o que diz que isto e uma
+     batida da run e nao um capitulo. */
+  .lv { background:rgba(10,9,16,.92); align-items:center; justify-content:center; padding:48px 100px 40px; }
   .lv-timer { position:absolute; top:var(--e5); left:50%; transform:translateX(-50%);
-              opacity:.32; text-align:center; }
-  .lv-timer > div:first-child { font-family:var(--fonte-dado); font-size:var(--dado-l); color:var(--osso-600); }
+              text-align:center; display:flex; flex-direction:column; gap:3px; }
+  .lv-timer > div:first-child { font-family:var(--fonte-dado); font-size:26px;
+                                letter-spacing:.06em; color:var(--osso-100); }
+  /* `--rotulo` (14px) e nao os 12px do desenho: o piso de 14px nao tem excecao,
+     e o proprio handoff que pede 12 aqui e o que declara o piso. Quem carrega a
+     discricao e a COR (`--obs-500`, quase o fundo), nao o tamanho. */
+  .lv-parou { font-family:var(--fonte-dado); font-size:var(--rotulo);
+              letter-spacing:.28em; text-transform:uppercase; color:var(--obs-500); }
   .lv-wrap { position:relative; z-index:1; pointer-events:auto; width:min(1120px,94vw);
              display:flex; flex-direction:column; align-items:center; gap:var(--e5); }
   .lv-head { display:flex; flex-direction:column; align-items:center; gap:var(--e2); text-align:center; }
   .lv-eyebrow { font-family:var(--fonte-dado); font-size:var(--rotulo); font-weight:500;
-                letter-spacing:.18em; text-transform:uppercase; color:var(--osso-300); }
-  .lv-title { font-family:var(--fonte-display); font-size:58px; line-height:.98; font-weight:800;
+                letter-spacing:.24em; text-transform:uppercase; color:var(--osso-300); }
+  .lv-title { font-family:var(--fonte-display); font-size:58px; line-height:.96; font-weight:800;
               text-transform:uppercase; color:var(--osso-600); }
+  /* A legenda ensina a REGUA uma vez; depois disso o jogador so le as barras. */
+  .lv-legenda { font-family:var(--fonte-texto); font-size:19px; color:var(--osso-300); }
 
-  /* --- as tres cartas (8.6): 300x352, retrato ------------------------------
-     Translucida de proposito: o mundo continua atras. E por isso o EIXO
-     aparece em tres lugares PEQUENOS — quadrado de 8px, delta, pips — e nunca
-     na moldura inteira: o mundo atras ja e colorido. */
-  .lv-cards { display:flex; justify-content:center; gap:var(--e5); }
+  /* --- as tres cartas (8.6): 348 x min-height 436, retrato -----------------
+     O EIXO aparece em QUATRO lugares pequenos — quadrado de 9px, barra da
+     regua, brasa nos valores crus, pips — e nunca na moldura: moldura de eixo
+     faria a carta ser lida pela cor antes de ser lida pelo numero, e o numero
+     e o assunto desta tela. */
+  .lv-cards { display:flex; justify-content:center; gap:20px; align-items:stretch; }
   .lv-card {
     cursor:pointer; pointer-events:auto;
-    width:300px; min-height:352px; padding:20px; display:flex; flex-direction:column; gap:var(--e4);
-    background:rgba(10,9,16,.72); border:1px solid var(--osso-200);
+    width:348px; min-height:436px; padding:20px; display:flex; flex-direction:column; gap:14px;
+    background:rgba(20,18,27,.94); border:1px solid var(--osso-200); box-shadow:var(--placa);
     transition:background .12s, border-color .12s;
   }
-  .lv-card:hover { border-color:var(--osso-600); background:rgba(30,26,38,.88); }
+  .lv-card:hover { border-color:var(--osso-600); background:rgba(30,26,38,.96); }
+  /* A carta VENCEDORA — a de maior ganho. A marcacao e osso e nao cor de eixo:
+     "esta rende mais" e um fato aritmetico, nao um eixo falando. Luz de 2px no
+     topo + moldura de osso + o rotulo na regua + a tecla cheia. */
+  .lv-card.lv-top { border-color:var(--osso-600);
+                    box-shadow:inset 0 2px 0 var(--osso-600), inset 0 -1px 0 rgba(0,0,0,.7); }
   .lv-topo { display:flex; align-items:center; justify-content:space-between; }
-  .lv-topo > b { width:8px; height:8px; background:var(--eixo); }
+  .lv-topo > b { width:9px; height:9px; background:var(--eixo); }
   .lv-kind { display:inline-flex; }
-  /* gap 16 e nao 12: o selo do tier fica pendurado no canto do tile e com
-     12 ele encostava na primeira linha do subtitulo. */
-  .lv-what { display:flex; align-items:center; gap:var(--e4); min-width:0; }
-  .lv-tile { position:relative; flex:none; width:56px; height:56px; display:grid; place-items:center;
-             background:var(--obs-600); box-shadow:var(--placa); color:var(--osso-500); }
+  /* gap 14: o selo do tier fica pendurado no canto do tile. */
+  .lv-what { display:flex; align-items:center; gap:14px; min-width:0; }
+  .lv-tile { position:relative; flex:none; width:52px; height:52px; display:grid; place-items:center;
+             background:var(--obs-600); box-shadow:var(--placa); color:var(--osso-600); }
   .lv-tile.round { border-radius:50%; }   /* a passiva e a unica forma redonda do jogo */
   .lv-tile > b {
     position:absolute; right:-6px; bottom:-6px; min-width:20px; height:20px; padding:0 5px;
@@ -432,24 +452,46 @@
     font-weight:600; background:var(--osso-600); color:var(--obs-800);
   }
   .lv-what-txt { display:flex; flex-direction:column; gap:2px; min-width:0; }
-  .lv-name { font-family:var(--fonte-display); font-size:var(--display-m); line-height:1.05;
+  .lv-name { font-family:var(--fonte-display); font-size:var(--display-m); line-height:1;
              font-weight:800; letter-spacing:.01em; text-transform:uppercase; color:var(--osso-600); }
-  .lv-subtitle { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.06em;
-                 color:var(--osso-300); }
-  .lv-change { display:flex; flex-direction:column; gap:var(--e3); flex:1; min-height:0; }
-  /* A MANCHETE — o que muda no jogo, e o item mais claro da carta. Numa carta
-     o nome vem ANTES no espaco, entao ele tem que perder no TAMANHO: senao a
-     leitura pousa no rotulo em vez de no efeito. */
-  .lv-plain { font-size:var(--texto-l); line-height:1.45; color:var(--osso-500); text-wrap:pretty; }
-  .lv-delta { display:flex; align-items:baseline; gap:var(--e2); flex-wrap:wrap; font-family:var(--fonte-dado); font-size:var(--dado-m); }
-  .lv-delta .was { color:var(--osso-300); }
-  .lv-delta .arrow { color:var(--osso-200); }
-  .lv-delta .now { color:var(--eixo); }
-  .lv-why { font-size:var(--rotulo); line-height:1.5; font-family:var(--fonte-texto); color:var(--osso-300); text-wrap:pretty; }
-  .lv-foot-card { margin-top:auto; display:flex; flex-direction:column; gap:var(--e3); }
-  .lv-prog-line { display:flex; align-items:center; justify-content:space-between; gap:var(--e2); }
+  .lv-subtitle { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.10em;
+                 text-transform:uppercase; color:var(--osso-300); }
+  .lv-hr { height:1px; background:var(--obs-500); }
+
+  /* --- a REGUA, o heroi da carta -----------------------------------------
+     As tres barras compartilham a MESMA escala, entao comparar deixou de
+     exigir numero: a mais longa ganha mais. E o ganho vem em UMA unidade
+     (dano/s) porque a tela antiga mostrava em destaque o que era igual entre
+     as ofertas ("+40% de dano", duas vezes) e escondia em mono cinza o que
+     diferia — `27/s -> 38/s` contra `270 -> 378`, duas unidades que o jogador
+     tinha que converter de cabeca 17 a 70 vezes por run. */
+  .lv-regua { display:flex; flex-direction:column; gap:9px; }
+  .lv-top-lbl { font-family:var(--fonte-dado); font-size:var(--rotulo); font-weight:600;
+                letter-spacing:.14em; text-transform:uppercase; color:var(--osso-600); }
+  .lv-ganho { display:flex; align-items:baseline; gap:10px; }
+  .lv-ganho > b { font-family:var(--fonte-dado); font-size:38px; font-weight:500;
+                  line-height:1; color:var(--osso-500); }
+  .lv-card.lv-top .lv-ganho > b { color:var(--osso-600); }
+  .lv-ganho > span { font-family:var(--fonte-dado); font-size:19px; color:var(--osso-300); }
+  .lv-escala { height:12px; background:var(--obs-600); display:flex; }
+  .lv-escala > i { display:block; height:100%; background:var(--eixo); }
+  /* Os valores crus continuam ali, em mono, para quem quiser conferir — mas
+     agora embaixo do numero que decide, e nao no lugar dele. */
+  .lv-crus { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.08em;
+             text-transform:uppercase; color:var(--osso-300); text-wrap:pretty; }
+  .lv-crus em { font-style:normal; color:var(--eixo-300); }
+
+  /* O efeito diz COMO a peca se comporta — a unica coisa que o numero nao diz.
+     Ele nunca repete o numero nem a porcentagem: repetir era metade do defeito
+     da tela antiga. */
+  .lv-plain { flex:1; font-family:var(--fonte-texto); font-size:17px; line-height:1.5;
+              color:var(--osso-400); text-wrap:pretty; }
+  .lv-why { font-family:var(--fonte-texto); font-size:var(--rotulo); line-height:1.5;
+            color:var(--osso-300); text-wrap:pretty; }
+  .lv-foot-card { margin-top:auto; display:flex; flex-direction:column; gap:var(--e2); }
   .lv-prog-head { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.10em;
                   text-transform:uppercase; color:var(--osso-300); }
+  .lv-foot-row { display:flex; align-items:center; justify-content:space-between; gap:var(--e2); }
   .lv-pips { display:flex; gap:var(--e1); }
   .lv-pips i { width:14px; height:8px; background:var(--osso-100); }
   .lv-pips i.on { background:var(--eixo); }
@@ -460,12 +502,13 @@
   /* O pip TRAVADO nao e o pip vazio: vazio e "ainda nao comprei", travado e
      "nao posso comprar". Vazado na cor do eixo, porque quem destrava e o eixo. */
   .lv-pips i.lock { background:transparent; box-shadow:inset 0 0 0 1px var(--eixo-900); }
-  .lv-rec { align-self:flex-start; }
-  /* A carta INTEIRA e clicavel, entao o botao e lembrete e nao alvo — vazado
-     em repouso, enche no hover. Na tela de ETAPA e o contrario, e de
-     proposito: la os botoes SAO a decisao, porque cada um carrega um numero
-     diferente que precisa ser comparado antes de mirar o mouse. */
-  .lv-pick { justify-content:center; width:100%; }
+  /* A TECLA substitui os tres botoes `ESCOLHER`: 34px no canto em vez de 44px
+     na largura inteira, e com 70 escolhas por run o teclado e o input certo.
+     A carta inteira continua sendo o alvo de clique. */
+  .lv-tecla { flex:none; width:34px; height:34px; display:grid; place-items:center;
+              font-family:var(--fonte-dado); font-size:17px; font-weight:600;
+              color:var(--osso-400); border:1px solid var(--osso-200); }
+  .lv-card.lv-top .lv-tecla { border:0; background:var(--osso-600); color:var(--obs-800); }
 
   /* a tira da build: UMA LINHA, sempre. O que passa do teto vira contador —
      overlay de jogo nao rola. */
@@ -496,7 +539,8 @@
   .lv-chip { flex:none; width:32px; height:32px; display:grid; place-items:center; border-radius:50%;
              background:rgba(20,18,27,.9); box-shadow:inset 0 1px 0 rgba(237,231,218,.08); color:var(--osso-400); }
   .lv-chip.more { width:auto; padding:0 10px; border-radius:0; }
-  .lv-foot { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.18em;
+  .lv-foot { display:flex; align-items:center; justify-content:space-between; gap:var(--e4);
+             font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.14em;
              text-transform:uppercase; color:var(--osso-100); }
 
   /* --- 9.2 / 9.8 ETAPA — silhueta: placa larga sobre preto ----------------
@@ -817,18 +861,22 @@
   <div id="levelup" class="screen lv hidden">
     <div class="lv-timer">
       <div id="lvClock">00:00</div>
-      <div class="rotulo" id="lvCtx"></div>
+      <div class="lv-parou">O relógio parou</div>
     </div>
     <div class="lv-wrap">
       <div class="lv-head">
         <div class="lv-eyebrow" id="lvEyebrow">Nível 1 → 2</div>
         <div class="lv-title">Aprofunde uma</div>
+        <div class="lv-legenda">a barra mede o ganho de dano por segundo — a mais longa ganha mais</div>
       </div>
       <div id="lvRows" class="lv-cards"></div>
     </div>
     <div class="lv-base">
       <div id="lvBuild" class="lv-strip"></div>
-      <div class="lv-foot">Nada aqui custa ponto de eixo · a próxima escolha corrige esta</div>
+      <div class="lv-foot">
+        <span>Nada aqui custa ponto de eixo · a próxima escolha corrige esta</span>
+        <span>1 2 3 para escolher</span>
+      </div>
     </div>
   </div>
 
@@ -953,6 +1001,7 @@
 <script src="js/systems/dots.js"></script>
 <script src="js/systems/minions.js"></script>
 <script src="js/systems/triggers.js"></script>
+<script src="js/systems/dps.js"></script>
 <script src="js/systems/build.js"></script>
 <script src="js/hooks.js"></script>
 
