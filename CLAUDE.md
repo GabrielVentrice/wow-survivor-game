@@ -123,7 +123,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
 | `js/voices.js` | `VOICES` — o que cada evento visual SOA (o irmão de `js/render/vfx.js`) |
 | `js/music.js` | `MUSIC` + `Music` — trilha procedural (a **reserva**) |
-| `js/track.js` | `Track` + `Soundtrack` — toca `audio/rain-lofi.mp3`, com fallback |
+| `js/track.js` | `Track` + `Soundtrack` + `TRACKS` — as duas trilhas em arquivo, com fallback |
 | `js/assets/sfx-bone.js` | amostra de osso quebrando embutida em base64 |
 | `js/entities.js` | `Player`, `Enemy`, `Projectile`, `Minion`, `AreaEffect`, `DotInstance`, `XPOrb`, `Pickup`, `Particle`, `SpawnManager` |
 | `js/systems/resolve.js` | registries (`PIECES`, `PASSIVES`, `CAPSTONES`, `MINIONS`) + pipeline de stats |
@@ -2387,38 +2387,95 @@ devolve estado vazio, senão o game over inteiro morreria junto. O plano complet
 com o que ficou de fora e por quê, está em `PLANO-RANKING.md`; o setup do form é
 `tools/setup-leaderboard.gs`, que roda uma vez e imprime as constantes.
 
-### Assets: dois, e ambos com plano B
+### Duas trilhas, e a padrão é a que NÃO acontece
+
+`TRACKS` (`js/track.js`) é a lista, e a tecla `N` percorre ela mais o silêncio:
+**Vigília → Tempestade → mudo**. A ordem é a decisão — a primeira é a que o
+jogo abre.
+
+| | **Vigília** (`focus-vigil.mp3`) | **Tempestade** (`rain-lofi.mp3`) |
+|---|---|---|
+| o que é | leito de foco: nada acontece | lofi de chuva, com arranjo |
+| gerador | `tools/make_focus_track.py` | `tools/make_track.py` |
+| passeio de volume (2 s, p5–p95) | **1,4 dB** | 6,8 dB |
+| maior salto de 250 ms sobre o fundo | **2,3 dB** | 7,8 dB |
+| janelas de 250 ms saltando > 6 dB | **0** de 640 | 7 de 426 |
+
+**A Vigília é a padrão porque uma run dura doze minutos.** Trilha de fundo de
+jogo longo não é faixa: é o lugar onde o jogo acontece. O que a Tempestade faz
+de propósito — subir na seção cheia, sumir no break, responder com um trovão —
+é exatamente o que um ouvinte desatento não consegue ignorar; os sete saltos
+dela são os três trovões, os dois cymbal swells e as duas viradas. Cada um é
+bom numa faixa e é um cutucão num fundo.
+
+Cinco regras caem daí, e valem para qualquer mexida no leito:
+
+- **Quem carrega a Vigília é o ruído**, não a harmonia — é a camada que por
+  construção não tem evento dentro. E ele não é ruído marrom puro: o jogo toca
+  a trilha em `0.055` de ganho, e um leito a −6 dB/oitava nesse volume é
+  inaudível em laptop. Marrom abaixo de 300 Hz, rosa acima.
+- **Nada acontece.** Sem bateria, sem virada, sem lead, sem poeira, sem trovão,
+  sem seção. A harmonia se move devagar demais para chegar (um acorde a cada
+  32 s, 8 s de cruzamento), e ela **não puxa**: Ré menor natural sem sensível,
+  então sem dominante, então sem expectativa esperando resolver. `make_track.py`
+  faz o oposto de propósito, porque uma faixa quer essa tensão.
+- **O baixo é um PEDAL, e quem pediu foi a medição.** Com uma fundamental por
+  acorde a banda de 20–120 Hz passeava **6,35 dB** ao longo do loop — um Si
+  bemol 1 carrega muito mais energia lá embaixo que um Sol 2 — e isso sozinho
+  era a maior parte do passeio da faixa.
+- **O pulso é estrutura de tempo, não groove**: 60 BPM exatos, seno filtrado com
+  **30 ms de ataque**. Todo tambor de `make_track.py` ataca em menos de 4 ms
+  porque uma faixa quer o estalo; aqui o estalo é a única coisa capaz de fazer
+  alguém levantar a cabeça de um leito estável.
+- **Camada nova entra pelo teste de evento.** Os dois geradores imprimem o
+  passeio de RMS e o maior salto de 250 ms; no leito o alvo é `< 1,5 dB` e zero
+  janelas acima de 6 dB. Passou disso, é um som — e som avulso mora na
+  Tempestade.
+
+**Carregar é preguiçoso e a troca espera.** As duas juntas são 3,2 MB; a segunda
+só desce se alguém apertar `N`, e a troca só efetiva quando o arquivo novo fica
+pronto — até lá continua tocando o antigo, e se o novo falhar fica o antigo. O
+jogo nunca fica mudo por causa de um download. `driver_track` cobra os três.
+
+### Assets: três, e todos com plano B
 
 Sprites, chão, efeitos sonoros e a trilha de reserva são gerados em runtime.
-**Não adicione arquivos de imagem.** Os dois assets de áudio que existem seguem
-regras diferentes, e a diferença é `file://`. Nenhum dos dois vem de banco de
-sons: a trilha é sintetizada por `tools/make_track.py` — **inclusive a chuva**,
-que é ruído modelado no espectro e não gravação de campo — e o estalo de osso
-está embutido; não há licença de terceiro a conferir em nada que o jogo toca.
+**Não adicione arquivos de imagem.** Os três assets de áudio que existem seguem
+duas regras diferentes, e a diferença é `file://`. Nenhum vem de banco de sons:
+as duas trilhas são sintetizadas por `tools/make_focus_track.py` e
+`tools/make_track.py` — **inclusive a chuva**, que é ruído modelado no espectro
+e não gravação de campo — e o estalo de osso está embutido; não há licença de
+terceiro a conferir em nada que o jogo toca.
 
 | Asset | Como carrega | Por quê |
 |---|---|---|
-| `audio/rain-lofi.mp3` (trilha) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
+| `audio/focus-vigil.mp3` e `audio/rain-lofi.mp3` (trilhas) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
 | osso quebrando (efeito) | base64 → `atob` → `decodeAudioData` | Precisa sobrepor e variar de tom dezenas de vezes por segundo; `<audio>` não dá isso. Base64 não passa por rede, então funciona em `file://`. 21 KB. |
 
-**Os dois têm fallback e o jogo nunca fica mudo:** `Soundtrack` cai para a
-trilha procedural se o mp3 não carregar (e a procedural cobre o menu enquanto
-o arquivo baixa), e `Sfx.death` volta aos estalos sintéticos se a amostra não
-decodificar. Os drivers `driver_track` e `driver_audio` testam esses caminhos.
+**Os dois caminhos têm fallback e o jogo nunca fica mudo:** `Soundtrack` cai
+para a trilha procedural se nenhum mp3 carregar (e a procedural cobre o menu
+enquanto o arquivo baixa), e `Sfx.death` volta aos estalos sintéticos se a
+amostra não decodificar. Os drivers `driver_track` e `driver_audio` testam
+esses caminhos.
 
 **Modo de repetição da trilha.** `Track` tem dois, e escolher errado estraga a
 faixa. `seamless` (padrão) usa `loop = true` nativo, para faixa montada para
-emendar — é o caso da atual, que fecha em si mesma por construção (32 compassos
-exatos, caudas dobradas de volta no começo, LFOs com número inteiro de ciclos
-dentro do loop, filtros de master circulares, e a camada de chuva gerada no
-domínio da frequência, que é periódica por construção). `{ crossfade: 3.5 }`
-usa dois elementos que se cruzam no fim, para faixa que *não* emenda. Cruzar uma
-faixa que já emenda é pior que não fazer nada: o cruzamento sobrepõe a faixa
-com ela mesma e dobra a batida na volta.
+emendar — é o caso das **duas**, que fecham em si mesmas por construção
+(compassos inteiros, caudas dobradas de volta no começo, LFOs com número
+inteiro de ciclos dentro do loop, filtros de master circulares, e as camadas de
+ruído — chuva lá, leito aqui — geradas no domínio da frequência, periódicas por
+construção). Na Vigília entra mais uma: toda frequência de oscilador é
+arredondada para um número inteiro de ciclos por loop, correção de no máximo
+0,00625 Hz, senão cada voz sustentada termina no meio de um ciclo e a volta é um
+clique. `{ crossfade: 3.5 }` usa dois elementos que se cruzam no fim, para faixa
+que *não* emenda. Cruzar uma faixa que já emenda é pior que não fazer nada: o
+cruzamento sobrepõe a faixa com ela mesma e dobra a batida na volta.
 
 Volume de fundo mora em `TRACK_LEVEL` (`js/track.js`) e em `Music._applyLevel`.
-Trilha tem que ficar **atrás** dos efeitos: se competir com o som de morte, o
-jogador perde informação de combate.
+É **um par de níveis para as duas trilhas** — elas estão a 0,3 dB de RMS uma da
+outra, e um volume por faixa seria uma segunda tabela para divergir. Trilha tem
+que ficar **atrás** dos efeitos: se competir com o som de morte, o jogador perde
+informação de combate.
 
 ## Convenções
 
