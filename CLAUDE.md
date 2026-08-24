@@ -59,9 +59,14 @@ irreversível da run.
 
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
 Antes de commitar, rode a bateria headless — **`node tools/run-all.js`**, que
-roda os 24 drivers em paralelo com o mais lento na frente (~70s, contra 175s em
-série). `node tools/run-all.js fast` é o subconjunto de ~8s que cabe a cada
-edit. Detalhe em `tools/README.md`.
+roda os 24 drivers em paralelo com o mais lento na frente (~140s, contra 260s
+em série). `node tools/run-all.js fast` é o subconjunto de ~8s que cabe a cada
+edit. **O pior caso da bateria é o `chest`**, e ele custa ~140s de propósito:
+"40% dos baús dão prêmio grande" é uma propriedade distribucional e uma run de
+12 min abre ~24 baús, amostra em que o piso cai dentro do ruído — medido, o
+mesmo jogo dá de 33% a 74% conforme a seed. As quatro seeds que ele agrega são
+o que compra a amostra, e o segundo argumento dele em `run-all.js` é onde esse
+preço se negocia. Detalhe em `tools/README.md`.
 
 **`DRIVER=driver_bench.js` é o banco de provas: a peça sozinha, em campo
 controlado.** `driver_balance` responde "esta RUN funciona?" e não responde
