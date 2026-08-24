@@ -28,8 +28,11 @@ DRIVER=driver_apex.js  node tools/harness.js .   # o Ápice: eixo cheio, a onda 
 DRIVER=driver_pixel.js node tools/harness.js .   # grid de pixel: buffer, câmera, escala igual p/ todos, laje
 DRIVER=driver_palette.js node tools/harness.js . # paleta mestre: cor fora da PAL, rampa chapada, corpo aceso
 DRIVER=driver_leaderboard.js node tools/harness.js . # placar: payload inteiro, parser gviz, filtro, escape, camada local
+DRIVER=driver_version.js node tools/harness.js .  # versao: fonte unica, ordem do changelog, tela de notas, ESC
 DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câmera, curvas de evento
 DRIVER=driver_vfx.js   node tools/harness.js .   # vfx: assinatura de cada peça, cor no render, voz de cada evento, ceifa e cadeia
+DRIVER=driver_dano.js  node tools/harness.js .   # número de dano: as três travas, a densidade no minuto 8, e a resposta de vida baixa
+DRIVER=driver_dano.js  node tools/harness.js . 11  # o mesmo, medindo a cauda (~130s)
 DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homing não fecha, e alvo próprio por tiro
 DRIVER=driver_bench.js node tools/harness.js .   # banco: dano de cada peça em 6 cenários controlados
 DRIVER=driver_bench.js node tools/harness.js . 20 full        # 20s/célula, os três caminhos
@@ -515,6 +518,60 @@ Duas coisas ele **não** mede, e por isso ficam como dado em `BALANCE.camera`:
 se o hitstop lê como impacto ou como engasgo, e se a amplitude do soco está
 alta demais. Isso é uma passada de dez segundos no browser — as alavancas são
 `hitstop.big`/`hitstop.cooldown` e `shake.max`.
+
+## `driver_dano` — o que se estraga por sucesso
+
+O número de dano é a única coisa do jogo que **piora conforme a build melhora**:
+quanto mais forte a run fica, mais ele aparece, e num certo ponto ele deixa de
+informar e vira parede de dígitos. `spawn.maxAlive` é 4400 e a curva mede ~100
+abates/s aos 10 min. Nenhum olho lê isso, e nenhuma passada no browser aos dois
+minutos de jogo mostra o problema.
+
+Ele mede cinco coisas, e só a terceira precisou de medição para existir:
+
+- **As três travas.** Limiar por **fração** do HP daquele corpo (o mesmo golpe
+  fala num ghoul e cala num Aniquilador), **teto** de vivos sem alocar, e
+  **fusão** por corpo e por quadro — seis acertos no mesmo inimigo no mesmo
+  frame são um número somado, não seis dígitos no mesmo pixel. Cobra também
+  que o corpo **reciclado** não herde a ranhura do anterior: `Enemy` é pooled.
+- **A leitura.** Cor é predicado de eixo (`UI_PAL`, não `AXIS_PALETTE` — o
+  número é elemento de leitura sobre a horda), a brasa marca o golpe de 50%+,
+  osso puro nunca aparece (reserva do warlock), e o vermelho é só o dano
+  tomado. Dano contínuo (`touch`) não fala nunca, pela mesma regra que o
+  mantém fora do hitstop e das vozes.
+- **A densidade.** O número sem resposta em tabela, e o único que reprova por
+  medida. Ele conta quantos ficam vivos por minuto e, principalmente, **quantos
+  são cortados antes de terminar o voo** — número reescrito no meio do arco lê
+  como pisca-pisca, não como dano.
+- **O relógio.** Um segundo de simulação não envelhece o número: ele vive em
+  tempo real, como o hitstop.
+- **A vida baixa.** Uma curva (`Game.lowHpPulse`), dois consumidores — a
+  vinheta no canvas e a barra no rodapé —, e o driver cobra que os dois leiam
+  o mesmo valor no mesmo instante.
+
+**O achado que custou a medição, e que vale para qualquer teto novo:** a versão
+óbvia do teto é um anel — cheio, o mais **velho** cede o lugar. Medido, 11 min
+com o piloto imortal, ela não sobrevive ao próprio jogo: aos 10 min o pool
+inteiro gira em 0,55s e **80–90% dos números eram reescritos antes de terminar
+o voo**. A tela não ficava cheia, ficava estroboscópica.
+
+E `fracMin` não conserta isso. O limiar por fração é uma trava excelente no
+começo e **deixa de existir no fim** — com a build madura quase todo golpe leva
+100% do corpo, então subir de 20% para 50% derrubou o corte de 80% para 67% e
+mais nada. Fração não discrimina quando tudo morre de um golpe.
+
+Quem discrimina é o **valor**: cheio, quem cede é o **menor número em tela**, e
+só para um maior. Mesmo dado, mesmo tuning, o corte cai para ~20–29%, e o que
+sobra deixa de ser "um número sumiu" e passa a ser "um golpe maior chegou".
+
+| teto cedendo por… | em tela no min 10 | cortados no voo |
+|---|---|---|
+| idade (anel) | 42 | **80%** |
+| menor valor | 32–42 | **20–29%** |
+
+O segundo argumento é onde o preço da amostra se negocia, como no `chest`: 8
+min (padrão) custam ~50s e já mostram a saturação; 11 min medem a cauda e
+custam ~130s.
 
 ## Galerias
 

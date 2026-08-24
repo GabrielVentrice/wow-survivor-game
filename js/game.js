@@ -120,6 +120,9 @@ class Game {
     this.dots = new DotSystem(this);
     this.minions = new MinionSystem(this);
     this.build = new BuildSystem(this);
+    // O numero de dano. Ele nasce com o pool inteiro e nunca aloca depois —
+    // ver js/render/numbers.js para por que ele e desenhado FORA do buffer.
+    this.dmgNums = new DamageNumbers(this);
 
     // --- buffers reaproveitados: nada disso pode alocar por frame
     this._fxStack = [];
@@ -174,7 +177,14 @@ class Game {
         const t = this.music.cycleTrack();
         this.ui.toast({ head: "Trilha", name: t ? t.name : "silêncio" });
       }
-      if (e.key === "Escape") this.togglePause();
+      /* ESC closes whatever is on top BEFORE pausing. The version notes open
+         over the menu, where `togglePause` is a no-op — but without this order
+         the key that closes every screen in the game would be the only one
+         that does not close this one. */
+      if (e.key === "Escape") {
+        if (this.ui.logOpen) this.ui.closeChangelog();
+        else this.togglePause();
+      }
       // 1/2/3 escolhem a carta do level up. A tela e quem sabe se ela esta
       // aberta e quantas cartas tem; aqui so chega a tecla.
       if (this.ui.levelUpKey(k)) e.preventDefault();
@@ -387,6 +397,12 @@ class Game {
     if (big && this.bigHitCrit) amt *= 2;      // capstone Nihilam
 
     e.hp -= amt;
+    /* O NUMERO. Ele sai daqui e nao de dentro de cada efeito pelo mesmo motivo
+       que o critico e o medidor saem: e aqui que o valor, o HP maximo daquele
+       corpo e a peca que bateu existem no mesmo escopo, e sem os tres juntos
+       nem o limiar por fracao nem a cor por eixo podem ser avaliados. Quem
+       decide se ele aparece e `BALANCE.dano`. */
+    this.dmgNums.hit(e, amt, key, e.hp <= 0);
     // o critico se le no corpo: o mesmo flash branco, com o dobro de fôlego
     e.hitFlash = crit ? 0.2 : 0.1;
     /* E fala, mas so no dano DISCRETO. Tique de DoT e de area cobram por
@@ -422,7 +438,10 @@ class Game {
   damagePlayer(amount, source) {
     const p = this.player;
     const dealt = p.takeDamage(amount);
-    if (dealt > 0) this.events.emit(EVENTS.PLAYER_DAMAGED, { amount: dealt, source });
+    if (dealt > 0) {
+      this.dmgNums.hurt(dealt, source);
+      this.events.emit(EVENTS.PLAYER_DAMAGED, { amount: dealt, source });
+    }
     return dealt;
   }
 
@@ -434,6 +453,7 @@ class Game {
     this.enemies.clear(); this.projectiles.clear(); this.orbs.clear();
     this.areas.clear(); this.particles.clear(); this.pickups.clear();
     this.dots.reset(); this.minions.reset(); this.vfxLayer.reset();
+    this.dmgNums.reset();
     this.scenery.reset();
     this.events.clear();
     this.spawner.reset();
@@ -687,6 +707,32 @@ class Game {
     return k >= 1 || k < 0 ? 0 : 1 - k;
   }
 
+  /* A RESPOSTA DE VIDA BAIXA — uma curva, dois consumidores.
+
+     Abaixo de `vidaBaixa.em` o MUNDO responde: a vinheta que ja existe ganha
+     vermelho (`Scenery.drawAtmosphere`) e a barra do rodape desbota no mesmo
+     compasso (`UI.updateHud`). Nada muda de lugar — vida e XP ficam onde
+     estao.
+
+     Um numero, dois consumidores, pela mesma razao que `apexFront` mora no
+     util e nao junto do desenho: se o canvas tivesse o proprio relogio e a
+     barra tivesse um `@keyframes` com o dele, as duas leriam como duas
+     animacoes que por acaso coincidem, e o que se quer dizer e que sao UM
+     evento. Uma classe de CSS seria mais barata e nao ficaria em fase.
+
+     Tempo REAL (`_vfxClock`), nao `clock`: o aviso de que voce esta morrendo
+     nao pode pulsar tres vezes mais rapido no timeScale 3.
+
+     E vermelho aqui e legal porque e exatamente a reserva que a R2 concede —
+     barra de vida e dano recebido, e nada mais. */
+  lowHpPulse() {
+    const V = BALANCE.vidaBaixa, p = this.player;
+    if (this.state === STATE.MENU || !p.maxHp) return 0;
+    if (p.hp <= 0 || p.hp / p.maxHp > V.em) return 0;
+    const t = ((this._vfxClock || 0) % V.pulso) / V.pulso;
+    return 0.5 - 0.5 * Math.cos(t * Math.PI * 2);
+  }
+
   /* A cor do eixo em que a build mais investiu. A ceifa nao pertence a uma
      peca, mas tambem nao pode inventar matiz: cor continua sendo predicado de
      eixo, e o que ela diz e "a SUA build acabou de fazer isso". */
@@ -753,6 +799,13 @@ class Game {
        ao `update` o tremor que a tela de level up pede ficava parado esperando
        a run voltar em vez de tocar na hora. */
     this.camera.updateShake(dt);
+    /* O numero de dano tambem vive em tempo real, e pela mesma razao que o
+       hitstop: ele e LEITURA, nao simulacao. Preso ao relogio escalado, no
+       timeScale 3 ele duraria um terco do tempo em tela — justo no modo em que
+       ha mais coisa acontecendo para ler. E o contador de quadro dele (o que a
+       fusao usa) so anda enquanto o jogo anda: com uma tela de escolha aberta
+       nao ha acerto novo para fundir. */
+    if (this.state === STATE.PLAYING) this.dmgNums.update(dt);
     this.music.update(dt);   // relogio do audio, nao do jogo: ignora timeScale
     this._frameDt = dt;      // brasas e vinheta vivem em tempo real
     this.render();
@@ -1283,7 +1336,7 @@ class Game {
       this.camera.x += 14 * fdt;
       this.scenery.draw(ctx, cam, t);
       this.scenery.drawEmbers(ctx, cam, t, fdt);
-      this.scenery.drawAtmosphere(ctx, cam);
+      this.scenery.drawAtmosphere(ctx, cam, 0);
       this.present();
       return;
     }
@@ -1345,9 +1398,17 @@ class Game {
 
     // no ar, acima do mundo e abaixo da HUD
     this.scenery.drawEmbers(ctx, cam, t, fdt);
-    this.scenery.drawAtmosphere(ctx, cam);
+    this.scenery.drawAtmosphere(ctx, cam, this.lowHpPulse());
 
     this.present();
+
+    /* O numero de dano e a UNICA coisa desenhada depois do blit, e o motivo
+       nao e profundidade: e resolucao. O buffer do mundo tem um terco da
+       janela, entao o menor numero da faixa (20px) sairia com seis pixels de
+       altura — que nao desenha digito, desenha mancha. Ele e mundo (esta preso
+       num corpo, nao num canto do HUD) e e canvas; so nao e feito de celulas,
+       como gradiente, elipse e particula tambem nao sao. */
+    this.dmgNums.draw(this.ctx, cam, this.cell, this.dpr);
   }
 }
 

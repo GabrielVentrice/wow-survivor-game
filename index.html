@@ -440,8 +440,28 @@
   .menu-acao .btn { width:280px; }
   .menu-rodape { position:absolute; left:168px; bottom:56px; color:var(--osso-200); }
   .menu-rodape b { color:var(--osso-300); font-weight:500; }
-  .menu-versao { position:absolute; right:56px; bottom:56px; font-family:var(--fonte-dado);
-                 font-size:var(--rotulo); letter-spacing:.18em; color:var(--obs-500); }
+  /* The version is a BUTTON, and js/ui.js writes its text from `VERSION` —
+     the number is never hardcoded here again.
+
+     It has to read as clickable without becoming a second button on the
+     screen: the menu already has `Iniciar` in solid bone, and R4 lets nothing
+     glow. What makes it clickable is the word beside it ("notas"), the 1px bar
+     between the two and the 44px target — not a new fill. */
+  /* `bottom:44` and not the footer's 56: the 44px target box is taller than a
+     text line, and what has to line up across the screen is the TEXT — both
+     centers land at ~66px from the bottom. */
+  .menu-versao {
+    position:absolute; right:56px; bottom:44px; pointer-events:auto; cursor:pointer;
+    border:0; background:none; min-height:var(--alvo); padding:0 var(--e2);
+    display:flex; align-items:center; gap:10px;
+    font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.18em;
+    text-transform:uppercase; color:var(--obs-500);
+    transition:color .12s;
+  }
+  .menu-versao b { font-weight:500; color:var(--osso-200); transition:color .12s; }
+  .menu-versao s { width:6px; height:1px; background:currentColor; text-decoration:none; }
+  .menu-versao:hover { color:var(--osso-300); }
+  .menu-versao:hover b { color:var(--osso-600); }
 
   /* --- 9.3 LEVEL UP — silhueta: tres verticais sobre mundo apagado --------
      O mundo CONTINUA atras, mas muito mais escuro que na primeira versao. A
@@ -837,6 +857,76 @@
   .go-acoes { margin-top:auto; display:flex; align-items:center; gap:var(--e3); }
   .go-acoes .btn-osso { flex:1; }
 
+  /* --- 9.9 VERSION NOTES — what shipped, version by version ---------------
+     Silhouette: rail of versions on the left, notes on the right. It is the
+     same shape as the leaderboard (narrow list + content), and on purpose:
+     both answer "what happened outside this run".
+
+     It opens OVER the menu and does not clear the canvas — clearing the canvas
+     is what separates the MILESTONE screen from every other one, and this one
+     charges nothing. Closing is reversible, so the button is GHOST: no screen
+     in the game has two solid buttons, and the menu's solid one is `Iniciar`.
+
+     Zero axis color: a version note does not speak of Corruption, Dominion or
+     Cataclysm (R2). Everything here is bone on obsidian. */
+  .tela-log { background:rgba(4,3,8,.96); align-items:center; justify-content:center;
+              padding:56px 100px 40px; }
+  .log-wrap { width:min(1100px, 100%); max-height:100%; display:flex; flex-direction:column;
+              gap:var(--e5); pointer-events:auto; min-height:0; }
+  .log-head { display:flex; align-items:flex-end; justify-content:space-between; gap:var(--e5); }
+  .log-eyebrow { margin-bottom:var(--e2); }
+  .log-body { display:flex; gap:var(--e5); min-height:0; }
+
+  /* The rail. Each version is a 44px row with the number in mono and the
+     title in display — the title exists so the list is navigable without
+     opening a single note. The selected one takes 2px of bone on the left;
+     there is no fill, because fill is cost and picking a version costs
+     nothing. */
+  .log-nav { flex:none; width:300px; overflow:auto; scrollbar-width:thin;
+             scrollbar-color:var(--osso-100) transparent;
+             display:flex; flex-direction:column; }
+  .log-nav::-webkit-scrollbar { width:6px; }
+  .log-nav::-webkit-scrollbar-thumb { background:var(--osso-100); }
+  .log-v {
+    pointer-events:auto; cursor:pointer; border:0; background:none; text-align:left;
+    min-height:var(--alvo); padding:var(--e3) var(--e4);
+    border-top:1px solid var(--obs-500); border-left:2px solid transparent;
+    display:flex; flex-direction:column; gap:3px;
+    transition:background .12s, border-color .12s;
+  }
+  .log-v:first-child { border-top:0; }
+  .log-v:hover { background:rgba(237,231,218,.04); }
+  .log-v.sel { border-left-color:var(--osso-600); background:var(--obs-700); }
+  .log-v-top { display:flex; align-items:center; gap:var(--e2); }
+  .log-v-num { font-family:var(--fonte-dado); font-size:var(--dado-m); color:var(--osso-400); }
+  .log-v.sel .log-v-num { color:var(--osso-600); }
+  .log-v-tit { font-family:var(--fonte-display); font-size:var(--display-s); font-weight:800;
+               letter-spacing:.06em; text-transform:uppercase; color:var(--osso-300); }
+  .log-v.sel .log-v-tit { color:var(--osso-600); }
+
+  /* The notes. Type tag on the left, in a FIXED column: what gets compared
+     between two notes is the type, and a column that moves with the text
+     cannot be compared. */
+  .log-notes { flex:1; min-width:0; padding:var(--e5) var(--e6); overflow:auto;
+               scrollbar-width:thin; scrollbar-color:var(--osso-100) transparent; }
+  .log-notes::-webkit-scrollbar { width:6px; }
+  .log-notes::-webkit-scrollbar-thumb { background:var(--osso-100); }
+  .log-n-head { display:flex; align-items:baseline; gap:var(--e3); margin-bottom:var(--e5); }
+  .log-n-data { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.18em;
+                color:var(--osso-200); }
+  /* min-height, never height: a three-line note must not invade the one
+     below it. */
+  .log-n { display:flex; align-items:flex-start; gap:var(--e4);
+           min-height:var(--alvo); padding:var(--e3) 0;
+           border-top:1px solid var(--obs-500); }
+  /* NOT `:first-of-type`: the panel's first child is the header, which is a
+     <div> too — the selector would match it and the first note would keep the
+     rule above it. */
+  .log-n-head + .log-n { border-top:0; }
+  .log-n .tag { flex:none; width:92px; justify-content:center; }
+  .log-n p { flex:1; min-width:0; color:var(--osso-500); }
+  .log-pe { margin-top:var(--e2); display:flex; justify-content:space-between; gap:var(--e4); }
+
   /* --- respiro ------------------------------------------------------------
      A tela foi desenhada em 1600x900. Abaixo disso o que encolhe e o cromo
      (padding, display grande), nunca o piso de 14px nem o alvo de 44. */
@@ -944,7 +1034,31 @@
     </aside>
 
     <div class="menu-rodape rotulo">Mover <b>WASD</b> · Pausa <b>ESC</b> · Som <b>M</b> · Trilha <b>N</b></div>
-    <div class="menu-versao">v0.9</div>
+    <!-- The text comes from `VERSION` (js/version.js), written by
+         UI.mountVersao: the number is not typed here, or it would exist in
+         two places again. -->
+    <button class="menu-versao" id="menuVersao"></button>
+  </div>
+
+  <!-- 9.9 Version notes — opens over the menu, on a click on the version. -->
+  <div id="changelog" class="screen tela-log hidden">
+    <div class="log-wrap">
+      <header class="log-head">
+        <div>
+          <div class="rotulo log-eyebrow">O que entrou</div>
+          <h2 class="display-l">Notas da versão</h2>
+        </div>
+        <button class="btn btn-fantasma ch1" id="logClose">Fechar</button>
+      </header>
+      <div class="log-body">
+        <nav id="logNav" class="log-nav"></nav>
+        <section id="logNotes" class="log-notes placa ch3"></section>
+      </div>
+      <div class="log-pe">
+        <span class="rotulo dim">ESC para voltar</span>
+        <span class="rotulo dim" id="logCount"></span>
+      </div>
+    </div>
   </div>
 
   <!-- 9.3 Level up — tres cartas verticais sobre o mundo VIVO. O relogio fica
@@ -1100,6 +1214,7 @@
      modulo e buscado com CORS e file:// tem origem opaca, entao o navegador
      bloquearia — e "abrir o index.html direto" pararia de funcionar. -->
 <script src="js/util.js"></script>
+<script src="js/version.js"></script>
 <script src="js/balance.js"></script>
 <script src="js/assets/sfx-bone.js"></script>
 <script src="js/sprites.js"></script>
@@ -1133,6 +1248,7 @@
 <script src="js/render/debris.js"></script>
 <script src="js/render/scenery.js"></script>
 <script src="js/render/vfx.js"></script>
+<script src="js/render/numbers.js"></script>
 <script src="js/ui-icons.js"></script>
 <script src="js/ui-glyph.js"></script>
 <script src="js/leaderboard.js"></script>

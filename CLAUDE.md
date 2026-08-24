@@ -54,16 +54,17 @@ sem tell em tela ganha tarja laranja, e o filtro "só o que não anima" lista as
 card mudo e registry que passou na frente da galeria.
 
 `DRIVER=driver_preview.js node tools/harness.js .` escreve
-`tools/telas-preview.html`, com as **seis telas de UI** montadas a partir de
+`tools/telas-preview.html`, com as **sete telas de UI** montadas a partir de
 builds de verdade: o level-up em quatro estados (build crua, média, tira no teto
-e evolução na mesa), a etapa nas duas fases, e HUD, pausa, baú e game over.
+e evolução na mesa), a etapa nas duas fases, e HUD, pausa, baú, game over e as
+notas da versão.
 Mesmo argumento da galeria: tela que só aparece por segundos, em estados
 sorteados, não se revisa jogando — e a etapa carrega a única decisão
 irreversível da run.
 
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
 Antes de commitar, rode a bateria headless — **`node tools/run-all.js`**, que
-roda os 24 drivers em paralelo com o mais lento na frente (~140s, contra 260s
+roda os 27 drivers em paralelo com o mais lento na frente (~140s, contra 320s
 em série). `node tools/run-all.js fast` é o subconjunto de ~8s que cabe a cada
 edit. **O pior caso da bateria é o `chest`**, e ele custa ~140s de propósito:
 "40% dos baús dão prêmio grande" é uma propriedade distribucional e uma run de
@@ -76,7 +77,7 @@ preço se negocia. Detalhe em `tools/README.md`.
 verdade, e ela existe porque o stub de canvas do harness aceita tudo.** Um bug
 que derrubava um quadro inteiro do jogo — `rgba(undefined,0)` no gradiente de
 todo tiro sem rastro, que faz `render` estourar antes do `present()` — passou
-por 24 drivers verdes, porque `addColorStop` só recusa a string num
+por toda a bateria em verde, porque `addColorStop` só recusa a string num
 rasterizador real. O stub também não tem preço: ele **conta** chamadas de
 desenho e não diz quanto custam. `bench` mede ms por quadro; `shot` fotografa
 uma cena fixa e responde "o desenho mudou?" com hash pixel a pixel — é ele que
@@ -118,6 +119,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `sprites.html` | galeria de toda a arte gerada em runtime — revisão visual, fora do jogo |
 | `vfx.html` | galeria de tudo que se mexe: uma cena viva por mecânica, com o que não anima marcado |
 | `js/util.js` | helpers puros (`xpForLevel`, `fmtNum`, `hexRgb`, `deepClone`, `setPath`) |
+| `js/version.js` | `VERSION` + `CHANGELOG` + `CHANGELOG_TIPOS` — a versão e o que entrou nela |
 | `js/balance.js` | `BALANCE`, `ENEMIES`, `AXES`, `AXIS_RULES`, `PATH_RULES`, `CLASSES`, `ITEMS` |
 | `js/sprites.js` | `SPRITE_DATA`, `STATE_MARKS` + geração de pixel-art, chão e estilhaços |
 | `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
@@ -141,6 +143,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
+| `js/render/numbers.js` | `DamageNumbers` — o número de dano, o único desenho fora do buffer |
 | `js/leaderboard.js` | `LB` + `Leaderboard` — recorde local, envio ao form, leitura da planilha |
 | `js/ui-icons.js` | `UI_ICONS` — a grade 16x16 de cada peça, passiva e capstone |
 | `js/ui-glyph.js` | `UI_PAL` + `Glyph` — a paleta da UI e o que substitui todo emoji |
@@ -496,9 +499,9 @@ nos dois lados. É o estado da grade **depois** dos quatro consertos acima:
 | runs com evolução | 13/30 | 1/30 |
 | runs com capstone | 14/30 | 4/30 |
 
-Ler isto com honestidade: **a grade está entregue e o motor está verde** (os 24
-drivers passam), mas o clímax da run — evolução, capstone, metamorfose — quase
-não acontece mais. O perfil que joga ao acaso melhorou; os que **miram** um eixo
+Ler isto com honestidade: **a grade está entregue e o motor está verde** (a
+bateria inteira passa), mas o clímax da run — evolução, capstone, metamorfose
+— quase não acontece mais. O perfil que joga ao acaso melhorou; os que **miram** um eixo
 e o que **alarga** a build pioraram muito, e são justamente eles que o
 `driver_balance` existe para proteger (ver "Medir por média das políticas engana
 aqui", no balanceamento).
@@ -916,6 +919,108 @@ quando ele ainda está dizendo o que importa.
 `driver_feel` guarda as três. O que ele **não** mede é se o hitstop lê como
 impacto ou como engasgo — isso é uma passada de dez segundos no browser, e as
 alavancas são `hitstop.big`/`hitstop.cooldown` e `shake.max`.
+
+### O número de dano: quanto, e o único desenho fora do buffer
+
+A cadeia diz **quantos** caem, a ceifa diz que aconteceu **agora**, o hitstop e
+o tranco de câmera dizem que **pesou**. Nenhum dizia **quanto**, e essa era a
+última peça de feedback bruto que faltava. `js/render/numbers.js` diz.
+
+**Ele é a única coisa do jogo desenhada DEPOIS do `present()`**, e o motivo não
+é profundidade, é resolução: o mundo mora num buffer a um terço da janela, onde
+o menor tamanho da faixa (20px) sairia com **seis pixels de altura** — que não
+desenha dígito, desenha mancha. Ele continua sendo mundo (está preso num corpo,
+não num canto do HUD) e continua sendo canvas; só não é feito de células, como
+gradiente, elipse e partícula também não são. A posição vem de
+`cam.rawLeft/rawTop` e não de `cam.left/top`: o buffer é que precisa estar preso
+ao grid, o texto por cima dele não — e usar o *raw* é o que faz o número
+acompanhar a rolagem em vez de tremer um pixel de arte por vez junto com ela.
+
+**E ele é a única mecânica do jogo que se estraga por SUCESSO.** `maxAlive` é
+4400 e a curva mede ~100 abates/s aos 10 min: quanto melhor a build fica, mais
+ele aparece, e a partir de algum ponto ele deixa de informar. Por isso ele tem
+o mesmo tipo de orçamento que a ceifa tem em `reap.tiers` — três travas, em
+`BALANCE.dano`, e cada uma cobre o que a outra deixa passar:
+
+1. **Limiar por FRAÇÃO do corpo** (`fracMin`), nunca por valor absoluto. Um
+   limiar absoluto ou some com o ghoul de 20 HP ou entope a tela quando a build
+   madura tira dois mil por golpe. É a mesma razão pela qual a ceifa conta
+   abates **por tempo** e não abates totais.
+2. **Teto de vivos** (`pool`), sem alocar — ver abaixo, é a regra menos óbvia.
+3. **Fusão por corpo e por quadro.** Os quatro projéteis de uma Salva no mesmo
+   inimigo no mesmo frame são **um** número somado; sem isso são quatro dígitos
+   no mesmo pixel, que não é mais informação, é menos.
+
+#### A regra do teto: cede o MENOR, nunca o mais velho
+
+A versão óbvia do teto é um anel — cheio, o mais **velho** cede o lugar. Medido
+(`driver_dano`, 11 min com o piloto imortal), ela não sobrevive ao próprio jogo:
+aos 10 min o pool inteiro gira em 0,55s e **80–90% dos números eram reescritos
+antes de terminar o voo**. A tela não ficava cheia, ficava **estroboscópica**.
+
+E `fracMin` não conserta isso, que é o achado que custou a medição: o limiar por
+fração é uma trava excelente no começo e **deixa de existir no fim** — com a
+build madura quase todo golpe leva 100% do corpo, então subir de 20% para 50%
+derrubou o corte de 80% para 67% e mais nada. **Fração não discrimina quando
+tudo morre de um golpe.**
+
+Quem discrimina é o **valor**. Cheio, quem cede a vez é o menor número em tela,
+e só para um maior:
+
+| teto cedendo por… | em tela no min 10 | cortados no voo |
+|---|---|---|
+| idade (anel) | 42 | **80%** |
+| menor valor | 32–42 | **20–29%** |
+
+Duas coisas caem juntas dessa regra, e são as duas que importam: nada é
+interrompido por algo **menos** informativo, e a tela converge para os maiores
+golpes do instante — que é literalmente a pergunta que o número existe para
+responder. Golpe pequeno numa horda que morre em leva não é informação: a
+cadeia já está contando os corpos. O dano **tomado** é a exceção declarada
+(`_take(Infinity)`): ele nunca cede a vez, e é raro o bastante para não disputar
+espaço com nada.
+
+#### O resto das regras
+
+- **Cor é predicado (R2): o eixo da PEÇA que bateu**, na brasa quando o golpe
+  leva `fracAlta` do corpo. De brinde o número vira leitura de build — tela
+  verde é a Corrupção fazendo o trabalho. Dano sem peça dona (o Ápice, o
+  estouro de um corpo) cai no eixo em que a build mais investiu, que é a mesma
+  escolha que a ceifa faz.
+- **A paleta é a da UI (`UI_PAL`), não a do mundo (`AXIS_PALETTE`).** O número
+  é elemento de **leitura** por cima da horda, e `UI_PAL` é a família calibrada
+  para sobreviver nesse fundo.
+- **Osso puro nunca**, e vermelho só no dano tomado. As duas reservas de sempre.
+- **Contorno, nunca brilho** — a mesma saída do `.combo-num`, e é por isso que
+  a R4 continua de pé. (Ela governa a UI; o canvas tem orçamento próprio, e
+  nele o emissor é a build.)
+- **A fonte é `--fonte-display`, não a mono.** O precedente é o `.combo-num`:
+  número que fala de impacto usa display, número que fala de dado (relógio,
+  tier) usa mono.
+- **O texto não é o `fmtNum` do HUD.** "1.0k" apaga justamente os dígitos que
+  separam um golpe do vizinho: cru até dez mil, abreviado daí para cima.
+- **Tempo REAL, como o hitstop e pelo mesmo motivo:** isto é leitura, não
+  simulação. No timeScale 3 um número preso ao relógio do jogo duraria um terço
+  do tempo em tela justo quando há mais o que ler.
+- **Dano contínuo não fala.** O encosto (`touch`) cobra por sub-step enquanto
+  durar — mesma regra que o mantém fora do hitstop e fora das vozes.
+- **`Enemy` é pooled, então `dmgSlot` é zerado no `reset`.** Sem isso o corpo
+  reciclado herdaria a ranhura do anterior e o primeiro acerto dele somaria num
+  número que pertence a outro bicho.
+
+### A resposta de vida baixa: uma curva, dois consumidores
+
+Abaixo de `vidaBaixa.em` o mundo responde, e **nada muda de lugar**: a vinheta
+que já existe fecha em vermelho (`Scenery.drawAtmosphere`) e a barra de vida do
+rodapé desbota no mesmo compasso (`UI.updateHUD`). Vermelho aqui é legal porque
+é exatamente a reserva que a R2 concede — barra de vida e dano recebido.
+
+`Game.lowHpPulse` é **um** número lido pelos dois, pela mesma razão que
+`apexFront` mora no util e não junto do desenho: uma classe de CSS com
+`@keyframes` seria mais barata e **não ficaria em fase** com o mundo, e aí os
+dois leriam como duas animações que por acaso coincidem em vez de um evento só.
+O relógio é o real (`_vfxClock`): um aviso de que você está morrendo não pode
+pulsar três vezes mais rápido no timeScale 3.
 
 ### A morte: o corpo se desfaz, e a leva se anuncia
 
@@ -2536,6 +2641,83 @@ devolve estado vazio, senão o game over inteiro morreria junto. O plano complet
 com o que ficou de fora e por quê, está em `PLANO-RANKING.md`; o setup do form é
 `tools/setup-leaderboard.gs`, que roda uma vez e imprime as constantes.
 
+### A versão e o changelog: uma lista só, e ela é a fonte
+
+`js/version.js` é o arquivo inteiro: `CHANGELOG` é a lista de versões (a mais
+nova **no topo**) e `VERSION` **cai dela** — `CHANGELOG[0].v`, nunca digitado.
+Amarrados assim, subir a versão sem dizer o que entrou deixa de ser possível:
+a menor mudança que o jogo aceita é uma entrada com pelo menos uma nota.
+
+O número já morava em **dois** lugares — cravado no `.menu-versao` do
+`index.html` e cravado de novo em `LB_CFG.versao`, com um comentário pedindo
+que os dois andassem juntos. Comentário não é mecanismo, e a cópia que
+envelhecesse carimbaria toda run enviada ao placar com uma versão que o jogo
+não tem mais, em silêncio. Hoje os dois **leem** de `VERSION`, e o rodapé do
+menu é escrito por `UI.mountVersao`.
+
+**Os dados moram em JS e não num `CHANGELOG.md`** pelo mesmo motivo que não há
+`fetch` em lugar nenhum: o jogo abre por `file://`, onde origem opaca bloqueia
+a leitura. Um markdown ao lado teria que ser lido em runtime — ou copiado à mão
+para cá, que é a segunda lista de novo.
+
+Formato de uma entrada, e cada campo tem um consumidor:
+
+```js
+{ v: "0.10.0", data: "2026-08-24", titulo: "A versao fala",
+  notas: [ { t: "novo" | "ajuste" | "conserto", txt: "..." } ] }
+```
+
+- **`v` é SemVer**, e a régua deste jogo é: **maior** = a run muda de forma
+  (uma classe nova, outra tela de escolha); **menor** = conteúdo ou sistema
+  novo (peça, capstone, placar, este changelog); **patch** = conserto e ajuste
+  de número, incluindo rebalanceamento que não muda a forma de nada.
+- **`data` é o dia em que aquilo SUBIU para a master**, não o dia em que foi
+  escrito — é a data que a tela mostra e a única que o jogador pode conferir
+  contra a própria memória.
+- **A nota diz o que mudou para QUEM JOGA, na voz do jogo.** "As três cartas
+  passam a ser comparadas na mesma régua, em dano por segundo" é uma nota;
+  "refatora `offerGain`" não é. Mecanismo e medição moram aqui no CLAUDE.md,
+  que é onde alguém os procura — a nota é a linha que o jogador lê no menu.
+- **Três tipos, e são poucos de propósito.** Com sete rótulos ninguém escolhe o
+  mesmo duas vezes e a etiqueta para de significar algo.
+
+**A tela (9.9)** abre ao clicar na versão, no canto do menu: trilho de versões à
+esquerda, notas à direita — a mesma silhueta do placar, e de propósito, porque
+as duas respondem "o que aconteceu fora desta run". Três coisas que caem daí:
+
+- **Ela não apaga o canvas.** Apagar o canvas é o que separa a tela de etapa de
+  todas as outras, e esta não cobra nada.
+- **O botão de fechar é fantasma**, e o único cheio do menu continua sendo o
+  `Iniciar` — preenchimento é custo, e escolher versão não custa.
+- **Zero cor de eixo.** Uma nota de versão não fala de Corrupção, Domínio nem
+  Cataclismo (R2): tudo ali é osso sobre obsidiana.
+
+`driver_version` guarda sete coisas: que `VERSION` é a entrada mais nova, que a
+lista desce sem repetir versão nem inverter data, que toda entrada tem data ISO,
+título e ao menos uma nota, que o número **não** existe num segundo lugar (ele
+faz `grep` no `index.html` e compara `LB_CFG.versao`), que a tela desenha uma
+linha por versão e as notas certas, que a nota é **escapada** (ela é texto,
+nunca markup) e que o `ESC` fecha as notas **antes** de pausar.
+
+#### Ao subir para a master: bumpar e escrever a nota, na mesma mudança
+
+**Toda mudança que chega na `master` mexe em `js/version.js`** — não há exceção
+por tamanho: conserto de uma linha é um `patch`, e um `patch` sem nota é o
+defeito que esta lista existe para impedir.
+
+O fluxo, e ele é curto de propósito:
+
+1. **Decida o degrau** pela régua acima (maior / menor / patch).
+2. **Se a versão do topo ainda não foi para a master, ACRESCENTE a nota nela**
+   em vez de criar uma entrada nova. Uma versão por trabalho, não por commit —
+   dez entradas de um dia só é a lista de commits com outro nome, e ninguém lê
+   a lista de commits.
+3. **Entrada nova vai no TOPO**, com a data do dia em que ela sobe.
+4. Rode `node tools/run-all.js` (ou ao menos `fast`, que inclui o
+   `driver_version`) — ele reprova ordem, data e versão repetida.
+5. O commit que sobe leva `js/version.js` junto. `VERSION` acompanha o código
+   que ela nomeia: bumpar depois é carimbar run com a versão errada até lá.
+
 ### Duas trilhas, e a padrão é a que NÃO acontece
 
 `TRACKS` (`js/track.js`) é a lista, e a tecla `N` percorre ela mais o silêncio:
@@ -2636,6 +2818,9 @@ informação de combate.
   em `Game`, não um acesso a `game` dentro do dado.
 - Comportamento genuinamente imperativo vai para `js/hooks.js`, nomeado, e é
   referenciado por string — nunca `if` espalhado dentro das peças.
+- **Mudança que sobe para a `master` mexe em `js/version.js`**: bumpe a versão
+  e escreva a nota do que entrou, na mesma mudança. A regra do degrau e o fluxo
+  estão em "A versão e o changelog".
 
 ## Como adicionar uma peça nova
 
