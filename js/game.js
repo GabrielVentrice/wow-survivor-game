@@ -39,6 +39,20 @@ const SHARD_BUDGET = 420;
    Called once per neighbouring pair by `SpatialGrid.forPairs` — the hottest
    call site of the simulation, which is why it is a plain named function and
    touches nothing but the two bodies it is given. */
+/* Fora do quadro nao se desenha, e nesta horda isso nao e micro-otimizacao:
+   medido aos 4 min de run, 41% dos corpos vivos estao fora da tela e cada um
+   pagava sombra, sprite, orbe de DoT e marca de estado. Eles continuam sendo
+   simulados — quem some e o desenho, entao nada no jogo muda.
+
+   O `pad` e por entidade porque cada uma desenha ALEM do proprio centro: o
+   sprite do inimigo sobe `art` raios, a marca de estado mora 1.55 raio acima e
+   a barra do chefe mais acima ainda. Apertar isso faz o corpo aparecer com
+   atraso na borda, que e pior que o desenho que ele custa. */
+function offScreen(cam, x, y, pad) {
+  const sx = x - cam.left, sy = y - cam.top;
+  return sx < -pad || sy < -pad || sx > cam.w + pad || sy > cam.h + pad;
+}
+
 function separatePair(e, o) {
   let dx = e.x - o.x, dy = e.y - o.y;
   const minD = e.radius + o.radius;
@@ -1233,28 +1247,52 @@ class Game {
     this.vfxLayer.drawDecals(ctx, cam);
 
     const areas = this.areas.active;
-    for (let i = 0; i < areas.length; i++) areas[i].draw(ctx, cam);
+    for (let i = 0; i < areas.length; i++) {
+      const a = areas[i];
+      if (offScreen(cam, a.x, a.y, a.radius + 32)) continue;
+      a.draw(ctx, cam);
+    }
 
     drawPieceOverlays(ctx, this.build, this.player, cam);
 
     const orbs = this.orbs.active;
-    for (let i = 0; i < orbs.length; i++) orbs[i].draw(ctx, cam);
+    for (let i = 0; i < orbs.length; i++) {
+      const o = orbs[i];
+      if (offScreen(cam, o.x, o.y, 48)) continue;
+      o.draw(ctx, cam);
+    }
 
     const pickups = this.pickups.active;
-    for (let i = 0; i < pickups.length; i++) pickups[i].draw(ctx, cam);
+    for (let i = 0; i < pickups.length; i++) {
+      const k = pickups[i];
+      if (offScreen(cam, k.x, k.y, 64)) continue;
+      k.draw(ctx, cam);
+    }
 
     const enemies = this.enemies.active;
-    for (let i = 0; i < enemies.length; i++) enemies[i].draw(ctx, cam, now);
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i];
+      if (offScreen(cam, e.x, e.y, e.radius * 4 + 24)) continue;
+      e.draw(ctx, cam, now);
+    }
 
     drawMinions(ctx, this.minions.active, cam, now);
 
     const parts = this.particles.active;
-    for (let i = 0; i < parts.length; i++) parts[i].draw(ctx, cam);
+    for (let i = 0; i < parts.length; i++) {
+      const pa = parts[i];
+      if (offScreen(cam, pa.x, pa.y, 48)) continue;
+      pa.draw(ctx, cam);
+    }
 
     this.player.draw(ctx, cam, this.build.vfx);
 
     const proj = this.projectiles.active;
-    for (let i = 0; i < proj.length; i++) proj[i].draw(ctx, cam);
+    for (let i = 0; i < proj.length; i++) {
+      const pr = proj[i];
+      if (offScreen(cam, pr.x, pr.y, pr.radius * 4 + 48)) continue;
+      pr.draw(ctx, cam);
+    }
 
     this.vfxLayer.draw(ctx, cam);
 
