@@ -40,16 +40,96 @@ class Pool {
 }
 
 // --- Grid espacial: indexa inimigos por célula p/ buscas vizinhas baratas ---
+/* The cell key is a PACKED INTEGER, and the reason is NOT the string it
+   replaces.
+
+   `cx + "," + cy` looked like the obvious cost — the separation pass does nine
+   lookups per body per sub-step, so at the ceiling that is tens of thousands of
+   throwaway strings. It was measured, and it is worth almost nothing: keeping
+   the old per-body scan and only swapping the key in came back at 34318ms
+   against the string version's 34183ms over the same four minutes. V8 hashes
+   short strings well, and a key above 2^31 is a heap number, not an SMI.
+
+   What the packing actually buys is that a NEIGHBOUR IS AN OFFSET. `key + 1` is
+   the cell to the right and `key + GRID_SPAN` the one below, which is what lets
+   `forPairs` walk the neighbourhood from a bucket it already has instead of
+   rebuilding a key per body. That is where the time went — see `forPairs`.
+
+   So the key is not the optimisation; it is what the optimisation needs.
+
+   The bias bounds the world at +-2^21 cells. At cell 48 that is a hundred
+   million world units in each direction; a long run walks a few hundred
+   thousand, so the wrap is unreachable in practice. */
+const GRID_SPAN = 4194304;   // 2^22 — one row of cells
+const GRID_BIAS = 2097152;   // 2^21 — so negative coordinates stay positive
+
+/* The four FORWARD neighbours: (+1,0), (-1,+1), (0,+1), (+1,+1).
+
+   Half of the eight neighbours, chosen so that the other half is exactly their
+   negatives — which is what makes `forPairs` visit each pair of adjacent cells
+   once instead of twice, with the same coverage as a full 3x3 scan. */
+const GRID_FWD = [1, GRID_SPAN - 1, GRID_SPAN, GRID_SPAN + 1];
+
 class SpatialGrid {
-  constructor(cell) { this.cell = cell; this.map = new Map(); }
-  clear() { this.map.clear(); }
-  _key(cx, cy) { return cx + "," + cy; }
+  constructor(cell) {
+    this.cell = cell;
+    this.map = new Map();
+    /* Occupied keys, kept alongside the Map so `forPairs` can walk the buckets
+       with a plain indexed loop. Iterating `map.entries()` allocates a pair
+       array per bucket, and there are thousands of buckets per sub-step. */
+    this.keys = [];
+  }
+  clear() { this.map.clear(); this.keys.length = 0; }
+  _key(cx, cy) { return (cy + GRID_BIAS) * GRID_SPAN + (cx + GRID_BIAS); }
   insert(e) {
     const k = this._key(Math.floor(e.x / this.cell), Math.floor(e.y / this.cell));
     let b = this.map.get(k);
-    if (!b) { b = []; this.map.set(k, b); }
+    if (!b) { b = []; this.map.set(k, b); this.keys.push(k); }
     b.push(e);
   }
+
+  /* fn(a, b) for every pair of entities sitting in the same cell or in
+     adjacent ones — each pair once per call.
+
+     This is where the separation pass got its time back, and the lever is the
+     LOOKUP COUNT, not the arithmetic. Scanning nine cells around every body
+     costs nine map lookups PER BODY; walking buckets costs four PER BUCKET,
+     and a bucket holds about ten bodies at this density.
+
+     Same coverage as calling `forNear` for every entity: both consider a pair
+     iff the two cells are within one step on both axes.
+
+     CALL IT TWICE. The shape it replaced looked at (a,b) and then again at
+     (b,a), and the obvious reading — that the return visit was a no-op,
+     because a resolved overlap ends exactly at contact distance — is wrong in
+     this game, and measurably so. That reading holds for a blob left alone;
+     here the horde pushes inward every sub-step, so the second look is not
+     cleaning up after the first, it is corrective work against a load that
+     never stops. Halving it let the horde close in: measured over four minutes
+     with an immortal bot, bodies touching the player went 8.04 -> 10.12 at the
+     four-minute mark and damage taken over the run went 22448 -> 26120, and
+     `driver_balance` over thirty runs a side lost half the progression —
+     capstones 14/30 -> 8/30, auras 16/30 -> 7/30, evolutions 13/30 -> 4/30.
+     Two passes put it back (7.56 touching, 21697 damage) and still keep most
+     of the win, because what got cheap was the lookups, not the pushes. */
+  forPairs(fn) {
+    const keys = this.keys, map = this.map;
+    for (let ki = 0; ki < keys.length; ki++) {
+      const key = keys[ki];
+      const b = map.get(key);
+      const n = b.length;
+      for (let i = 0; i < n; i++)
+        for (let j = i + 1; j < n; j++) fn(b[i], b[j]);
+      for (let f = 0; f < 4; f++) {
+        const o = map.get(key + GRID_FWD[f]);
+        if (!o) continue;
+        const m = o.length;
+        for (let i = 0; i < n; i++)
+          for (let j = 0; j < m; j++) fn(b[i], o[j]);
+      }
+    }
+  }
+
   // chama fn(e) para cada inimigo nas 9 células ao redor de (x,y)
   forNear(x, y, fn) {
     const cx = Math.floor(x / this.cell), cy = Math.floor(y / this.cell);

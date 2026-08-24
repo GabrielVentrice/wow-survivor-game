@@ -1358,6 +1358,7 @@ const STAT_FMT = {
   drain:       { name: "dreno", fmt: SF.ps },
   executeMul:  { name: "execução", fmt: SF.x },
   crit:        { name: "crítico", fmt: SF.pct },
+  critMul:     { name: "dano crítico", fmt: SF.x },
   amp:         { name: "amplificação", fmt: SF.pct },
   ramp:        { name: "crescimento", fmt: SF.pct },
   frac:        { name: "fração", fmt: SF.pct },

@@ -84,6 +84,53 @@ CPU da bateria sao quatro processos construindo o mesmo mundo. Um unico run de
 12 min com quatro conjuntos de sondas custaria o tempo de um deles. O preco e
 isolamento: hoje um driver que estoura nao derruba os outros tres.
 
+## `browser.js` — o que o stub nao ve
+
+Todo o resto desta pasta sobe um stub de DOM/canvas no node. E isso que torna
+a bateria barata, e e tambem o teto dela: **o canvas stub aceita tudo**.
+
+Um bug real passou por 24 drivers verdes por causa disso. `Projectile.reset`
+gravava `rgb` so no ramo do cometa, e o tiro comum fechava o gradiente em
+`rgba(undefined,0)` — string que o stub engole e o browser recusa, lancando de
+dentro de `addColorStop`. Como a excecao escapava de `render`, `present()` nao
+rodava e o quadro inteiro nao era apresentado. Nao travava (o `_loop` reagenda
+na primeira linha), entao lia como o jogo perdendo quadros perto de tiro
+inimigo. Nenhum driver podia ver isso.
+
+E o stub nao tem preco: ele CONTA chamadas de desenho e nao pode dizer quanto
+cada uma custa. `driver_perf` mede a simulacao; quem mede o render e aqui.
+
+```bash
+# playwright fica FORA do repo — nao ha package.json aqui e nao vai haver
+mkdir -p ~/.pacto-browser && cd ~/.pacto-browser && npm init -y && npm i playwright
+npx playwright install chromium
+cd -
+
+export NODE_PATH=~/.pacto-browser/node_modules
+node tools/browser.js bench 4          # ms por quadro, horda de ~1850 corpos
+node tools/browser.js shot ref         # fotografa a cena fixa como "ref"
+node tools/browser.js shot novo ref    # ... e compara a de agora com ela
+```
+
+Por isso ele fica **fora do `run-all.js`**: a bateria nao pode depender de algo
+que o repo nao carrega. Ele sai por pedido, quando se mexe em render.
+
+**`bench` mede, `shot` protege.** Otimizar render sem o segundo e apostar — e
+duas das tres tentativas de acelerar a sombra do inimigo sairiam se nao
+houvesse com que conferir. `shot` monta uma cena FIXA (um corpo de cada tipo em
+grade, mais um aglomerado sobreposto, camera cravada) e devolve o hash da
+imagem: ou e identica pixel a pixel, ou ele diz de quanto foi o desvio. Um
+quadro de batalha nao serve de referencia, porque ele depende da run inteira.
+
+**O ruido do `bench` entre rodadas e ~0.5ms**, e a maquina varia mais que isso
+sob carga. Diferenca menor nao e diferenca: rode as duas variantes
+INTERCALADAS, tres vezes cada, e compare as medianas. Foi assim que tres
+otimizacoes de sombra que pareciam boas foram medidas e descartadas — a de
+cache empatou, a que juntava tudo num path so ficou 60% mais lenta (o
+rasterizador passa a computar a uniao de 1850 sub-elipses), e o custo real
+acabou sendo overhead POR CHAMADA, nao a forma desenhada. Depois do culling,
+canvas2d nao tem mais o que dar aqui sem desenhar menos coisas.
+
 ## `driver_bench` — a peca sozinha, em cenario controlado
 
 `driver_balance` responde "esta RUN funciona?". Ele nao responde "esta PECA faz
@@ -104,6 +151,16 @@ mais rapida e seria uma segunda lista para divergir da primeira.
 Seis cenarios (`SCENARIOS`, dado): alvo unico, aglomerado em volta, cerco com o
 jogador andando, leva mortal com reposicao, atiradores e chefe. Duas
 configuracoes por peca: recem-comprada e com um caminho fechado no tier 5.
+
+Foi ele que achou os dois defeitos que a grade de tres linhas trouxe: o Demonic
+Circle piorava ao saltar mais cedo (fugir antes de a horda fechar pega menos
+corpos) e a linha de Critico do Shadowburn fechava sem nunca disparar — 100% de
+critico sobre um golpe que nao acontece continua sendo zero.
+
+Uma reprovacao dele e ARTEFATO DE CENARIO e continua vermelha de proposito:
+`rainOfFire mastery5` evolui para Cataclysm, que e `directional`, e o piloto do
+banco fica parado na maioria dos cenarios. Ela ja era vermelha antes da grade
+(como `strike5`, e com zero em vez de 5,5k).
 
 Duas coisas custaram uma rodada cada, e as duas sao a mesma licao — **o banco
 tem que montar um mundo que o jogo pode entregar**:
@@ -127,7 +184,10 @@ O que ele reprova, e por isso e driver e nao relatorio:
   `reactive` cobre tanto Shadowburn quanto o escudo do Soul Leech, e `reflect`
   so causa dano se um tier comprou isso;
 - **caminho fechado que rende MENOS que a peca crua** — um tier que piorou a
-  peca. Ninguem le 645 tiers a procura disso.
+  peca. Ninguem le 660 tiers a procura disso — e desde que as tres linhas
+  viraram uma grade so (`js/content/paths.js`), o modo `full` e o unico lugar
+  que mede as tres: o modo padrao fecha o PRIMEIRO caminho, que hoje e sempre a
+  Aceleracao.
 
 O que ele NAO responde, e nao deve: se o jogador CHEGA ao tier 5. O banco
 credita o gate de eixo de uma vez e nunca chama `checkCapstones`, porque o

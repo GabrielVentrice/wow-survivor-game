@@ -337,6 +337,14 @@ for (const r of rows) {
   // causa dano? Tag envelhece (`reactive` cobre tanto Shadowburn quanto o
   // escudo do Soul Leech) e classificaria escudo e maldicao como dano.
   if (!SCENARIOS.some((s) => r.by[s.id] && r.by[s.id].hurts)) continue;
+  /* Peca gatilhada por vida BAIXA nao tem como medir aqui, e a culpa e do
+     banco: o jogador dele e imortal por contrato (`hp = maxHp` a cada passo),
+     entao `player_below` nunca vira verdade. Reprovar por isso seria o driver
+     cobrando da peca um estado que ele proprio se recusa a produzir — e o
+     conserto nao e tirar a imortalidade, que e o que mantem as 450 celulas
+     comparaveis entre si. Quem mede essas duas e `driver_autopsy`. */
+  const def = PIECES[r.id];
+  if (def && def.trigger.condition === "player_below") continue;
   const tot = SCENARIOS.reduce((a, s) => a + ((r.by[s.id] && r.by[s.id].dps) || 0), 0);
   if (tot <= 0) mudas.push(r.id + " (" + r.cfg + ")");
 }

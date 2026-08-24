@@ -169,6 +169,21 @@ function telegraph(game, e, c) {
   });
 }
 
+/* O critico das pecas que NAO causam dano. O funil ja sorteia o critico de
+   todo acerto; escudo, cura e controle nao passam por la, e sem isto a linha
+   de Critico dessas dez pecas nao compraria nada. Aqui o critico DOBRA o
+   numero principal do efeito — a cura, o escudo, a duracao do controle —, que
+   e o mesmo fato dito na moeda de cada peca.
+
+   Devolve 1 quando a peca nao tem critico, e o `get` seco e a metade barata:
+   peca sem a linha comprada nem chega a sortear. */
+function critRoll(game, c) {
+  const cr = game.critBy.get(c.key);
+  if (!cr || Math.random() >= cr.chance) return 1;
+  game.emitSfx("crit", c.x, c.y, 0.3);
+  return cr.mul;
+}
+
 const EFFECTS = {
 
   /* --- dano ------------------------------------------------------------- */
@@ -177,14 +192,16 @@ const EFFECTS = {
     if (e.tell > 0 && !c._told) { telegraph(game, e, c); return; }
     const targets = effectTargets(game, e, c);
     if (!targets.length) return;
-    const crit = e.crit > 0 && Math.random() < e.crit;
-    let amt = (e.amount || 0) * (e.mul || 1);
-    if (crit) amt *= e.critMul || 2;
+    /* O critico NAO e sorteado aqui. Ele e stat da peca e mora no funil
+       (Game.damageEnemy), entao um sorteio local dobraria a rolagem no unico
+       efeito que a tinha e deixaria os outros quatro caminhos de dano sem
+       nenhuma. */
+    const amt = (e.amount || 0) * (e.mul || 1);
     const list = targets;
     for (let i = 0; i < list.length; i++) {
       const en = list[i];
       if (en.hp <= 0) continue;
-      const dealt = game.damageEnemy(en, amt, c.key, crit || e.big);
+      const dealt = game.damageEnemy(en, amt, c.key, e.big);
       if (e.onHit) { const n = childCtx(game, c, en, dealt); runEffects(game, e.onHit, n); popCtx(game); }
     }
     c.amount = amt;
@@ -308,7 +325,7 @@ const EFFECTS = {
   /* --- suporte ----------------------------------------------------------- */
 
   heal(game, e, c) {
-    const amt = e.frac != null ? (c.amount || 0) * e.frac : (e.amount || 0);
+    const amt = (e.frac != null ? (c.amount || 0) * e.frac : (e.amount || 0)) * critRoll(game, c);
     game.healPlayer(amt);
   },
 
@@ -317,7 +334,7 @@ const EFFECTS = {
      se tem espinho. Um desenho so, parametrizado, do mesmo jeito que os
      arquetipos de evento. */
   shield(game, e, c) {
-    const amt = e.frac != null ? (c.amount || 0) * e.frac : (e.amount || 0);
+    const amt = (e.frac != null ? (c.amount || 0) * e.frac : (e.amount || 0)) * critRoll(game, c);
     if (amt > 0) game.player.setVeil(c.color, e.veil);
     game.player.addShield(amt, e.cap);
   },
@@ -326,7 +343,7 @@ const EFFECTS = {
 
   slow(game, e, c) {
     const targets = effectTargets(game, e, c);
-    const until = c.now + (e.duration || 2);
+    const until = c.now + (e.duration || 2) * critRoll(game, c);
     for (let i = 0; i < targets.length; i++) {
       const en = targets[i];
       en.slowUntil = Math.max(en.slowUntil, until);
@@ -336,7 +353,7 @@ const EFFECTS = {
 
   stun(game, e, c) {
     const targets = effectTargets(game, e, c);
-    const until = c.now + (e.duration || 1);
+    const until = c.now + (e.duration || 1) * critRoll(game, c);
     for (let i = 0; i < targets.length; i++) {
       if (targets[i].type.boss && !e.affectsBoss) continue;
       targets[i].stunUntil = Math.max(targets[i].stunUntil, until);
@@ -346,7 +363,7 @@ const EFFECTS = {
 
   fear(game, e, c) {
     const targets = effectTargets(game, e, c);
-    const until = c.now + (e.duration || 1.5);
+    const until = c.now + (e.duration || 1.5) * critRoll(game, c);
     for (let i = 0; i < targets.length; i++) {
       if (targets[i].type.boss && !e.affectsBoss) continue;
       targets[i].fearUntil = Math.max(targets[i].fearUntil, until);
@@ -356,7 +373,7 @@ const EFFECTS = {
   // Reduz a cadencia de ataque e o dano de contato do alvo (Curse of Tongues).
   weaken(game, e, c) {
     const targets = effectTargets(game, e, c);
-    const until = c.now + (e.duration || 3);
+    const until = c.now + (e.duration || 3) * critRoll(game, c);
     for (let i = 0; i < targets.length; i++) {
       const en = targets[i];
       en.weakUntil = Math.max(en.weakUntil || 0, until);
@@ -366,7 +383,7 @@ const EFFECTS = {
 
   knockback(game, e, c) {
     const targets = effectTargets(game, e, c);
-    const f = e.force || 120;
+    const f = (e.force || 120) * critRoll(game, c);
     for (let i = 0; i < targets.length; i++) {
       const en = targets[i];
       const dx = en.x - c.x, dy = en.y - c.y, d = Math.hypot(dx, dy) || 1;
@@ -380,8 +397,9 @@ const EFFECTS = {
   // Amplifica todo dano recebido pelo alvo enquanto durar (Haunt).
   mark(game, e, c) {
     const targets = effectTargets(game, e, c);
+    const k = critRoll(game, c);
     for (let i = 0; i < targets.length; i++) {
-      targets[i].marked = Math.max(targets[i].marked, e.amp || 0.25);
+      targets[i].marked = Math.max(targets[i].marked, (e.amp || 0.25) * k);
       targets[i].markedUntil = c.now + (e.duration || 4);
     }
   },
@@ -389,7 +407,7 @@ const EFFECTS = {
   // Puxa inimigos para o ponto do efeito (aggro do Voidwalker).
   pull(game, e, c) {
     const targets = effectTargets(game, e, c);
-    const f = e.force || 60;
+    const f = (e.force || 60) * critRoll(game, c);
     for (let i = 0; i < targets.length; i++) {
       const en = targets[i];
       if (en.type.boss) continue;
@@ -404,7 +422,7 @@ const EFFECTS = {
   convert(game, e, c) {
     const targets = effectTargets(game, e, c);
     if (!targets.length) return;
-    game.convertEnemy(targets[0], e.duration || 8, c);
+    game.convertEnemy(targets[0], (e.duration || 8) * critRoll(game, c), c);
   },
 
   /* --- auto-aplicados ----------------------------------------------------- */

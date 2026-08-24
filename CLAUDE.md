@@ -14,6 +14,10 @@ Survivors-like (Vampire Survivors) com tema WoW, classe Warlock, e um sistema de
 build roguelike inspirado em Bloons TD 6 (caminhos de upgrade que trocam a
 identidade da peça) e Echoes of Mystralia (composição livre de efeitos).
 
+O que Bloons empresta hoje é a **profundidade**, não o vocabulário: os três
+caminhos são os mesmos em toda peça — **Aceleração, Maestria e Crítico** — e a
+troca de identidade mora no tier 5 de cada um. Ver "As três linhas".
+
 **O único input em combate é movimento.** Nada é conjurado à mão; toda peça
 dispara sozinha pelo seu trigger. Posicionamento é a única decisão em tempo real.
 
@@ -59,9 +63,26 @@ irreversível da run.
 
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
 Antes de commitar, rode a bateria headless — **`node tools/run-all.js`**, que
-roda os 24 drivers em paralelo com o mais lento na frente (~70s, contra 175s em
-série). `node tools/run-all.js fast` é o subconjunto de ~8s que cabe a cada
-edit. Detalhe em `tools/README.md`.
+roda os 24 drivers em paralelo com o mais lento na frente (~140s, contra 260s
+em série). `node tools/run-all.js fast` é o subconjunto de ~8s que cabe a cada
+edit. **O pior caso da bateria é o `chest`**, e ele custa ~140s de propósito:
+"40% dos baús dão prêmio grande" é uma propriedade distribucional e uma run de
+12 min abre ~24 baús, amostra em que o piso cai dentro do ruído — medido, o
+mesmo jogo dá de 33% a 74% conforme a seed. As quatro seeds que ele agrega são
+o que compra a amostra, e o segundo argumento dele em `run-all.js` é onde esse
+preço se negocia. Detalhe em `tools/README.md`.
+
+**`node tools/browser.js` é a única verificação que roda num browser de
+verdade, e ela existe porque o stub de canvas do harness aceita tudo.** Um bug
+que derrubava um quadro inteiro do jogo — `rgba(undefined,0)` no gradiente de
+todo tiro sem rastro, que faz `render` estourar antes do `present()` — passou
+por 24 drivers verdes, porque `addColorStop` só recusa a string num
+rasterizador real. O stub também não tem preço: ele **conta** chamadas de
+desenho e não diz quanto custam. `bench` mede ms por quadro; `shot` fotografa
+uma cena fixa e responde "o desenho mudou?" com hash pixel a pixel — é ele que
+transforma otimização de render em medição em vez de aposta. Fica fora do
+`run-all.js` de propósito: o playwright mora fora do repo, e a bateria não pode
+depender do que o repo não carrega. Detalhe em `tools/README.md`.
 
 **`DRIVER=driver_bench.js` é o banco de provas: a peça sozinha, em campo
 controlado.** `driver_balance` responde "esta RUN funciona?" e não responde
@@ -106,6 +127,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/systems/triggers.js` | `TRIGGERS` — quando dispara |
 | `js/systems/build.js` | `BuildSystem` — peças, eixos, caminhos, evoluções, passivas, capstones, ofertas |
 | `js/hooks.js` | `HOOKS` — a escotilha de escape para o que não cabe em dado |
+| `js/content/paths.js` | `HASTE`/`MASTERY`/`CRIT` — as três linhas de upgrade, geradas |
 | `js/content/*.js` | o catálogo: 44 peças, passivas, capstones, demônios |
 | `js/render/fx-shapes.js` | `FX_SHAPES` — o gerador de eventos em pixel (`bloom`, `implode`, `nova`, `rip`) |
 | `js/render/tiles.js` | `TILE_ROWS` — as 8 lajes do chão, desenhadas em grade de 42x42 |
@@ -138,7 +160,11 @@ Schema de uma peça:
   stats:   { ... },              // ÚNICA fonte de números
   trigger: { type, ...params },  // só referências "@stat"
   effects: [ { type, ... } ],    // efeitos aninham efeitos
-  paths: { a: { name, evolvesInto?, tiers: [T(), T(), T(), T(), T()] }, b, c },
+  paths: {        // sempre estes três, sempre nesta ordem (ver "As três linhas")
+    haste:   HASTE({ rate: { stat, verb }, qty?: { stat, noun, steps } }, T(assinatura)),
+    mastery: MASTERY({ dmg, noun?, add?, pct?, evolvesInto? },  T(assinatura)),
+    crit:    CRIT({ noun? },                                    T(assinatura)),
+  },
 }
 ```
 
@@ -211,6 +237,286 @@ Duas consequências:
    escrevem `effects.1` colidem e o último comprado vence. Reserve faixas
    (caminho A → `effects.2`, B → `effects.4`, C → `effects.6`) e lembre que a
    lista fica **esparsa**: qualquer laço sobre `effects` precisa de `if (!e) continue`.
+   Com a grade de três linhas isso ficou barato: cada linha tem **um** tier
+   estrutural (o quinto), então uma linha nunca escreve em mais de um índice.
+
+### As três linhas: Aceleração, Maestria e Crítico
+
+Toda peça sobe pelos **mesmos três caminhos**, e a pergunta de cada um é sempre
+a mesma: com que **frequência** a peça acontece, **quanto** ela pesa quando
+acontece, e com que sorte ela pesa o dobro.
+
+Antes cada peça inventava os próprios três caminhos — "Chama", "Barragem",
+"Enraizado" —, e a tela de level up cobrava do jogador ler quinze nomes novos
+por peça para saber o que estava comprando. Com 44 peças isso são 132 caminhos
+e 660 tiers de vocabulário. A grade única troca isso por uma leitura só: o
+jogador aprende as três linhas uma vez e passa a decidir por **peça**, não por
+nome de trilha.
+
+**Os quatro primeiros degraus de cada linha são GERADOS** (`js/content/paths.js`),
+e o quinto é escrito à mão. Essa divisão é o acordo inteiro:
+
+| | tiers 1–4 | tier 5 |
+|---|---|---|
+| o que são | números, na categoria da linha | a **assinatura** da peça |
+| de onde vêm | `HASTE`/`MASTERY`/`CRIT` | escrito por peça |
+| o que a peça declara | qual stat é recarga, quantidade e dano | o tier inteiro |
+
+Sem o tier 5 a grade viraria planilha e as **7 evoluções** não teriam onde
+morar — e evolução, aura e metamorfose são o clímax da run. Cada evolução hoje
+está ancorada na linha que combina com ela (`evolvesInto` no spec daquela
+linha), e `driver.js` continua cobrando que a forma evoluída tenha os mesmos
+três caminhos da base — o que com ids fixos passou a ser de graça.
+
+**Uma tabela só balanceia o catálogo inteiro** (`LINE_STEPS` e `CRIT_STEPS`).
+Fechadas, as três linhas chegam perto uma da outra de propósito:
+
+| linha | o que ela compra fechada |
+|---|---|
+| Aceleração | `1/0.4875 = 2.05x` de cadência, e a quantidade quadruplicando |
+| Maestria | `1.5 × 1.4 × 1.45 × 1.5 = 4.57x` no número principal |
+| Crítico | 80% de chance a 4.5x → `3.80x` de dano médio |
+
+#### E elas são FRONT-LOADED, porque o marco é pago em abates
+
+O degrau mais caro de cada linha é o **primeiro**. Não é gosto: a primeira
+versão da grade abria em `+30%` de dano, `-20%` de recarga e `+15%` de crítico
+— totais na mesma faixa dos caminhos antigos — e a medição a reprovou de forma
+brutal (`driver_balance`, 4 runs × 5 políticas, mesmas seeds):
+
+| | caminhos antigos | grade v1 (degraus parelhos) |
+|---|---|---|
+| sobrevivência mediana (`focado`) | 9:59 | **2:05** |
+| mortes antes dos 3 min | 4/20 | **12/20** |
+| pool de eixo ao fim (mediana) | 20/20 | **2/20** |
+| runs com evolução | 9/20 | **0/20** |
+| runs com capstone | 10/20 | **2/20** |
+
+O total quase não tinha mudado; o que mudou foi **quando** ele chega. Os
+caminhos antigos abriam em "+50% de dano" ou "dobra o dano", e era isso que
+segurava a realimentação: o marco é cobrado em **abates**, então menos dano
+cedo vira menos marco, que vira tier travado pelo gate de eixo, que vira menos
+dano ainda. É a mesma realimentação que a curva de XP já documenta acima, e ela
+é implacável — só **9 de 20 runs** chegaram aos 400 abates, contra 20 de 20 na
+base.
+
+Regra que fica: **degrau novo se mede pelo primeiro, não pelo total.** Uma linha
+cujo primeiro degrau vale menos que `1.3x` não é uma linha mais lenta, é uma
+linha que a run não consegue pagar.
+
+Três regras que caíram daí, e as três custaram uma medição:
+
+- **`qty` é opcional, e sem ele a linha não fica com buraco.** Peça que não tem
+  o que multiplicar (uma aura pulsa e pronto) recebe quatro degraus de recarga
+  em vez de dois degraus e dois lugares vazios.
+- **Três stats do catálogo são FATORES e não grandezas**, e multiplicar quebra
+  os três: `speedMul` (1.35 = anda 35% mais rápido) viraria um personagem a
+  cinco vezes a velocidade base, e o `factor` das duas maldições (0.65 = o alvo
+  anda a 65%) **subiria** — que é o contrário do que a peça faz. Daí o modo
+  `add` da `MASTERY`.
+- **A linha que carrega a evolução decide o que a forma evoluída herda.** Chaos
+  Bolt vinha do caminho "Enraizado" e por isso chegava com três degraus de
+  redução de carga embutidos: ele nunca foi jogado com `chargeTime` de 1.0s.
+  Pela Maestria ele chega com a carga crua, e `driver_evo` pegou isso na hora —
+  zero de dano em 6s. O conserto é o número base valer sozinho, não a linha
+  compensar depois.
+
+**E o banco de provas cobra o resto** (`DRIVER=driver_bench.js ... 12 full` — o
+modo padrão fecha só o primeiro caminho, que hoje é sempre a Aceleração). Ele
+achou os dois defeitos que a grade trouxe, e os dois são a mesma armadilha —
+**degrau que parece upgrade na tabela e não é upgrade em campo**:
+
+- **Demonic Circle piorava** ao descer o limiar de 7 para 3 inimigos: saltar
+  mais cedo tira o warlock de perto antes de a horda fechar, então cada saída
+  pega menos corpos. O raio maior é o que paga a pressa.
+- **A linha de Crítico do Shadowburn fechava sem nunca disparar**: 100% de
+  crítico sobre um golpe que não acontece continua sendo zero. A peça só executa
+  abaixo de um limiar, e o limiar tinha que subir junto.
+
+Vale como regra para tier 5 novo: **crítico garantido não é payoff sozinho.** Se
+a peça tem condição de disparo (limiar de vida, alvo com DoT, cerco), o tier que
+crava `crit: { set: 1 }` precisa afrouxar a condição no mesmo degrau — senão a
+linha inteira é comprada por nada.
+
+#### O crítico é um stat da peça, e quem sorteia é o funil
+
+`crit` (chance) e `critMul` (multiplicador) entram em toda peça por
+`...CRIT_BASE` — 5% e 2x. A base existe para o crítico ser um **fato do jogo
+antes de ser uma compra**: sem ela a mecânica só apareceria depois que alguém
+investisse, e ninguém investe no que nunca viu.
+
+- **O sorteio mora em `Game.damageEnemy`**, e não dentro de cada efeito. São
+  cinco caminhos de dano — instantâneo, projétil, DoT, área e demônio — e uma
+  regra só; uma cópia por efeito seria a mesma lista escrita cinco vezes, e a
+  que envelhecesse deixaria uma peça sem a linha de Crítico **em silêncio**.
+  `BuildSystem.rebuildCrit` escreve `game.critBy` (key → `{chance, mul}`) a
+  cada aquisição, dos stats **já resolvidos** — então passiva e capstone que
+  mexam em crítico entram de graça, e peça sem a linha comprada nem aparece no
+  mapa, que é a consulta mais barata possível no código quente.
+- **Dez peças não causam dano nenhum**, e nelas o crítico **dobra o número
+  principal**: a cura, o escudo, a duração do controle. Quem faz isso é
+  `critRoll` (`js/systems/effects.js`), consumido por `heal`, `shield`, `stun`,
+  `fear`, `slow`, `weaken`, `mark`, `knockback`, `pull` e `convert` — e também
+  pelos hooks `healthstone` e `grimoire`, que curam e escudam fora do funil.
+- **O crítico se lê no corpo e fala, mas só no dano DISCRETO.** O flash branco
+  do inimigo dobra de fôlego (0.1s → 0.2s) e a voz é a `crit` que o golpe
+  grande já usava. Tique de DoT e de área **não falam**: eles cobram por
+  sub-step enquanto durarem, e um estalo por cobrança viraria metralhadora
+  justo quando a horda fecha. É a mesma regra que os mantém fora do hitstop, e
+  é ela que exige o sexto parâmetro `cont` do funil — sem ele não há como
+  separar o tique de uma área do impacto de um projétil.
+- **Crítico não é `big`.** Fosse, cada crítico emitiria `BIG_HIT` e dispararia
+  os reativos que escutam esse evento — o crítico deixaria de ser dano e
+  passaria a ser gatilho.
+
+#### Toda peça precisa de número DESDE A COMPRA
+
+Esta é a regra mais cara que a grade trouxe, e ela quase passou despercebida
+porque não aparece em nenhum driver de peça: **onze peças do catálogo não
+causavam dano nenhum**, e no catálogo antigo elas ganhavam dano no **tier 1 ou
+2** de um caminho temático — "Corrosão: a aura também causa dano" (Curse of
+Exhaustion), "Estilhaço" (Howl of Terror, Mortal Coil), "Espinhos" (Demon Skin,
+Soul Leech), "Casca" (Healthstone), "Sentinela" (Soulstone). Eram tiers baratos,
+dentro do `freeTier`, e eram eles que transformavam uma carta de controle numa
+peça que contribui.
+
+Na grade, esse salto estrutural passou a morar no **tier 5** — que pede 10
+pontos no eixo da peça. Uma run que sorteia controle ou defesa ficava com nada
+que a Maestria pudesse multiplicar e nada que o Crítico pudesse dobrar, pelo
+resto da run.
+
+Medido com o jogador **imortal** (tira a morte da conta e mede só o crescimento
+da build), política aleatória, 8 seeds, mediana de abates:
+
+| | caminhos antigos | grade sem número base | com número base |
+|---|---|---|---|
+| 60s | 376 | 160 | 268 |
+| 120s | 1056 | **399** | 1009 |
+| 180s | 2055 | **630** | 2018 |
+| 240s | 3174 | 2881 | 3099 |
+| tiers comprados aos 240s | 29 | **18** | 30 |
+
+A coluna do meio é a mesma realimentação de sempre, e a última linha é a prova
+dela: menos dano → menos abates → menos XP e menos marco → **menos tiers
+comprados** → menos dano. Onze peças mudas bastaram para derrubar o jogo pela
+metade, sem que uma única peça de dano tivesse ficado mais fraca — o
+`driver_bench` mostrava Incinerate fechado **5,6x mais forte** que o caminho
+antigo equivalente no mesmo momento.
+
+O conserto foi dar a cada uma **o número que ela já ganhava no tier 1**, agora
+na base: dano de aura nas duas maldições, estouro no grito e no revide,
+espinhos no couro e na casca, servos na alma guardada, dano devolvido na
+barreira, esteira no Burning Rush e estouro de saída no Demonic Circle.
+
+**Regra que fica: peça nova tem que fazer, no instante em que é comprada, a
+coisa que as três linhas multiplicam.** Se o que ela faz só existe depois de um
+tier, ela é uma carta morta na tela — e carta morta numa tela de três ofertas é
+um terço da tela.
+
+#### E o sustain tem que CRESCER, porque as três linhas são todas ofensivas
+
+Este é o segundo buraco, e ele é mais sutil que o primeiro: com a build inteira
+em paridade de dano, o piloto continuava morrendo aos 3 min sob as políticas que
+MIRAM um eixo. A curva de vida diz o que acontece — a base mergulha a 90% e
+**volta a 100%**, e a grade mergulha e morre.
+
+O motivo é estrutural: no catálogo antigo os três caminhos de uma peça eram
+três **espécies** diferentes de upgrade, e uma boa parte dos terceiros caminhos
+era sustain — "Alma" no Shadowburn (cura por execução), "Sacrifício" no Felguard
+(escudo por golpe), "Sustento" no Malefic Rapture, "Aura" no Drain Life (a
+fração curada indo de 25% a 80%). Comprar profundidade trazia sustain junto,
+sem o jogador pedir.
+
+Nas três linhas **tudo é ofensivo**, então uma build que aprofunda termina o
+começo da run com dano de sobra e zero cura. Medido no probe de política, 6
+seeds: as runs que morrem antes dos 3 min curaram/escudaram **0 de vida**; as
+que chegam aos 6 min curaram 2200–2600.
+
+O conserto foi devolver o sustain à base das quatro peças que o perdiam, com a
+Maestria multiplicando ele junto com o dano (`MASTERY({ dmg: [...], also })`):
+cura por execução no Shadowburn, escudo por golpe no Felguard, cura por pulso no
+Malefic Rapture e a fração curada crescendo no Drain Life. Num probe de 6 seeds
+sob a política `focado` isso levou a mediana de 3:28 para 6:00 — mas **6 seeds
+não bastam para esta pergunta**, e a bateria de 30 runs não confirmou o ganho
+(ver "Onde isto está"). O sustain era um buraco real; ele não era o único.
+
+**Regra que fica: linha nova não pode ser só dano.** Se as três linhas forem
+todas ofensivas, o sustain precisa estar na BASE das peças que o têm e crescer
+com elas — senão a build fica com dano de sobra e morre com a barra cheia de
+poder e vazia de vida.
+
+#### E o terceiro buraco: `pierce` tinha sumido do catálogo
+
+O caminho "Barragem" do Incinerate dava **perfuração 1 e depois 4**, e a linha
+de Aceleração só herdou `count`. Numa horda densa isso não é um detalhe: um tiro
+que atravessa 4 mata 5, então trocar perfuração por cadência é dividir a vazão
+da peça inicial — a que está em 100% das runs — por um número grande.
+
+Foi o que explicou uma leitura que não fechava: uma build com Incinerate a
+**16x de dps** por tier comprado matava só o dobro de uma sem tier nenhum. Dps
+não era o limite; **alcance de alvo** era.
+
+**Regra que fica: quando `qty` escolhe um stat, verifique se a peça tem DOIS.**
+`count` (quantos tiros saem) e `pierce` (quantos corpos cada tiro toca) são
+vazões diferentes, e a segunda é a que a densidade da horda multiplica. Por isso
+`HASTE` aceita `qty.also`.
+
+**Os nomes das linhas são uma linha de dado** (`LINE_NAMES`, em
+`js/content/paths.js`), e os dos degraus outra (`LINE_TIERS`). Eles aparecem no
+subtítulo da carta e na tira da build; trocar "Aceleração" por "Haste" é essa
+linha e mais nada.
+
+O que sobra de custo é honesto e continua de pé: tiers estruturais de peças que
+**já** causam dano ("os tiros explodem em área", "as mordidas sangram") hoje só
+existem no tier 5. Quem espalha eixo sente isso, e é o preço declarado do gate
+(`PATH_RULES.axisGate`) — a diferença é que agora ele atrasa o teto da peça em
+vez de decidir se ela existe.
+
+#### Onde isto está, medido
+
+`driver_balance`, 30 runs (6 por política, teto de 12 min), mesmos argumentos
+nos dois lados. É o estado da grade **depois** dos quatro consertos acima:
+
+| | caminhos antigos | as três linhas |
+|---|---|---|
+| `aleatorio` | 6:03 | **7:45** |
+| `agressivo` | 8:29 | 6:34 |
+| `focado` | 9:59 | **2:46** |
+| `misto` | 11:59 | **2:46** |
+| `amplo` | 6:54 | **2:39** |
+| mortes antes dos 3 min | 8/30 | 14/30 |
+| pool de eixo ao fim (mediana) | 20/20 | 6/20 |
+| runs com evolução | 13/30 | 1/30 |
+| runs com capstone | 14/30 | 4/30 |
+
+Ler isto com honestidade: **a grade está entregue e o motor está verde** (os 24
+drivers passam), mas o clímax da run — evolução, capstone, metamorfose — quase
+não acontece mais. O perfil que joga ao acaso melhorou; os que **miram** um eixo
+e o que **alarga** a build pioraram muito, e são justamente eles que o
+`driver_balance` existe para proteger (ver "Medir por média das políticas engana
+aqui", no balanceamento).
+
+O mecanismo que sobra é o que a fase anterior deixou de pé e não foi medido até
+o fim: no catálogo antigo, os tiers 1 e 2 de um caminho temático eram
+**estruturais** em quase toda peça — "os tiros explodem em área", "as mordidas
+sangram", "o portal também dispara projéteis". Uma build larga e rasa colhia
+dezenas desses. Nas três linhas, tiers 1–4 são numéricos e todo salto estrutural
+mora no tier 5, atrás de 10 pontos de eixo — então largura deixou de comprar
+capacidade e passou a comprar só multiplicadores pequenos espalhados.
+
+As alavancas, em ordem de quanto mexem e de quanto custam:
+
+1. **`PATH_RULES.axisGate`/`freeTier`** — deixar o tier 5 chegar mais cedo.
+   Testado uma vez (`[0,0,0,1,5]`) e **não** foi suficiente sozinho.
+2. **Um segundo salto estrutural no tier 3** de cada linha, além do tier 5. É a
+   mudança que ataca o mecanismo de frente, e é a mais cara de escrever: são
+   132 tiers novos à mão.
+3. **`LINE_STEPS`** — subir os degraus numéricos de novo. É a mais barata e a
+   que já mostrou ter teto: ela move o dano e não move a sobrevivência.
+
+O que **não** é a alavanca, medido: dano de saída. Com o jogador imortal a build
+cresce igual à antiga (tabela acima), e a bateria do banco mostra caminho
+fechado rendendo mais que o equivalente antigo em quase toda peça.
 
 ### Trigger é o que diferencia as peças
 
@@ -1627,9 +1933,11 @@ descontar, chegar ao nível 10 de uma vez faria a primeira carta (a que paga o
 nível 8) oferecer passiva, e a trava de dez viraria uma de oito. `driver_cards`
 cobra as duas pontas: nível 1 sem passiva, e nível 10 com fila de 3 também sem.
 
-**Nenhum texto novo por tier.** São 645 tiers no catálogo — escrever "antes →
-depois" à mão em cada um seria conteúdo que envelhece no primeiro
-rebalanceamento. Tudo o que a carta mostra sai do que já existe:
+**Nenhum texto novo por tier.** São 660 tiers no catálogo, e só 132 deles são
+escritos à mão (os tier 5, um por linha por peça) — os outros 528 saem dos
+geradores das três linhas. Escrever "antes → depois" à mão em cada um seria
+conteúdo que envelhece no primeiro rebalanceamento. Tudo o que a carta mostra
+sai do que já existe:
 
 | Campo da carta | De onde vem |
 |---|---|
@@ -2032,6 +2340,12 @@ jogador perde informação de combate.
    `PRIMITIVA_DE` (`js/ui-glyph.js`). Sem mapa o hash escolhe uma das dez, o que
    já é distinguível — escolher à mão só é melhor porque a forma pode dizer algo
    sobre a mecânica.
-5. Três caminhos, cinco tiers cada. Reserve índices distintos por caminho.
-6. Se depende de outra peça, declare `requires`.
-7. Recarregue o browser. Não há mais nada a mudar.
+5. As três linhas saem de `HASTE`/`MASTERY`/`CRIT` (`js/content/paths.js`): a
+   peça só declara QUAL stat ela chama de recarga, de quantidade e de dano.
+   Espalhe `...CRIT_BASE` em `stats` — sem `crit`/`critMul` a linha de Crítico
+   não tem onde escrever, e `driver.js` reprova mod em stat inexistente.
+6. Escreva os três tiers 5 à mão: são eles que carregam a assinatura, e um
+   deles pode carregar a evolução (`evolvesInto` no spec daquela linha).
+   Reserve um índice de `effects` distinto por linha.
+7. Se depende de outra peça, declare `requires`.
+8. Recarregue o browser. Não há mais nada a mudar.

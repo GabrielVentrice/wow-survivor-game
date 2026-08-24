@@ -41,7 +41,13 @@ const BATTERY = [
   // tier full: simulam minutos de jogo, e sao eles que ditam o relogio
   { name: "render",    driver: "driver_render.js",    tier: "full", weight: 58000 },
   { name: "audio",     driver: "driver_audio.js",     tier: "full", weight: 42000 },
-  { name: "chest",     driver: "driver_chest.js",     tier: "full", weight: 41000 },
+  /* O bau passou a agregar QUATRO seeds, e com isso virou o pior caso da
+     bateria (~140s, contra os ~42s do render). O motivo esta no cabecalho do
+     driver: "40% dos baus dao premio grande" e distribucional, e uma run de 12
+     min abre ~24 baus — amostra em que o piso cai dentro do ruido. Quem quiser
+     a bateria curta de volta baixa o segundo argumento; e ele que compra a
+     amostra. */
+  { name: "chest",     driver: "driver_chest.js",     tier: "full", args: ["12", "4"], weight: 140000 },
   { name: "default",   driver: "driver.js",           tier: "full", weight: 28000 },
 
   // tier fast: exercitam mecanismo, nao duracao
