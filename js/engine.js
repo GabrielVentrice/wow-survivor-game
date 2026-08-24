@@ -585,6 +585,9 @@ class InputManager {
       return ({ arrowup: "w", arrowdown: "s", arrowleft: "a", arrowright: "d" })[k] || k;
     };
     addEventListener("keydown", (e) => {
+      // Digitando num campo, o jogo nao escuta: senao o preventDefault abaixo
+      // apagaria as letras w/a/s/d de dentro do proprio campo.
+      if (digitando(e)) return;
       const k = norm(e);
       if ("wasd".includes(k)) e.preventDefault();
       this.keys.add(k);

@@ -46,7 +46,10 @@ const LB_FIELDS = ["nome", "tempo_ms", "abates", "nivel", "dano", "cadeia",
 
 const LB_CFG = {
   key:      "pacto.placar",  // localStorage
-  versao:   "0.9",           // acompanha `.menu-versao` no index.html
+  /* Do NOT type the version here: it comes from js/version.js, the same list
+     the menu changelog falls out of. A second number would age silently and
+     stamp every run with a version the game no longer has. */
+  versao:   VERSION,
   linhas:   8,               // quantas cabem na pagina inicial
   nomeMax:  16,              // um nome que nao empurra a coluna do tempo
   timeout:  4000,            // ms ate desistir da leitura e seguir a vida
@@ -94,6 +97,11 @@ const Leaderboard = {
   },
 
   nome() { return this.local().nome; },
+
+  /* O nome e OBRIGATORIO para comecar uma run: sem ele a run nao teria como
+     entrar no placar, e o jogador so descobriria isso no game over — depois de
+     doze minutos, quando nao ha mais o que fazer a respeito. */
+  temNome() { return this.limpaNome(this.nome()).length > 0; },
 
   setNome(n) {
     this.local().nome = this.limpaNome(n);

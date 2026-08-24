@@ -49,6 +49,11 @@ const BATTERY = [
      amostra. */
   { name: "chest",     driver: "driver_chest.js",     tier: "full", args: ["12", "4"], weight: 140000 },
   { name: "default",   driver: "driver.js",           tier: "full", weight: 28000 },
+  /* O numero de dano so se estraga por SUCESSO: a densidade que interessa e a
+     do minuto 8 em diante, quando a run mata ~100 corpos por segundo. Oito
+     minutos custam ~50s; onze medem a cauda e custam 130s, e e o argumento que
+     compra isso — mesma negociacao do `chest`. */
+  { name: "dano",      driver: "driver_dano.js",      tier: "full", args: ["8"], weight: 52000 },
 
   // tier fast: exercitam mecanismo, nao duracao
   { name: "hooks",     driver: "driver_hooks.js",     tier: "fast", weight: 1500 },
@@ -69,6 +74,7 @@ const BATTERY = [
   { name: "placar",    driver: "driver_leaderboard.js", tier: "fast", weight: 90 },
   { name: "aspect",    driver: "driver_aspect.js",    tier: "fast", weight: 140 },
   { name: "trigger",   driver: "driver_trigger.js",   tier: "fast", weight: 125 },
+  { name: "versao",    driver: "driver_version.js",   tier: "fast", weight: 90 },
 
   /* O banco fica no `full` e nao no `fast`, e a razao e a mesma que separa os
      dois tiers: 450 celulas custam 20s, que e mais que a soma de todo o resto

@@ -131,6 +131,67 @@ const BALANCE = {
     pulse: 0.11,                      // segundos de um salto (e o intervalo)
   },
 
+  /* O NUMERO DE DANO — a ultima peca de feedback bruto que faltava.
+
+     A cadeia diz QUANTOS, a ceifa diz QUE ACONTECEU AGORA, o hitstop diz
+     PESOU. Nenhum diz QUANTO. O numero diz.
+
+     `spawn.maxAlive` e 4400 e a curva mede ~100 abates/s aos 10 min, entao um
+     numero por acerto e impossivel nos dois eixos — ilegivel e caro. Ele
+     precisa do mesmo tipo de orcamento que a ceifa tem em `reap.tiers`, e sao
+     tres travas, cada uma cobrindo o que a outra deixa passar:
+
+     1. `fracMin` e uma FRACAO do HP daquele corpo, nunca um valor absoluto.
+        Limiar absoluto ou some com o ghoul de 20 HP ou entope a tela quando a
+        build madura tira 2 mil por golpe — a mesma razao pela qual a ceifa
+        conta abates POR TEMPO e nao abates totais.
+     2. `pool` e teto de vivos, e nunca aloca em codigo quente. Cheio, quem
+        cede a vez e o MENOR numero em tela e nunca o mais velho — a regra
+        esta em `_take` e foi medida: cedendo por idade, 80% dos numeros eram
+        reescritos antes de terminar o voo aos 10 min, e a tela ficava
+        estroboscopica em vez de cheia.
+     3. A fusao por corpo e por quadro, que nao e numero: quatro projeteis da
+        Salva no mesmo inimigo no mesmo frame sao UM numero, senao viram
+        quatro digitos empilhados no mesmo pixel.
+
+     `vida` esta em segundos REAIS, como o hitstop e pelo mesmo motivo: isto e
+     leitura, nao simulacao. No timeScale 3 um numero preso ao relogio do jogo
+     duraria um terco do tempo em tela justo quando ha mais o que ler.
+
+     E `fracMin` NAO e a alavanca da densidade tardia, o que e contra-intuitivo
+     o bastante para ficar escrito: com a build madura quase todo golpe leva
+     100% do corpo, entao o limiar por fracao deixa de discriminar. Subir de
+     0.20 para 0.50 mexeu 13 pontos no corte e nada na leitura. Quem discrimina
+     no fim da run e o valor, e isso e a trava 2. */
+  dano: {
+    fracMin: 0.20,     // fracao do HP MAXIMO daquele corpo para o numero sair
+    fracAlta: 0.50,    // acima disso o numero vira a brasa do eixo
+    pool: 48,          // teto de vivos — cheio, cede o MENOR, nunca o mais velho
+    sobe: 34,          // px que ele sobe ao longo da vida
+    vida: 0.55,        // segundos em tela, em tempo REAL
+    px: [20, 52],      // faixa de tamanho, interpolada pela fracao tirada
+    deriva: 6,         // px de desvio lateral, por hash do corpo
+    // O dano TOMADO e o unico vermelho, e ele e mais caro que o do inimigo: a
+    // barra do rodape ja conta, entao um numero por encosto numa horda de 4400
+    // corpos seria ruido puro. Dano continuo (`touch`) nunca fala — a mesma
+    // regra que mantem DoT e area fora do hitstop e fora das vozes.
+    tomadoMin: 0.04,   // fracao da vida MAXIMA para o numero vermelho sair
+  },
+
+  /* A RESPOSTA DE VIDA BAIXA — o que o rodape nao consegue fazer sozinho.
+
+     Nada muda de lugar: a vinheta que ja existe ganha vermelho e a barra de
+     vida pulsa no MESMO ciclo, para as duas lerem como um evento so e nao como
+     duas animacoes que por acaso coincidem.
+
+     Vermelho aqui e legal porque e exatamente a reserva que a R2 concede —
+     barra de vida e dano recebido. */
+  vidaBaixa: {
+    em: 0.25,          // fracao de vida que acende a resposta do mundo
+    pulso: 1.5,        // segundos do ciclo — o mesmo para a vinheta e para a barra
+    vinheta: 0.30,     // alfa do vermelho no pico do ciclo
+  },
+
   camera: {
     lerp: 0.12,          // suavização do follow (0 = travado, 1 = instantâneo)
 

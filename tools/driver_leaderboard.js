@@ -155,6 +155,46 @@ console.log("--- um por amigo ---");
   console.log("  ok 6 runs de 3 pessoas viram 3 linhas, cada uma na melhor");
 }
 
+/* --- 3c. o campo de texto come a tecla ------------------------------------ */
+console.log("--- teclado ---");
+{
+  /* O defeito: `InputManager` da `preventDefault` em w/a/s/d para a pagina nao
+     rolar, e isso apagava essas quatro letras de dentro do campo de nome — a
+     letra A simplesmente nao entrava. M e N eram pior: mutavam o som no meio
+     de uma palavra. */
+  const alvo = (tag) => ({ target: { tagName: tag } });
+  for (const tag of ["INPUT", "TEXTAREA", "SELECT", "input"]) {
+    if (!digitando(alvo(tag))) fail(`digitando() disse nao para <${tag}>`);
+  }
+  for (const tag of ["CANVAS", "BODY", "DIV", "BUTTON"]) {
+    if (digitando(alvo(tag))) fail(`digitando() disse sim para <${tag}> — o jogo ficaria surdo`);
+  }
+  if (!digitando({ target: { isContentEditable: true } })) fail("ignorou contentEditable");
+  for (const vazio of [null, undefined, {}, { target: null }]) {
+    let quebrou = false;
+    try { digitando(vazio); } catch (e) { quebrou = true; }
+    if (quebrou) fail(`digitando() lancou com ${JSON.stringify(vazio)}`);
+  }
+
+  /* E a LIGACAO. O harness descarta listeners (`addEventListener: () => {}`),
+     entao nenhum driver consegue disparar uma tecla — a checagem tem que ser no
+     fonte, como `driver_vfx` faz com cor no render. Todo `keydown` do jogo
+     precisa consultar `digitando`, senao o campo volta a perder letra. */
+  for (const arq of ["js/engine.js", "js/game.js"]) {
+    const src = __read(arq);
+    const handlers = src.split('addEventListener("keydown"').length - 1;
+    if (!handlers) continue;
+    // O guarda tem que estar nas primeiras linhas do handler, antes de tudo.
+    const trechos = src.split('addEventListener("keydown"').slice(1);
+    for (const t of trechos) {
+      if (!/digitando\(e\)/.test(t.slice(0, 400)))
+        fail(`um keydown de ${arq} nao consulta digitando(): o campo de nome`
+           + " perde letra ou o jogo reage enquanto alguem escreve");
+    }
+  }
+  console.log("  ok campo de texto engole a tecla, e os dois keydown consultam");
+}
+
 /* --- 4. os limites saem do jogo, nao de uma tabela a mao ------------------ */
 console.log("--- limites derivados ---");
 {
@@ -228,7 +268,19 @@ console.log("--- nome ---");
     fail("limpaNome nao respeitou o teto de tamanho");
   if (Leaderboard.limpaNome(null) !== "") fail("limpaNome quebrou com null");
 
-  console.log("  ok escapa markup, poda controle e corta no teto");
+  /* O nome e obrigatorio para comecar, entao `temNome` e o portao — e ele nao
+     pode aceitar o que `limpaNome` reduz a nada, senao o jogador comeca a run
+     e so descobre no game over que ela nao entra no placar. */
+  Leaderboard._local = null;
+  if (Leaderboard.temNome()) fail("temNome disse sim com o nome vazio");
+  for (const vazio of ["   ", "\t\n", ""]) {
+    Leaderboard.setNome(vazio);
+    if (Leaderboard.temNome()) fail(`temNome aceitou ${JSON.stringify(vazio)}`);
+  }
+  Leaderboard.setNome("Zé");
+  if (!Leaderboard.temNome()) fail("temNome recusou um nome valido");
+
+  console.log("  ok escapa markup, poda controle, corta no teto e barra nome vazio");
 }
 
 /* --- 6. a camada local funciona sem rede nenhuma -------------------------- */

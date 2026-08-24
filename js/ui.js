@@ -44,7 +44,9 @@ class UI {
       goLine: $("goLine"), goExtra: $("goExtra"),
       classGrid: $("classGrid"), startBtn: $("startBtn"),
       lbPanel: $("lbPanel"), lbRows: $("lbRows"), lbEstado: $("lbEstado"),
-      lbNome: $("lbNome"), goPlacar: $("goPlacar"),
+      lbNome: $("lbNome"), startDica: $("startDica"), goPlacar: $("goPlacar"),
+      versao: $("menuVersao"), changelog: $("changelog"),
+      logNav: $("logNav"), logNotes: $("logNotes"), logCount: $("logCount"),
     };
     $("restartBtn").onclick = () => this.game.start();
     $("goMenuBtn").onclick = () => this.game.quitToMenu();
@@ -54,6 +56,7 @@ class UI {
     $("quitBtn").onclick = () => this.game.quitToMenu();
 
     this.mountBoard();
+    this.mountVersao();
 
     /* Toast e fila, nao pilha livre: o teto de tres e o que separa "o jogo me
        avisou" de "o jogo despejou". `toastCount` conta os eventos ANUNCIADOS,
@@ -67,6 +70,13 @@ class UI {
        `textContent` e a mesma variavel de tamanho todo frame. */
     this.comboShown = -1;
     this.comboTierShown = -1;
+
+    /* The version notes. The state is a boolean and an index, and it lives
+       here instead of in the DOM class: what asks "is it open?" is the ESC key,
+       and reading a class back off the element just to answer that would be
+       asking the DOM for a fact the UI already knows. */
+    this.logOpen = false;
+    this.logIdx = 0;
   }
 
   /* As tres variaveis de cor de um eixo, escritas inline no elemento. E o
@@ -114,10 +124,17 @@ class UI {
         card.classList.add("sel");
       };
     }
-    this.el.startBtn.onclick = () => g.start();
+    /* Sem nome o botao nao inicia — e ele FOCA o campo em vez de nao fazer
+       nada. Botao morto que nao explica o que falta e a mesma tela cobrando
+       atencao e devolvendo vazio que o nivel sem oferta ja conserta. */
+    this.el.startBtn.onclick = () => {
+      if (!Leaderboard.temNome()) { this.el.lbNome.focus(); return; }
+      g.start();
+    };
   }
 
   onStart() {
+    this.closeChangelog();
     this.el.menu.classList.add("hidden");
     this.el.gameover.classList.add("hidden");
     this.el.levelup.classList.add("hidden");
@@ -136,6 +153,8 @@ class UI {
 
   toMenu() {
     this.loadBoard();
+    this.syncStart();
+    this.focaNome();
     this.el.pause.classList.add("hidden");
     this.el.gameover.classList.add("hidden");
     this.el.starter.classList.add("hidden");
@@ -175,6 +194,15 @@ class UI {
 
     const hp = Math.max(0, p.hp);
     e.hpFill.style.width = (hp / p.maxHp * 100) + "%";
+    /* O outro consumidor de `lowHpPulse`. A barra nao muda de lugar nem de
+       tamanho: ela desbota, no MESMO compasso em que a vinheta fecha em
+       vermelho no canvas. Uma classe com `@keyframes` seria mais barata e nao
+       ficaria em fase com o mundo — e o que faz os dois lerem como um evento
+       so e serem a mesma curva, nao dois relogios com a mesma duracao.
+
+       `opacity`, nunca cor nem largura: opacidade nao refaz layout, e a
+       largura ja esta dizendo outra coisa (quanta vida sobrou). */
+    e.hpFill.style.opacity = 1 - 0.38 * g.lowHpPulse();
     const lim = p.maxShield > 0 ? p.maxShield : p.maxHp;
     e.shieldFill.style.width = (Math.min(1, p.shield / lim) * 100) + "%";
     e.hpLabel.textContent = p.shield > 0
@@ -1415,18 +1443,48 @@ class UI {
 
   mountBoard() {
     const e = this.el;
-    if (!e.lbPanel) return;
+    if (!e.lbNome) return;
     e.lbNome.value = Leaderboard.nome();
+    /* `input` e nao `change`: o botao de Iniciar depende deste campo, e um
+       botao que so destrava quando o campo perde o foco parece quebrado. */
+    e.lbNome.oninput = () => { Leaderboard.setNome(e.lbNome.value); this.syncStart(); };
     e.lbNome.onchange = () => {
-      e.lbNome.value = Leaderboard.setNome(e.lbNome.value);
+      e.lbNome.value = Leaderboard.setNome(e.lbNome.value);  // poda a vista
+      this.syncStart();
       this.drawBoard();   // so a marca do "sou eu" muda: nao recarrega a rede
     };
+    // Enter no campo comeca a run: o foco esta aqui, entao o botao nao o recebe.
+    e.lbNome.onkeydown = (ev) => {
+      if (ev.key === "Enter" && Leaderboard.temNome()) {
+        e.lbNome.blur();
+        this.game.start();
+      }
+    };
+    this.syncStart();
+    this.focaNome();
     this.loadBoard();
+  }
+
+  /* Botao `disabled` nao recebe clique, entao o `focus()` do onclick e a
+     ultima defesa e nao o caminho normal: quem ensina o que falta e o cursor
+     ja piscando no campo quando o menu abre sem nome. */
+  focaNome() {
+    const e = this.el;
+    if (!e.lbNome || Leaderboard.temNome()) return;
+    try { e.lbNome.focus(); } catch (err) { /* stub sem foco: nao e erro */ }
+  }
+
+  /* O estado do botao e do rotulo ao lado dele, num lugar so: os dois dizem a
+     mesma coisa e nao podem divergir. */
+  syncStart() {
+    const e = this.el, ok = Leaderboard.temNome();
+    if (e.startBtn) e.startBtn.disabled = !ok;
+    if (e.startDica) e.startDica.textContent = ok ? "Enter" : "digite um nome para começar";
   }
 
   loadBoard() {
     const e = this.el;
-    if (!e.lbPanel || typeof Leaderboard === "undefined") return;
+    if (!e.lbRows || typeof Leaderboard === "undefined") return;
     this._board = null; this._boardErr = false;
     this.drawBoard();
     Leaderboard.load()
@@ -1436,7 +1494,7 @@ class UI {
 
   drawBoard() {
     const e = this.el;
-    if (!e.lbPanel) return;
+    if (!e.lbRows) return;
     const meu = Leaderboard.nome();
 
     if (this._boardErr) {
@@ -1475,6 +1533,73 @@ class UI {
         <span class="lb-k">${fmtNum(Number(r.abates))} abates</span></div>`;
     });
     e.lbRows.innerHTML = h;
+  }
+
+  /* --- version notes (9.9) -------------------------------------------------
+     The version number in the menu corner is a button, and what it opens is
+     the list of what went into each version — newest first.
+
+     It exists because the game has no changelog anywhere the player can reach:
+     the repository has one, and a repository is not a screen. Whoever comes
+     back after a week sees the number change with no way to know what changed.
+
+     No text here is written in this class: it all comes from `CHANGELOG`
+     (js/version.js), the same list `VERSION` falls out of. */
+
+  mountVersao() {
+    const e = this.el;
+    if (!e.versao || typeof VERSION === "undefined") return;
+    e.versao.innerHTML = `<b>v${this.esc(VERSION)}</b><s></s><span>notas</span>`;
+    e.versao.onclick = () => this.openChangelog(0);
+    const fechar = document.getElementById("logClose");
+    if (fechar) fechar.onclick = () => this.closeChangelog();
+  }
+
+  openChangelog(i) {
+    const e = this.el;
+    if (!e.changelog || !CHANGELOG.length) return;
+    this.logIdx = Math.max(0, Math.min(CHANGELOG.length - 1, i | 0));
+    this.drawChangelog();
+    e.changelog.classList.remove("hidden");
+    this.logOpen = true;
+  }
+
+  closeChangelog() {
+    if (!this.el.changelog) return;
+    this.el.changelog.classList.add("hidden");
+    this.logOpen = false;
+  }
+
+  /* The rail is built node by node instead of by `innerHTML` plus a
+     `querySelectorAll` afterwards: every row needs its own `onclick`, and this
+     is the same pattern the level-up cards already use. */
+  drawChangelog() {
+    const e = this.el;
+    e.logNav.innerHTML = "";
+    CHANGELOG.forEach((v, i) => {
+      const b = document.createElement("button");
+      b.className = "log-v" + (i === this.logIdx ? " sel" : "");
+      b.innerHTML =
+        `<span class="log-v-top"><span class="log-v-num">v${this.esc(v.v)}</span>` +
+        (i === 0 ? '<span class="tag tag-raro">Atual</span>' : "") +
+        `</span><span class="log-v-tit">${this.esc(v.titulo)}</span>`;
+      b.onclick = () => { this.logIdx = i; this.drawChangelog(); };
+      e.logNav.appendChild(b);
+    });
+
+    const v = CHANGELOG[this.logIdx];
+    /* `esc` because there is no reason not to: a note is text, and the day
+       somebody writes a `<` for "fewer than 3 enemies" in one, the screen must
+       not turn into markup. */
+    let h = `<div class="log-n-head"><h3 class="display-m">${this.esc(v.titulo)}</h3>` +
+            `<span class="log-n-data">${this.esc(v.data)}</span></div>`;
+    for (const n of v.notas) {
+      h += `<div class="log-n"><span class="tag tag-cat">` +
+           `${this.esc(CHANGELOG_TIPOS[n.t] || n.t)}</span>` +
+           `<p class="texto-m">${this.esc(n.txt)}</p></div>`;
+    }
+    e.logNotes.innerHTML = h;
+    e.logCount.textContent = `${this.logIdx + 1} de ${CHANGELOG.length} versões`;
   }
 
   /* --- game over (9.5) -----------------------------------------------------

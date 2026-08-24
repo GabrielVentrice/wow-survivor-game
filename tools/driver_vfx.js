@@ -67,7 +67,7 @@ const DIVIDA_IRMAS = {};
    ========================================================================= */
 
 const ARQUIVOS = ["js/render/vfx.js", "js/render/scenery.js", "js/render/tiles.js",
-                  "js/render/debris.js", "js/entities.js"];
+                  "js/render/debris.js", "js/render/numbers.js", "js/entities.js"];
 
 const CROMA_NEUTRO = 24;     // abaixo disso e cinza/preto/branco, nao e cor
 
