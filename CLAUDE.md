@@ -417,9 +417,10 @@ que chegam aos 6 min curaram 2200–2600.
 O conserto foi devolver o sustain à base das quatro peças que o perdiam, com a
 Maestria multiplicando ele junto com o dano (`MASTERY({ dmg: [...], also })`):
 cura por execução no Shadowburn, escudo por golpe no Felguard, cura por pulso no
-Malefic Rapture e a fração curada crescendo no Drain Life. Sob a política
-`focado`, isso levou a mediana de **3:28 para 6:00** — o teto do probe, que é
-onde a base também está.
+Malefic Rapture e a fração curada crescendo no Drain Life. Num probe de 6 seeds
+sob a política `focado` isso levou a mediana de 3:28 para 6:00 — mas **6 seeds
+não bastam para esta pergunta**, e a bateria de 30 runs não confirmou o ganho
+(ver "Onde isto está"). O sustain era um buraco real; ele não era o único.
 
 **Regra que fica: linha nova não pode ser só dano.** Se as três linhas forem
 todas ofensivas, o sustain precisa estar na BASE das peças que o têm e crescer
@@ -452,6 +453,52 @@ O que sobra de custo é honesto e continua de pé: tiers estruturais de peças q
 existem no tier 5. Quem espalha eixo sente isso, e é o preço declarado do gate
 (`PATH_RULES.axisGate`) — a diferença é que agora ele atrasa o teto da peça em
 vez de decidir se ela existe.
+
+#### Onde isto está, medido
+
+`driver_balance`, 30 runs (6 por política, teto de 12 min), mesmos argumentos
+nos dois lados. É o estado da grade **depois** dos quatro consertos acima:
+
+| | caminhos antigos | as três linhas |
+|---|---|---|
+| `aleatorio` | 6:03 | **7:45** |
+| `agressivo` | 8:29 | 6:34 |
+| `focado` | 9:59 | **2:46** |
+| `misto` | 11:59 | **2:46** |
+| `amplo` | 6:54 | **2:39** |
+| mortes antes dos 3 min | 8/30 | 14/30 |
+| pool de eixo ao fim (mediana) | 20/20 | 6/20 |
+| runs com evolução | 13/30 | 1/30 |
+| runs com capstone | 14/30 | 4/30 |
+
+Ler isto com honestidade: **a grade está entregue e o motor está verde** (os 24
+drivers passam), mas o clímax da run — evolução, capstone, metamorfose — quase
+não acontece mais. O perfil que joga ao acaso melhorou; os que **miram** um eixo
+e o que **alarga** a build pioraram muito, e são justamente eles que o
+`driver_balance` existe para proteger (ver "Medir por média das políticas engana
+aqui", no balanceamento).
+
+O mecanismo que sobra é o que a fase anterior deixou de pé e não foi medido até
+o fim: no catálogo antigo, os tiers 1 e 2 de um caminho temático eram
+**estruturais** em quase toda peça — "os tiros explodem em área", "as mordidas
+sangram", "o portal também dispara projéteis". Uma build larga e rasa colhia
+dezenas desses. Nas três linhas, tiers 1–4 são numéricos e todo salto estrutural
+mora no tier 5, atrás de 10 pontos de eixo — então largura deixou de comprar
+capacidade e passou a comprar só multiplicadores pequenos espalhados.
+
+As alavancas, em ordem de quanto mexem e de quanto custam:
+
+1. **`PATH_RULES.axisGate`/`freeTier`** — deixar o tier 5 chegar mais cedo.
+   Testado uma vez (`[0,0,0,1,5]`) e **não** foi suficiente sozinho.
+2. **Um segundo salto estrutural no tier 3** de cada linha, além do tier 5. É a
+   mudança que ataca o mecanismo de frente, e é a mais cara de escrever: são
+   132 tiers novos à mão.
+3. **`LINE_STEPS`** — subir os degraus numéricos de novo. É a mais barata e a
+   que já mostrou ter teto: ela move o dano e não move a sobrevivência.
+
+O que **não** é a alavanca, medido: dano de saída. Com o jogador imortal a build
+cresce igual à antiga (tabela acima), e a bateria do banco mostra caminho
+fechado rendendo mais que o equivalente antigo em quase toda peça.
 
 ### Trigger é o que diferencia as peças
 
