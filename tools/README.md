@@ -20,7 +20,7 @@ DRIVER=driver_music.js node tools/harness.js .   # trilha: andamento, camadas, e
 DRIVER=driver_render.js node tools/harness.js .  # cenário, demônios e explosão: render e caches
 DRIVER=driver_track.js node tools/harness.js .   # trilha em arquivo: loop, fallback, estados
 DRIVER=driver_cards.js node tools/harness.js .   # level up: gate de eixo, pips, progresso, teto do painel
-DRIVER=driver_milestone.js node tools/harness.js .  # etapa: rampa de abates, tres eixos, ganho real, quem mira fecha capstone
+DRIVER=driver_milestone.js node tools/harness.js .  # etapa: rampa de abates, o pacto de dois eixos, ganho real, quem mira fecha capstone
 DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas, abertura
 DRIVER=driver_chest.js node tools/harness.js .   # baú: cadência de aparição e tamanho do prêmio
 DRIVER=driver_form.js  node tools/harness.js .   # metamorfose por capstone e aura por spell concluída
@@ -387,11 +387,21 @@ telas novas são escritas no driver, e por isso ele **confere cada id contra o
 `index.html`**: casca desatualizada é exatamente como uma prévia diverge em
 silêncio.
 
-## As duas telas de escolha
+## As telas de escolha
 
 `driver_cards` cobre a batida rápida e `driver_milestone` a lenta, e a divisão
 entre eles é a mesma do jogo: level-up só aprofunda, etapa é a única fonte de
-ponto de eixo.
+ponto de eixo. A **abertura** — a tela que a run abre, com uma spell por eixo —
+mora no `driver.js`, porque ela é dado de classe antes de ser tela: ele valida
+`CLASSES.<id>.starters` (uma por eixo, dano na base, sem `requires`, sem
+`evolutionOnly`) e é o único driver que a monta e clica de verdade.
+
+**`Game.start(starterId)` recebe a peça por argumento, e é assim que os drivers
+rodam** (`STARTER_TESTE`, definido no `harness.js`, é `incinerate` — o kit de
+sempre, para as medições continuarem comparáveis). Sem argumento a run para em
+`STATE.STARTER` esperando o clique, e num driver isso é a run inteira parada
+**sem erro nenhum**: o pior modo de falha desta pasta. Driver novo que chame
+`start()` sem argumento vai medir zero e passar.
 
 `driver_cards` reprova, além do que já checava, **oferta de peça nova no
 level-up** e **escolha de level-up que mova o pool de eixo** — as duas são a
@@ -428,6 +438,12 @@ tabela — não existe tabela de pontos, a rampa é emergente:
   terminavam em **12/20 e 13/20** com ponto que o jogo nunca entregava;
 - na fase **fechada** nenhuma carta tem lado seco, e o sorteio vê o catálogo
   inteiro (o driver exige ver eixo repetido numa etapa);
+- **o pacto** (`AXIS_RULES.maxAxes`): a run cabe em dois eixos. O driver cobra o
+  crédito (`addAxis` num eixo selado devolve 0, e um eixo que já andou nunca
+  sela), a mesa (carta de eixo selado não existe — seria um botão de +0 na única
+  decisão que não se desfaz), a run inteira (nunca mais de `maxAxes` eixos
+  abertos) e a **leitura**: o rodapé marca `selado` em vez de imprimir `0 / 15`,
+  e o capstone que pede o eixo selado sai da mira;
 - na fase **aberta** o eixo comprometido **nunca falta**. É o que separa isto de
   uma loteria: o eixo em que o jogador já investiu não pode depender do sorteio
   para reaparecer;
@@ -521,12 +537,20 @@ registry e aparece na galeria na mesma leva, ou o driver reclama. A tarja
 laranja "sem animação própria", ao contrário, **não** é falha: é a lista do que
 o jogo muda sem avisar em tela — hoje 25 mecânicas.
 
-`make_track.py` não é driver: é o gerador da trilha de fundo
-(`audio/rain-lofi.mp3`, o lofi de chuva). Precisa de numpy e scipy, roda em ~7 s
-e imprime o nível de cada barramento e o degrau no ponto de volta do loop —
-degrau menor que o típico entre amostras é a prova de que a faixa emenda e pode
-rodar com `loop` nativo. Como reencodar, e por que a chuva entra depois da
-fita, está em `audio/README.md`.
+`make_track.py` e `make_focus_track.py` não são drivers: são os geradores das
+duas trilhas de fundo — `audio/rain-lofi.mp3` (Tempestade, o lofi de chuva) e
+`audio/focus-vigil.mp3` (Vigília, o leito de foco, que é a padrão). Precisam de
+numpy e scipy, rodam em ~7 s e ~25 s, e os dois imprimem o nível de cada
+barramento e o degrau no ponto de volta do loop — degrau menor que o típico
+entre amostras é a prova de que a faixa emenda e pode rodar com `loop` nativo.
+
+**O gerador de foco imprime mais dois números, e eles são o teste da faixa**:
+o passeio de RMS em janela de 2 s (alvo `< 1,5 dB`) e o maior salto de 250 ms
+sobre o fundo dos 6 s anteriores (alvo: zero janelas acima de 6 dB). É o que
+separa um leito de fundo de uma faixa — a Tempestade mede 6,8 dB e sete saltos,
+que é o certo para ela e o errado para o fundo de uma run de doze minutos. O
+argumento inteiro, a tabela comparativa e como reencodar estão em
+`audio/README.md`.
 
 O stub de `AudioContext` monta o grafo de verdade e explode em rampa
 exponencial com alvo <= 0, então erro de WebAudio aparece aqui e não só no

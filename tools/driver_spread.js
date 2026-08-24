@@ -37,7 +37,7 @@ const fail = (m) => { console.error("  X " + m); fails++; };
 const ok = (m) => console.log("  ok " + m);
 
 function fresh() {
-  g.start();
+  g.start(STARTER_TESTE);
   g.enemies.clear(); g.projectiles.clear();
   g.player.x = 0; g.player.y = 0;
   g.player.dirX = 1; g.player.dirY = 0;

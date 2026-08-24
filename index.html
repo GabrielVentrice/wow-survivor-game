@@ -673,6 +673,11 @@
                   text-transform:uppercase; text-align:center; color:var(--osso-300); }
   .ms-take.dead { opacity:.55; }
 
+  /* Eixo selado no HUD: o quadrado vira tarja e a barra some. "Nao investi
+     aqui" e "isto saiu da run" nao podem ler igual. */
+  .hud-ax.selado { opacity:.4; }
+  .hud-ax.selado b { background:none; box-shadow:inset 0 0 0 1px var(--osso-100); }
+
   /* 9.8 — o slot do eixo ja comprometido. E a UNICA linha do jogo com moldura:
      "isto ja e seu" e dito por peso, nao por cor nova. */
   .ms-row.aberta { min-height:120px; background:var(--obs-600); box-shadow:var(--placa), inset 0 0 0 1px var(--osso-200); }
@@ -690,6 +695,18 @@
             text-transform:uppercase; color:var(--osso-200); }
   .ms-cap b { color:var(--osso-500); font-weight:500; }
   .ms-cap.open b { color:var(--osso-600); }
+
+  /* 9.9 — o eixo SELADO pelo pacto: ele nao esta vazio, ele esta fora. Osso
+     apagado e uma tarja diagonal na barra; nada de vermelho, que nesta UI
+     pertence a vida. */
+  .ms-pacto { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.14em;
+              text-transform:uppercase; color:var(--osso-200); text-align:right; }
+  .ms-pacto b { color:var(--osso-500); font-weight:500; }
+
+  .lv-ax.selado { opacity:.45; }
+  .lv-ax.selado .lv-ax-track i { background:var(--osso-100); }
+  .lv-ax-selo { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.14em;
+                text-transform:uppercase; color:var(--osso-200); }
 
   .lv-ax { display:flex; flex-direction:column; gap:6px; }
   .lv-ax-head { display:flex; align-items:center; gap:var(--e2); }
@@ -926,7 +943,7 @@
       <div id="lbRows" class="lb-rows"></div>
     </aside>
 
-    <div class="menu-rodape rotulo">Mover <b>WASD</b> · Pausa <b>ESC</b> · Som <b>M</b> · Música <b>N</b></div>
+    <div class="menu-rodape rotulo">Mover <b>WASD</b> · Pausa <b>ESC</b> · Som <b>M</b> · Trilha <b>N</b></div>
     <div class="menu-versao">v0.9</div>
   </div>
 
@@ -967,6 +984,26 @@
       <div class="ms-foot">
         <div id="msPool" class="ms-pool"></div>
         <div id="msCap" class="ms-capwrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9.9 Abertura — a primeira tela da run, e da familia da Etapa: mesma placa
+       sobre preto, porque a pergunta e do mesmo tamanho (o que esta run e) e a
+       resposta tambem nao volta. O que a separa e o rodape: aqui nenhum ponto
+       de eixo troca de mao, entao no lugar do capstone mais proximo fica a
+       regra que vai valer a run inteira — o pacto de dois eixos. -->
+  <div id="starter" class="screen ms hidden">
+    <div class="ms-wrap">
+      <div class="ms-head-top">
+        <div class="ms-eyebrow" id="stEyebrow"></div>
+        <div class="ms-title">Com o que você começa?</div>
+        <div class="ms-sub" id="stSub"></div>
+      </div>
+      <div id="stRows" class="ms-rows"></div>
+      <div class="ms-foot">
+        <div id="stPool" class="ms-pool"></div>
+        <div id="stPacto" class="ms-capwrap"></div>
       </div>
     </div>
   </div>

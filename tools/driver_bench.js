@@ -112,7 +112,7 @@ function cell(pieceId, cfg, sc, seed) {
   g.ui.openLevelUp = () => { g.player.pendingLevels = 0; g.state = STATE.PLAYING; };
   g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
   g.ui.openChest = () => { g.state = STATE.PLAYING; };
-  g.start();
+  g.start(STARTER_TESTE);
 
   // o spawner sai: a populacao e a do cenario, e so ela
   g.spawner.update = () => {};

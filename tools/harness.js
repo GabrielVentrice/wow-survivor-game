@@ -187,6 +187,15 @@ sandbox.Audio = function () {
 };
 sandbox.__audio = __audio;
 sandbox.__draw = __draw;
+/* A ABERTURA, para quem nao tem tela. `Game.start()` sem argumento abre a
+   escolha inicial e para em STATE.STARTER — num driver isso e a run inteira
+   parada, sem erro nenhum, o pior modo de falha que existe aqui. Com a peca
+   dita no argumento, todo driver comeca com o mesmo kit de sempre e as
+   medicoes continuam comparaveis com as de antes da tela existir.
+
+   Quem quer exercitar a TELA (o smoke) chama `start()` sem argumento e
+   escolhe pela UI, que e o unico jeito de o headless pegar erro de montagem. */
+sandbox.STARTER_TESTE = "incinerate";
 sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);

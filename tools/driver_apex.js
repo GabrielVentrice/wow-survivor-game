@@ -47,7 +47,7 @@ console.log(`  ok curva unica: vida ${VFX_LIFE.apex}s = varredura, frente em 50%
 
 /* --- 2. quem arma e a travessia do teto ---------------------------------- */
 console.log("--- gatilho ---");
-g.start();
+g.start(STARTER_TESTE);
 const b = g.build, EIXO = "cataclysm";
 
 b.addAxis(EIXO, AXIS_RULES.capPerAxis - 1);

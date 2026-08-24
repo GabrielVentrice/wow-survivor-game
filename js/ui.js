@@ -32,6 +32,8 @@ class UI {
       lvEyebrow: $("lvEyebrow"), lvClock: $("lvClock"),
       milestone: $("milestone"), msRows: $("msRows"), msEyebrow: $("msEyebrow"),
       msSub: $("msSub"), msPool: $("msPool"), msCap: $("msCap"),
+      starter: $("starter"), stRows: $("stRows"), stEyebrow: $("stEyebrow"),
+      stSub: $("stSub"), stPool: $("stPool"), stPacto: $("stPacto"),
       pause: $("pause"), pausePanel: $("pauseBody"),
       pausePieces: $("pausePieces"), pauseAxes: $("pauseAxes"), pauseDmg: $("pauseDmg"),
       pauseMeta: $("pauseMeta"), pauseCount: $("pauseCount"),
@@ -123,6 +125,7 @@ class UI {
     this.el.gameover.classList.add("hidden");
     this.el.levelup.classList.add("hidden");
     this.el.milestone.classList.add("hidden");
+    this.el.starter.classList.add("hidden");
     this.el.chest.classList.add("hidden");
     this.el.pause.classList.add("hidden");
     this.el.hud.classList.remove("hidden");
@@ -140,6 +143,7 @@ class UI {
     this.focaNome();
     this.el.pause.classList.add("hidden");
     this.el.gameover.classList.add("hidden");
+    this.el.starter.classList.add("hidden");
     this.el.hud.classList.add("hidden");
     this.el.menu.classList.remove("hidden");
   }
@@ -235,10 +239,16 @@ class UI {
     let html = "";
     for (const id in AXES) {
       const a = AXES[id], v = b.axis[id];
-      html += `<div class="hud-ax" style="${this.eixoVars(id)}" title="${a.name} — ${a.tag}">
+      /* Eixo SELADO nao pode ler como eixo em que nao investi: o primeiro
+         ainda e uma escolha, o segundo saiu da run. O que separa e a tarja e o
+         `—` no lugar do numero — o `0/15` de um eixo selado seria uma promessa
+         de que ele ainda pode crescer. */
+      const selado = b.axisSealed(id);
+      html += `<div class="hud-ax${selado ? " selado" : ""}" style="${this.eixoVars(id)}"` +
+        ` title="${a.name} — ${selado ? "selado pelo pacto: a run já tem dois eixos" : a.tag}">
         <b class="${v ? "" : "vazio"}"></b>
         <div class="barra"><i style="width:${v / AXIS_RULES.capPerAxis * 100}%"></i></div>
-        <span>${v}/${AXIS_RULES.capPerAxis}</span></div>`;
+        <span>${selado ? "—" : v + "/" + AXIS_RULES.capPerAxis}</span></div>`;
     }
     const left = b.axisLeft;
     html += `<div class="hud-pool rotulo dim">${b.axisTotal} gastos · ${left} por gastar</div>`;
@@ -612,19 +622,29 @@ class UI {
   nearestCapstone(extraAxis, extra) {
     const b = this.game.build;
     const left = b.axisLeft - (extra || 0);
+    /* O pacto DEPOIS da previa, nao antes: a carta sob o mouse pode ser
+       justamente a que abre o segundo eixo, e nesse instante o terceiro se
+       fecha. Apontar para um capstone daquele terceiro seria a tela prometer
+       um destino que o proprio clique acabou de emparedar. */
+    const depois = (a) => b.axis[a] + (a === extraAxis ? (extra || 0) : 0);
+    let abertos = 0;
+    for (const a in b.axis) if (depois(a) > 0) abertos++;
+    const selado = (a) => depois(a) === 0 && abertos >= AXIS_RULES.maxAxes;
     let best = null;
     for (const id in CAPSTONES) {
       if (b.capstones.has(id)) continue;
       const c = CAPSTONES[id];
-      let missing = 0;
+      let missing = 0, morto = false;
       const gaps = [], paid = [];
       for (const a in c.req) {
-        const have = b.axis[a] + (a === extraAxis ? extra : 0);
+        const have = depois(a);
         const need = c.req[a] - have;
+        // Capstone que pede um eixo selado nao esta longe: esta fora.
+        if (need > 0 && selado(a)) { morto = true; break; }
         if (need > 0) { missing += need; gaps.push({ axis: AXES[a], need }); }
         else paid.push(AXES[a]);
       }
-      if (missing > left) continue;
+      if (morto || missing > left) continue;
       if (!best || missing < best.missing) best = { cap: c, missing, gaps, paid };
     }
     return best;
@@ -718,12 +738,18 @@ class UI {
     for (const id in AXES) {
       const a = AXES[id], val = b.axis[id];
       const gain = id === axisId ? (add || 0) : 0;
-      out += `<div class="lv-ax" style="${this.eixoVars(val || gain ? id : null)}">
+      /* Selado pelo pacto: o numero sai. `0 / 15` diria que o eixo ainda pode
+         andar, e ele nao pode — o que ocupa o lugar e a palavra que explica
+         por que ele parou de aparecer nas cartas. */
+      const selado = b.axisSealed(id);
+      out += `<div class="lv-ax${selado ? " selado" : ""}" style="${this.eixoVars(val || gain ? id : null)}">
         <div class="lv-ax-head">
           <span class="lv-ax-ic ${val || gain ? "" : "vazio"}"></span>
           <span class="lv-ax-name ${val ? "" : "off"}">${a.name}</span>
-          <span class="lv-ax-num ${gain ? "lit" : ""}">${
-            gain ? `${val} → ${val + gain}` : val} / ${AXIS_RULES.capPerAxis}</span>
+          ${selado
+            ? `<span class="lv-ax-selo">selado</span>`
+            : `<span class="lv-ax-num ${gain ? "lit" : ""}">${
+                gain ? `${val} → ${val + gain}` : val} / ${AXIS_RULES.capPerAxis}</span>`}
         </div>
         <div class="lv-ax-track">
           <i class="ghost" style="width:${pct(val + gain)}%"></i>
@@ -887,6 +913,98 @@ class UI {
      preenchimento e custo e esta e a unica tela que cobra um ponto que nao
      volta. */
 
+  /* --- 9.9 ABERTURA --------------------------------------------------------
+     A primeira tela da run. Familia da Etapa e nao do Level up, e a razao e a
+     pergunta: level up e uma batida DENTRO da run (o mundo continua vivo
+     atras), abertura e capitulo — o canvas apaga, porque nao ha run ainda.
+
+     Ela nao cobra ponto de eixo, e mesmo assim o botao e SELO. O selo nunca
+     falou de custo, falou de IRREVERSIVEL: nao ha como devolver a spell com
+     que a run comecou, e esta e a unica tela alem da etapa em que isso vale.
+
+     O rodape carrega as tres barras zeradas e a regra do pacto — e o unico
+     momento em que as tres aparecem lado a lado sem nenhuma escolhida, que e
+     exatamente quando explicar "so duas cabem" custa nada e vale tudo. */
+
+  openStarter() {
+    const g = this.game;
+    const offers = g.build.getStarterOffers();
+    /* Classe sem abertura declarada nao pode travar a run numa tela vazia: cai
+       no jogo direto, como fazia o kit que esta tela substituiu. */
+    if (!offers.length) { g.state = STATE.PLAYING; return; }
+    this.stOffers = offers;
+
+    const cls = CLASSES[g.selectedClass];
+    this.el.stEyebrow.innerHTML =
+      `<span>Abertura</span><s></s><span>${cls.name}</span><s></s>` +
+      `<span>${offers.length} spells · uma escolha</span>`;
+    this.el.stSub.textContent =
+      "Uma por família, e todas disparam sozinhas desde o primeiro segundo. " +
+      "Ela não cobra ponto de eixo: o que você escolhe aqui é com o que a run " +
+      "começa, não para onde ela vai.";
+
+    this.el.stRows.innerHTML = "";
+    for (const o of offers) {
+      const row = document.createElement("div");
+      row.className = "ms-row";
+      row.setAttribute("style", this.eixoVars(o.axisId));
+      row.innerHTML = this.stRowHtml(o);
+      for (const btn of row.querySelectorAll(".ms-take")) {
+        btn.onclick = (ev) => { ev.stopPropagation(); this.takeStarter(o); };
+        btn.onmouseenter = () => this.stHoverTo(o);
+        btn.onmouseleave = () => this.stHoverTo(null);
+      }
+      this.el.stRows.appendChild(row);
+    }
+    this.stHover = null;
+    this.stRender(null);
+    this.el.starter.classList.remove("hidden");
+  }
+
+  /* Como nas outras duas telas de escolha, o hover re-renderiza so o RODAPE:
+     mexer nas linhas mataria a transicao que o CSS esta rodando naquele
+     instante. Aqui ele nao move barra nenhuma (a abertura nao da eixo) — o que
+     ele faz e acender a familia da linha sob o mouse. */
+  stHoverTo(o) {
+    const tag = o ? o.axisId : null;
+    if (this.stHover === tag) return;
+    this.stHover = tag;
+    this.stRender(o);
+  }
+
+  stRender(o) {
+    this.el.stPool.innerHTML = this.axesHtml(o ? o.axisId : null, 0);
+    this.el.stPacto.innerHTML =
+      `<div class="ms-pacto">Uma run cabe em <b>${AXIS_RULES.maxAxes} famílias</b> — ` +
+      `a terceira fecha quando a segunda abrir</div>`;
+  }
+
+  /* A manchete e a SPELL, como na carta sorteada da etapa: e ela que esta
+     sendo escolhida. O eixo vira etiqueta abaixo, na cor dele — por ele no
+     topo seria anunciar como titulo algo que nao e a decisao desta tela. */
+  stRowHtml(o) {
+    return `
+      <span class="ms-eixo"></span>
+      <span class="ms-ic">${Glyph.svg(o.piece.id, 54)}</span>
+      <div class="ms-txt">
+        <div class="ms-head"><span class="ms-axis">${o.piece.name}</span></div>
+        <div class="ms-tag">${o.axis.name} · ${o.axis.tag}</div>
+        <div class="ms-desc">${o.piece.desc}</div>
+      </div>
+      <div class="ms-takes">
+        <div>
+          <button class="ms-take"><span>Começar</span></button>
+          <div class="ms-take-note">não custa eixo</div>
+        </div>
+      </div>`;
+  }
+
+  takeStarter(o) {
+    this.el.starter.classList.add("hidden");
+    this.game.takeStarter(o.piece.id);
+    this.toast({ head: "Abertura", axis: o.piece.axis, name: o.piece.name });
+  }
+
   openMilestone() {
     const g = this.game;
     /* Pool cheio: nao ha mais ponto para dar, entao a tela nao tem pergunta a
@@ -1049,6 +1167,13 @@ class UI {
 
     if (res.piece) {
       this.toast({ head: "Spell nova", axis: res.piece.axis, name: res.piece.name });
+    }
+    /* O pacto se fechando e a segunda coisa irreversivel desta tela, e a unica
+       que nenhuma linha dela anuncia: o terceiro eixo simplesmente para de
+       aparecer nas cartas. Sem o toast ele sumiria em silencio. */
+    for (const a of res.sealed || []) {
+      this.toast({ head: "Pacto selado", axis: a,
+                   name: `${AXES[a].name} sai desta run` });
     }
     for (const cap of res.caps) this.capToast(cap);
     this.checkForm(res.caps[res.caps.length - 1]);
