@@ -191,6 +191,15 @@ class UI {
 
     const hp = Math.max(0, p.hp);
     e.hpFill.style.width = (hp / p.maxHp * 100) + "%";
+    /* O outro consumidor de `lowHpPulse`. A barra nao muda de lugar nem de
+       tamanho: ela desbota, no MESMO compasso em que a vinheta fecha em
+       vermelho no canvas. Uma classe com `@keyframes` seria mais barata e nao
+       ficaria em fase com o mundo — e o que faz os dois lerem como um evento
+       so e serem a mesma curva, nao dois relogios com a mesma duracao.
+
+       `opacity`, nunca cor nem largura: opacidade nao refaz layout, e a
+       largura ja esta dizendo outra coisa (quanta vida sobrou). */
+    e.hpFill.style.opacity = 1 - 0.38 * g.lowHpPulse();
     const lim = p.maxShield > 0 ? p.maxShield : p.maxHp;
     e.shieldFill.style.width = (Math.min(1, p.shield / lim) * 100) + "%";
     e.hpLabel.textContent = p.shield > 0

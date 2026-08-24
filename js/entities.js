@@ -382,6 +382,11 @@ class Enemy {
        ruido quando ele tem tudo. Aqui ele entra na mesma fila dos outros dois. */
     this.blastDamage = (type.deathBlast ? type.deathBlast.damage : 0) * scale.dmg;
     this.hitFlash = 0;
+    /* A ranhura de numero de dano deste corpo, se ele tiver uma viva. Zerada
+       aqui porque o Enemy e POOLED: sem isto, o corpo reciclado herdaria a
+       ranhura do anterior e o primeiro acerto dele somaria num numero que
+       pertence a outro bicho. */
+    this.dmgSlot = null;
     this.facing = 1;
     this.animTime = Math.random() * 6; // fase aleatória p/ nao andarem em sincronia
     this.shootTimer = type.shootInterval || 0;

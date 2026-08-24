@@ -287,7 +287,7 @@ class Scenery {
 
   /* Vinheta + tinta fel nos cantos. Fecha o quadro e esconde a borda do
      mundo procedural; aperta conforme a run apodrece. */
-  drawAtmosphere(ctx, cam) {
+  drawAtmosphere(ctx, cam, low) {
     const w = cam.w, h = cam.h;
     if (!this._vig || this._vigW !== w || this._vigH !== h) {
       this._vigW = w; this._vigH = h;
@@ -314,6 +314,30 @@ class Scenery {
         this._fel.addColorStop(1, `rgba(${hexRgb(AXIS_PALETTE.corruption.deep)},0)`);
       }
       ctx.fillStyle = this._fel;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
+
+    /* VIDA BAIXA. A borda fecha em vermelho no mesmo compasso em que a barra
+       do rodape desbota — a curva e uma so (`Game.lowHpPulse`), entao os dois
+       leem como um evento e nao como duas animacoes que coincidem.
+
+       Ela mora AQUI, na vinheta que ja existe, e nao numa camada nova: o que
+       o jogo esta dizendo e que o mundo fechou em volta de voce, e isso e
+       literalmente o que a vinheta desenha. Sem desfoque e sem `lighter` —
+       vermelho aceso leria como spell, e nenhuma spell do jogo e vermelha. */
+    if (low > 0.001) {
+      if (!this._peri || this._periW !== w || this._periH !== h) {
+        this._periW = w; this._periH = h;
+        this._peri = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.4,
+                                              w / 2, h / 2, Math.max(w, h) * 0.72);
+        const rgb = hexRgb(UI_PAL.vida);
+        this._peri.addColorStop(0, `rgba(${rgb},0)`);
+        this._peri.addColorStop(1, `rgba(${rgb},1)`);
+      }
+      ctx.save();
+      ctx.globalAlpha = BALANCE.vidaBaixa.vinheta * low;
+      ctx.fillStyle = this._peri;
       ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }

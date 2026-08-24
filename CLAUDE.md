@@ -64,7 +64,7 @@ irreversível da run.
 
 Verificação = abrir no browser e jogar. Reload manual após cada edit.
 Antes de commitar, rode a bateria headless — **`node tools/run-all.js`**, que
-roda os 26 drivers em paralelo com o mais lento na frente (~140s, contra 260s
+roda os 27 drivers em paralelo com o mais lento na frente (~140s, contra 320s
 em série). `node tools/run-all.js fast` é o subconjunto de ~8s que cabe a cada
 edit. **O pior caso da bateria é o `chest`**, e ele custa ~140s de propósito:
 "40% dos baús dão prêmio grande" é uma propriedade distribucional e uma run de
@@ -77,7 +77,7 @@ preço se negocia. Detalhe em `tools/README.md`.
 verdade, e ela existe porque o stub de canvas do harness aceita tudo.** Um bug
 que derrubava um quadro inteiro do jogo — `rgba(undefined,0)` no gradiente de
 todo tiro sem rastro, que faz `render` estourar antes do `present()` — passou
-por 24 drivers verdes, porque `addColorStop` só recusa a string num
+por toda a bateria em verde, porque `addColorStop` só recusa a string num
 rasterizador real. O stub também não tem preço: ele **conta** chamadas de
 desenho e não diz quanto custam. `bench` mede ms por quadro; `shot` fotografa
 uma cena fixa e responde "o desenho mudou?" com hash pixel a pixel — é ele que
@@ -143,6 +143,7 @@ ordem dos `<script>` significativa (ver o fim do `index.html`).
 | `js/render/debris.js` | `PROP_ART` — os 7 destroços em grade, com a paleta de cada um |
 | `js/render/scenery.js` | `Scenery` — chão, props por chunk, brasas, vinheta |
 | `js/render/vfx.js` | `PIECE_VFX`, `VfxLayer`, `drawMinions`, `drawPieceOverlays` |
+| `js/render/numbers.js` | `DamageNumbers` — o número de dano, o único desenho fora do buffer |
 | `js/leaderboard.js` | `LB` + `Leaderboard` — recorde local, envio ao form, leitura da planilha |
 | `js/ui-icons.js` | `UI_ICONS` — a grade 16x16 de cada peça, passiva e capstone |
 | `js/ui-glyph.js` | `UI_PAL` + `Glyph` — a paleta da UI e o que substitui todo emoji |
@@ -498,9 +499,9 @@ nos dois lados. É o estado da grade **depois** dos quatro consertos acima:
 | runs com evolução | 13/30 | 1/30 |
 | runs com capstone | 14/30 | 4/30 |
 
-Ler isto com honestidade: **a grade está entregue e o motor está verde** (os 26
-drivers passam), mas o clímax da run — evolução, capstone, metamorfose — quase
-não acontece mais. O perfil que joga ao acaso melhorou; os que **miram** um eixo
+Ler isto com honestidade: **a grade está entregue e o motor está verde** (a
+bateria inteira passa), mas o clímax da run — evolução, capstone, metamorfose
+— quase não acontece mais. O perfil que joga ao acaso melhorou; os que **miram** um eixo
 e o que **alarga** a build pioraram muito, e são justamente eles que o
 `driver_balance` existe para proteger (ver "Medir por média das políticas engana
 aqui", no balanceamento).
@@ -918,6 +919,108 @@ quando ele ainda está dizendo o que importa.
 `driver_feel` guarda as três. O que ele **não** mede é se o hitstop lê como
 impacto ou como engasgo — isso é uma passada de dez segundos no browser, e as
 alavancas são `hitstop.big`/`hitstop.cooldown` e `shake.max`.
+
+### O número de dano: quanto, e o único desenho fora do buffer
+
+A cadeia diz **quantos** caem, a ceifa diz que aconteceu **agora**, o hitstop e
+o tranco de câmera dizem que **pesou**. Nenhum dizia **quanto**, e essa era a
+última peça de feedback bruto que faltava. `js/render/numbers.js` diz.
+
+**Ele é a única coisa do jogo desenhada DEPOIS do `present()`**, e o motivo não
+é profundidade, é resolução: o mundo mora num buffer a um terço da janela, onde
+o menor tamanho da faixa (20px) sairia com **seis pixels de altura** — que não
+desenha dígito, desenha mancha. Ele continua sendo mundo (está preso num corpo,
+não num canto do HUD) e continua sendo canvas; só não é feito de células, como
+gradiente, elipse e partícula também não são. A posição vem de
+`cam.rawLeft/rawTop` e não de `cam.left/top`: o buffer é que precisa estar preso
+ao grid, o texto por cima dele não — e usar o *raw* é o que faz o número
+acompanhar a rolagem em vez de tremer um pixel de arte por vez junto com ela.
+
+**E ele é a única mecânica do jogo que se estraga por SUCESSO.** `maxAlive` é
+4400 e a curva mede ~100 abates/s aos 10 min: quanto melhor a build fica, mais
+ele aparece, e a partir de algum ponto ele deixa de informar. Por isso ele tem
+o mesmo tipo de orçamento que a ceifa tem em `reap.tiers` — três travas, em
+`BALANCE.dano`, e cada uma cobre o que a outra deixa passar:
+
+1. **Limiar por FRAÇÃO do corpo** (`fracMin`), nunca por valor absoluto. Um
+   limiar absoluto ou some com o ghoul de 20 HP ou entope a tela quando a build
+   madura tira dois mil por golpe. É a mesma razão pela qual a ceifa conta
+   abates **por tempo** e não abates totais.
+2. **Teto de vivos** (`pool`), sem alocar — ver abaixo, é a regra menos óbvia.
+3. **Fusão por corpo e por quadro.** Os quatro projéteis de uma Salva no mesmo
+   inimigo no mesmo frame são **um** número somado; sem isso são quatro dígitos
+   no mesmo pixel, que não é mais informação, é menos.
+
+#### A regra do teto: cede o MENOR, nunca o mais velho
+
+A versão óbvia do teto é um anel — cheio, o mais **velho** cede o lugar. Medido
+(`driver_dano`, 11 min com o piloto imortal), ela não sobrevive ao próprio jogo:
+aos 10 min o pool inteiro gira em 0,55s e **80–90% dos números eram reescritos
+antes de terminar o voo**. A tela não ficava cheia, ficava **estroboscópica**.
+
+E `fracMin` não conserta isso, que é o achado que custou a medição: o limiar por
+fração é uma trava excelente no começo e **deixa de existir no fim** — com a
+build madura quase todo golpe leva 100% do corpo, então subir de 20% para 50%
+derrubou o corte de 80% para 67% e mais nada. **Fração não discrimina quando
+tudo morre de um golpe.**
+
+Quem discrimina é o **valor**. Cheio, quem cede a vez é o menor número em tela,
+e só para um maior:
+
+| teto cedendo por… | em tela no min 10 | cortados no voo |
+|---|---|---|
+| idade (anel) | 42 | **80%** |
+| menor valor | 32–42 | **20–29%** |
+
+Duas coisas caem juntas dessa regra, e são as duas que importam: nada é
+interrompido por algo **menos** informativo, e a tela converge para os maiores
+golpes do instante — que é literalmente a pergunta que o número existe para
+responder. Golpe pequeno numa horda que morre em leva não é informação: a
+cadeia já está contando os corpos. O dano **tomado** é a exceção declarada
+(`_take(Infinity)`): ele nunca cede a vez, e é raro o bastante para não disputar
+espaço com nada.
+
+#### O resto das regras
+
+- **Cor é predicado (R2): o eixo da PEÇA que bateu**, na brasa quando o golpe
+  leva `fracAlta` do corpo. De brinde o número vira leitura de build — tela
+  verde é a Corrupção fazendo o trabalho. Dano sem peça dona (o Ápice, o
+  estouro de um corpo) cai no eixo em que a build mais investiu, que é a mesma
+  escolha que a ceifa faz.
+- **A paleta é a da UI (`UI_PAL`), não a do mundo (`AXIS_PALETTE`).** O número
+  é elemento de **leitura** por cima da horda, e `UI_PAL` é a família calibrada
+  para sobreviver nesse fundo.
+- **Osso puro nunca**, e vermelho só no dano tomado. As duas reservas de sempre.
+- **Contorno, nunca brilho** — a mesma saída do `.combo-num`, e é por isso que
+  a R4 continua de pé. (Ela governa a UI; o canvas tem orçamento próprio, e
+  nele o emissor é a build.)
+- **A fonte é `--fonte-display`, não a mono.** O precedente é o `.combo-num`:
+  número que fala de impacto usa display, número que fala de dado (relógio,
+  tier) usa mono.
+- **O texto não é o `fmtNum` do HUD.** "1.0k" apaga justamente os dígitos que
+  separam um golpe do vizinho: cru até dez mil, abreviado daí para cima.
+- **Tempo REAL, como o hitstop e pelo mesmo motivo:** isto é leitura, não
+  simulação. No timeScale 3 um número preso ao relógio do jogo duraria um terço
+  do tempo em tela justo quando há mais o que ler.
+- **Dano contínuo não fala.** O encosto (`touch`) cobra por sub-step enquanto
+  durar — mesma regra que o mantém fora do hitstop e fora das vozes.
+- **`Enemy` é pooled, então `dmgSlot` é zerado no `reset`.** Sem isso o corpo
+  reciclado herdaria a ranhura do anterior e o primeiro acerto dele somaria num
+  número que pertence a outro bicho.
+
+### A resposta de vida baixa: uma curva, dois consumidores
+
+Abaixo de `vidaBaixa.em` o mundo responde, e **nada muda de lugar**: a vinheta
+que já existe fecha em vermelho (`Scenery.drawAtmosphere`) e a barra de vida do
+rodapé desbota no mesmo compasso (`UI.updateHUD`). Vermelho aqui é legal porque
+é exatamente a reserva que a R2 concede — barra de vida e dano recebido.
+
+`Game.lowHpPulse` é **um** número lido pelos dois, pela mesma razão que
+`apexFront` mora no util e não junto do desenho: uma classe de CSS com
+`@keyframes` seria mais barata e **não ficaria em fase** com o mundo, e aí os
+dois leriam como duas animações que por acaso coincidem em vez de um evento só.
+O relógio é o real (`_vfxClock`): um aviso de que você está morrendo não pode
+pulsar três vezes mais rápido no timeScale 3.
 
 ### A morte: o corpo se desfaz, e a leva se anuncia
 
