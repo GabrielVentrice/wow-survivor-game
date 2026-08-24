@@ -124,7 +124,7 @@ const BALANCE = {
 
   combo: {
     window: 0.1,                      // segundos entre dois abates da cadeia
-    min: 3,                           // a partir daqui a cadeia aparece
+    min: 50,                          // a partir daqui a cadeia aparece
     tiers: [10, 40, 120],             // degraus que engordam o numero
     size: [48, 64, 84, 108],          // px do numero, por degrau
     swell: [0.10, 0.16, 0.24, 0.34],  // quanto ele salta, por degrau
@@ -253,6 +253,47 @@ const BALANCE = {
    multiplicador. */
 BALANCE.levelup = {
   passiveAt: 10,   // nivel a partir do qual passiva pode ser oferecida
+};
+
+/* --- O CAMPO PADRAO: a regua da tela de level up -------------------------
+   A carta de level up mede a oferta em DANO POR SEGUNDO, e as tres barras
+   compartilham a mesma escala — o jogador compara sem converter unidade.
+   Para isso existir, alguem tem que responder "quanto esta peca faz por
+   segundo", e a resposta depende do campo: um golpe de raio 460 num alvo
+   sozinho vale um corpo, e no cerco vale doze.
+
+   Este bloco E esse campo, e ele e DADO porque e uma suposicao e nao um fato.
+   `js/systems/dps.js` le daqui e de mais nada.
+
+   Ele nao substitui `driver_bench`: o banco mede a peca com o motor rodando e
+   e a verdade; isto e um modelo fechado que roda em microssegundos dentro de
+   uma tela parada. `driver_dps` cobra que os dois concordem na ORDEM — a
+   regua nao promete o numero exato, ela promete que a barra mais longa ganha
+   mais. */
+BALANCE.dps = {
+  crowd: 4,        // corpos dentro de um circulo de `crowdRef`
+  crowdRef: 120,   // o raio em que `crowd` foi contado
+  crowdMax: 14,    // teto: raio de tela inteira nao pega a horda inteira
+  moving: 0.7,     // fracao do tempo em que o jogador anda (trail, directional)
+  still: 0.3,      // e a fracao em que ele para (rooted) — as duas somam 1
+  speed: 240,      // px/s, a velocidade base de BALANCE.player.speed
+  /* Reativo nao tem cadencia propria: ele dispara em evento. O que segura a
+     conta e o cooldown anti-spam, e o que o jogo entrega e horda morrendo em
+     leva — entao o piso e alto e quem manda quase sempre e o cooldown. */
+  events: 6,       // eventos por segundo disponiveis para um gatilho reativo
+  /* Execucao: a fracao do tempo em que o alvo esta abaixo do limiar. Nesta
+     horda — densa e fragil — quase todo corpo passa por la, mas por pouco
+     tempo. */
+  executeFrac: 0.35,
+  /* Quanto tempo o jogador fica seguido no mesmo estado — parado ou andando.
+     E o que decide o quanto Furia Contida e Pes de Cinza chegam a acumular:
+     as duas sobem 2% por segundo e zeram na primeira troca, entao o que
+     importa nao e a fracao do tempo, e o TAMANHO da sequencia. */
+  streak: 6,
+  /* Fracao da horda que carrega um DoT seu. `onlyDotted` nao e detalhe: e o
+     que separa Malefic Rapture — que so rasga quem ja esta apodrecendo — de
+     uma peca de area comum, e sem ele a regua conta a horda inteira. */
+  dotted: 0.25,
 };
 
 /* ETAPAS: a batida lenta da run, e a UNICA fonte de ponto de eixo.
@@ -561,10 +602,29 @@ const AXES = {
 const AXIS_RULES = {
   pool: 20,        // pontos totais que uma run pode acumular
   capPerAxis: 15,  // teto por eixo
+  maxAxes: 2,      // quantos eixos uma run pode ABRIR — ver "O pacto"
   pureAt: 15,      // limiar do capstone puro
   hybridMain: 10,  // limiar principal do capstone hibrido
   hybridSide: 5,   // limiar secundario do capstone hibrido
 };
+
+/* O PACTO — a run cabe em DOIS eixos, e o terceiro se fecha sozinho.
+
+   `pool`/`capPerAxis` ja tornavam impossivel maximizar dois eixos, e nao
+   diziam nada sobre o terceiro: 7/7/6 era uma build legal, e era a build que
+   nao chega a lugar nenhum — nenhum capstone do jogo pede tres eixos (os oito
+   pedem um ou dois), entao espalhar o pool pelos tres e a unica maneira de
+   gastar a run inteira e terminar sem clímax nenhum.
+
+   `maxAxes` fecha essa porta e a fecha no momento em que ela deixa de importar:
+   assim que DOIS eixos tiverem pelo menos um ponto, o terceiro para de receber
+   — some das cartas de etapa e some da mira do capstone. O que se perde e uma
+   escolha que ja era ruim; o que se ganha e que a segunda etapa da run passa a
+   ser uma decisao de verdade, porque ela sela o que a run nao vai ser.
+
+   Quem cobra e `BuildSystem.axisSealed`, e ele cobra em `addAxis` — a mesma
+   razao pela qual o Apice mora la: bau, capstone ou peca que credite eixo no
+   futuro respeitam o pacto sem uma linha nova. */
 
 /* Regra dos caminhos (Bloons): no maximo 2 caminhos podem passar do tier 2.
 
@@ -627,16 +687,27 @@ const CLASSES = {
     axes: ["corruption", "dominion", "cataclysm"],
     systems: [],
     base: { maxHp: 100, speed: 240 },
-    // Kit inicial: UMA peca so, e a mais neutra do catalogo — o tiro que
-    // persegue e nao pede nada do jogador. Entra de graca: o pool de 20 pontos
-    // fica inteiro para as escolhas do jogador.
-    //
-    // Comecar com duas ja entregava meia identidade de graca: quem nascia com
-    // Corruption nascia com o eixo escolhido, e a primeira etapa deixava de ser
-    // descoberta para virar confirmacao. Com uma peca so, a fase fechada da
-    // etapa volta a fazer o trabalho dela — as tres spells sorteadas sao a
-    // primeira coisa que diz para onde a run vai.
-    starting: ["incinerate"],
+    /* A ABERTURA: tres spells, uma por eixo, e o jogador escolhe UMA.
+
+       Antes o kit era `incinerate` entregue de graca, e por isso o primeiro
+       ato do jogador era assistir. Uma peca sorteada por nos e uma peca que
+       ninguem escolheu: ela ensina o jogo (o tiro persegue sozinho, o unico
+       input e movimento) e nao diz nada sobre a run, porque nao houve decisao.
+
+       As tres sao BASICAS e sao de DANO — a mesma pergunta feita de tres
+       maneiras, para a resposta ser sobre gosto e nao sobre quem entendeu a
+       carta. Nenhuma tem `requires`, nenhuma pede posicao, e as tres disparam
+       sozinhas desde o primeiro segundo: e o piso do que uma peca de abertura
+       tem que ser (ver "Toda peca precisa de numero DESDE A COMPRA").
+
+       Ela continua entrando de GRACA, sem ponto de eixo. A abertura diz com o
+       que a run comeca; quem diz para onde ela vai continua sendo a etapa —
+       misturar as duas devolveria a run pre-comprometida antes do primeiro
+       marco, que e o defeito que tirou a segunda peca do kit em primeiro lugar.
+
+       Ordem = ordem de `AXES`, e `driver_cards` cobra uma por eixo: a tela
+       nasce sendo uma escolha entre familias, nao um sorteio de tres cartas. */
+    starters: ["corruption", "wildImps", "incinerate"],
     /* Metamorfose: `caps` = nº de capstones fechados para assumir a forma. A
        última forma cujo `caps` for atingido vence.
 
@@ -707,7 +778,14 @@ const CLASSES = {
        catalogo, entrando de graca para o pool de 20 ficar inteiro. Kill Command
        mira sozinha e nao pede nada do jogador, entao a primeira etapa continua
        sendo descoberta e nao confirmacao. */
-    starting: ["killCommand"],
+    /* A ABERTURA, na forma que o warlock passou a ter: tres spells, uma por
+       eixo, e o jogador escolhe UMA. As tres sao basicas, de DANO, sem
+       `requires` e disparam sozinhas desde o primeiro segundo — a mesma
+       pergunta feita de tres maneiras, para a resposta ser sobre gosto e nao
+       sobre quem entendeu a carta.
+
+       Ordem = ordem de `axes`, e `driver.js` cobra uma por eixo DA CLASSE. */
+    starters: ["killCommand", "arcaneShot", "serpentSting"],
     /* FORMA UNICA, e e uma posicao declarada e nao uma lacuna: o corpo do
        hunter nao conta a progressao da run. `driver_form` cobra cobertura de
        capstone so de quem declara mais de uma forma — o que ele proibe e a

@@ -31,7 +31,7 @@ else console.log("  ok arquivo pronto -> Soundtrack usa o arquivo");
 if (g.music.proc.on) fail("a trilha procedural continuou tocando junto com o arquivo");
 else console.log("  ok procedural sai de cena quando o arquivo entra");
 
-g.start();
+g.start(STARTER_TESTE);
 for (let i = 0; i < 240; i++) g.music.update(1 / 60);
 const vJogo = __track.els[g.music.file.cur].volume;
 // compara com a constante, nao com um numero magico: baixar o volume da
@@ -75,10 +75,61 @@ g.music.setState("gameover");
 g.music.update(1 / 60);
 if (f.playing) fail("game over nao parou a trilha");
 else console.log("  ok game over para a trilha");
-g.start();
+g.start(STARTER_TESTE);
 g.music.update(1 / 60);
 if (!f.playing) fail("restart nao voltou a tocar");
 else console.log("  ok restart volta a tocar do inicio");
+
+/* --- N percorre as trilhas ----------------------------------------------
+   Sao 1,9 MB por faixa, entao a troca nao e instantanea. As tres coisas que
+   isso obriga: carregar so a que vai tocar, nao trocar antes de o arquivo
+   novo estar pronto, e nao ficar mudo se ele nunca ficar. */
+g = novoJogo();
+g.enableAudio();
+if (__track.els.length !== 1) fail(`carregou ${__track.els.length} trilhas de uma vez`);
+else console.log("  ok carrega so a trilha que vai tocar");
+__track.succeed();
+g.music.update(1 / 60);
+if (g.music.trackName !== TRACKS[0].name) {
+  fail(`o jogo abriu em "${g.music.trackName}", esperado "${TRACKS[0].name}"`);
+} else console.log(`  ok o jogo abre em "${TRACKS[0].name}"`);
+
+const antigo = g.music.file;
+const pedida = g.music.cycleTrack();
+if (!pedida || pedida.id !== TRACKS[1].id) fail("N nao pediu a segunda trilha");
+g.music.update(1 / 60);
+if (g.music.trackName !== TRACKS[0].name) fail("trocou antes de o arquivo novo carregar");
+else if (!antigo.playing) fail("ficou mudo esperando o download da trilha nova");
+else console.log("  ok a antiga continua tocando enquanto a nova baixa");
+
+const nova = __track.els[__track.els.length - 1];
+(nova._l.canplaythrough || []).forEach((f) => f());
+g.music.update(1 / 60);
+if (g.music.trackName !== TRACKS[1].name) fail("a trilha nova ficou pronta e nao entrou");
+else if (antigo.playing) fail("as duas trilhas ficaram tocando juntas");
+else console.log(`  ok pronta -> entra "${TRACKS[1].name}" e a antiga para`);
+
+if (g.music.cycleTrack() !== null) fail("o fim do ciclo deveria ser silencio");
+else if (!g.music.isMuted) fail("o fim do ciclo nao silenciou");
+else console.log("  ok fim do ciclo = mudo");
+const volta = g.music.cycleTrack();
+g.music.update(1 / 60);
+if (g.music.isMuted) fail("N no mudo nao voltou a tocar");
+else if (!volta || volta.id !== TRACKS[0].id) fail("do mudo nao voltou para a primeira trilha");
+else console.log("  ok do mudo o ciclo volta para a primeira");
+
+/* trilha nova que nao carrega: fica a que ja estava, e nao silencio */
+g = novoJogo();
+g.enableAudio();
+__track.succeed();
+g.music.update(1 / 60);
+g.music.cycleTrack();
+const quebrada = __track.els[__track.els.length - 1];
+(quebrada._l.error || []).forEach((f) => f());
+for (let i = 0; i < 60; i++) g.music.update(1 / 60);
+if (g.music.trackName !== TRACKS[0].name) fail("trocou para uma trilha que falhou");
+else if (!g.music.file.playing) fail("a trilha nova falhou e o jogo ficou mudo");
+else console.log("  ok trilha nova que falha -> fica a que estava tocando");
 
 /* --- o modo cruzado continua funcionando, para faixa que NAO emenda ----- */
 __track.reset();
@@ -112,7 +163,7 @@ g.enableAudio();
 __track.fail();
 g.music.update(1 / 60);
 if (g.music.usingFile) fail("arquivo falhou mas a trilha continuou apostando nele");
-g.start();
+g.start(STARTER_TESTE);
 __audio.nodes = 0;
 for (let i = 0; i < 400; i++) { g.clock += 0.05; g.music.update(1 / 60); }
 if (__audio.nodes < 20) fail(`fallback procedural nao tocou (${__audio.nodes} notas)`);

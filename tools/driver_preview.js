@@ -1,4 +1,4 @@
-/* Nao mede nada: ESCREVE `tools/telas-preview.html`, as SEIS telas de UI
+/* Nao mede nada: ESCREVE `tools/telas-preview.html`, as SETE telas de UI
    montadas com builds de verdade — as mesmas que a run produz — para revisar o
    layout sem ter que jogar ate o nivel 20.
 
@@ -20,7 +20,7 @@ const g = new Game();
 window.game = g;
 let s = 11;
 Math.random = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
-g.start();
+g.start(STARTER_TESTE);
 
 /* Os quatro estados que valem revisao, cacados na simulacao em vez de fixados
    por numero de rodada: build pequena (linha completa), build media (linha
@@ -41,11 +41,14 @@ const take = (id, label, offers, hoverIdx) => {
   if (took[id]) return;
   took[id] = true;
   g.ui.lvOffers = offers;
-  g.ui.lvViews = offers.map((o) => g.ui.offerView(o));
+  // A escala e compartilhada entre as tres cartas, entao a previa tem que
+  // passar pelo mesmo calculo da tela — senao ela mostra tres barras vazias.
+  g.ui.lvViews = g.ui.lvScale(offers.map((o) => g.ui.offerView(o)));
   let cards = "";
-  for (const v of g.ui.lvViews) {
-    cards += `<div class="lv-card ch2" style="${g.ui.eixoVars(v.axisId)}">` +
-             `${g.ui.cardHtml(v)}</div>`;
+  for (let i = 0; i < g.ui.lvViews.length; i++) {
+    const v = g.ui.lvViews[i];
+    cards += `<div class="lv-card ch2${v.top ? " lv-top" : ""}" style="${g.ui.eixoVars(v.axisId)}">` +
+             `${g.ui.cardHtml(v, i + 1)}</div>`;
   }
   shots.push({
     lv: g.player.level, cards,
@@ -54,6 +57,30 @@ const take = (id, label, offers, hoverIdx) => {
            `${plural(g.build.passives.size, "passiva")} · hover na linha ${hoverIdx + 1}`,
   });
 };
+
+/* A ABERTURA e a tela que menos se revisa jogando de todas: ela aparece UMA vez
+   por run e some no primeiro clique. Ela sai do mesmo `UI.stRowHtml` do jogo,
+   com o rodape zerado — que e o estado real dela, e o unico momento em que os
+   tres eixos aparecem lado a lado sem nenhum escolhido. */
+const abertura = (() => {
+  const offers = g.build.getStarterOffers();
+  let rows = "";
+  for (const o of offers) {
+    rows += `<div class="ms-row" style="${g.ui.eixoVars(o.axisId)}">${g.ui.stRowHtml(o)}</div>`;
+  }
+  const cls = CLASSES[g.selectedClass];
+  return {
+    rows,
+    eyebrow: `<span>Abertura</span><s></s><span>${cls.name}</span><s></s>` +
+             `<span>${offers.length} spells · uma escolha</span>`,
+    sub: "Uma por família, e todas disparam sozinhas desde o primeiro segundo. " +
+         "Ela não cobra ponto de eixo: o que você escolhe aqui é com o que a run " +
+         "começa, não para onde ela vai.",
+    pool: g.ui.axesHtml(null, 0),
+    pacto: `<div class="ms-pacto">Uma run cabe em <b>${AXIS_RULES.maxAxes} famílias</b> — ` +
+           `a terceira fecha quando a segunda abrir</div>`,
+  };
+})();
 
 /* A etapa, nos dois extremos: o primeiro marco (2 pontos, build crua, capstone
    longe) e um marco tardio (5 pontos, eixo carregado, capstone ao alcance). Sao
@@ -141,24 +168,41 @@ for (let r = 0; r < 300; r++) {
 }
 
 
-let body = "";
+let body = `<p class="cap">abertura · a primeira tela da run, uma spell por eixo</p>
+  <div class="frame"><div class="screen ms">
+    <div class="ms-wrap">
+      <div class="ms-head-top">
+        <div class="ms-eyebrow">${abertura.eyebrow}</div>
+        <div class="ms-title">Com o que você começa?</div>
+        <div class="ms-sub">${abertura.sub}</div>
+      </div>
+      <div class="ms-rows">${abertura.rows}</div>
+      <div class="ms-foot">
+        <div class="ms-pool">${abertura.pool}</div>
+        <div class="ms-capwrap">${abertura.pacto}</div>
+      </div>
+    </div></div></div>`;
 for (const sh of shots) {
   body += `<p class="cap">level up · ${sh.label}</p>
   <div class="frame"><div class="screen lv">
     <div class="lv-timer">
       <div>07:05</div>
-      <div class="rotulo">6.869 abates</div>
+      <div class="lv-parou">O relógio parou</div>
     </div>
     <div class="lv-wrap">
       <div class="lv-head">
         <div class="lv-eyebrow">Nível ${sh.lv} → ${sh.lv + 1}</div>
         <div class="lv-title">Aprofunde uma</div>
+        <div class="lv-legenda">a barra mede o ganho de dano por segundo — a mais longa ganha mais</div>
       </div>
       <div class="lv-cards">${sh.cards}</div>
     </div>
     <div class="lv-base">
       <div class="lv-strip">${sh.panel}</div>
-      <div class="lv-foot">Nada aqui custa ponto de eixo · a próxima escolha corrige esta</div>
+      <div class="lv-foot">
+        <span>Nada aqui custa ponto de eixo · a próxima escolha corrige esta</span>
+        <span>1 2 3 para escolher</span>
+      </div>
     </div></div></div>`;
 }
 
@@ -339,4 +383,5 @@ ${fonts}<style>${css}
          text-transform: uppercase; color: var(--osso-300); margin-bottom: 8px; }
 </style></head><body>${body}</body></html>
 `);
-console.log(`ok  tools/telas-preview.html — ${shots.length} de level up + ${msShots.length} de etapa + 4 outras telas`);
+console.log(`ok  tools/telas-preview.html — 1 de abertura + ${shots.length} de level up + ` +
+            `${msShots.length} de etapa + 4 outras telas`);

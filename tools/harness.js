@@ -187,6 +187,15 @@ sandbox.Audio = function () {
 };
 sandbox.__audio = __audio;
 sandbox.__draw = __draw;
+/* A ABERTURA, para quem nao tem tela. `Game.start()` sem argumento abre a
+   escolha inicial e para em STATE.STARTER — num driver isso e a run inteira
+   parada, sem erro nenhum, o pior modo de falha que existe aqui. Com a peca
+   dita no argumento, todo driver comeca com o mesmo kit de sempre e as
+   medicoes continuam comparaveis com as de antes da tela existir.
+
+   Quem quer exercitar a TELA (o smoke) chama `start()` sem argumento e
+   escolhe pela UI, que e o unico jeito de o headless pegar erro de montagem. */
+sandbox.STARTER_TESTE = "incinerate";
 sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
@@ -224,6 +233,23 @@ for (const tag of TAGS) {
 }
 
 console.log(`ok  ${PAGE}: ${files} arquivos + ${inline} inline`);
+
+/* `abertura(cls)` — a abertura DA CLASSE, para o driver que roda mais de uma.
+
+   `STARTER_TESTE` e uma peca do warlock: um driver que troque `selectedClass`
+   e passe ele para `start()` abre uma run de hunter com uma spell de warlock,
+   que e exatamente o vazamento entre classes que `driver_class` existe para
+   pegar. Primeiro `starter` e nao sorteio, pelo mesmo motivo que
+   `STARTER_TESTE` e fixo: medicao entre rodadas tem que ser comparavel.
+
+   Ele e injetado AQUI, dentro do contexto, e nao como propriedade do sandbox:
+   `const CLASSES` e declaracao lexica e nao vira propriedade do objeto de
+   contexto (a mesma razao pela qual o driver tambem roda la dentro). */
+vm.runInContext(
+  "function abertura(clsId) {\n" +
+  "  const c = typeof CLASSES !== 'undefined' && CLASSES[clsId];\n" +
+  "  return c && c.starters && c.starters.length ? c.starters[0] : STARTER_TESTE;\n" +
+  "}", sandbox, { filename: "harness:abertura" });
 
 // Declaracoes lexicais (const/class) de cada <script> NAO viram propriedades do
 // objeto de contexto — vivem no escopo lexical global dele, exatamente como no

@@ -182,7 +182,7 @@ function runOnce(seed) {
   };
   g.ui.openChest = () => { g.state = STATE.PLAYING; };
   g.selectedSpeed = 1;
-  g.start();
+  g.start(STARTER_TESTE);
 
   // dano tomado: total por (fonte, quem), por fase, e por frame
   const bySrc = new Map();

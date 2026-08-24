@@ -7,6 +7,9 @@ runtime, hook morto, evolução quebrada e travamento de frame — coisas que s�
 aparecem depois de vários minutos de jogo.
 
 ```bash
+node tools/run-all.js                      # A BATERIA INTEIRA, em paralelo (~70s)
+node tools/run-all.js fast                 # so o que roda em menos de 1s (~8s)
+node tools/run-all.js bench,cards          # um subconjunto, por nome parcial
 node tools/harness.js .                    # run completa, seed 1, 12 min
 node tools/harness.js . 3 15               # seed 3, 15 min de jogo
 DRIVER=driver_evo.js   node tools/harness.js .   # as 7 evoluções + regras de eixo/caminho
@@ -17,13 +20,14 @@ DRIVER=driver_music.js node tools/harness.js .   # trilha: andamento, camadas, e
 DRIVER=driver_render.js node tools/harness.js .  # cenário, demônios e explosão: render e caches
 DRIVER=driver_track.js node tools/harness.js .   # trilha em arquivo: loop, fallback, estados
 DRIVER=driver_cards.js node tools/harness.js .   # level up: gate de eixo, pips, progresso, teto do painel
-DRIVER=driver_milestone.js node tools/harness.js .  # etapa: rampa de abates, tres eixos, ganho real, quem mira fecha capstone
+DRIVER=driver_milestone.js node tools/harness.js .  # etapa: rampa de abates, o pacto de dois eixos, ganho real, quem mira fecha capstone
 DRIVER=driver_portal.js node tools/harness.js .  # portal: moldura, boca, runas, abertura
 DRIVER=driver_chest.js node tools/harness.js .   # baú: cadência de aparição e tamanho do prêmio
 DRIVER=driver_form.js  node tools/harness.js .   # metamorfose por capstone e aura por spell concluída
 DRIVER=driver_apex.js  node tools/harness.js .   # o Ápice: eixo cheio, a onda que varre a tela, o chefe que sobra
 DRIVER=driver_pixel.js node tools/harness.js .   # grid de pixel: buffer, câmera, escala igual p/ todos, laje
 DRIVER=driver_palette.js node tools/harness.js . # paleta mestre: cor fora da PAL, rampa chapada, corpo aceso
+DRIVER=driver_leaderboard.js node tools/harness.js . # placar: payload inteiro, parser gviz, filtro, escape, camada local
 DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câmera, curvas de evento
 DRIVER=driver_vfx.js   node tools/harness.js .   # vfx: assinatura de cada peça, cor no render, voz de cada evento, ceifa e cadeia
 DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homing não fecha, e alvo próprio por tiro
@@ -32,6 +36,9 @@ DRIVER=driver_aspect.js node tools/harness.js .   # aspectos: as seis condiçõe
 DRIVER=driver_class.js node tools/harness.js . 12          # a classe fecha a própria progressão, e nada vaza entre classes
 DRIVER=driver_class.js node tools/harness.js . 12 imortal 6  # o mesmo em 6 seeds, com placar de medianas
 DRIVER=driver_class.js node tools/harness.js . 12 mortal   # sem imortalidade, warlock e hunter lado a lado
+DRIVER=driver_bench.js node tools/harness.js .   # banco: dano de cada peça em 6 cenários controlados
+DRIVER=driver_bench.js node tools/harness.js . 20 full        # 20s/célula, os três caminhos
+DRIVER=driver_bench.js node tools/harness.js . 12 "" cataclysm  # só um eixo (~7s, para iterar)
 DRIVER=driver_preview.js node tools/harness.js . # escreve tools/telas-preview.html: as 6 telas de UI (revisão visual)
 PAGE=vfx.html DRIVER=driver_gallery.js node tools/harness.js .      # galeria de animações: todo card monta, anima e desenha
 PAGE=sprites.html DRIVER=driver_gallery.js node tools/harness.js .  # galeria de sprites: só o smoke de carga
@@ -137,6 +144,170 @@ Três coisas que este driver já pegou, e as três valem para trigger novo:
   armadilhas em pé com um inimigo imortal parado em cima do jogador — toda
   armadilha nova era pisada no quadro em que nascia. Conta plantios, não
   sobreviventes.
+## `run-all` — a bateria em paralelo
+
+A bateria era serial por acidente e nao por necessidade. Cada driver e um
+processo que carrega a propria copia do jogo e nao fala com ninguem, entao o
+relogio de parede era a SOMA de todos por nenhuma razao alem de o laco estar
+escrito em `bash`. Medido, nesta maquina de 4 nucleos: **175s viraram 70s**.
+
+Duas decisoes fazem a conta fechar, e a segunda e a que envelhece bem:
+
+- **O mais lento entra primeiro.** Com um driver de 58s e um pool de 3, a ordem
+  alfabetica termina com ele comecando por ultimo e o pool inteiro esperando um
+  processo so. Ordenado por custo decrescente, o resto da bateria cabe DENTRO
+  da janela dele — o piso do relogio passa a ser o driver mais lento, e nada
+  alem dele.
+- **O custo e medido, nao digitado.** Cada rodada grava os tempos em
+  `tools/.run-all-times.json` (fora do repo) e a proxima ordena por eles. Uma
+  tabela de pesos escrita a mao envelheceria calada no primeiro driver novo, e
+  um driver que ficou lento sem ninguem notar e exatamente o que esta ferramenta
+  deveria tornar visivel.
+
+Tres tiers: `fast` e o que roda a cada edit (~8s, so mecanismo), `full` e o que
+roda antes de commitar (~70s, inclui os que simulam minutos de jogo e as
+galerias), `deep` sao `balance`/`perf`/`autopsy`, que MEDEM em vez de verificar
+e saem por pedido.
+
+**O que NAO e a alavanca, medido:** baixar `maxAlive` de 4400 para 1500 corta
+so 23% do tempo de simulacao (60,8s -> 46,9s em 4 min de jogo) e muda o que os
+drivers veem. O custo do frame e a horda — 40% dele mora no `SpatialGrid`, e a
+segunda metade em `updateEnemies` —, mas o teto de vivos nao e o que o decide
+nos primeiros minutos; o fluxo de spawn e. Encolher a horda paga pouco e paga
+em cima do unico numero que varios drivers existem para exercitar.
+
+A alavanca que sobra, e ela e um refactor de verdade: **uma simulacao, varios
+observadores**. `driver.js`, `driver_audio`, `driver_chest` e `driver_render`
+simulam 3, 5, 12 e 3 minutos do MESMO jogo do zero — 170 dos 206 segundos de
+CPU da bateria sao quatro processos construindo o mesmo mundo. Um unico run de
+12 min com quatro conjuntos de sondas custaria o tempo de um deles. O preco e
+isolamento: hoje um driver que estoura nao derruba os outros tres.
+
+## `browser.js` — o que o stub nao ve
+
+Todo o resto desta pasta sobe um stub de DOM/canvas no node. E isso que torna
+a bateria barata, e e tambem o teto dela: **o canvas stub aceita tudo**.
+
+Um bug real passou por 24 drivers verdes por causa disso. `Projectile.reset`
+gravava `rgb` so no ramo do cometa, e o tiro comum fechava o gradiente em
+`rgba(undefined,0)` — string que o stub engole e o browser recusa, lancando de
+dentro de `addColorStop`. Como a excecao escapava de `render`, `present()` nao
+rodava e o quadro inteiro nao era apresentado. Nao travava (o `_loop` reagenda
+na primeira linha), entao lia como o jogo perdendo quadros perto de tiro
+inimigo. Nenhum driver podia ver isso.
+
+E o stub nao tem preco: ele CONTA chamadas de desenho e nao pode dizer quanto
+cada uma custa. `driver_perf` mede a simulacao; quem mede o render e aqui.
+
+```bash
+# playwright fica FORA do repo — nao ha package.json aqui e nao vai haver
+mkdir -p ~/.pacto-browser && cd ~/.pacto-browser && npm init -y && npm i playwright
+npx playwright install chromium
+cd -
+
+export NODE_PATH=~/.pacto-browser/node_modules
+node tools/browser.js bench 4          # ms por quadro, horda de ~1850 corpos
+node tools/browser.js shot ref         # fotografa a cena fixa como "ref"
+node tools/browser.js shot novo ref    # ... e compara a de agora com ela
+```
+
+Por isso ele fica **fora do `run-all.js`**: a bateria nao pode depender de algo
+que o repo nao carrega. Ele sai por pedido, quando se mexe em render.
+
+**`bench` mede, `shot` protege.** Otimizar render sem o segundo e apostar — e
+duas das tres tentativas de acelerar a sombra do inimigo sairiam se nao
+houvesse com que conferir. `shot` monta uma cena FIXA (um corpo de cada tipo em
+grade, mais um aglomerado sobreposto, camera cravada) e devolve o hash da
+imagem: ou e identica pixel a pixel, ou ele diz de quanto foi o desvio. Um
+quadro de batalha nao serve de referencia, porque ele depende da run inteira.
+
+**O ruido do `bench` entre rodadas e ~0.5ms**, e a maquina varia mais que isso
+sob carga. Diferenca menor nao e diferenca: rode as duas variantes
+INTERCALADAS, tres vezes cada, e compare as medianas. Foi assim que tres
+otimizacoes de sombra que pareciam boas foram medidas e descartadas — a de
+cache empatou, a que juntava tudo num path so ficou 60% mais lenta (o
+rasterizador passa a computar a uniao de 1850 sub-elipses), e o custo real
+acabou sendo overhead POR CHAMADA, nao a forma desenhada. Depois do culling,
+canvas2d nao tem mais o que dar aqui sem desenhar menos coisas.
+
+## `driver_bench` — a peca sozinha, em cenario controlado
+
+`driver_balance` responde "esta RUN funciona?". Ele nao responde "esta PECA faz
+muito ou pouco dano?", e nao pode: o que ele mede passa por um bot que se
+posiciona, por uma curva de XP, por um sorteio de oferta e por 44 pecas
+dividindo o mesmo funil. Uma peca que aparece com 0,4% de share pode estar
+quebrada, pode ter sido comprada tarde, ou pode nunca ter caido na mesa — e a
+tabela nao distingue os tres casos. A lista `NUNCA ESCOLHIDA` e a prova: hoje
+ela mistura "o sorteio nao ofereceu" com "nao faz nada".
+
+O banco tira a run da conta. Cada celula e um mundo montado a mao — spawner
+desligado, N dummies em posicao conhecida, jogador imortal — e a matriz inteira
+sai em **20s: 450 celulas de 12s de jogo cada**. O que corta o custo nao e
+simular menos jogo, e sim simular menos HORDA: 40 dummies em vez de 4400 corpos.
+O motor continua sendo o mesmo `Game`, de proposito — uma planilha de dano seria
+mais rapida e seria uma segunda lista para divergir da primeira.
+
+Seis cenarios (`SCENARIOS`, dado): alvo unico, aglomerado em volta, cerco com o
+jogador andando, leva mortal com reposicao, atiradores e chefe. Duas
+configuracoes por peca: recem-comprada e com um caminho fechado no tier 5.
+
+Foi ele que achou os dois defeitos que a grade de tres linhas trouxe: o Demonic
+Circle piorava ao saltar mais cedo (fugir antes de a horda fechar pega menos
+corpos) e a linha de Critico do Shadowburn fechava sem nunca disparar — 100% de
+critico sobre um golpe que nao acontece continua sendo zero.
+
+Uma reprovacao dele e ARTEFATO DE CENARIO e continua vermelha de proposito:
+`rainOfFire mastery5` evolui para Cataclysm, que e `directional`, e o piloto do
+banco fica parado na maioria dos cenarios. Ela ja era vermelha antes da grade
+(como `strike5`, e com zero em vez de 5,5k).
+
+Duas coisas custaram uma rodada cada, e as duas sao a mesma licao — **o banco
+tem que montar um mundo que o jogo pode entregar**:
+
+- **O kit inicial FICA.** A primeira versao limpava a build para deixar uma peca
+  so, e voltou com um bloco de zeros: `shadowburn` (executa quem tem pouca
+  vida), `soulLeech` e toda peca `reactive` nao tem como disparar sem alguem
+  batendo antes. Isso nao e a peca sendo fraca — e o banco tendo montado uma
+  build que nao existe, porque `CLASSES.warlock.starting` da `incinerate` de
+  graca em toda run. O que mantem o numero limpo nao e a build vazia, e a `key`:
+  `damageBy` e por fonte.
+- **`requires` e honrado.** O jogo nao oferece Conflagrate sem um DoT na build,
+  entao medi-la sem habilitadora mede uma build impossivel. Com a habilitadora,
+  as quatro pecas com `requires` sairam de zero.
+
+O que ele reprova, e por isso e driver e nao relatorio:
+
+- **peca de dano com caminho fechado que nao causa dano em cenario nenhum** — o
+  zero ambiguo do `driver_balance`, agora sem ambiguidade. "Peca de dano" sai do
+  MECANISMO (a build resolvida tem algum efeito que causa dano?) e nao da tag:
+  `reactive` cobre tanto Shadowburn quanto o escudo do Soul Leech, e `reflect`
+  so causa dano se um tier comprou isso;
+- **caminho fechado que rende MENOS que a peca crua** — um tier que piorou a
+  peca. Ninguem le 660 tiers a procura disso — e desde que as tres linhas
+  viraram uma grade so (`js/content/paths.js`), o modo `full` e o unico lugar
+  que mede as tres: o modo padrao fecha o PRIMEIRO caminho, que hoje e sempre a
+  Aceleracao.
+
+- **a REGUA discordando do CAMPO** (bloco `REGUA x CAMPO`). `js/systems/dps.js`
+  e o numero que a tela de level up imprime, e ele e um modelo fechado: nao roda
+  o motor, resolve uma conta. Um modelo que ninguem confere vira a segunda lista
+  que o projeto passa o tempo inteiro evitando, e esta e a unica lista contra a
+  qual da para conferir — porque ela e a medida. O que se cobra e ORDEM e nao
+  valor (a barra da carta e comparativa: "a mais longa ganha mais"), pelo rho de
+  Spearman entre as duas ordens: **0.75 hoje, piso 0.6**. O piso e frouxo de
+  proposito — o modelo assume UM campo e o banco mede seis, dois deles de alvo
+  unico, entao peca de area sai subestimada la e o desacordo e do cenario. E ele
+  reprova mudez nos dois sentidos: regua zero onde o campo mede dano (a carta
+  diria "nao muda o dano" sobre uma peca que muda) e regua com dano onde o campo
+  mede zero (a carta prometeria um numero que nao existe). A isenção é a mesma
+  que a reprovacao de peca muda ja carrega: `player_below` e `enemy_below` nunca
+  viram verdade num campo em que o jogador e imortal e os dummies tambem.
+
+O que ele NAO responde, e nao deve: se o jogador CHEGA ao tier 5. O banco
+credita o gate de eixo de uma vez e nunca chama `checkCapstones`, porque o
+assunto e dano e nao economia — misturar as duas perguntas e o que faz a
+resposta nao servir para nenhuma das duas. Economia e `driver_milestone` e
+`driver_balance`.
 
 ## `driver_autopsy` — quem matou, e o que consertaria
 
@@ -315,21 +486,47 @@ telas novas são escritas no driver, e por isso ele **confere cada id contra o
 `index.html`**: casca desatualizada é exatamente como uma prévia diverge em
 silêncio.
 
-## As duas telas de escolha
+## As telas de escolha
 
 `driver_cards` cobre a batida rápida e `driver_milestone` a lenta, e a divisão
 entre eles é a mesma do jogo: level-up só aprofunda, etapa é a única fonte de
-ponto de eixo.
+ponto de eixo. A **abertura** — a tela que a run abre, com uma spell por eixo —
+mora no `driver.js`, porque ela é dado de classe antes de ser tela: ele valida
+`CLASSES.<id>.starters` (uma por eixo, dano na base, sem `requires`, sem
+`evolutionOnly`) e é o único driver que a monta e clica de verdade.
+
+**`Game.start(starterId)` recebe a peça por argumento, e é assim que os drivers
+rodam** (`STARTER_TESTE`, definido no `harness.js`, é `incinerate` — o kit de
+sempre, para as medições continuarem comparáveis). Sem argumento a run para em
+`STATE.STARTER` esperando o clique, e num driver isso é a run inteira parada
+**sem erro nenhum**: o pior modo de falha desta pasta. Driver novo que chame
+`start()` sem argumento vai medir zero e passar.
 
 `driver_cards` reprova, além do que já checava, **oferta de peça nova no
 level-up** e **escolha de level-up que mova o pool de eixo** — as duas são a
 mesma regressão vista de dois lados: uma tela em que largura e profundidade
 disputam a mesma escolha, e largura ganha sempre. Depois que a tela virou
-cartas, ele cobra mais três: **carta sem `.lv-plain`** (a manchete é o efeito, e
-numa carta o nome vem antes no espaço — só o tamanho segura a hierarquia),
-**`lv-ax` de volta na tira** (eixo não é assunto desta tela) e a **trava de
-nível das passivas**, verificada no nível 1 antes de subir o nível para medir o
-resto.
+cartas, ele cobra mais três: **carta sem `.lv-plain`** (o slot em Eczar existe em
+toda carta), **`lv-ax` de volta na tira** (eixo não é assunto desta tela) e a
+**trava de nível das passivas**, verificada no nível 1 antes de subir o nível
+para medir o resto.
+
+Desde a **régua comum** ele cobra outras quatro, e as quatro são sobre o número
+que virou o herói da carta:
+
+- o ganho em dano/s é **número finito e nunca negativo** — uma oferta que
+  piorasse a peça seria uma barra crescendo para trás;
+- **a barra existe** (`lv-escala`) e **a tecla existe** (`lv-tecla`), e o botão
+  `ESCOLHER` não voltou: 44px de largura inteira, três vezes, repetindo a mesma
+  palavra, contra 34px no canto;
+- ganho zero **não imprime `+0`** — "+0 dano/s" lê como peça quebrada quando o
+  que houve foi a régua não medir aquilo;
+- **tier numérico não repete o número no slot em Eczar**: 528 dos 660 tiers são
+  gerados e o texto deles é puro número, o mesmo dado que a régua e os valores
+  crus já imprimem. Ali vai `LINE_ABOUT[pathId]`, a frase da linha.
+
+Quem confere se a régua ORDENA como o campo é `driver_bench`, não este — ver o
+bloco `REGUA x CAMPO` acima.
 
 `driver_milestone` guarda a tela em suas duas fases, e a parte que mais importa
 é que ele **refaz a conta da cadência por simulação** em vez de conferir uma
@@ -340,6 +537,12 @@ tabela — não existe tabela de pontos, a rampa é emergente:
   terminavam em **12/20 e 13/20** com ponto que o jogo nunca entregava;
 - na fase **fechada** nenhuma carta tem lado seco, e o sorteio vê o catálogo
   inteiro (o driver exige ver eixo repetido numa etapa);
+- **o pacto** (`AXIS_RULES.maxAxes`): a run cabe em dois eixos. O driver cobra o
+  crédito (`addAxis` num eixo selado devolve 0, e um eixo que já andou nunca
+  sela), a mesa (carta de eixo selado não existe — seria um botão de +0 na única
+  decisão que não se desfaz), a run inteira (nunca mais de `maxAxes` eixos
+  abertos) e a **leitura**: o rodapé marca `selado` em vez de imprimir `0 / 15`,
+  e o capstone que pede o eixo selado sai da mira;
 - na fase **aberta** o eixo comprometido **nunca falta**. É o que separa isto de
   uma loteria: o eixo em que o jogador já investiu não pode depender do sorteio
   para reaparecer;
@@ -433,12 +636,20 @@ registry e aparece na galeria na mesma leva, ou o driver reclama. A tarja
 laranja "sem animação própria", ao contrário, **não** é falha: é a lista do que
 o jogo muda sem avisar em tela — hoje 25 mecânicas.
 
-`make_track.py` não é driver: é o gerador da trilha de fundo
-(`audio/rain-lofi.mp3`, o lofi de chuva). Precisa de numpy e scipy, roda em ~7 s
-e imprime o nível de cada barramento e o degrau no ponto de volta do loop —
-degrau menor que o típico entre amostras é a prova de que a faixa emenda e pode
-rodar com `loop` nativo. Como reencodar, e por que a chuva entra depois da
-fita, está em `audio/README.md`.
+`make_track.py` e `make_focus_track.py` não são drivers: são os geradores das
+duas trilhas de fundo — `audio/rain-lofi.mp3` (Tempestade, o lofi de chuva) e
+`audio/focus-vigil.mp3` (Vigília, o leito de foco, que é a padrão). Precisam de
+numpy e scipy, rodam em ~7 s e ~25 s, e os dois imprimem o nível de cada
+barramento e o degrau no ponto de volta do loop — degrau menor que o típico
+entre amostras é a prova de que a faixa emenda e pode rodar com `loop` nativo.
+
+**O gerador de foco imprime mais dois números, e eles são o teste da faixa**:
+o passeio de RMS em janela de 2 s (alvo `< 1,5 dB`) e o maior salto de 250 ms
+sobre o fundo dos 6 s anteriores (alvo: zero janelas acima de 6 dB). É o que
+separa um leito de fundo de uma faixa — a Tempestade mede 6,8 dB e sete saltos,
+que é o certo para ela e o errado para o fundo de uma run de doze minutos. O
+argumento inteiro, a tabela comparativa e como reencodar estão em
+`audio/README.md`.
 
 O stub de `AudioContext` monta o grafo de verdade e explode em rampa
 exponencial com alvo <= 0, então erro de WebAudio aparece aqui e não só no

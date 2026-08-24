@@ -250,7 +250,7 @@ function runOnce(policy, seed) {
   };
   g.ui.openChest = () => { g.state = STATE.PLAYING; };
   g.selectedSpeed = 1;
-  g.start();
+  g.start(STARTER_TESTE);
 
   const keys = new Set();
   const hpCurve = [], kpsCurve = [], dpsCurve = [];

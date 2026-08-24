@@ -1,9 +1,143 @@
 # audio/
 
-`rain-lofi.mp3` — **a trilha em uso.** Não veio de banco de sons: é gerada por
-`tools/make_track.py` (numpy + scipy, sem sample de terceiro), então é nossa e
-não tem licença a conferir — **a chuva também é sintetizada**, ruído modelado
-no domínio da frequência e milhares de estalos curtos, não gravação de campo.
+**Duas trilhas, e a tecla `N` percorre as duas mais o silêncio.** A ordem está
+em `TRACKS` (`js/track.js`) e a primeira é a que o jogo abre.
+
+| | `focus-vigil.mp3` — **Vigília** | `rain-lofi.mp3` — **Tempestade** |
+|---|---|---|
+| o que é | leito de foco: nada acontece | lofi de chuva: uma faixa, com arranjo |
+| gerada por | `tools/make_focus_track.py` | `tools/make_track.py` |
+| duração / tamanho | 160 s / 1,92 MB | 106,7 s / 1,28 MB |
+
+Nenhuma das duas veio de banco de sons: as duas são sintetizadas aqui — a
+chuva da Tempestade também, ruído modelado no domínio da frequência e não
+gravação de campo. Não há licença de terceiro a conferir em nada que o jogo
+toca.
+
+**Carregar é preguiçoso, uma por vez.** As duas juntas são 3,2 MB; a segunda só
+desce se alguém apertar `N`. E a troca só acontece quando o arquivo novo fica
+pronto: até lá continua tocando o antigo, e se o novo nunca carregar fica o
+antigo — o jogo nunca fica mudo por causa de um download. `driver_track` cobra
+os três.
+
+---
+
+## `focus-vigil.mp3` — a trilha padrão
+
+Um leito grave e contínuo: ruído modelado, um pedal de Ré que não sai do lugar,
+cinco harmonias que passam por cima dele sem nunca chegar, e um pulso de 60 BPM
+— um por segundo, batida de repouso. Sem bateria, sem melodia, sem estalo de
+vinil, sem trovão, sem seções.
+
+**Ela é a padrão porque uma run dura doze minutos.** Trilha de fundo de jogo
+longo não é faixa: é o lugar onde o jogo acontece. E o que a Tempestade faz de
+propósito — subir na seção cheia, sumir no break, responder com um trovão — é
+exatamente o que uma pessoa com TDAH não consegue ignorar. Todo degrau de
+volume e todo som avulso é um evento de novidade, e novidade é o que tira o
+olho da tela. Medido nas duas, mesmas ferramentas:
+
+| | Vigília | Tempestade |
+|---|---|---|
+| passeio de volume (janela de 2 s, p5–p95) | **1,4 dB** | 6,8 dB |
+| maior salto de 250 ms sobre o fundo dos 6 s anteriores | **2,3 dB** | 7,8 dB |
+| janelas de 250 ms saltando acima de 6 dB | **0** de 640 | 7 de 426 |
+| centroide espectral | 688 Hz | 510 Hz |
+| emenda: degrau na volta / degrau típico | 0,041 / 0,112 | 0,023 / 0,134 |
+
+Os sete saltos da Tempestade são os três trovões, os dois cymbal swells e as
+duas viradas de rim. Cada um é bom numa faixa e é um cutucão num fundo.
+
+### As seis regras do arranjo
+
+Elas estão escritas assim no cabeçalho de `tools/make_focus_track.py`, e cada
+número do script serve a uma delas.
+
+**1. Quem carrega a trilha é o ruído.** Ruído de banda larga é a única parte
+disto com literatura por trás para ouvinte desatento (a linha de trabalho de
+excitação moderada / ressonância estocástica), e é também a camada que, por
+construção, não tem evento nenhum dentro.
+
+**Ele não é ruído marrom puro, e isso é medição e não gosto.** O jogo toca a
+trilha em `0.055` de ganho; um leito a −6 dB/oitava nesse volume é inaudível em
+alto-falante de laptop. O leito é marrom abaixo do joelho de 300 Hz e rosa
+acima dele — peso embaixo, presença em cima. É por isso que o centroide dela é
+mais alto que o da Tempestade mesmo sendo a mais escura das duas de caráter.
+
+**2. Nada acontece.** Sem bateria, sem virada, sem lead, sem poeira de vinil,
+sem trovão, sem mudança de seção. A única coisa que se move é a harmonia, e ela
+se move devagar demais para chegar: um acorde a cada 32 s, com 8 s de
+cruzamento. Em qualquer instante ela é uma cor, não uma mudança.
+
+**3. A harmonia não puxa.** Ré menor natural, cinco encadeamentos que
+compartilham quase todas as notas, e **nenhuma sensível** — não existe dó
+sustenido, então não existe dominante, então não existe expectativa que o
+ouvido fique esperando resolver. `make_track.py` faz o oposto de propósito (o
+Lá maior do menor harmônico), porque uma faixa quer essa tensão.
+
+**4. O baixo é um PEDAL, e quem pediu isso foi a medição.** Com uma fundamental
+por acorde, a banda grave (20–120 Hz) passeava **6,35 dB** ao longo do loop —
+um Si bemol 1 simplesmente carrega muito mais energia lá embaixo que um Sol 2 —
+e isso sozinho era a maior parte do passeio de volume da faixa inteira. Um
+pedal de Ré tira o passeio e tira o aviso de "o acorde mudou" no mesmo gesto;
+todos os cinco encadeamentos são consonantes sobre Ré, então a harmonia
+continua se lendo.
+
+**5. O pulso é estrutura de tempo, não groove.** 60 BPM exatos, um por segundo.
+É seno filtrado com **30 ms de ataque**: cada tambor de `make_track.py` ataca em
+menos de 4 ms porque uma faixa quer o estalo, e aqui o estalo é o inimigo — é a
+única coisa num leito estável capaz de fazer alguém levantar a cabeça. O leito
+abaixa 0,6 dB debaixo dele (uma faixa usaria 4 dB), e isso não é groove: é o
+que impede o pulso de ler como um objeto separado em cima do ruído.
+
+**6. Volume constante é requisito medido, não esperança.** O script imprime o
+passeio de RMS em janela de 2 s e o maior salto de 250 ms sobre o fundo, e o
+alvo está escrito ao lado de cada um (`< 1,5 dB` e `0` janelas acima de 6 dB).
+Mexeu no arranjo, roda e confere.
+
+### O que fica de regra para mexida futura
+
+- **Camada nova entra pelo teste de evento, não pelo de gosto.** Se ela mover o
+  "maior salto de 250 ms" acima de ~3 dB, ela não é uma camada de fundo — é um
+  som, e som avulso mora na Tempestade.
+- **Nada de saturação, fita, estalo ou brilho.** As três são energia transiente
+  de alta frequência, que é precisamente o que um leito de fundo não pode ter.
+  O teto está em 9 kHz e não há nenhum estágio não-linear no master.
+- **Registro novo mexe no grave sem avisar.** Foi o que o pedal consertou: antes
+  de acrescentar qualquer coisa abaixo de 120 Hz, rode e olhe o passeio.
+
+### A faixa fecha em si mesma, por construção
+
+40 compassos exatos a 60 BPM, 160 s cravados, 7.056.000 quadros — e o mp3
+decodifica nesses 7.056.000 sem sobra de encoder (tag gapless do LAME). O ruído
+é desenhado no domínio da frequência e trazido por um `irfft`, o que o torna
+periódico por construção (ruído branco filtrado **não** é: o estado do filtro no
+fim não bate com o do começo, e essa diferença é a emenda). Toda frequência de
+oscilador é arredondada para um número inteiro de ciclos por loop — a correção
+é de no máximo 0,00625 Hz —, todo LFO completa ciclos inteiros, impactos são
+colocados módulo N, as caudas de reverb são somadas de volta no começo e os
+filtros de master rodam circulares.
+
+Por isso `js/track.js` toca com `loop = true` nativo. **Não passe
+`{ crossfade: ... }` nela**: sobrepor uma faixa que já emenda dobra o material.
+
+### Regenerar
+
+```bash
+python3 tools/make_focus_track.py /tmp/vigil.wav
+ffmpeg -y -i /tmp/vigil.wav -codec:a libmp3lame -b:a 96k -ar 44100 -ac 2 \
+       -write_xing 1 -id3v2_version 0 -map_metadata -1 audio/focus-vigil.mp3
+```
+
+96 kbps e não 80: a 80 o pico decodificado sobe de 0,84 para 0,91 e o degrau na
+emenda quase dobra (0,023 → 0,043) — as duas coisas que esta faixa não pode
+gastar. A mixagem inteira mora na tabela `LEVELS` (dBFS enquanto o barramento
+soa), e é lá — em nenhum outro lugar — que se resolve "tal coisa está alta
+demais". Leito alto demais é `LEVELS["bed"]`; pulso audível demais é
+`LEVELS["pulse"]`.
+
+---
+
+## `rain-lofi.mp3` — a segunda trilha
 
 Lofi de chuva: uma tempestade ouvida de dentro, com um boom-bap lento por baixo
 — fita com wow e flutter, estalo de vinil, Rhodes no contratempo, caixa
@@ -11,6 +145,9 @@ escovada — sobre a mesma harmonia que o Vampire Survivors herdou do
 Castlevania: Ré menor descendo `Dm – C – Bb – A`, com o A maior do menor
 harmônico puxando de volta para o Dm. 72 BPM, 106,666667 s, 96 kbps estéreo,
 1,28 MB.
+
+Ela deixou de ser a padrão (ver a tabela acima) e continua inteira: quem quer
+uma faixa em vez de um leito aperta `N`.
 
 **A chuva entra DEPOIS da fita, e isso não é detalhe de implementação.** A
 música passa pela coloração lofi (corte em 6,8 kHz, saturação, poeira); a sala
@@ -66,7 +203,7 @@ tabela só, um lugar só para discutir equilíbrio. Chuva alta demais é
 
 ## Faixas antigas, mantidas como alternativa
 
-Trocar é uma linha em `js/game.js`.
+Não estão em `TRACKS`; entrar é uma linha em `js/track.js`.
 
 `gothic-lofi.mp3` — a trilha anterior, também gerada por `make_track.py` (a
 versão do arranjo está no histórico do git). Boom-bap a 84 BPM com órgão, coro,

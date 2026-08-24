@@ -34,7 +34,11 @@
 //   5. o numero anunciado e o numero creditado, nos dois lados;
 //   6. spell credita no eixo DELA, e nao cobra eixo duas vezes (entra `free`);
 //   7. e um jogador que MIRA chega ao capstone. Sem isso o resto e
-//      contabilidade.
+//      contabilidade;
+//   8. O PACTO: a run cabe em `AXIS_RULES.maxAxes` eixos. Assim que o segundo
+//      recebe o primeiro ponto, o terceiro para de receber e para de ser
+//      oferecido — e a tela nao pode continuar pondo na mesa um eixo que
+//      `addAxis` vai recusar, que e a mentira mais cara que ela sabe contar.
 
 const M = BALANCE.milestones;
 let problems = 0;
@@ -73,6 +77,72 @@ if (M.unlockAt >= AXIS_RULES.pureAt) {
 }
 if (M.cards < 2) bad("menos de duas cartas nao e escolha");
 
+/* --- 8. o pacto, no dado e no credito ------------------------------------- */
+if (!(AXIS_RULES.maxAxes >= 1 && AXIS_RULES.maxAxes < Object.keys(AXES).length)) {
+  bad(`maxAxes ${AXIS_RULES.maxAxes} nao fecha nada: com um por eixo o pacto ` +
+      "deixa de existir e 7/7/6 volta a ser uma build legal");
+}
+if (AXIS_RULES.maxAxes * AXIS_RULES.capPerAxis < AXIS_RULES.pool) {
+  bad(`maxAxes ${AXIS_RULES.maxAxes} x capPerAxis ${AXIS_RULES.capPerAxis} nao ` +
+      `cabe a pool de ${AXIS_RULES.pool}: a run terminaria com ponto sem onde cair`);
+}
+{
+  /* A cobranca mora em `addAxis`, e e la que ela se mede: um eixo selado tem
+     que recusar o credito venha ele de onde vier — bau, capstone ou tela. */
+  const g0 = new Game();
+  window.game = g0;
+  g0.start(STARTER_TESTE);
+  const b = g0.build;
+  const eixos = Object.keys(AXES);
+  if (b.sealedAxes().length) bad("run recem-comecada ja nasce com eixo selado");
+  b.addAxis(eixos[0], 1);
+  if (b.sealedAxes().length) bad("um eixo aberto ja selou o resto");
+  b.addAxis(eixos[1], 1);
+  const selados = b.sealedAxes();
+  if (selados.length !== eixos.length - AXIS_RULES.maxAxes) {
+    bad(`com ${AXIS_RULES.maxAxes} eixos abertos, ${selados.length} selados — ` +
+        `esperado ${eixos.length - AXIS_RULES.maxAxes}`);
+  }
+  if (selados.indexOf(eixos[2]) < 0) bad("o eixo que ficou de fora nao foi selado");
+  const antes = b.axis[eixos[2]], pool = b.axisTotal;
+  const deu = b.addAxis(eixos[2], 5);
+  if (deu !== 0 || b.axis[eixos[2]] !== antes || b.axisTotal !== pool) {
+    bad(`eixo selado aceitou +${deu}: o pacto nao esta sendo cobrado no credito`);
+  }
+  if (b.axisRoom(eixos[2], 1)) bad("axisRoom diz que cabe ponto num eixo selado");
+
+  /* E o pacto tem que APARECER. Ele e a unica regra do jogo que muda a mesa
+     sem tirar nada da tela: o terceiro eixo so para de ser oferecido. Um eixo
+     selado desenhado como "0 / 15" e a tela prometendo que ele ainda anda. */
+  const blocos = g0.ui.axesHtml(null, 0).split('<div class="lv-ax');
+  const bloco = blocos.find((x) => x.indexOf(AXES[eixos[2]].name) >= 0);
+  if (!bloco) bad("o eixo selado sumiu do rodape em vez de aparecer marcado");
+  else {
+    if (bloco.indexOf("selado") < 0) {
+      bad("o rodape nao marca o eixo selado — ele leria como eixo em que so nao investi");
+    }
+    if (bloco.indexOf("lv-ax-num") >= 0) {
+      bad("o eixo selado ainda imprime `0 / 15`, que promete um crescimento que nao vem");
+    }
+  }
+  const vivo = blocos.find((x) => x.indexOf(AXES[eixos[0]].name) >= 0);
+  if (vivo && vivo.indexOf("lv-ax-num") < 0) {
+    bad("o eixo ABERTO perdeu o numero junto: a marca de selado vazou para quem anda");
+  }
+  /* E o capstone que pede o eixo selado sai da mira: apontar para ele seria a
+     tela mandando o jogador para uma porta emparedada. */
+  const alvo = g0.ui.nearestCapstone();
+  if (alvo && alvo.cap.req[eixos[2]]) {
+    bad(`a tela ainda mira ${alvo.cap.name}, que pede o eixo selado ${eixos[2]}`);
+  }
+  // e o eixo ABERTO nunca sela: quem ja pagou uma perna do capstone hibrido
+  // nao pode perde-la porque a outra abriu depois.
+  b.addAxis(eixos[0], 9);
+  if (b.axisSealed(eixos[0]) || b.axisSealed(eixos[1])) {
+    bad("um eixo que ja tem ponto foi selado — o pacto so fecha o que esta em zero");
+  }
+}
+
 /* --- 1..6. uma run de etapas, com o relogio do jogo ----------------------- */
 // Perfil que MIRA: leva spell do eixo alvo ate ele abrir, e carta seca depois.
 // E o caminho mais curto ate a pool cheia, entao e ele que responde se a
@@ -82,7 +152,7 @@ function simular(seed, alvo, sempreSpell) {
   Math.random = () => { z = (z * 1103515245 + 12345) % 2147483648; return z / 2147483648; };
   const g = new Game();
   window.game = g;
-  g.start();
+  g.start(STARTER_TESTE);
 
   let abriuEm = -1, marcos = 0, viuSolto3 = false;
   for (let i = 0; i < 60 && g.build.axisLeft > 0; i++) {
@@ -128,6 +198,16 @@ function simular(seed, alvo, sempreSpell) {
     // sem peca repetida na mesma etapa: duas cartas da mesma spell nao e escolha
     const ids = offers.filter((o) => o.piece).map((o) => o.piece.id);
     if (new Set(ids).size !== ids.length) bad(`etapa ${i}: a mesma spell em duas cartas`);
+
+    /* 8. eixo selado nao vai a mesa. A tela pergunta o ganho REAL antes de
+          anunciar, entao uma carta de eixo selado seria uma carta de +0 — e
+          carta de +0 nesta tela e um botao morto na unica decisao que nao se
+          desfaz. */
+    for (const o of offers) {
+      if (g.build.axisSealed(o.axisId)) {
+        bad(`etapa ${i}: carta de ${o.axisId}, que o pacto ja selou`);
+      }
+    }
 
     // 5. o numero anunciado e o que `addAxis` vai creditar.
     for (const o of offers) {
@@ -180,13 +260,22 @@ function simular(seed, alvo, sempreSpell) {
     if (wet && !res.piece) bad(`etapa ${i}: pediu a spell e nao veio`);
     if (!wet && pick.dry && res.piece) bad(`etapa ${i}: carta seca trouxe spell`);
 
+    // 8. e o pacto vale depois de todo credito, venha ele de que carta vier.
+    let abertos2 = 0;
+    for (const a in AXES) if (g.build.axis[a] > 0) abertos2++;
+    if (abertos2 > AXIS_RULES.maxAxes) {
+      bad(`etapa ${i}: ${abertos2} eixos abertos, o pacto cabe ${AXIS_RULES.maxAxes}`);
+    }
+
     marcos++;
     if (abriuEm < 0 && g.build.axis[alvo] >= M.unlockAt) abriuEm = marcos;
   }
 
   const fecha = g.milestoneKillsAt(marcos - 1);
+  let abertos = 0;
+  for (const a in AXES) if (g.build.axis[a] > 0) abertos++;
   return {
-    marcos, abriuEm, fecha, viuSolto3,
+    marcos, abriuEm, fecha, viuSolto3, abertos,
     pool: g.build.axisTotal, caps: g.build.capstones.size,
     axis: { ...g.build.axis }, spells: g.build.pieces.size,
   };
@@ -221,6 +310,9 @@ for (const seed of CAP_SEEDS) {
   // 2. a pool sempre fecha: as etapas nao param antes dela.
   if (r.pool !== AXIS_RULES.pool) {
     bad(`quem mira nao fecha a pool: ${r.pool}/${AXIS_RULES.pool} em ${r.marcos} etapas`);
+  }
+  if (r.abertos > AXIS_RULES.maxAxes) {
+    bad(`run terminou com ${r.abertos} eixos abertos: o pacto vazou`);
   }
   // 7. e quem mira chega ao capstone — na maioria larga das maos.
   if (r.caps) comCap++;

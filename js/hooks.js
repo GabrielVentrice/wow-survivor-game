@@ -164,7 +164,7 @@ const HOOKS = {
   grimoire(game, e, c) {
     const m = game.minions.sacrificeOne();
     if (!m) return;
-    game.player.addShield(e.amount || 60, e.cap);
+    game.player.addShield((e.amount || 60) * critRoll(game, c), e.cap);
     game.emitVfx("implode", m.x, m.y, 80, c.color);
     game.emitVfx("link", m.x, m.y, 0, c.color, game.player.x, game.player.y);
   },
@@ -209,7 +209,9 @@ const HOOKS = {
   healthstone(game, e, c) {
     const p = game.player;
     if (p.hp / p.maxHp > (e.threshold || 0.3)) return;
-    game.healPlayer(p.maxHp * (e.frac || 0.35), true);
+    // o critico vale aqui pela mesma razao que vale em EFFECTS.heal: o numero
+    // principal desta peca e a cura, e ela nao passa pelo funil de dano
+    game.healPlayer(p.maxHp * (e.frac || 0.35) * critRoll(game, c), true);
     /* A pedra RACHA antes de curar. Sem isso ela e identica ao Soulstone — as
        duas curam e as duas desenham a mesma cruz —, e a diferenca e que uma
        gasta uma alma guardada e a outra quebra um objeto. */

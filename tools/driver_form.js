@@ -74,7 +74,7 @@ for (const cid in CLASSES) {
 }
 
 /* --- 2. capstone move a forma, ponto de eixo nao ------------------------- */
-g.start();
+g.start(STARTER_TESTE);
 const p = g.player;
 const b = g.build;
 
@@ -105,7 +105,7 @@ console.log(`  ok pool em ${b.axisTotal}/${AXIS_RULES.pool}, ${b.capstones.size}
 
 /* Ponto de eixo sozinho nao move a forma: enche o pool inteiro SEM capstone e
    confere que o corpo ficou parado no aprendiz. */
-g.start();
+g.start(STARTER_TESTE);
 g.build.axis.corruption = AXIS_RULES.cap - 1;
 g.build.axis.dominion = AXIS_RULES.pool - AXIS_RULES.cap;
 g.build.afterChange();
@@ -124,7 +124,7 @@ for (const id in CAPSTONES) {
   const dono = CLASSES[CAPSTONES[id].cls];
   if (!dono || !dono.forms || dono.forms.length <= 1) continue;
   g.selectedClass = CAPSTONES[id].cls;
-  g.start();
+  g.start(abertura(CAPSTONES[id].cls));
   g.build.capstones.add(id);
   g.build.afterChange();
   /* Conta os eventos ANUNCIADOS, nao os nos vivos no DOM: o teto de tres
@@ -147,7 +147,7 @@ for (const id in CAPSTONES) {
 
 // e o caminho de verdade: capstone entrando por applyOffer tambem anuncia
 g.selectedClass = "warlock";
-g.start();
+g.start(STARTER_TESTE);
 const inst0 = g.build.acquirePiece("corruption", true) || g.build.get("corruption");
 g.build.axis.dominion = AXIS_RULES.pureAt;
 const antesReal = g.ui.toastCount;
@@ -193,7 +193,7 @@ console.log(`  ok ${Object.values(CLASSES).reduce((n, c) => n + (c.forms ? c.for
    em PLAYING. Um warlock parado no meio desta horda morre em ~9s, e os 81s de
    gameover que vinham depois entravam na conta como um unico trecho de pose
    acesa — o teste reprovava a tela de game over, nao a cadencia da pose. */
-g.start();
+g.start(STARTER_TESTE);
 let viuCast = false, maxSeguido = 0, seguido = 0, vivo = 0;
 g.input.keys = new Set(["d"]);
 for (let i = 0; i < 60 * 90; i++) {
@@ -217,7 +217,7 @@ else if (maxSeguido > 60 * (CAST_POSE + 0.05)) {
 
 /* --- 3. aura so com spell concluida --------------------------------------- */
 console.log("--- auras ---");
-g.start();
+g.start(STARTER_TESTE);
 abreEixos();
 // toda peca com vfx entra na build, mas nenhuma fecha caminho
 let comVfx = 0;
@@ -255,13 +255,13 @@ if (g.build.vfx.length !== 1) fail(`a mesma peca gerou ${g.build.vfx.length} aur
 else console.log("  ok 2o caminho da mesma peca nao duplica a aura");
 
 // a aura sobrevive a evolucao: a peca troca de def no tier 5 e continua acesa
-g.start();
+g.start(STARTER_TESTE);
 let evoAura = 0;
 for (const id in PIECES) {
   for (const pathId in PIECES[id].paths || {}) {
     const into = PIECES[id].paths[pathId].evolvesInto;
     if (!into || !PIECE_VFX[PIECES[into].vfx]) continue;
-    g.start();
+    g.start(STARTER_TESTE);
     abreEixos();
     const inst = g.build.acquirePiece(id, true) || g.build.get(PIECES[id].key);
     for (let t = 0; t < PATH_RULES.tiers; t++) g.build.upgradePath(inst, pathId);
@@ -272,7 +272,7 @@ for (const id in PIECES) {
 console.log(`  ok ${evoAura} evolucoes com vfx mantem exatamente 1 aura`);
 
 /* --- 4. o render aguenta a build inteira acesa ---------------------------- */
-g.start();
+g.start(STARTER_TESTE);
 abreEixos();
 for (const id in PIECES) {
   const def = PIECES[id];

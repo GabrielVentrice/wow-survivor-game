@@ -183,7 +183,7 @@ function apodrecer(list) {
    deixou de ter trabalho. */
 
 function assinar(id) {
-  g.start();
+  g.start(STARTER_TESTE);
   g.build.pieces.clear();
   g.build.vfx.length = 0;
   g.enemies.clear(); g.projectiles.clear(); g.areas.clear();
@@ -413,7 +413,7 @@ if (gemeos.length) {
 
 /* 4b. o orcamento. A morte e o unico evento que pode acontecer cinquenta vezes
    no mesmo frame, entao ele e o unico que precisa de um teto duro. */
-g.start();
+g.start(STARTER_TESTE);
 g.particles.clear();
 const alvoOrc = alvos(1)[0];
 for (let i = 0; i < SHARD_BUDGET - 4; i++) g.particles.spawn(0, 0, 0, 0, 9, "#ffffff", 1, 0);
@@ -426,7 +426,7 @@ else console.log(`ok  orcamento: com ${antesOrc}/${SHARD_BUDGET} vivas, a morte 
 
 /* 4c. a ceifa acende numa leva — e UMA vez por degrau, nao uma por corpo. */
 function ceifar(n, dtEntre) {
-  g.start();
+  g.start(STARTER_TESTE);
   g.reapHeat = 0; g.reapTier = 0;
   g.spawner.interval = 1e9;
   const vistos = [];
@@ -460,7 +460,7 @@ else console.log("ok  ceifa: abate esparso nao acende — ela mede abates por SE
    O que so ela tem e a cadencia do salto: uma build madura poe dezenas de
    corpos no chao por segundo, e o numero tem que PULSAR, nao vibrar. */
 function encadear(n, dtEntre) {
-  g.start();
+  g.start(STARTER_TESTE);
   g.spawner.interval = 1e9;
   const saltos = [];
   let anterior = g.comboPulseAt;

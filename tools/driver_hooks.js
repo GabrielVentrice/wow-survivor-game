@@ -56,7 +56,7 @@ const PIECES_ALL = ["corruption", "immolate", "wildImps", "felguard", "incinerat
    uma simulacao aleatoria pode nao produzir. Provocamos a condicao a mao: o
    que interessa e o mecanismo, nao a sorte do seed. */
 function testColheita(cap) {
-  g.start();
+  g.start(STARTER_TESTE);
   for (const id of PIECES_ALL) g.build.acquirePiece(id);
   for (const a in cap.req) g.build.axis[a] = cap.req[a];
   g.build.checkCapstones();
@@ -91,7 +91,7 @@ for (const cid in CAPSTONES) {
      so tem as chaves dos eixos daquela classe. E as pecas tambem — um hook do
      hunter que espera bicho em campo nunca dispara numa build de warlock. */
   g.selectedClass = cap.cls;
-  g.start();
+  g.start(abertura(cap.cls));
   for (const id of PIECES_ALL) if (PIECES[id].cls === cap.cls) g.build.acquirePiece(id);
   for (const a in cap.req) g.build.axis[a] = cap.req[a];
   g.build.checkCapstones();
@@ -133,7 +133,7 @@ for (const pid in PASSIVES) {
   const p = PASSIVES[pid];
   const hookNames = Object.values(p.on || {});
   if (!hookNames.length) continue;
-  g.start();
+  g.start(STARTER_TESTE);
   for (const id of PIECES_ALL) g.build.acquirePiece(id);
   g.build.acquirePassive(pid);
   for (const n of hookNames) delete calls[n];
@@ -148,7 +148,7 @@ for (const pid in PASSIVES) {
 // pecas cujo efeito e um hook
 console.log("--- hooks de peça ---");
 for (const key of ["healthstone", "soulstone", "demonicCircle"]) {
-  g.start();
+  g.start(STARTER_TESTE);
   g.build.acquirePiece(key);
   const inst = g.build.get(PIECES[key].key);
   const names = [];

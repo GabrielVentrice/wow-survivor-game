@@ -164,7 +164,7 @@ catch (e) { fail("render do menu: " + e.message); console.error(e.stack); }
 console.log("  ok menu renderiza");
 
 // jogo: 3 min andando, com render em todo frame
-g.start();
+g.start(STARTER_TESTE);
 let worst = 0;
 try {
   for (let i = 0; i < 60 * 60 * 3; i++) {
@@ -200,7 +200,7 @@ if (PROP_CACHE.size > PROP_CACHE_MAX) {
 try {
   g.player.hp = 0; g.player.reviveCharges = 0; g.update(1/60); g.render();
   g.quitToMenu(); g.render();
-  g.start(); g.render();
+  g.start(STARTER_TESTE); g.render();
   console.log("  ok game over / menu / restart renderizam");
 } catch (e) { fail("transicao: " + e.message); }
 

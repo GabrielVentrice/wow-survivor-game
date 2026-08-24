@@ -10,7 +10,7 @@ g.ui.openChest = () => { g.state = STATE.PLAYING; };
    de um jogo pausado. Nao interessa a escolha aqui, so que o jogo volte a
    andar: quem mede etapa e `driver_milestone`. */
 g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
-g.start();
+g.start(STARTER_TESTE);
 
 let fails = 0;
 const fail = (m) => { console.error("  X " + m); fails++; };
@@ -85,7 +85,7 @@ g.sfx.muted = false;
 
 // e a run inteira nao pode estourar nada
 __audio.nodes = 0;
-g.start();
+g.start(STARTER_TESTE);
 for (let i = 0; i < 60 * 60 * 4; i++) {
   g.player.hp = g.player.maxHp;
   g.input.keys = new Set(["d", "s"]);
@@ -161,7 +161,7 @@ g.sfx.muted = false;
    nenhuma chamada partindo do jogo. */
 const antesVoz = {};
 for (const k in g.sfx._voiceAt) antesVoz[k] = 1;
-g.start();
+g.start(STARTER_TESTE);
 g.sfx._voiceAt = {};
 __audio.nodes = 0;
 for (let i = 0; i < 60 * 90; i++) {
