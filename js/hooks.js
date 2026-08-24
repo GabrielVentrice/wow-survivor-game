@@ -333,4 +333,11 @@ const HOOKS = {
       m.hasteMul = Math.max(m.hasteMul || 1, 1.5);
     }
   },
+
+  /* O tier 5 de toda peca de aspecto: a postura fica TEIMOSA — liga mais cedo e
+     sai mais tarde. Ele e um hook e nao um mod porque o que ele mexe nao e um
+     stat da peca: e o limiar da CONDICAO, que mora no subsistema. */
+  posturaTeimosa(game, e, c) {
+    if (e.aspect) game.aspects.loosen(e.aspect);
+  },
 };

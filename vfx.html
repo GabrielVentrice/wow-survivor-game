@@ -568,6 +568,15 @@ function playHook(w, name, x, y, target, col) {
         spawnMinion(w, "spectre", col, false);
       }
       break;
+    /* O tier 5 de toda peça de aspecto. O card mostra os DOIS limiares andando
+       juntos — é essa a regra: mover um contra o outro fecharia o vão, e vão
+       fechado é o pisca de volta, embrulhado como recompensa. */
+    case "posturaTeimosa": {
+      const pips = [hexRgb(ASPECTS.eagle.color), hexRgb(ASPECTS.viper.color)];
+      w.player.aspectMarks = (w.t % 4) < 2.6 ? pips : pips.slice(0, 1);
+      w.vfx.emit("shock", p.x, p.y, 90, col);
+      break;
+    }
     // Domador: armadilha que dispara põe a matilha inteira em frenesi.
     case "domador": {
       if (!w.minions.length) for (let i = 0; i < 2; i++) spawnMinion(w, "boar", col, false);
@@ -1170,6 +1179,7 @@ const HOOK_INFO = {
   batedor: { owner: "capstone Batedor", tell: "marca de 9×9 sobre a cabeça de quem o bicho mordeu", demo: "batedor" },
   rangerSombria: { owner: "capstone Ranger Sombria", tell: "implosão no corpo e o espectro subindo dele", demo: "rangerSombria" },
   domador: { owner: "capstone Domador", tell: "a armadilha dispara e a matilha inteira acende junto", demo: "domador" },
+  posturaTeimosa: { owner: "tier 5 de toda peça de aspecto", tell: "a postura fica teimosa: os dois limiares andam juntos, e o vão entre eles — que É a histerese — sobrevive inteiro", demo: "posturaTeimosa" },
 };
 
 function hookItems() {

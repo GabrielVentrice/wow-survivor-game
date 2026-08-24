@@ -13,7 +13,7 @@
       lado do dado — `driver.js` conferiria `cls` no registry, e este confere
       o que a build efetivamente recebeu numa run inteira.
 
-   Uso:  DRIVER=driver_class.js node tools/harness.js . [minutos] [imortal|mortal]
+   Uso:  DRIVER=driver_class.js node tools/harness.js . [minutos] [imortal|mortal] [seeds] [ambas]
 
    Fase 3 pergunta se o hunter e COMPLETAVEL: se uma run que mira um eixo chega
    a capstone, evolucao e aura. Por isso o jogador e imortal aqui, como em
@@ -22,10 +22,17 @@
    por uma coisa que o warlock tambem faz: morrer aos dois minutos.
 
    O segundo regime (`mortal`) roda a mesma politica nas duas classes e compara
-   — e ai a pergunta e comparativa, nao absoluta. */
+   — e ai a pergunta e comparativa, nao absoluta.
+
+   E `ambas` roda o regime completavel nas DUAS classes, que e a unica maneira
+   de responder "isto e o hunter ou e o jogo?". Uma medida so do hunter diz que
+   a pool fecha em 11/20, e nao diz se o warlock fecha em 20 ou em 11 — sem a
+   linha de base, todo numero deste driver vira regressao aparente na primeira
+   vez que o balanceamento do jogo inteiro se mexe. */
 const MODO = __argv[2] || "imortal";
 const SEEDS = Number(__argv[3] || 1);
-const CLASSES_A_RODAR = MODO === "mortal" ? ["warlock", "hunter"] : ["hunter"];
+const AMBAS = __argv[4] === "ambas";
+const CLASSES_A_RODAR = (MODO === "mortal" || AMBAS) ? ["warlock", "hunter"] : ["hunter"];
 
 /* SEEDS, e nao uma run. A pergunta "a classe fecha a progressao" e
    estatistica: o catalogo muda a cada fase, e mudar o catalogo desloca TODO
@@ -68,7 +75,7 @@ g.ui.openMilestone = function () {
   g.pendingMilestones = Math.max(0, g.pendingMilestones - 1);
   g.state = STATE.PLAYING;
 };
-g.start();
+g.start(aberturaDaClasse(CLS));
 const MIN = Number(__argv[1] || 12);
 const steps = Math.round((MIN * 60) / (1 / 60));
 for (let i = 0; i < steps; i++) {

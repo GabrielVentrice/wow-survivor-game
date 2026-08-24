@@ -18,9 +18,16 @@ class BuildSystem {
     /* A classe da run decide os eixos, entao eles nao podem ser um literal de
        tres campos. `axes` e a lista ordenada (a ordem do HUD) e `axis` o
        contador por id — os dois nascem de `CLASSES.<id>.axes` no reset. */
-    this.clsId = null;
-    this.axes = [];
+    /* Nasce com a classe PADRAO em vez de vazio: quem monta um `Game` sem
+       chamar `start()` (as galerias, o driver do placar) leria `axes` vazio e
+       produziria uma run sem eixo nenhum — que e o mesmo defeito que
+       `DEFAULT_FORMS` existe para evitar do lado do sprite. `reset(cls)`
+       sobrescreve na primeira run de verdade. */
+    const padrao = CLASSES[game.selectedClass] || CLASSES.warlock;
+    this.clsId = padrao.id;
+    this.axes = (padrao.axes || []).slice();
     this.axis = {};
+    for (const a of this.axes) this.axis[a] = 0;
     this.reactives = new Map();    // evento -> [instancias]
     this.vfx = [];                 // pecas com efeito visual no personagem
     this.apexed = new Set();       // eixos que ja soltaram o Apice nesta run
@@ -565,6 +572,13 @@ class BuildSystem {
       }
       if (!ok) return false;
     }
+    /* `slot` e a vaga num subsistema da classe. Sem ele a peca de aspecto que
+       chega com os tres slots cheios entra na build e nao faz NADA: o trigger
+       `aspect` pergunta se conseguiu registrar e sai calado quando nao. Carta
+       que nao faz nada e a mesma coisa que a carta de +0 que o sorteio ja pula
+       — e pior, porque esta cobra o ponto de eixo da etapa antes de nao fazer
+       nada. Quem responde e o subsistema, que e quem sabe o proprio teto. */
+    if (r.slot === "aspect" && !this.game.aspects.hasRoom(def)) return false;
     return true;
   }
 

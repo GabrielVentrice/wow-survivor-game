@@ -37,7 +37,12 @@ function simulate(seconds) {
   const steps = Math.round(seconds / 0.025);
   for (let i = 0; i < steps; i++) {
     g.player.hp = g.player.maxHp;
-    g.input.keys = new Set(((i / 80) % 1) > 0.6 ? [] : ["d", "s"]);
+    /* A janela de PARADO tem que caber a maior `chargeTime` do catalogo, senao
+       nenhuma peca `rooted` carrega e a mesa mede a propria politica de
+       movimento em vez de medir a peca. Com 80 passos e 40% parado a janela
+       era de 0,8s — menor que TODA peca `rooted` do jogo, inclusive as do
+       warlock. 160 passos com metade parada da 2s, que e o teto do catalogo. */
+    g.input.keys = new Set(((i / 160) % 1) > 0.5 ? [] : ["d", "s"]);
     if (g.enemies.active.length < 20) populate(20);
     /* Um golpe DE VERDADE pelo funil, de vez em quando. Sem ele o driver so
        consegue provocar quem dispara por cooldown, e uma peca `reactive` sai
@@ -64,7 +69,12 @@ for (const id in PIECES) {
 }
 console.log(`--- ${evos.length} evolucoes ---`);
 for (const [id, pid, into] of evos) {
-  g.start(STARTER_TESTE);
+  /* Run da CLASSE da peca. Abrindo tudo como warlock, uma peca de hunter entra
+     numa build que nao e a dela: `abreEixos` crava os eixos do warlock, e o
+     gate de eixo da peca le `axis["precision"]` — `undefined`, que passa por
+     acidente. O teste mediria uma peca fora do lugar dela. */
+  g.selectedClass = PIECES[id].cls || "warlock";
+  g.start(aberturaDaClasse(g.selectedClass));
   abreEixos();
   try {
     const inst = g.build.acquirePiece(id) || g.build.get(PIECES[id].key);
@@ -87,6 +97,7 @@ for (const [id, pid, into] of evos) {
     }
   } catch (e) { fail(`${id}.${pid}: erro`, e); console.error(e.stack); }
 }
+g.selectedClass = "warlock";
 
 /* --- 1b. a CORRENTE de duas evolucoes ------------------------------------
    Arcane Shot -> Aimed Shot -> Kill Shot e a primeira peca do jogo que evolui
@@ -104,16 +115,22 @@ for (const [id, pid, into] of evos) {
    corrente cabe — e cabe com folga zero, que e o comprometimento que ela cobra. */
 console.log("--- corrente de evolucao ---");
 {
-  g.start();
+  g.selectedClass = "hunter";
+  g.start(aberturaDaClasse("hunter"));
   abreEixos();
   const inst = g.build.acquirePiece("arcaneShot");
   const key0 = inst.key;
-  for (let t = 0; t < PATH_RULES.tiers; t++) g.build.upgradePath(inst, "focus");
+  /* As LINHAS, e nao os caminhos inventados de antes: desde `paths.js` toda
+     peca sobe por `haste`/`mastery`/`crit`, e a corrente e Maestria (vira Aimed
+     Shot) e depois Critico (vira Kill Shot). Ela continua precisando de duas
+     linhas diferentes pelo mesmo motivo de sempre — a que evoluiu ja esta no
+     tier 5 e nao sobe mais. */
+  for (let t = 0; t < PATH_RULES.tiers; t++) g.build.upgradePath(inst, "mastery");
   const formaB = inst.def.id;
   populate(20);
   simulate(3);
   const meioDano = g.damageBy.get(key0) || 0;
-  for (let t = 0; t < PATH_RULES.tiers; t++) g.build.upgradePath(inst, "arcane");
+  for (let t = 0; t < PATH_RULES.tiers; t++) g.build.upgradePath(inst, "crit");
   const formaC = inst.def.id;
   simulate(3);
   const fimDano = g.damageBy.get(key0) || 0;
@@ -129,11 +146,12 @@ console.log("--- corrente de evolucao ---");
     console.log(`  ok o medidor atravessou as duas trocas: ${Math.round(meioDano)} -> ${Math.round(fimDano)}`);
   }
   // e a segunda evolucao veio de OUTRO caminho: o primeiro esta no teto
-  if (inst.paths.focus !== PATH_RULES.tiers || inst.paths.arcane !== PATH_RULES.tiers) {
-    fail(`corrente: caminhos em ${inst.paths.focus}/${inst.paths.arcane}, esperado 5/5`);
+  if (inst.paths.mastery !== PATH_RULES.tiers || inst.paths.crit !== PATH_RULES.tiers) {
+    fail(`corrente: caminhos em ${inst.paths.mastery}/${inst.paths.crit}, esperado 5/5`);
   } else {
     console.log(`  ok os dois caminhos fechados (5/5), dentro do teto de ${PATH_RULES.maxDeep} profundos`);
   }
+  g.selectedClass = "warlock";
 }
 
 /* --- 2. capstones -------------------------------------------------------- */
@@ -151,7 +169,7 @@ const PECAS_DA_CLASSE = {
 for (const cid in CAPSTONES) {
   const cap = CAPSTONES[cid];
   g.selectedClass = cap.cls;
-  g.start(abertura(cap.cls));
+  g.start(aberturaDaClasse(cap.cls));
   try {
     // pecas da classe, para os hooks terem com o que trabalhar
     for (const pid of PECAS_DA_CLASSE[cap.cls] || []) g.build.acquirePiece(pid);

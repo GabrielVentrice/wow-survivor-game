@@ -27,7 +27,7 @@ g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; }
    cada bloco medir um trigger e nao a build inteira. */
 function mesa(pieceId) {
   g.selectedClass = "hunter";
-  g.start();
+  g.start(aberturaDaClasse("hunter"));
   g.build.pieces.clear();
   g.enemies.clear(); g.areas.clear(); g.minions.reset(); g.projectiles.clear();
   g.spawner.interval = 1e9;                 // a horda nao entra sem ser chamada

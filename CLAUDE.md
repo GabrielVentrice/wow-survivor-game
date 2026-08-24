@@ -10,8 +10,8 @@ metamorfose faz literalmente no corpo), está no `<title>` e no menu, mas não f
 decidido. O repositório e as pastas continuam `wow-survivor-game`; trocar isso é
 decisão do dono do projeto, não consequência do handoff.
 
-Survivors-like (Vampire Survivors) com tema WoW, classe Warlock, e um sistema de
-build roguelike inspirado em Bloons TD 6 (caminhos de upgrade que trocam a
+Survivors-like (Vampire Survivors) com tema WoW, duas classes jogáveis
+(Warlock e Hunter), e um sistema de build roguelike inspirado em Bloons TD 6 (caminhos de upgrade que trocam a
 identidade da peça) e Echoes of Mystralia (composição livre de efeitos).
 
 O que Bloons empresta hoje é a **profundidade**, não o vocabulário: os três
@@ -299,10 +299,12 @@ que aponte para um capstone: ou cobre todos, ou nenhum.
 
 Quatro coisas do hunter que valem para classe nova:
 
-- **O kit inicial é uma peça, e a mais neutra do catálogo.** `killCommand` mira
-  sozinha e não pede nada do jogador — a mesma função que `incinerate` tem no
-  warlock. Duas peças entregariam meia identidade de graça e a primeira etapa
-  deixaria de ser descoberta.
+- **A abertura da classe é uma por eixo, e a mais neutra vem primeiro.** Desde
+  que o kit inicial virou a pergunta da abertura (ver "A abertura"), o que a
+  classe declara em `starters` são três spells — uma de cada eixo — e o jogador
+  escolhe. No hunter são `killCommand` (Matilha), `arcaneShot` (Precisão) e
+  `serpentSting` (Armadilha). A regra que sobrevive é a de cobertura: uma por
+  eixo, senão a abertura decide o eixo antes de o jogador escolher.
 - **`DEFAULT_FORMS` desenha o WARLOCK.** Classe nova sem `forms` aparece em
   campo com o corpo de outra, em silêncio. Ele existe só para quem monta um
   `Player` fora de uma run (as galerias); toda classe jogável declara `forms`.
@@ -334,14 +336,16 @@ como Arcane Shot continuar valendo depois de virar Aimed Shot.
 **A CORRENTE de duas evoluções.** `Arcane Shot → Aimed Shot → Kill Shot` é a
 primeira peça do jogo que evolui duas vezes, e ela só é possível porque as duas
 regras acima seguram: a `key` é `arcaneShot` nas três formas e os ids de
-caminho (`focus`/`pierce`/`arcane`) atravessam inteiras.
+caminho — que desde as três linhas são sempre `haste`/`mastery`/`crit` —
+atravessam inteiras.
 
 Três coisas caem daí:
 
 - **A segunda evolução sai de um caminho DIFERENTE do primeiro.** O que evoluiu
   já está no tier 5 e não sobe mais, então a corrente precisa de dois caminhos
   fechados — e `PATH_RULES.maxDeep` permite exatamente dois. Ela cabe com folga
-  zero, que é o comprometimento que ela cobra.
+  zero, que é o comprometimento que ela cobra. Na corrente do Arcane Shot a
+  primeira conversão mora em `mastery` e a segunda em `crit`.
 - **O medidor de dano atravessa as duas trocas**, porque a `key` não muda.
   Medido em `driver_evo`: 6420 como Aimed Shot → 24470 como Kill Shot, mesma
   entrada de `damageBy`.
@@ -349,13 +353,54 @@ Três coisas caem daí:
   fazia isso desde sempre; ninguém tinha declarado dois `evolvesInto` na mesma
   linhagem.
 
-**E o que a evolução custa, medido.** `driver_class`, 5 seeds, política de
-level-up aleatória: sobrevivência mediana 9,6 min, pool 20/20, capstone em 3/5,
-aura em 3/5 e **evolução em 1/5**. O número baixo não é defeito da fase: só 9
-das 51 peças do hunter têm caminho que evolui, e o tier 5 pede 10 pontos no eixo
-DA PEÇA — é a mesma escolha que a separação das duas telas documentou ("o custo
-é profundidade"). Aura em 3/5 e evolução em 1/5 dizem juntas que os caminhos
-FECHAM; o que é raro é fechar justo o caminho que converte.
+**E o que a evolução custa, medido — contra a outra classe, sempre.**
+`driver_class ... imortal 5 ambas`, política de level-up aleatória:
+
+| | warlock | hunter |
+|---|---|---|
+| pool ao fim (mediana) | 20/20 | 8/20 |
+| abates (mediana) | 19,3 mil | 3,3 mil |
+| runs com capstone | 4/5 | 1/5 |
+| runs com evolução | 2/5 | 1/5 |
+
+**Sem a coluna do warlock nenhum desses números quer dizer nada**, e é por isso
+que o regime `ambas` existe. Uma medida só do hunter diz "a pool fecha em 11/20"
+e não diz se a do warlock fecha em 20 ou em 11 — sem a linha de base, todo
+número deste driver vira regressão aparente na primeira vez que o
+balanceamento do jogo inteiro se mexe.
+
+(Cinco seeds é pouco, e mexer no catálogo desloca todo sorteio seguinte: entre
+duas medidas o hunter oscilou entre 8/20 e 11/20 sem nenhuma mudança de
+balanceamento entre elas. O que não oscila é a distância para a coluna do
+warlock, que ficou idêntica nas duas.)
+
+O que a tabela diz é que **o hunter fecha a progressão pior que o warlock, por
+cerca de 3× em abates**, e abate é a moeda do marco. Três coisas que a causa
+**não** é, cada uma descartada por medida:
+
+- **Não é peça fraca.** No `driver_bench` o catálogo do hunter rende mais que o
+  do warlock nos seis cenários (pico mediano fechado 3,1k contra 1,2k), e os
+  tetos são da mesma ordem (rainOfFire 165k e incinerate 52k contra
+  explosiveShot 76k e trueshotAura 32k).
+- **Não é a abertura.** As três spells iniciais do hunter batem mais que as do
+  warlock no tier 0 (killCommand 90/500/610/1300 contra corruption 28/27/103/15).
+- **Não é o corpo.** `CLASSES.hunter.base` tem mais vida e mais passo que o do
+  warlock (110/250 contra 100/240).
+
+O que sobra é a **conversão na horda densa**: numa run de 8 min o warlock põe
+28,5M de dano com 17 peças, todas registrando dano, e o hunter põe 5,0M com 13.
+Quem mede isso é `driver_balance` — com políticas e seeds —, não este driver, e
+enquanto ninguém rodar essa bateria com o hunter o número acima é um diagnóstico
+em aberto, não um alvo já perseguido.
+
+Sobre evolução especificamente: só 9 das 51 peças do hunter têm caminho que
+evolui, e o tier 5 pede 10 pontos no eixo DA PEÇA — é a mesma escolha que a
+separação das duas telas documentou ("o custo é profundidade").
+
+**E `driver_class` não responde sobrevivência.** O regime `mortal` roda as duas
+classes com a mesma política de movimento e as duas morrem em 0,3 min — o que
+esse número mede é o círculo que o bot anda, não a classe. Quem mede tempo de
+vida é `driver_balance`, que tem políticas para isso.
 
 ### O pipeline de stats
 
@@ -781,14 +826,100 @@ Regras que caem daí, e cada uma conserta um defeito:
   rodar vencia e o outro sumia sem erro nenhum. Hoje `m.baseSpeed` fica intacto
   e os dois multiplicam.
 
+#### A condição se MEDE, e a contagem crua mede o relógio
+
+A histerese abaixo impede o aspecto de piscar. Ela não diz nada sobre o aspecto
+**acontecer** — e essa é a outra metade, que custou uma rodada inteira para
+aparecer porque nenhum driver olhava para ela.
+
+Os seis limiares nasceram de intuição sobre o jogo. Medidos numa run de verdade
+(8 min, política de movimento do bot), quatro dos seis não eram condição
+nenhuma:
+
+| aspecto | condição original | quanto tempo ficava ligada |
+|---|---|---|
+| Guepardo | zero inimigos em 340 | **1,3%** |
+| Falcão | parado há 2s | **0,0%** |
+| Águia | 5+ inimigos em 360 | **98%** |
+| Selvagem | 3+ bichos | 100% na build de Matilha, 0% em toda outra |
+
+Duas nunca ligavam e duas nunca desligavam. Postura que nunca liga é carta
+morta; postura que nunca desliga é buff fixo com nome de postura. E o defeito
+não aparecia em `driver_aspect`, porque uma mesa monta a condição à mão — ela
+prova que o mecanismo FUNCIONA, e não que o jogo o alcança.
+
+**A causa é uma só: contagem crua de inimigos mede o relógio da run, não a
+posição do jogador.** A densidade dentro de 360 unidades vai de 21 corpos no
+minuto 3 a 160 no minuto 7 — oito vezes. Um limiar em número de corpos liga pelo
+minuto em que a run está, que é o contrário do que um aspecto é.
+
+O conserto é a leitura `press`: a **razão** entre o anel de dentro e o de fora.
+Ela é estável na mesma run — 0,20 · 0,22 · 0,22 · 0,22 · 0,21 · 0,23 · 0,20 ·
+0,17 por minuto, enquanto a contagem crua multiplicava por oito — porque mede o
+que o jogador controla (estar no meio ou na beirada) e não o quanto o spawner já
+cresceu. A linha de base é geométrica: com densidade uniforme a razão seria
+`inner²/range²`.
+
+Com os limiares tirados da distribuição medida, as três posturas posicionais
+viraram posturas de verdade — Guepardo **30,5%**, Falcão **11,8%**, Águia
+**31,9%**, com o vão e o `hold` segurando o pisca.
+
+**E três dos seis são FASE, não postura, porque a variável é lenta.** Vida e
+tamanho da matilha andam num sentido só dentro de uma run: Tartaruga (60%),
+Víbora (38%) e Selvagem (55%) ligam uma vez e ficam. Isso é coerente — "quando
+você está para morrer, você se fecha no casco" é uma fase —, mas é bom saber que
+o subsistema tem duas espécies dentro dele, e que só a posicional responde ao
+único input do jogo.
+
+**Leitura que inventa um número que o jogo não tem mede a própria invenção.** O
+Selvagem passou por uma versão com denominador — bichos vivos sobre a
+"capacidade da build", somando os tetos dos efeitos `summon` resolvidos — e o
+número estava errado por construção: o motor **não mantém** essa conta. O teto é
+cobrado por peça (`countOf(c.key)`), hook também invoca sem declarar `summon`, e
+o resultado media 14 bichos contra um teto calculado de 8. A fração saturava em
+1 e o aspecto ficava 95,7% ligado. Ele voltou para contagem crua com o limiar
+medido (8/5, que é onde uma build de Matilha se sustenta no tier 0).
+
+#### Pulso que produz a própria condição não pode ser cobrado por ela
+
+O trigger `aspect` pulsa **enquanto a postura estiver de pé**, e isso é o certo
+para cinco das seis peças: o efeito é a recompensa de a postura estar ligada.
+
+O Selvagem é a exceção, e ela tem regra. A postura dele liga com a matilha
+grande em campo, e o pulso dele **é** o que põe lobo em campo. Gatilhado pela
+postura, ele nunca teria o primeiro lobo, nunca alcançaria o limiar e a peça
+ficaria morta para sempre — medido no banco, **zero dano nos seis cenários com o
+caminho fechado**, que é exatamente a regra que `driver_bench` reprova.
+
+`whileActive: false` no trigger desliga a cobrança. A postura deixa de ser o
+interruptor do pulso e volta a ser só o que sempre foi: o multiplicador nos
+canais vivos. E a régua acompanha — `dpsTrigger` usa cadência cheia em vez de
+`aspectUptime` quando o campo está declarado, senão a carta prometeria 40% do
+que a peça entrega.
+
+Vale para qualquer peça futura cujo efeito alimente a leitura da própria
+condição — é auto-referência, não um caso especial do Selvagem.
+
+#### O slot cheio tem que sumir da oferta
+
+Com seis aspectos e três slots, a quarta peça de aspecto entra na build e **não
+faz nada**: `register` recusa, e o trigger `aspect` não pulsa sem registro. É a
+mesma coisa que a carta de +0 que o sorteio já pula, e pior — esta cobra o ponto
+de eixo da etapa antes de não fazer nada.
+
+Quem responde é o subsistema, porque é quem sabe o próprio teto:
+`requires: { slot: "aspect" }` no dado da peça, e `AspectSystem.hasRoom` em
+`meetsRequires`. Peça já possuída continua cabendo, senão o level up não poderia
+oferecer **tier** dela.
+
 **A HISTERESE são dois guardas, e cada um mata um jeito diferente de piscar.**
 
 O primeiro é o **vão**: a condição declara `on` e `off`, e a direção é
 implícita — se `on > off` ela é de subida, se `on < off` é de descida. O vão
 entre os dois *é* a histerese, e ele não pode ser esquecido porque não é um
-campo opcional: `driver_aspect` reprova `on === off`. Com a Águia em 5/3, um
-inimigo entrando e saindo do alcance não liga e desliga nada — a conta teria
-que ir de 5 a 2.
+campo opcional: `driver_aspect` reprova `on === off`. Com a Águia em 0,32/0,24,
+um corpo atravessando o anel de dentro não liga e desliga nada — a razão teria
+que cair um terço.
 
 O segundo é o **tempo** (`BALANCE.aspect.hold`): o piso de permanência mata o
 pisca de quem atravessa o vão inteiro depressa, e a horda fecha e abre em menos
@@ -799,7 +930,7 @@ quanto desligar cedo demais.
 grupo, o de maior `priority` que estiver satisfeito é o único que contribui;
 os outros continuam "ligados" no estado. Desligá-los ali reiniciaria o relógio
 de permanência deles e o pisca voltaria pela porta dos fundos. Guepardo
-(correndo, sem ninguém perto) e Falcão (parado, mirando) são posturas opostas:
+(na borda da horda) e Falcão (parado, mirando) são posturas opostas:
 com o campo vazio e o jogador parado as duas condições valem ao mesmo tempo, e
 é justamente aí que o par não pode aparecer aceso junto.
 

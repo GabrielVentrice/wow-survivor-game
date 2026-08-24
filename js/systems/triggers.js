@@ -280,10 +280,41 @@ const TRIGGERS = {
      exatamente quando o slot deve ser tomado. */
   aspect: {
     init(s, game, t) {
+      s.nextAt = 0;
       s.registered = false;
       if (game && t && t.aspect) s.registered = game.aspects.register(t.aspect);
     },
-    tick() {},
+    /* E ele PULSA enquanto a postura estiver de pe — mas so entao.
+
+       A primeira versao tinha `tick() {}`, e isso era um bug que nada pegou: os
+       `effects` das seis pecas de aspecto nunca rodavam numa run. O driver de
+       vfx as assinava porque a mesa dele chama `firePiece` a mao, entao elas
+       apareciam desenhando coisas que o jogo nunca desenhou.
+
+       O pulso e a forma certa de consertar, e nao um remendo: o efeito da peca
+       passa a ser a RECOMPENSA da postura estar ligada, que e o que a peca
+       promete no `desc`. E de quebra ele da as tres linhas algo para trabalhar
+       — sem cadencia, a linha de Aceleracao de uma stance nao tem o que
+       acelerar.
+
+       `whileActive: false` e a excecao, e ela tem uma regra e nao um capricho:
+       PULSO QUE PRODUZ A PROPRIA CONDICAO NAO PODE SER COBRADO POR ELA. O
+       Selvagem liga com a matilha grande em campo e o pulso dele E o que poe
+       lobo em campo — gatilhado pela postura, ele nunca teria o primeiro lobo,
+       nunca alcançaria o limiar, e a peca ficaria morta para sempre. Medido:
+       zero dano em todos os seis cenarios do banco, com o caminho fechado.
+
+       Nesses casos a postura deixa de ser o interruptor do pulso e passa a ser
+       so o que ela sempre foi — o multiplicador nos canais vivos. */
+    tick(game, inst, dt, now) {
+      const s = inst.s, t = inst.r.trigger, p = game.player;
+      if (!t.interval || !s.registered) return;
+      if (t.whileActive !== false && !game.aspects.isActive(t.aspect)) return;
+      if (now < s.nextAt) return;
+      s.nextAt = now + cd(game, t.interval);
+      firePiece(game, inst, p.x, p.y, game.nearestEnemy(p.x, p.y, rng(game, t.range || 420)),
+                p.dirX, p.dirY, now);
+    },
   },
 
   /* Dispara em evento, nao em cooldown. O cooldown existe so como piso

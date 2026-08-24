@@ -120,8 +120,12 @@ const Leaderboard = {
 
   runFrom(game, dano, assinatura) {
     const g = game, b = g.build, p = g.player;
+    /* Os eixos DA RUN, na ordem da classe — e nao `AXES`, que virou a uniao de
+       todas elas. Contra a uniao a coluna sairia com seis numeros, tres deles
+       sempre zero, e a planilha passaria a guardar o formato de uma run que
+       nao existe. */
     const eixos = [];
-    for (const id in AXES) eixos.push(b.axis[id] | 0);
+    for (const id of b.axes) eixos.push(b.axis[id] | 0);
     return {
       nome:       this.nome(),
       tempo_ms:   Math.round(g.elapsed * 1000),

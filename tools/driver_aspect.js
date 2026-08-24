@@ -20,17 +20,40 @@ g.ui.openLevelUp = () => { g.player.pendingLevels = 0; g.state = STATE.PLAYING; 
 g.ui.openChest = () => { g.state = STATE.PLAYING; };
 g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
 
-function mesa(ids) {
+/* As telas de escolha PARAM o `update`, e com elas abertas o relogio de
+   simulacao congela. Uma mesa que nao as fecha mede a propria tela: medido,
+   320 chamadas de `update(0.025)` — 8 segundos — avancaram 1,4s de `clock`,
+   porque o resto do tempo o jogo estava parado num level up que ninguem
+   fechou. O aspecto avalia em `clock`, entao ele simplesmente nao rodava.
+   E a mesma lição que `driver_class` ja carrega, por outro caminho. */
+function fecharTelas() {
+  g.ui.openLevelUp = () => { g.player.pendingLevels = 0; g.state = STATE.PLAYING; };
+  g.ui.openChest = () => { g.state = STATE.PLAYING; };
+  g.ui.openMilestone = () => { g.pendingMilestones = 0; g.state = STATE.PLAYING; };
+}
+function mesa(ids, cravar) {
+  vidaCravada = !!cravar;
   g.selectedClass = "hunter";
-  g.start();
+  g.start(aberturaDaClasse("hunter"));
+  fecharTelas();
   g.build.pieces.clear();
   g.aspects.reset();
   g.enemies.clear(); g.areas.clear(); g.minions.reset(); g.projectiles.clear();
   g.spawner.interval = 1e9;
   for (const id of ids) g.build.acquirePiece(id, true);
 }
+/* A vida CRAVADA nas mesas que nao falam de vida. Dez ghouls imortais colados
+   no jogador matam ele em pouco mais de um segundo, e morto o `update` para —
+   entao o relogio de simulacao congela e o aspecto deixa de ser avaliado. A
+   mesa da Aguia reprovava por isso e nao pela condicao. Turtle e Viper nao
+   cravam, obviamente: nelas a vida E a condicao. */
+let vidaCravada = false;
 function passo(n, keys) {
-  for (let i = 0; i < n; i++) { g.input.keys = new Set(keys || []); g.update(0.025); }
+  for (let i = 0; i < n; i++) {
+    if (vidaCravada) g.player.hp = g.player.maxHp;
+    g.input.keys = new Set(keys || []);
+    g.update(0.025);
+  }
 }
 function bicho(x, y) { return g.enemies.spawn(ENEMIES.ghoul, x, y, g.spawner.scale); }
 const ativo = (id) => g.aspects.active.indexOf(id) >= 0;
@@ -48,6 +71,40 @@ console.log("--- histerese no dado ---");
     if (w.on === w.off) { fail(`${id}: liga e desliga no mesmo valor (${w.on}) — sem histerese`); ok = false; }
   }
   if (ok) console.log(`  ok ${Object.keys(ASPECTS).length} aspectos, todos com vão entre ligar e desligar`);
+}
+
+/* --- 1b. o tier 5 afrouxa, e NAO fecha o vao ------------------------------
+   `posturaTeimosa` (o tier 5 de toda peca de aspecto) mexe nos dois limiares.
+   Se ele os mover um EM DIRECAO ao outro, o vao morre — e vao morto e o pisca
+   de volta, com a agravante de vir embrulhado como recompensa.
+
+   Foi assim que a primeira versao saiu: a Vibora ia de 0.9/0.75 para
+   0.825/0.825. `driver_bench` viu o estrago pelo dano (caminho fechado rendendo
+   um terco da peca crua) e nenhum driver de aspecto viu nada, porque nenhum
+   olhava o estado AFROUXADO. Agora olha. */
+console.log("--- o tier 5 afrouxa sem fechar o vao ---");
+{
+  mesa([]);
+  let ok = true;
+  for (const id in ASPECTS) {
+    const a = ASPECTS[id];
+    g.aspects.loose.add(id);
+    const w = g.aspects._when(a);
+    const vaoAntes = Math.abs(a.when.on - a.when.off);
+    const vaoDepois = Math.abs(w.on - w.off);
+    g.aspects.loose.delete(id);
+    if (vaoDepois < vaoAntes - 1e-9) {
+      fail(`${id}: afrouxar encolheu o vão de ${vaoAntes.toFixed(3)} para ${vaoDepois.toFixed(3)}`);
+      ok = false; continue;
+    }
+    // e ele tem que afrouxar de verdade: ligar antes do que ligava
+    const sobe = a.when.on > a.when.off;
+    if (sobe ? w.on >= a.when.on : w.on <= a.when.on) {
+      fail(`${id}: afrouxar não deixou a condição mais fácil (${a.when.on} -> ${w.on})`);
+      ok = false;
+    }
+  }
+  if (ok) console.log(`  ok ${Object.keys(ASPECTS).length} aspectos afrouxam mantendo o vão inteiro`);
 }
 
 /* --- 2. o teto de slots -------------------------------------------------- */
@@ -124,22 +181,63 @@ console.log("--- as seis condições ---");
   }
 }
 {
-  // Águia: 5+ inimigos por perto, e o alcance de TODA peça sobe
-  mesa(["aspectOfTheEagle"]);
+  /* Aguia: a horda COLADA — e a fixture mudou de forma junto com a condicao.
+     Enquanto o limiar era "5 inimigos em 360", bastava despejar oito corpos em
+     qualquer lugar do anel. Hoje a leitura e a RAZAO entre o anel de dentro e o
+     de fora, entao onde o corpo cai e a coisa que o teste precisa controlar:
+     oito a 60 unidades ligam, os mesmos oito a 300 nao ligam. */
+  mesa(["aspectOfTheEagle"], true);
   passo(80);
   if (ativo("eagle")) fail("eagle: campo vazio e a postura ligou");
-  for (let i = 0; i < 8; i++) bicho(g.player.x + 60 + i * 10, g.player.y + i * 6);
+  /* Os alvos sao IMORTAIS aqui, e isso deixou de ser opcional quando a peca de
+     aspecto passou a pulsar: o pulso da Aguia mata oito ghouls no primeiro
+     tique, a conta cai de 8 para 0 e a postura desliga sozinha. Sem a vida
+     cravada, o teste mediria o RESCALDO do pulso em vez da condicao — e
+     reprovaria um mecanismo que funcionou. */
+  for (let i = 0; i < 10; i++) {
+    const e = bicho(g.player.x + 40 + i * 8, g.player.y + i * 5);
+    e.maxHp = e.hp = 1e9;
+  }
   passo(120);
-  if (!ativo("eagle")) fail("eagle: oito inimigos por perto e a postura não ligou");
+  if (!ativo("eagle")) fail("eagle: dez inimigos colados e a postura não ligou");
   else if (g.aspects.ch.rangeMul <= 1) fail("eagle: ativo mas rangeMul continuou 1");
-  else console.log(`  ok eagle liga com 8 por perto: alcance x${g.aspects.ch.rangeMul}`);
+  else console.log(`  ok eagle liga com a horda colada: alcance x${g.aspects.ch.rangeMul}`);
+
+  /* E os MESMOS corpos no anel de fora tem que desligar: e razao, nao
+     contagem. A posicao e recravada a cada quadro porque ghoul persegue — na
+     primeira versao eles eram empurrados uma vez para 330 e voltavam andando
+     em menos de dois segundos, e o teste reprovava a condicao por causa do
+     movimento deles. */
+  for (let i = 0; i < 200; i++) {
+    let k = 0;
+    for (const e of g.enemies.active) {
+      if (e.dead) continue;
+      const ang = (k++) * 0.6;
+      e.x = g.player.x + Math.cos(ang) * 320; e.y = g.player.y + Math.sin(ang) * 320;
+    }
+    passo(1);
+  }
+  if (ativo("eagle")) fail("eagle: os mesmos corpos no anel de fora e a postura continuou ligada");
+  else console.log("  ok eagle desliga com os mesmos corpos afastados — a leitura é razão, não contagem");
 }
 {
-  // Selvagem: 3+ bichos vivos, e a matilha inteira acelera
-  mesa(["aspectOfTheWild", "wildThrash"]);
-  passo(200);
+  /* Selvagem: a MATILHA GRANDE. O limiar era 3 e virou 12, medido — com 3 a
+     postura ficava 100% ligada em toda build de Matilha e 0% em toda outra,
+     que e um `if` sobre o eixo e nao uma postura. Por isso a mesa aqui precisa
+     de mais de uma peca que invoca: uma so nao enche a matilha. */
+  mesa(["aspectOfTheWild", "wildThrash", "callOfTheWild", "direBeast", "animalCompanion"], true);
+  /* Campo com corpo e tempo de verdade: quase toda peca de Matilha so invoca
+     quando ha alvo, e as que invocam sozinhas tem recarga de 6 a 9s. Uma mesa
+     vazia de 10s mede a recarga, nao a condicao — davam 4 bichos. */
+  for (let i = 0; i < 16; i++) {
+    const ang = i * 0.4;
+    const e = bicho(g.player.x + Math.cos(ang) * 150, g.player.y + Math.sin(ang) * 150);
+    e.maxHp = e.hp = 1e9;
+  }
+  passo(2400);
   const n = g.minions.count();
-  if (n < 3) fail(`wild: só ${n} bichos em campo, a condição não pôde ser medida`);
+  const alvo = ASPECTS.wild.when.on;
+  if (n < alvo) fail(`wild: só ${n} bichos em campo (a condição pede ${alvo}), o teste não mediu nada`);
   else if (!ativo("wild")) fail(`wild: ${n} bichos vivos e a postura não ligou`);
   else {
     const m = g.minions.pool.active.find((x) => !x.dead);
@@ -169,18 +267,29 @@ console.log("--- o pisca ---");
   /* A medida que importa. O jogador é posto EXATAMENTE na borda da condição e
      sacudido em volta dela — que é o que acontece de verdade quando ele corrige
      posição num survivors. Sem histerese, o estado segue esse tremor. */
-  mesa(["aspectOfTheEagle"]);
-  const alvos = [];
-  for (let i = 0; i < 4; i++) alvos.push(bicho(g.player.x + 100, g.player.y + i * 12));
+  /* A borda de uma RAZAO nao e "mais um inimigo no alcance", e quantos dos
+     corpos que ja estao em volta estao COLADOS. Doze ficam sempre no anel de
+     fora e quatro atravessam o anel de dentro a cada quadro: a razao salta de
+     4/16 (0.25) para 0/16 (0), em cima dos limiares 0.32/0.24. E o tremor
+     maximo que o jogador consegue produzir corrigindo posicao. */
+  mesa(["aspectOfTheEagle"], true);
+  const fora = [], dentro = [];
+  for (let i = 0; i < 12; i++) fora.push(bicho(g.player.x + 300, g.player.y));
+  for (let i = 0; i < 4; i++) dentro.push(bicho(g.player.x + 120, g.player.y));
+  const cravar = (lista, raio) => {
+    let k = 0;
+    for (const e of lista) {
+      const ang = (k++) * 0.9;
+      e.x = g.player.x + Math.cos(ang) * raio; e.y = g.player.y + Math.sin(ang) * raio;
+      e.hp = e.maxHp = 1e9;
+    }
+  };
+  cravar(fora, 300); cravar(dentro, 120);
   passo(80);
   let viradas = 0, antes = ativo("eagle");
-  const borda = [];
   for (let i = 0; i < 400; i++) {
-    // o quinto inimigo entra e sai do alcance a cada quadro: o tremor máximo
-    const extra = i % 2 === 0;
-    for (const a of alvos) { a.x = g.player.x + 100; a.hp = a.maxHp; }
-    if (extra && borda.length < 2) borda.push(bicho(g.player.x + 110, g.player.y - 20));
-    for (const b of borda) { b.x = g.player.x + (extra ? 110 : 4000); b.hp = b.maxHp; }
+    cravar(fora, 300);
+    cravar(dentro, i % 2 === 0 ? 120 : 300);
     passo(1);
     const agora = ativo("eagle");
     if (agora !== antes) { viradas++; antes = agora; }
@@ -218,7 +327,7 @@ console.log("--- o pisca ---");
 console.log("--- warlock ---");
 {
   g.selectedClass = "warlock";
-  g.start();
+  g.start(aberturaDaClasse("warlock"));
   if (g.aspects.slots.length) fail(`warlock começou com ${g.aspects.slots.length} aspecto(s)`);
   const ch = g.aspects.ch;
   const neutro = ch.speedMul === 1 && ch.rangeMul === 1 && ch.dmgReduction === 0 &&

@@ -124,7 +124,7 @@ for (const id in CAPSTONES) {
   const dono = CLASSES[CAPSTONES[id].cls];
   if (!dono || !dono.forms || dono.forms.length <= 1) continue;
   g.selectedClass = CAPSTONES[id].cls;
-  g.start(abertura(CAPSTONES[id].cls));
+  g.start(aberturaDaClasse(CAPSTONES[id].cls));
   g.build.capstones.add(id);
   g.build.afterChange();
   /* Conta os eventos ANUNCIADOS, nao os nos vivos no DOM: o teto de tres

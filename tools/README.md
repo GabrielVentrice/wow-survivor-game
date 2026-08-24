@@ -36,6 +36,7 @@ DRIVER=driver_aspect.js node tools/harness.js .   # aspectos: as seis condiçõe
 DRIVER=driver_class.js node tools/harness.js . 12          # a classe fecha a própria progressão, e nada vaza entre classes
 DRIVER=driver_class.js node tools/harness.js . 12 imortal 6  # o mesmo em 6 seeds, com placar de medianas
 DRIVER=driver_class.js node tools/harness.js . 12 mortal   # sem imortalidade, warlock e hunter lado a lado
+DRIVER=driver_class.js node tools/harness.js . 12 imortal 5 ambas  # completável nas DUAS classes — a linha de base
 DRIVER=driver_bench.js node tools/harness.js .   # banco: dano de cada peça em 6 cenários controlados
 DRIVER=driver_bench.js node tools/harness.js . 20 full        # 20s/célula, os três caminhos
 DRIVER=driver_bench.js node tools/harness.js . 12 "" cataclysm  # só um eixo (~7s, para iterar)
@@ -68,10 +69,36 @@ Seis blocos, e o quinto é o que importa:
 | **o pisca** | o jogador é posto **na borda** e sacudido em volta dela; conta as viradas contra o teto que o `hold` permite |
 | warlock | nenhum slot, todos os canais neutros, nenhuma peça com trigger `aspect` |
 
-Duas travas que o próprio driver precisou ganhar:
+**E ele não vê a condição ser ALCANÇADA.** É o limite mais importante deste
+driver: uma mesa monta a condição à mão, então ela prova que o mecanismo
+funciona — não que o jogo chega lá. Medidos numa run de verdade, quatro dos seis
+limiares originais não eram condição nenhuma (Guepardo 1,3% do tempo, Falcão
+0,0%, Águia 98%, Selvagem 100%-ou-0%), e este driver passava verde em todos. Ver
+"A condição se MEDE" no `CLAUDE.md`: quem responde isso é medida em run, e a
+leitura tem que ser escala-livre (`press`, a razão entre os dois anéis) porque
+contagem crua de corpos mede o minuto da run.
+
+Quatro travas que o próprio driver precisou ganhar:
 
 - **Zero viradas reprova.** Um aspecto que nunca liga também nunca pisca, e
   passaria pelo teto sem esforço. A trava é dos dois lados.
+- **A mesa fecha as telas de escolha.** Level up e etapa param o `update`, e com
+  elas abertas o relógio de simulação congela: medido, 8 segundos de
+  `update(0.025)` avançaram 1,4s de `clock`. O aspecto avalia em `clock`, então
+  ele simplesmente não rodava — e a mesa da Águia reprovava por isso, não pela
+  condição. É a mesma lição de `driver_class`, por outro caminho.
+- **A vida é cravada nas mesas que não falam de vida.** Dez ghouls imortais
+  colados matam o jogador em pouco mais de um segundo, e morto o `update` para.
+  Turtle e Víbora não cravam, obviamente: nelas a vida **é** a condição.
+- **Auto-referência é o banco que pega, não este driver.** O Selvagem pulsava
+  só com a postura de pé, e a postura pedia matilha cheia — a peça não tinha
+  como sair do zero. Aqui ela passava (a mesa monta a matilha à mão); no
+  `driver_bench` ela apareceu como "peça de dano com caminho fechado que não
+  causa dano nenhum". Os dois drivers juntos é que fecham a pergunta.
+- **A mesa de uma razão controla ONDE o corpo cai, não quantos são.** Com o
+  limiar em contagem bastava despejar oito corpos em qualquer lugar do anel;
+  com a razão, oito a 60 unidades ligam e os mesmos oito a 300 não — e o
+  driver cobra as duas pontas, senão ele não estaria medindo uma razão.
 - **A mesa de `driver_vfx` crava o aspecto da peça que está assinando.** As seis
   condições se contradizem (vida baixa E vida cheia, horda perto E campo
   vazio), então não existe cenário único que ligue as seis — e sem cravar, três
@@ -89,9 +116,19 @@ fechar nada — foi exatamente o que aconteceu com o warlock antes da separaçã
 das duas telas de escolha (0 capstones em 16 runs). O jogador é **imortal** aqui
 de propósito, como em `driver.js`: quem mede sobrevivência é `driver_balance`, e
 misturar as duas perguntas fez a primeira versão deste driver "reprovar" o
-hunter por uma coisa que o warlock também faz — morrer aos dois minutos. O modo
-`mortal` roda a mesma política nas duas classes e imprime lado a lado, que é a
-única forma honesta de comparar.
+hunter por uma coisa que o warlock também faz — morrer aos dois minutos.
+
+**Sozinho, nenhum número deste driver quer dizer nada.** Por isso há dois
+regimes comparativos: `mortal` roda a mesma política nas duas classes, e
+`ambas` (5º argumento) roda o regime **completável** nas duas. Uma medida só do
+hunter diz "a pool fecha em 11/20" e não diz se a do warlock fecha em 20 ou em
+11 — sem a linha de base, todo número vira regressão aparente na primeira vez
+que o balanceamento do jogo inteiro se mexe. Foi exatamente o que quase
+aconteceu depois do merge das três linhas.
+
+**E o `mortal` não mede sobrevivência.** As duas classes morrem em 0,3 min com
+a política de movimento daqui, que é um círculo apertado — o número mede o bot,
+não a classe. Tempo de vida é pergunta de `driver_balance`.
 
 **Driver que prende uma tela mede a própria tela.** A primeira versão deste
 driver aplicava a oferta de etapa e não decrementava `pendingMilestones`. A fila

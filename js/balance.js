@@ -294,6 +294,10 @@ BALANCE.dps = {
      que separa Malefic Rapture — que so rasga quem ja esta apodrecendo — de
      uma peca de area comum, e sem ele a regua conta a horda inteira. */
   dotted: 0.25,
+  /* Fracao do tempo em que uma postura do hunter esta de pe. As seis condicoes
+     sao sobre a posicao em que o jogador se meteu, entao nenhuma vale sempre —
+     e a que valesse sempre nao seria uma postura, seria uma passiva. */
+  aspectUptime: 0.4,
 };
 
 /* ETAPAS: a batida lenta da run, e a UNICA fonte de ponto de eixo.

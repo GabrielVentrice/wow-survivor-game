@@ -91,7 +91,7 @@ for (const cid in CAPSTONES) {
      so tem as chaves dos eixos daquela classe. E as pecas tambem — um hook do
      hunter que espera bicho em campo nunca dispara numa build de warlock. */
   g.selectedClass = cap.cls;
-  g.start(abertura(cap.cls));
+  g.start(aberturaDaClasse(cap.cls));
   for (const id of PIECES_ALL) if (PIECES[id].cls === cap.cls) g.build.acquirePiece(id);
   for (const a in cap.req) g.build.axis[a] = cap.req[a];
   g.build.checkCapstones();
