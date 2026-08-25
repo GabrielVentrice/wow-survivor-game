@@ -216,9 +216,13 @@ E mais:
   (cor de eixo cheia) só existe onde a resposta não volta.
 - **Nada abaixo de 14px, nada arredondado, alvo de clique de 44px**, `min-height`
   nunca `height`, e piso de três famílias tipográficas (display / texto / mono).
-- **Nenhum texto novo por tier.** A carta se monta do que já existe — `LINE_ABOUT`
-  na frase, `tier.mods` sobre `inst.r.stats` no antes → depois, `STAT_FMT` na
-  unidade. Mod em stat fora de `STAT_FMT` é reprovado.
+- **Nenhum texto novo por tier.** A carta se monta do que já existe: `tier.mods`
+  sobre `inst.r.stats` no antes → depois, `STAT_FMT` na unidade. Mod em stat fora
+  de `STAT_FMT` é reprovado.
+- **Tier numérico não escreve parágrafo** — quem fala por ele é o próprio upgrade
+  (`dano 175 → 263`). Parágrafo é só de tier estrutural e passiva.
+- **A coordenada do tier é desenho, não texto.** Os pips já a dizem; escrevê-la ao
+  lado deles é o mesmo fato duas vezes na mesma carta.
 - **A régua (`js/systems/dps.js`) lê a instância RESOLVIDA**, o campo dela é dado
   em `BALANCE.dps`, e ela promete **ordem**, não valor. `driver_bench` confere.
 - **O HUD tem cinco lugares fixos e nada no meio** (a cadeia é a exceção, e só

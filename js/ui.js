@@ -524,10 +524,6 @@ class UI {
       v.why = o.def.exclusive
         ? `Fecha a porta de ${PASSIVES[o.def.exclusive].name} — a build tem que optar.`
         : "";
-      /* VEREDITO, nao coordenada — e a linha de contexto logo acima ja diz a
-         coordenada. Repetir "toda a build" aqui seria a mesma informacao duas
-         vezes na mesma carta, que e metade do defeito que esta tela conserta. */
-      v.progHead = "Multiplica o que a build já tem";
     } else {
       const evo = o.isEvo && o.evo ? o.evo : null;
       /* Evolucao ganha etiqueta propria em vez de "Melhoria": ela nao e um
@@ -546,47 +542,28 @@ class UI {
          jogador reconhece "Incinerate" de imediato; "Brasa" nao quer dizer nada
          ate ser lido. O nome do tier desce para o subtitulo. */
       v.name = evo ? evo.name : o.def.name;
-      /* A linha de contexto diz de ONDE para ONDE, em uma unidade so: o tier
-         que sai e o que entra. O nome de fantasia do tier saiu daqui junto com
-         a regua — o slot e estreito, e "Brasa" nao ajuda a decidir. */
-      v.subtitle = evo
-        ? `${o.def.name} · tier ${o.tierIndex} → ${o.tierIndex + 1}`
-        : `${o.path.name} · tier ${o.tierIndex} → ${o.tierIndex + 1}`;
+      /* A linha de contexto diz so a LINHA. O "tier N -> N+1" saiu daqui: os
+         pips do rodape ja desenham em que degrau a compra deixa a trilha, e
+         numero que o desenho ao lado ja diz e a coordenada duas vezes. */
+      v.subtitle = evo ? o.def.name : o.path.name;
       /* O `desc` dos tiers de evolucao comeca com "EVOLUÇÃO — ", de quando a
          carta nao tinha onde marcar isso. Agora a etiqueta marca. Tirado na
          exibicao, nao no dado: o `desc` continua servindo a quem le o catalogo. */
-      /* O SLOT EM ECZAR NUNCA REPETE O NUMERO. 528 dos 660 tiers do catalogo
-         sao gerados e o texto deles e puro numero ("+40% de dano.", "Dispara
-         25% mais rapido.") — o mesmo dado que a regua ja imprime em mono 38 e
-         que os valores crus ja imprimem em "antes -> depois". Tres vezes a
-         mesma coisa, e nenhuma delas dizendo o que a compra muda no jogo.
-
-         Tier puramente numerico (tem `mods`, nao tem `patch`) cede o slot para
-         `LINE_ABOUT` — a frase da LINHA, e nao o `desc` da peca: duas das tres
-         cartas costumam ser da mesma spell em linhas diferentes, e o `desc`
-         sairia identico nas duas. Tier estrutural fica com o proprio texto:
-         ali ele E o comportamento novo, e essa e a unica carta em que ele
-         aparece. */
-      const numerico = !!(o.tier.mods && !o.tier.patch);
-      const plain = ((numerico && LINE_ABOUT[o.pathId]) || o.tier.desc)
-        .replace(/^EVOLUÇÃO\s*[—-]\s*/, "");
-      v.plain = plain.charAt(0).toUpperCase() + plain.slice(1);
-      v.why = evo ? evo.desc : "";
+      /* O SLOT EM ECZAR SO EXISTE QUANDO HA COMPORTAMENTO NOVO. 528 dos 660
+         tiers do catalogo sao gerados e o texto deles e puro numero ("+40% de
+         dano.") — e a frase da LINHA que ocupava o slot no lugar dele dizia a
+         mesma coisa por extenso, igual nas cinco cartas daquela linha, run
+         atras de run. Tier puramente numerico (tem `mods`, nao tem `patch`)
+         nao ganha paragrafo nenhum: quem fala por ele e o proprio upgrade,
+         "dano 175 -> 263", logo abaixo da regua. Tier estrutural fica com o
+         proprio texto: ali ele E o comportamento novo, e essa e a unica carta
+         em que ele aparece. */
       v.delta = this.tierDelta(o);
+      const numerico = !!(o.tier.mods && !o.tier.patch) && v.delta.length > 0;
+      const plain = numerico ? "" : o.tier.desc.replace(/^EVOLUÇÃO\s*[—-]\s*/, "");
+      v.plain = plain ? plain.charAt(0).toUpperCase() + plain.slice(1) : "";
+      v.why = evo ? evo.desc : "";
       v.pips = o.tierIndex + 1;
-      /* Veredito, nao coordenada: o subtitulo ja diz "caminho · tier N de 5";
-         aqui vai o que aquilo SIGNIFICA para a compra. */
-      const falta = PATH_RULES.tiers - (o.tierIndex + 1);
-      v.progHead = falta === 0 ? "Fecha o caminho"
-        : falta === 1 ? "A um tier do fim"
-        : `Faltam ${falta} para fechar`;
-      /* O gancho da aura vira TEXTO no veredito em vez de um chip na cor do
-         eixo. O eixo ja aparece em quatro lugares nesta carta (quadrado, barra
-         da regua, brasa e pips) e um quinto faria a carta ser lida pela cor
-         antes de ser lida pelo numero. */
-      if (falta === 0 && !this.game.build.isComplete(o.inst)) {
-        v.progHead = "Fecha o caminho · acende a aura";
-      }
       /* Os valores crus continuam ali, para quem quiser conferir — em mono,
          embaixo do numero que decide, e nao no lugar dele. O valor novo sai na
          BRASA do eixo: e a unica cor da linha, e ela marca exatamente o que
@@ -708,11 +685,9 @@ class UI {
         <div class="lv-escala"><i style="width:${v.pct.toFixed(1)}%"></i></div>
         ${v.crus ? `<div class="lv-crus">${v.crus}</div>` : ""}
       </div>
-      <div class="lv-hr"></div>
-      <div class="lv-plain">${v.plain}</div>
+      ${v.plain ? `<div class="lv-hr"></div><div class="lv-plain">${v.plain}</div>` : ""}
       ${v.why ? `<div class="lv-why">${v.why}</div>` : ""}
       <div class="lv-foot-card">
-        <div class="lv-prog-head">${v.progHead}</div>
         <div class="lv-foot-row">
           ${v.pips != null ? this.pipsHtml(v.pips) : "<span></span>"}
           <span class="lv-tecla">${tecla || 1}</span>

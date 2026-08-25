@@ -165,18 +165,22 @@ for (let round = 0; round < 400; round++) {
     if ((o.kind === "passive") !== html.includes("lv-tile round")) {
       bad(`${o.kind} (${o.def.name}): forma do tile nao casa com o tipo`);
     }
-    /* A terceira coluna era CUSTO e virou PROGRESSO — o level up nao cobra
-       mais nada, e uma coluna dizendo "não gasta ponto" tres vezes seria um
-       terco da tela em silencio. Ela continua obrigatoria: sem ela a linha nao
-       diz onde a compra deixa a trilha, que e a pergunta desta tela. */
-    if (!v.progHead) bad(`${o.kind} (${o.def.name}): carta sem veredito de progresso`);
+    /* O veredito de progresso ("Faltam 3 para fechar") saiu da carta: os pips
+       do rodape ja desenham o mesmo fato, e escrito ele era a coordenada duas
+       vezes. Se voltar como campo, volta como texto na carta. */
+    if (v.progHead != null) bad(`${o.kind} (${o.def.name}): o veredito de progresso voltou`);
+    if (html.includes("lv-prog-head")) bad(`${o.kind} (${o.def.name}): rodape com veredito escrito`);
     if (v.cost != null || v.gain != null) {
       bad(`${o.kind} (${o.def.name}): view ainda carrega custo de eixo`);
     }
-    /* A MANCHETE tem que ser o efeito, nao o nome. Numa carta o nome vem antes
-       no espaco, entao a unica coisa que segura a hierarquia e o tamanho: se
-       `.lv-plain` sumir do HTML, a carta passa a ser lida pelo rotulo. */
-    if (!html.includes('class="lv-plain"')) bad(`${o.kind} (${o.def.name}): carta sem manchete`);
+    /* TODA CARTA DIZ O QUE A COMPRA MUDA, e ha duas maneiras: o paragrafo do
+       comportamento novo (`.lv-plain`, tier estrutural e passiva) ou o "antes
+       -> depois" do proprio upgrade (`.lv-crus`, tier numerico). Sem nenhuma
+       das duas a carta e um numero solto, e a tela volta a ser lida pelo
+       rotulo. */
+    if (!html.includes('class="lv-plain"') && !html.includes('class="lv-crus"')) {
+      bad(`${o.kind} (${o.def.name}): carta sem manchete nem upgrade`);
+    }
     if (v.delta.length) seen.delta++;
 
     /* --- a REGUA (9.3) ---------------------------------------------------
@@ -195,15 +199,21 @@ for (let round = 0; round < 400; round++) {
     } else if (v.dps > 0.5) seen.regua++;
     else { seen.zero++; if (html.includes("+0")) bad(`${o.kind} (${o.def.name}): carta com "+0"`); }
     if (!html.includes("lv-escala")) bad(`${o.kind} (${o.def.name}): carta sem a barra da regua`);
-    /* O slot em Eczar diz COMO a peca se comporta e nunca repete o numero.
-       528 dos 660 tiers sao gerados e o texto deles e puro numero — o mesmo
-       dado que a regua imprime em mono 38 e que os valores crus imprimem em
-       "antes -> depois". Tier puramente numerico cede o slot para o `desc` da
-       peca; tier estrutural fica com o proprio texto. */
-    if (o.kind === "path" && o.tier.mods && !o.tier.patch &&
-        v.plain !== LINE_ABOUT[o.pathId]) {
-      bad(`path ${o.def.name} (${o.pathId}): tier numerico repetindo o numero ` +
-          `no slot de comportamento`);
+    /* Tier puramente numerico NAO tem paragrafo: a frase da linha que morava
+       ali dizia por extenso o mesmo que a regua ja diz em mono 38, igual nas
+       cinco cartas daquela linha. Quem fala por ele e o proprio upgrade. */
+    if (o.kind === "path" && o.tier.mods && !o.tier.patch && v.delta.length) {
+      if (v.plain) {
+        bad(`path ${o.def.name} (${o.pathId}): tier numerico com paragrafo — ` +
+            `o upgrade ja e o texto da carta`);
+      }
+      if (!html.includes('class="lv-crus"')) {
+        bad(`path ${o.def.name} (${o.pathId}): tier numerico sem "antes -> depois"`);
+      }
+    }
+    // A coordenada do tier mora nos pips, e nao escrita no subtitulo.
+    if (o.kind === "path" && /tier \d/.test(v.subtitle || "")) {
+      bad(`path ${o.def.name}: subtitulo repetindo a coordenada do tier`);
     }
     // A tecla substitui os tres botoes `ESCOLHER`, e ela e o rotulo do input
     // certo desta tela: 17 a 70 escolhas por run.
