@@ -31,6 +31,10 @@ class BuildSystem {
     this.reactives = new Map();    // evento -> [instancias]
     this.vfx = [];                 // pecas com efeito visual no personagem
     this.apexed = new Set();       // eixos que ja soltaram o Apice nesta run
+    /* O eixo escolhido na abertura. `null` ate a tela ser respondida (e para
+       sempre nas classes sem `starters`), e por isso a garantia da etapa e
+       escrita como "se houver", nunca como "o eixo do jogador". */
+    this.startAxis = null;
   }
 
   reset(cls) {
@@ -44,6 +48,7 @@ class BuildSystem {
     this.reactives.clear();
     this.vfx.length = 0;
     this.apexed.clear();
+    this.startAxis = null;
     this.game.critBy.clear();
     this.wireEvents();
     this.applyGlobals();
@@ -779,6 +784,38 @@ class BuildSystem {
       });
     }
 
+    /* 1.5 A GARANTIA DA ABERTURA: o eixo escolhido na abertura sempre tem uma
+           spell na mesa.
+
+           Ela existe porque a abertura passou a ser uma declaracao de ESTILO, e
+           nao mais so a spell com que a run comeca. Sem a garantia, o jogador
+           declara "esta run e de Corrupcao", ganha um ponto la, e o sorteio da
+           fase fechada pode passar seis etapas sem nunca lhe oferecer uma peca
+           daquela familia — a tela teria cobrado uma escolha irreversivel e
+           depois ignorado a resposta. `unlockAt` (5 pontos) resolve isso tarde
+           demais: com `spellPoints` de 1, chegar la exige as cinco primeiras
+           etapas, que sao exatamente as que o sorteio pode desperdicar.
+
+           Ela vem DEPOIS dos slots fixos e ANTES do sorteio, e por isso nao
+           duplica nada: se o eixo ja abriu, o slot fixo dele ja carrega uma
+           spell daquela familia e `usadas` impede a segunda. E ela nao e um
+           slot a mais — ocupa uma das `cards`, entao a mesa nao cresce; o que
+           encolhe e o espaco do sorteio. */
+    const inicial = this.startAxis;
+    if (inicial && out.length < M.cards
+        && !out.some((o) => o.axisId === inicial && o.piece)
+        && real(inicial, M.spellPoints) > 0) {
+      const piece = pegar(porEixo[inicial] || []);
+      if (piece) {
+        out.push({
+          kind: "milestone", axisId: inicial, axis: AXES[inicial], piece, locked: false,
+          startAxis: true,
+          dry: null,
+          wet: { want: M.spellPoints, gain: real(inicial, M.spellPoints) },
+        });
+      }
+    }
+
     /* 2. o resto: spell sorteada do catalogo INTEIRO. Sem carta seca — antes de
           abrir um eixo, ganhar ponto e escolher spell.
 
@@ -880,9 +917,29 @@ class BuildSystem {
     return out;
   }
 
-  /* A abertura escolhida. `free` porque nenhum ponto de eixo foi cobrado —
-     ver getStarterOffers. */
+  /* A ABERTURA ESCOLHIDA — e ela deixou de ser uma escolha de SPELL para ser
+     uma escolha de EIXO.
+
+     A pergunta que a tela faz mudou de "com o que a run comeca?" para "que
+     estilo esta run vai jogar?", e as duas respostas vem juntas: o eixo ganha
+     `starterPoints`, a spell daquele eixo entra de graca, e o eixo escolhido
+     fica marcado em `startAxis` pelo resto da run.
+
+     A spell continua `free`. Ela nao e paga pelo ponto — o ponto e o
+     comprometimento com a FAMILIA, a spell e o que voce leva para o campo. Se
+     ela cobrasse, a abertura estaria cobrando duas vezes a mesma escolha.
+
+     `startAxis` nao e enfeite: e ele que faz a etapa garantir uma spell daquele
+     eixo em toda mesa (ver `getMilestoneOffers`). Sem isso, o jogador declara
+     um estilo na abertura e o sorteio da fase fechada pode passar a run inteira
+     sem lhe oferecer nada daquela familia — que e a promessa quebrada mais cara
+     que esta tela sabe fazer. */
   takeStarter(id) {
+    const def = PIECES[id];
+    if (def) {
+      this.startAxis = def.axis;
+      this.addAxis(def.axis, AXIS_RULES.starterPoints);
+    }
     const inst = this.acquirePiece(id, true);
     if (!inst) this.afterChange();
     return inst;

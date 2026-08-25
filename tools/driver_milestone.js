@@ -97,6 +97,13 @@ if (AXIS_RULES.maxAxes * AXIS_RULES.capPerAxis < AXIS_RULES.pool) {
      classes, entao contra ela um warlock selaria "4 de 6" e o teste cobraria
      um numero que o `build.axis` dele nao tem como produzir. */
   const eixos = b.axes;
+  /* A abertura ja abriu UM eixo (`starterPoints` no eixo escolhido), e este
+     bloco mede o pacto em isolamento: quantos eixos abertos selam o resto. Ele
+     parte de zero para que "eixos[0]" e "eixos[1]" sejam de fato o primeiro e o
+     segundo a abrir — com o ponto da abertura no meio, qual eixo sela dependeria
+     de qual starter o RNG pegou. Que a abertura abre um e so um e cobrado em
+     `driver.js`. */
+  for (const a of eixos) b.axis[a] = 0;
   if (b.sealedAxes().length) bad("run recem-comecada ja nasce com eixo selado");
   b.addAxis(eixos[0], 1);
   if (b.sealedAxes().length) bad("um eixo aberto ja selou o resto");
@@ -172,7 +179,29 @@ function simular(seed, alvo, sempreSpell) {
           seca aparece sem nenhum eixo aberto, que e a terceira especie
           (`dryOnly`). Ela nao pode se disfarcar de slot fixo — `locked`
           promete slot garantido em toda etapa, e esta nao promete nada. */
+    /* 3.5 A GARANTIA DA ABERTURA: o eixo escolhido la sempre tem uma spell na
+           mesa. Ela e o que faz a abertura ser uma declaracao de estilo e nao
+           um presente — sem ela o jogador escolhe a familia e o sorteio da
+           fase fechada pode ignora-la por seis etapas seguidas.
+
+           Cobrada so enquanto ela e POSSIVEL: com o loadout cheio nao ha spell
+           nenhuma para oferecer, e com o catalogo daquele eixo esgotado (ou o
+           eixo sem credito) tambem nao. Cobrar nesses casos seria exigir da
+           tela uma carta que o dado nao tem. */
     const cheio = g.build.loadoutFull();
+    const ini = g.build.startAxis;
+    if (ini && !cheio) {
+      const sobrou = Object.keys(PIECES).some((id) => {
+        const d = PIECES[id];
+        return d.axis === ini && g.build.owns(d) && !d.evolutionOnly
+          && !g.build.pieces.has(d.key) && g.build.meetsRequires(d);
+      });
+      const podeCreditar = !g.build.axisSealed(ini)
+        && g.build.axis[ini] < AXIS_RULES.capPerAxis && g.build.axisLeft > 0;
+      if (sobrou && podeCreditar && !offers.some((o) => o.axisId === ini && o.piece)) {
+        bad(`etapa ${i}: o eixo da abertura (${ini}) ficou sem spell na mesa`);
+      }
+    }
     if (!abertos.length && !cheio) {
       for (const o of offers) {
         if (o.dry) bad(`etapa ${i}: carta seca com nenhum eixo em ${M.unlockAt}`);

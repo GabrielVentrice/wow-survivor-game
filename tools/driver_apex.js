@@ -49,6 +49,12 @@ console.log(`  ok curva unica: vida ${VFX_LIFE.apex}s = varredura, frente em 50%
 console.log("--- gatilho ---");
 g.start(STARTER_TESTE);
 const b = g.build, EIXO = "cataclysm";
+/* A abertura credita `starterPoints` no eixo que ela escolheu, e este bloco
+   mede a TRAVESSIA do teto — ele precisa saber de onde parte. Zerar em vez de
+   subtrair: o que se testa aqui e o gatilho, nao a aritmetica da abertura
+   (quem cobra aquela e `driver.js`). */
+for (const a of b.axes) b.axis[a] = 0;
+b.apexed.clear();
 
 b.addAxis(EIXO, AXIS_RULES.capPerAxis - 1);
 if (g._apexQueued) fail(`o Apice armou com ${b.axis[EIXO]} pontos — o gatilho e o TETO`);

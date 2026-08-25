@@ -917,11 +917,15 @@ class UI {
     const cls = CLASSES[g.selectedClass];
     this.el.stEyebrow.innerHTML =
       `<span>Abertura</span><s></s><span>${cls.name}</span><s></s>` +
-      `<span>${offers.length} spells · uma escolha</span>`;
+      `<span>${offers.length} famílias · uma escolha</span>`;
+    /* O subtitulo dizia "não cobra ponto de eixo" e agora cobra — mas o que ele
+       precisa explicar mudou junto: a pergunta virou de estilo, e as tres
+       consequencias (o ponto, a spell, a familia garantida na etapa) sao o que
+       o jogador nao tem como deduzir da linha sozinho. */
     this.el.stSub.textContent =
-      "Uma por família, e todas disparam sozinhas desde o primeiro segundo. " +
-      "Ela não cobra ponto de eixo: o que você escolhe aqui é com o que a run " +
-      "começa, não para onde ela vai.";
+      "Escolha a família com que esta run vai jogar. Ela entra com " +
+      `${AXIS_RULES.starterPoints} ponto, traz a spell dela de graça, e passa a ` +
+      "ter uma spell garantida em toda etapa — o resto da mesa continua sorteado.";
 
     this.el.stRows.innerHTML = "";
     for (const o of offers) {
@@ -943,8 +947,9 @@ class UI {
 
   /* Como nas outras duas telas de escolha, o hover re-renderiza so o RODAPE:
      mexer nas linhas mataria a transicao que o CSS esta rodando naquele
-     instante. Aqui ele nao move barra nenhuma (a abertura nao da eixo) — o que
-     ele faz e acender a familia da linha sob o mouse. */
+     instante. E agora ele MOVE a barra: a abertura passou a creditar eixo,
+     entao a previa de `axesHtml` vale aqui pelo mesmo motivo que vale na
+     etapa — e o unico jeito de ver o custo antes de pagar. */
   stHoverTo(o) {
     const tag = o ? o.axisId : null;
     if (this.stHover === tag) return;
@@ -953,7 +958,8 @@ class UI {
   }
 
   stRender(o) {
-    this.el.stPool.innerHTML = this.axesHtml(o ? o.axisId : null, 0);
+    this.el.stPool.innerHTML =
+      this.axesHtml(o ? o.axisId : null, AXIS_RULES.starterPoints);
     this.el.stPacto.innerHTML =
       `<div class="ms-pacto">Uma run cabe em <b>${AXIS_RULES.maxAxes} famílias</b> — ` +
       `a terceira fecha quando a segunda abrir</div>`;
@@ -962,19 +968,34 @@ class UI {
   /* A manchete e a SPELL, como na carta sorteada da etapa: e ela que esta
      sendo escolhida. O eixo vira etiqueta abaixo, na cor dele — por ele no
      topo seria anunciar como titulo algo que nao e a decisao desta tela. */
+  /* A MANCHETE E O EIXO, e a spell virou o que ele entrega.
+
+     A tela sempre teve uma linha por eixo, e mesmo assim perguntava "qual
+     spell?" — o eixo era subtitulo em cinza. Agora ela pergunta "que estilo?",
+     que e a pergunta que a resposta de fato responde: o ponto de eixo, a
+     familia garantida em toda etapa e o capstone la na frente saem todos do
+     eixo, e a spell e so o primeiro deles.
+
+     A ordem da linha e a mesma da linha ABERTA da etapa (eixo, tag, o que vem
+     junto), e de proposito: as duas dizem "invista nesta familia". O que muda
+     e o botao — aqui ele nao tem alternativa seca, porque a abertura nao deixa
+     ninguem levar o eixo sem a spell. */
   stRowHtml(o) {
     return `
       <span class="ms-eixo"></span>
       <span class="ms-ic">${Glyph.svg(o.piece.id, 54)}</span>
       <div class="ms-txt">
-        <div class="ms-head"><span class="ms-axis">${o.piece.name}</span></div>
-        <div class="ms-tag">${o.axis.name} · ${o.axis.tag}</div>
-        <div class="ms-desc">${o.piece.desc}</div>
+        <div class="ms-head">
+          <span class="ms-axis">${o.axis.name}</span>
+          <span class="ms-num">+${AXIS_RULES.starterPoints}</span>
+        </div>
+        <div class="ms-tag">${o.axis.tag}</div>
+        <div class="ms-desc"><b>${o.piece.name}</b> — ${o.piece.desc}</div>
       </div>
       <div class="ms-takes">
         <div>
-          <button class="ms-take"><span>Começar</span></button>
-          <div class="ms-take-note">não custa eixo</div>
+          <button class="ms-take"><span>Começar</span><em>+${AXIS_RULES.starterPoints}</em></button>
+          <div class="ms-take-note">${o.axis.name} 0 → ${AXIS_RULES.starterPoints}</div>
         </div>
       </div>`;
   }
@@ -982,7 +1003,9 @@ class UI {
   takeStarter(o) {
     this.el.starter.classList.add("hidden");
     this.game.takeStarter(o.piece.id);
-    this.toast({ head: "Abertura", axis: o.piece.axis, name: o.piece.name });
+    this.toast({ head: "Abertura", axis: o.piece.axis,
+      name: o.axis.name, value: `+${AXIS_RULES.starterPoints}` });
+    this.toast({ head: "Spell", axis: o.piece.axis, name: o.piece.name });
   }
 
   openMilestone() {

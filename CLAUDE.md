@@ -2082,11 +2082,14 @@ inércia.
 
 ### Regras estruturais que forçam comprometimento
 
-- Pool de **20** pontos de eixo, teto de **15** por eixo → impossível maximizar dois.
+- Pool de **21** pontos de eixo (1 da abertura + 20 das etapas), teto de **15**
+  por eixo → impossível maximizar dois.
 - **O pacto: a run cabe em DOIS eixos** (`AXIS_RULES.maxAxes`). Assim que dois
   eixos têm pelo menos um ponto, o terceiro se fecha — ver "O pacto".
-- **Ponto de eixo só vem de etapa.** Level-up não cobra nada e o baú entrega tier
-  — as duas moedas nunca mais disputam a mesma escolha (ver "As duas batidas").
+- **Ponto de eixo vem de etapa — e da abertura, uma vez.** Level-up não cobra
+  nada e o baú entrega tier: as duas moedas nunca mais disputam a mesma escolha
+  (ver "As duas batidas"). A abertura é a exceção declarada, e ela é única
+  porque acontece antes do primeiro quadro (ver "A abertura").
 - **A run cabe em CINCO spells** (`BALANCE.loadout.maxSpells`) → batido o teto, a
   etapa para de oferecer spell e vira uma pergunta só sobre eixo. Ver "O loadout
   e a linha única".
@@ -2258,9 +2261,17 @@ e as regras que caem daí:
 ### A abertura: a primeira coisa que a run faz é perguntar
 
 Antes, a run começava com `incinerate` na mão e o jogador assistindo. Hoje a
-primeira tela do jogo é uma escolha entre **três spells, uma por eixo**
-(`CLASSES.<id>.starters` — Corruption, Wild Imps, Incinerate no warlock), e o
-jogo só roda o primeiro quadro depois que ela é respondida.
+primeira tela do jogo é uma escolha entre as **três famílias** da classe, e o
+jogo só roda o primeiro quadro depois que ela é respondida. Cada família entrega
+três coisas de uma vez: `AXIS_RULES.starterPoints` no eixo dela, a spell dela de
+graça (`CLASSES.<id>.starters` — Corruption, Wild Imps, Incinerate no warlock) e
+uma **spell garantida em toda etapa** pelo resto da run.
+
+**A manchete é o EIXO, e isso já foi a spell.** A tela sempre teve uma linha por
+eixo e mesmo assim perguntava "qual spell?", com o eixo em cinza no subtítulo —
+e a resposta que ela colhia era sobre a família, não sobre a peça. Hoje a
+pergunta é a que a resposta de fato responde: o ponto, a família garantida e o
+capstone lá na frente saem todos do eixo, e a spell é só o primeiro deles.
 
 **O defeito era que a peça de abertura não tinha dono.** Uma peça escolhida por
 nós ensina o jogo (o tiro persegue sozinho, o único input é movimento) e não diz
@@ -2284,23 +2295,49 @@ O que as três têm que ser, e o que `driver.js` cobra de qualquer classe nova:
   tirar do jogador a única escolha da run que ele pode planejar antes de
   apertar Iniciar.
 
-**Ela NÃO cobra ponto de eixo**, e essa é a linha que separa esta tela da etapa.
-O que a abertura decide é *com o que* a run começa; para onde ela vai continua
-sendo pergunta da etapa. Misturar as duas devolveria a run pré-comprometida
-antes do primeiro marco — que é exatamente o defeito que tirou a segunda peça do
-kit inicial em primeiro lugar. O preço declarado é que a spell de abertura pode
-ficar órfã: quem começa com Wild Imps e nunca abre Domínio para no tier 2 pelo
-gate de eixo. É a mesma conta de qualquer spell levada num eixo abandonado, e a
-tira do level-up já mostra o `have/need` que explica isso.
+**Ela CREDITA ponto de eixo**, e essa frase já disse o contrário. A versão
+anterior mantinha a abertura de graça para não devolver "a run pré-comprometida
+antes do primeiro marco", e o preço declarado era a **spell órfã**: quem começa
+com Wild Imps e nunca abre Domínio para no tier 2 pelo gate de eixo. Esse preço
+era pago em silêncio, e o jogador não tinha como saber que estava pagando.
+
+Três regras substituem aquela, e as três saem de a abertura ser uma declaração
+de estilo:
+
+- **`starterPoints` no eixo escolhido, e o pool subiu junto** (`AXIS_RULES.pool`
+  20 → 21). As ETAPAS continuam entregando 20, então a cadência de marcos — que
+  custou uma bateria inteira para achar em `first/every/ramp` — não se mexe.
+  Tirar o ponto dos 20 seria pagar a abertura com uma etapa a menos, e ela
+  deixaria de ser vantagem para virar adiantamento.
+- **A garantia mata a spell órfã na raiz.** `BuildSystem.startAxis` guarda o
+  eixo escolhido, e `getMilestoneOffers` reserva uma das `cards` para uma spell
+  dele em toda etapa. Sem isso o jogador declara "esta run é de Corrupção" e o
+  sorteio da fase fechada pode passar seis etapas sem oferecer nada daquela
+  família — a tela teria cobrado uma escolha irreversível e ignorado a resposta.
+  `unlockAt` (5 pontos) resolveria isso tarde demais: com `spellPoints` de 1,
+  chegar lá exige exatamente as cinco primeiras etapas, que são as que o sorteio
+  pode desperdiçar.
+- **Ela abre UM eixo, e o pacto conta.** Com `maxAxes: 2`, a run passa a nascer
+  com metade do pacto gasta: sobra uma vaga, e todo capstone híbrido vai ter a
+  família de abertura como uma das pernas. É comprometimento de verdade, e é o
+  que a palavra "estilo" promete — mas é uma porta que fecha antes do primeiro
+  marco, e `driver.js` cobra que ela feche **uma** e não duas.
+
+A garantia vem DEPOIS dos slots fixos e ANTES do sorteio, e por isso não
+duplica: se o eixo já abriu, o slot fixo dele já carrega uma spell daquela
+família. E ela **não é um slot a mais** — ocupa uma das `cards`, então a mesa
+não cresce; o que encolhe é o espaço do sorteio.
 
 **Ela é da família da Etapa, não do Level up**, e o motivo é o tamanho da
 pergunta: level up é uma batida *dentro* da run (o mundo continua vivo atrás),
 abertura é capítulo — o canvas apaga, porque ainda não há run. Daí a mesma placa
 sobre preto, o mesmo título à esquerda e as mesmas linhas.
 
-E o botão é **selo**, apesar de não cobrar ponto. O selo nunca falou de custo,
-falou de **irreversível**: não há como devolver a spell com que a run começou.
-Esta é a única tela além da etapa em que isso vale.
+E o botão é **selo** — e agora pelos dois motivos ao mesmo tempo. Ele nunca
+falou de custo, falou de **irreversível**, e isso já bastava quando a tela só
+entregava uma spell; hoje ela também cobra o ponto que a etapa cobra. As duas
+telas que usam selo são exatamente as duas que gastam eixo, o que deixou de ser
+coincidência e virou a regra.
 
 Duas consequências no código:
 

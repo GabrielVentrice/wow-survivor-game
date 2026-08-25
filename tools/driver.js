@@ -237,11 +237,36 @@ if (g.state !== STATE.STARTER) bad("start() nao abriu a abertura");
     if (html.includes("undefined")) bad(`abertura ${o.axisId}: linha com "undefined"`);
   }
   const pool = g.build.axisTotal;
-  g.ui.takeStarter(offers[Math.floor(rnd() * offers.length)]);
+  const escolhida = offers[Math.floor(rnd() * offers.length)];
+  g.ui.takeStarter(escolhida);
   if (g.state !== STATE.PLAYING) bad("escolher a abertura nao devolveu o jogo");
   if (g.build.pieces.size !== 1) bad(`a abertura deixou ${g.build.pieces.size} pecas na build`);
-  // a abertura nao cobra eixo: quem cobra e a etapa, e so ela.
-  if (g.build.axisTotal !== pool) bad("a abertura mexeu no pool de eixo");
+  /* A ABERTURA CREDITA EIXO, e essa assercao inverteu: ela dizia "a abertura
+     nao mexeu no pool" de quando a tela escolhia uma SPELL. Hoje ela escolhe
+     uma FAMILIA, e o ponto e o que torna a escolha uma declaracao de estilo em
+     vez de um presente — ver `takeStarter` em build.js.
+
+     O pool subiu junto (`AXIS_RULES.pool` 20 -> 21) para as ETAPAS
+     continuarem entregando 20: o que este bloco cobra e que o credito caiu no
+     eixo ESCOLHIDO, e que sobrou pool de etapa intacta. */
+  const ganho = g.build.axisTotal - pool;
+  if (ganho !== AXIS_RULES.starterPoints) {
+    bad(`a abertura creditou ${ganho}, esperado ${AXIS_RULES.starterPoints}`);
+  }
+  if (g.build.axis[escolhida.axisId] !== AXIS_RULES.starterPoints) {
+    bad(`o ponto da abertura nao caiu em ${escolhida.axisId}`);
+  }
+  if (g.build.startAxis !== escolhida.axisId) {
+    bad(`startAxis ficou "${g.build.startAxis}", esperado ${escolhida.axisId}`);
+  }
+  // e ela abre exatamente UM eixo: o pacto ainda tem a segunda vaga livre.
+  if (g.build.axesOpen !== 1) {
+    bad(`a abertura abriu ${g.build.axesOpen} eixos — ela compromete um, nao dois`);
+  }
+  if (g.build.axisLeft !== AXIS_RULES.pool - AXIS_RULES.starterPoints) {
+    bad(`sobrou ${g.build.axisLeft} de pool para as etapas, esperado ` +
+        `${AXIS_RULES.pool - AXIS_RULES.starterPoints}`);
+  }
 }
 
 let levelUps = 0;

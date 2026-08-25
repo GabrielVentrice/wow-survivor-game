@@ -48,6 +48,17 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
+    v: "0.15.0",
+    data: "2026-08-25",
+    titulo: "A run abre escolhendo a família",
+    notas: [
+      { t: "ajuste", txt: "A abertura pergunta a FAMÍLIA, não a spell. Você escolhe Corrupção, Domínio ou Cataclismo — e a spell daquela família vem junto, de graça, como vinha antes." },
+      { t: "novo", txt: "A família escolhida entra com 1 ponto de eixo. Ela é a primeira das duas que cabem na run, então a abertura passou a dizer para onde a run vai, e não só com o que ela começa." },
+      { t: "novo", txt: "E ela nunca mais some da mesa: toda etapa passa a ter uma spell daquela família garantida, mesmo antes dos 5 pontos que abrem o slot fixo. O resto da mesa continua sorteado." },
+      { t: "ajuste", txt: "As etapas continuam entregando os mesmos 20 pontos — o ponto da abertura é um a mais, não um adiantamento." },
+    ],
+  },
+  {
     v: "0.14.0",
     data: "2026-08-25",
     titulo: "Cinco spells, uma linha cada",

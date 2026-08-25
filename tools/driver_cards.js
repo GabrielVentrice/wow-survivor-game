@@ -85,9 +85,15 @@ const primeira = () => g.build.pieces.values().next().value;
     }
   }
 
-  // eixo cheio no eixo ERRADO nao destrava nada
+  /* Eixo cheio no eixo ERRADO nao destrava nada.
+
+     O eixo da peca e ZERADO antes: a abertura credita `starterPoints` no eixo
+     que ela escolheu, e o starter de teste e justamente uma peca desta build.
+     Sem zerar, a peca comecaria com 1 no proprio eixo e subiria por merito
+     dela — o teste passaria a medir a abertura em vez do gate. */
   g.start(STARTER_TESTE);
   const inst = primeira();
+  g.build.axis[inst.def.axis] = 0;
   const outro = Object.keys(g.build.axis).find((a) => a !== inst.def.axis);
   g.build.axis[outro] = AXIS_RULES.pureAt;
   const pid0 = Object.keys(inst.def.paths)[0];
@@ -101,13 +107,20 @@ const primeira = () => g.build.pieces.values().next().value;
   // com tudo travado o bolo esvazia, e a tira precisa dizer por que
   g.start(STARTER_TESTE);
   const trancada = primeira();
+  g.build.axis[trancada.def.axis] = 0;
   for (const pid in trancada.paths) { let n = 0; while (g.build.upgradePath(trancada, pid) && n++ < 20); }
   if (g.build.getOffers(9).some((o) => o.kind === "path")) {
     bad("gate fechado e o level up ainda oferece tier");
   }
+  /* O `need` sai do tier em que a trilha REALMENTE parou, e nao de um indice
+     fixo. Escrever `axisGate[freeTier]` era assumir que a zona franca e o
+     unico degrau de graca — verdade hoje e nao amanha, e foi assim que a
+     tabela copiada logo acima envelheceu uma vez. */
   const gate = g.build.nearestGate();
-  if (!gate || gate.need !== PATH_RULES.axisGate[PATH_RULES.freeTier]) {
-    bad(`nearestGate() nao aponta a trava: ${JSON.stringify(gate)}`);
+  const parou = Math.min(...Object.values(trancada.paths));
+  if (!gate || gate.need !== PATH_RULES.axisGate[parou]) {
+    bad(`nearestGate() nao aponta a trava: ${JSON.stringify(gate)}, ` +
+        `trilha parada no tier ${parou} (pede ${PATH_RULES.axisGate[parou]})`);
   }
   g.ui.lvOffers = [];
   const tira = g.ui.buildStripHtml(-1);

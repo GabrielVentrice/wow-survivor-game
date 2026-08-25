@@ -695,7 +695,17 @@ const AXES = {
 };
 
 const AXIS_RULES = {
-  pool: 20,        // pontos totais que uma run pode acumular
+  /* 21 e nao 20, e o ponto extra e o da ABERTURA. A escolha de abertura passou
+     a creditar `starterPoints` no eixo escolhido, e o pool subiu junto de
+     proposito: as ETAPAS continuam entregando 20, entao a cadencia de marcos —
+     que este projeto mediu com dor para achar `first/every/ramp` — nao se mexe.
+     Tirar o ponto dos 20 seria pagar a abertura com uma etapa a menos, e a
+     abertura deixaria de ser vantagem para virar adiantamento.
+
+     O teto continua intacto: 21 nao maximiza dois eixos (precisaria de 30), e
+     `capPerAxis` segue sendo o que impede pureza dupla. */
+  pool: 21,        // pontos totais que uma run pode acumular (20 de etapa + 1 da abertura)
+  starterPoints: 1,// o que a escolha de abertura credita no eixo escolhido
   capPerAxis: 15,  // teto por eixo
   maxAxes: 2,      // quantos eixos uma run pode ABRIR — ver "O pacto"
   pureAt: 15,      // limiar do capstone puro
