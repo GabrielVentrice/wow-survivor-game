@@ -48,6 +48,17 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
+    v: "0.16.0",
+    data: "2026-08-25",
+    titulo: "Sem pedágio de eixo",
+    notas: [
+      { t: "ajuste", txt: "Aprofundar uma spell não pede mais ponto de eixo. Os tiers de cima cobravam pontos na família da peça, e isso cobrava duas vezes a mesma escolha — o que segura profundidade agora é só a regra de uma linha por vez." },
+      { t: "novo", txt: "Cada passiva pertence a uma família, e só aparecem as da família que você escolheu na abertura. A abertura passou a decidir também como a run multiplica o que ela tem." },
+      { t: "novo", txt: "Nível sem nada para oferecer virou PRESSA: todas as recargas ficam mais rápidas, e isso acumula pelo resto da run. Antes ele só curava, e cura não acumula — depois que a build fecha, quase todo nível cai aí." },
+      { t: "ajuste", txt: "Saíram da tela os avisos que só existiam por causa do pedágio: a trava numerada na tira de spells, os traços na barra de eixo e o \"trilha travada\"." },
+    ],
+  },
+  {
     v: "0.15.0",
     data: "2026-08-25",
     titulo: "A run abre escolhendo a família",

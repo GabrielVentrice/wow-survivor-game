@@ -374,17 +374,27 @@ class UI {
        delas: a que faz o jogador parar de procurar o que destrava. */
     if (!offers.length) {
       g.player.pendingLevels = 0;
-      g.player.hp = Math.min(g.player.maxHp, g.player.hp + g.player.maxHp * 0.35);
-      /* O toast tem 340px e uma linha so: a frase inteira ("ponto de eixo so
-         vem de etapa") sairia cortada por reticencias, e frase cortada nao
-         ensina nada. O numero vai no campo `value`, que e mono e alinhado a
-         direita — e ele e o que o jogador precisa levar para a etapa. */
-      const gate = g.build.nearestGate();
-      this.toast(gate
-        ? { head: "Trilha travada", axis: gate.axisId,
-            name: `Tier ${gate.tier} · ${AXES[gate.axisId].name}`,
-            value: `${gate.have}/${gate.need}` }
-        : { head: "Arsenal completo", name: "Todo caminho fechado — o nível virou fôlego." });
+      const ov = BALANCE.levelup.overflow;
+      g.player.hp = Math.min(g.player.maxHp, g.player.hp + g.player.maxHp * ov.heal);
+      /* O EXCEDENTE VIRA PRESSA, e nao mais so folego.
+
+         Bolo vazio tinha dois motivos e agora tem um: "Trilha travada" existia
+         para o gate de eixo, que saiu. O que sobrou — toda trilha fechada e
+         toda passiva do eixo tomada — deixou de ser caso de borda: com cinco
+         spells e uma linha por vez a build cabe em ~45 tiers, e uma run passa
+         dos 70 niveis. A partir do momento em que o bolo esvazia, TODO nivel
+         cai aqui.
+
+         Uma cura nao acumula, entao ela responde bem uma vez e responde mal
+         quarenta: o jogador continuava subindo de nivel e parava de progredir.
+         A pressa acumula, vale para a build inteira (`game.cooldownMul`, que
+         `TRIGGERS.cd` aplica na recarga de toda peca) e tem piso, entao ela
+         responde as duas pontas. A cura fica: ela nao atrapalha, e o excedente
+         acontece justamente quando a horda esta no teto. */
+      const h = g.build.addOverflowHaste();
+      this.toast({ head: h.noPiso ? "Pressa no teto" : "Pressa",
+                   name: "Todas as recargas mais rápidas",
+                   value: `−${Math.round(h.total * 100)}%` });
       g.state = STATE.PLAYING;
       return;
     }
@@ -668,12 +678,17 @@ class UI {
 
   /* Cinco pips. O degrau que ACABOU DE SUBIR sai na brasa (`-300`), e cinco
      cheios saem em OSSO: a peca deixa o sistema de eixo, porque nao ha mais
-     decisao ali. */
-  pipsHtml(n, lockAt) {
+     decisao ali.
+
+     O terceiro estado (`lock`, o pip vazado na cor do eixo) saiu com o gate:
+     ele dizia "nao posso comprar POR FALTA DE PONTO", e falta de ponto deixou
+     de travar tier. O que trava agora e `maxDeep`/`maxLines`, e isso nao e um
+     degrau da trilha — e a OUTRA trilha estar aberta, que a tira mostra pelos
+     pips dela. */
+  pipsHtml(n) {
     let s = `<span class="lv-pips${n >= PATH_RULES.tiers ? " max" : ""}">`;
     for (let i = 0; i < PATH_RULES.tiers; i++) {
-      const cls = i < n ? (i === n - 1 ? "on brasa" : "on") : (i === lockAt ? "lock" : "");
-      s += `<i class="${cls}"></i>`;
+      s += `<i class="${i < n ? (i === n - 1 ? "on brasa" : "on") : ""}"></i>`;
     }
     return s + `</span>`;
   }
@@ -687,21 +702,17 @@ class UI {
     const b = this.game.build;
     const pct = (n) => Math.min(100, n / AXIS_RULES.capPerAxis * 100);
 
-    /* Os tracos na barra sao os tiers que o ponto DESTRAVA. Sem eles a barra
-       diz quanto o eixo cresceu e nao o que o crescimento compra — e o gate de
-       profundidade e justamente a razao de a etapa importar. Sao marca e nao
-       texto porque a barra tem 8px de altura: quem quer o numero passa o mouse,
-       quem quer a distancia ve a previa cravar antes ou depois do traco. */
-    let marcos = "";
-    for (let t = 0; t < PATH_RULES.axisGate.length; t++) {
-      const need = PATH_RULES.axisGate[t];
-      if (!need) continue;
-      // O traco do tier 5 cai no teto do eixo, e `left:100%` num filho de um
-      // `overflow:hidden` desenha fora da barra. Encostar pela direita.
-      const p = pct(need);
-      marcos += `<b class="lv-ax-gate" style="${p >= 100 ? "right:0" : `left:${p}%`}"` +
-                ` title="tier ${t + 1} das spells deste eixo · ${need} ponto${need > 1 ? "s" : ""}"></b>`;
-    }
+    /* Os tracos na barra eram os tiers que o ponto DESTRAVA, e sairam com o
+       gate de eixo: marcar um limiar que nao existe mais e a barra prometendo
+       uma compra que o ponto nao faz. O que a barra diz agora e so o que ela
+       sempre disse de verdade — quanto o eixo cresceu — e o que o crescimento
+       compra mudou de lugar: e o capstone, e ele tem a propria linha no rodape.
+
+       Os LIMIARES DE CAPSTONE seriam os candidatos naturais a ocupar o vago, e
+       de proposito nao ocupam: sao tres por eixo (`pureAt`, `hybridMain`,
+       `hybridSide`) e dependem de QUAL capstone, entao um traco generico
+       mentiria para dois dos tres. */
+    const marcos = "";
 
     let out = "";
     for (const id of b.axes) {
@@ -746,7 +757,7 @@ class UI {
         if (inst.paths[pid] > top) { top = inst.paths[pid]; nome = inst.def.paths[pid].name; }
       }
       rows.push({ def: inst.def, top, nome, hit: inst.key === alvo,
-                  done: b.isComplete(inst), gate: b.pieceGate(inst) });
+                  done: b.isComplete(inst) });
     }
     // A spell afetada vai para a frente: numa tira ela nunca pode cair no "+N".
     rows.sort((a, z) => (z.hit ? 1 : 0) - (a.hit ? 1 : 0));
@@ -755,18 +766,15 @@ class UI {
     let list = "";
     for (let i = 0; i < rows.length && i < teto; i++) {
       const r = rows[i];
-      /* A trava vem NUMERADA e na cor do eixo. Pip apagado diz que a spell
-         parou; so o numero diz onde ela volta a andar, e e ele que liga esta
-         tela a etapa, que e a unica que entrega ponto de eixo. */
-      const trava = r.gate
-        ? `<span class="lv-sp-lock">${r.gate.have}/${r.gate.need}</span>` : "";
-      list += `<div class="lv-sp${r.hit ? " hit" : ""}${r.done ? " done" : ""}${
-        r.gate ? " lock" : ""}"
+      /* A TRAVA SAIU DA TIRA junto com o gate de eixo. Ela existia para dizer
+         "esta spell parou e quem a destrava e a etapa" — sem gate, nenhuma
+         spell para por falta de recurso: ela para por `maxDeep`/`maxLines`, e
+         isso os pips ja desenham. */
+      list += `<div class="lv-sp${r.hit ? " hit" : ""}${r.done ? " done" : ""}"
         style="${this.eixoVars(r.def.axis)}" title="${r.def.name}${
-        r.nome ? ` — ${r.nome} tier ${r.top}` : ""}${
-        r.gate ? ` · tier ${r.gate.tier} pede ${r.gate.need} de ${AXES[r.gate.axisId].name}` : ""}">
+        r.nome ? ` — ${r.nome} tier ${r.top}` : ""}">
         <span class="lv-sp-name">${r.def.name}</span>
-        ${this.pipsHtml(r.top, r.gate ? r.top : -1)}${trava}</div>`;
+        ${this.pipsHtml(r.top)}</div>`;
     }
     /* O contador fica FORA da lista: ela corta o que nao cabe (`overflow`
        hidden, porque a tira e uma linha so), e o contador cortado pela metade

@@ -659,9 +659,9 @@ linha e mais nada.
 
 O que sobra de custo é honesto e continua de pé: tiers estruturais de peças que
 **já** causam dano ("os tiros explodem em área", "as mordidas sangram") hoje só
-existem no tier 5. Quem espalha eixo sente isso, e é o preço declarado do gate
-(`PATH_RULES.axisGate`) — a diferença é que agora ele atrasa o teto da peça em
-vez de decidir se ela existe.
+existem no tier 5. Isso já foi cobrado **duas** vezes — o tier 5 era caro *e* o
+gate de eixo pedia 10 pontos para chegar nele. O gate saiu; o que atrasa o teto
+agora é só a profundidade em si.
 
 #### Onde isto está, medido
 
@@ -697,8 +697,10 @@ capacidade e passou a comprar só multiplicadores pequenos espalhados.
 
 As alavancas, em ordem de quanto mexem e de quanto custam:
 
-1. **`PATH_RULES.axisGate`/`freeTier`** — deixar o tier 5 chegar mais cedo.
-   Testado uma vez (`[0,0,0,1,5]`) e **não** foi suficiente sozinho.
+1. **`PATH_RULES.freeTier`** — a zona franca, e o que sobrou desta alavanca
+   depois que o gate de eixo saiu. O gate já foi testado em duas escadas
+   (`[0,0,0,1,5]` e `[0,1,1,5,10]`) e **nenhuma** foi suficiente sozinha; a
+   terceira tentativa foi remover a régua inteira.
 2. **Um segundo salto estrutural no tier 3** de cada linha, além do tier 5. É a
    mudança que ataca o mecanismo de frente, e é a mais cara de escrever: são
    132 tiers novos à mão.
@@ -2095,22 +2097,17 @@ inércia.
   e a linha única".
 - **Uma linha por vez** (`PATH_RULES.maxDeep` 1), **duas na vida da peça**
   (`maxLines` 2) → a peça casa com uma linha e só reabre quando fecha o tier 5.
-- **Tier 2, 3, 4 e 5 pedem 1, 1, 5 e 10 pontos no eixo DA PEÇA**
-  (`PATH_RULES.axisGate`) → impossível ter uma spell fechada sem ter escolhido um
-  eixo, e `freeTier` deixa de ser uma segunda regra: o tier de graça é
-  exatamente o que o gate não cobra. **O invariante é load-bearing** — quando
-  `freeTier` caiu de 2 para 1, `axisGate` teve que perder um zero junto, senão o
-  tier 2 ficava fora da zona franca *e* fora do gate, um degrau que ninguém
-  cobra. `driver_cards` deriva a escada do dado em vez de repeti-la.
-  **A escada já foi 5/10/15 — os limiares de capstone —, e ela era cara demais
-  para o que cobra.** Lida em tabela ficava elegante (o tier 5 custava a mesma
-  pureza que o capstone puro); jogada, exigia um eixo MÁXIMO para fechar
-  qualquer caminho, então toda build que não fosse pura terminava a run com
-  cada trilha parada no tier 2 — que é justamente o defeito que o gate existe
-  para consertar, e não para causar. Hoje o primeiro degrau é **um ponto**, a
-  coisa mais cedo que uma run pode pagar (uma etapa), e o topo custa a perna
-  principal de um capstone híbrido (`hybridMain`). Profundidade continua pedindo
-  comprometimento; ela parou de pedir a run inteira antes do primeiro tier 3.
+- **O gate de eixo SAIU.** `PATH_RULES.axisGate` cobrava pontos no eixo da peça
+  para liberar os tiers de cima, e a ideia era que as duas telas conversassem.
+  Na prática ele cobrava a mesma escolha duas vezes — o jogador já pagara
+  comprometimento na etapa — e punia mais quem tinha se comprometido menos: a
+  build que espalhou eixo terminava a run com toda trilha parada, sem que
+  nenhuma tela dissesse que aquele era o preço. Quem segura profundidade agora
+  são `maxDeep`/`maxLines` e o teto de spells, e nenhum dos dois depende de um
+  recurso que a outra tela distribui. `driver_cards` cobra a **ausência**: um
+  gate reintroduzido por acidente faria as trilhas pararem em silêncio.
+- **Passiva é do EIXO DA ABERTURA** (`PASSIVES.<id>.axis`) → a família escolhida
+  decide também como a run multiplica o que tem. Ver "As passivas por eixo".
 - Passivas podem declarar `exclusive` → `Fúria Contida` e `Pés de Cinza` nunca coexistem.
 - Peça com `requires` só é oferecida depois que a habilitadora está na build.
 - **A run começa numa ESCOLHA, não num presente** (`CLASSES.<id>.starters`) —
@@ -2384,28 +2381,21 @@ Consequências que valem para qualquer coisa nova:
 - **Nada no level-up pode chamar `addAxis`.** `driver_cards` compara o pool
   antes e depois de toda escolha. Um tier que voltasse a cobrar eixo
   recolocaria o imposto sobre profundidade sem que a tela dissesse isso.
-- **Mas o level-up CONSULTA o eixo, e é isso que faz as duas telas
-  conversarem.** Depois que o tier deixou de custar ponto, profundidade virou
-  de graça e a etapa passou a decidir só a largura da run. O gate de eixo
-  (`PATH_RULES.axisGate`, cobrado em `canUpgradePath`) devolve a conversa sem
-  devolver o imposto: **a etapa decide QUAIS spells podem ficar fundas, o
-  level-up decide qual delas fica.** Espalhar eixo continua sendo uma escolha —
-  ela só passou a ter preço, e o preço é chegar ao fim da run com spells largas
-  em vez de uma fechada.
-- **A trava vale para TODA fonte de tier**, porque quem pergunta é
-  `canUpgradePath`: level-up, baú e o que vier depois. Isentar o baú faria dele
-  a brecha que desmonta a regra — ele é a única fonte de tier grátis.
-- **Oferta travada some do bolo, então a tela tem que dizer por quê.** A tira da
-  build marca a spell parada (`lv-sp-lock`, `have/need` na cor do eixo, pip
-  vazado no degrau bloqueado) e o nível sem oferta troca "Arsenal completo" por
-  "Trilha travada" com o número que falta — `build.nearestGate()`. Sumir com a
-  trilha em silêncio é a tela cobrando atenção e devolvendo vazio, que é o
-  mesmo defeito que o fôlego já conserta do outro lado.
-- **Passiva fica no level-up, e não é exceção.** Ela não tem tier, não tem eixo
-  e não pede investimento depois: só multiplica o que a build já tem
-  (`pieceMods` sobre um `match`). Isso é aprofundar, não alargar — e é a mesma
-  razão pela qual ela só entra a partir do nível `passiveAt`: cedo demais não
-  há o que multiplicar.
+- **E o level-up NÃO consulta mais o eixo.** Por um tempo ele consultava: o
+  gate (`PATH_RULES.axisGate`) existia para as duas telas conversarem sem o
+  tier voltar a custar ponto — "a etapa decide QUAIS spells podem ficar fundas,
+  o level-up decide qual delas fica". Medido, isso cobrava a mesma escolha duas
+  vezes e a conta caía em cima de quem espalhou eixo. O gate saiu; a conversa
+  entre as telas mudou de canal e ficou mais forte: a etapa decide **quais
+  spells a run tem** (teto de 5), **qual família aparece garantida em toda
+  mesa** e **qual capstone ela alcança**. Nada disso passa por
+  `canUpgradePath`.
+- **Passiva fica no level-up, e não é exceção.** Ela não tem tier e não pede
+  investimento depois: só multiplica o que a build já tem (`pieceMods` sobre um
+  `match`). Isso é aprofundar, não alargar — e é a mesma razão pela qual ela só
+  entra a partir do nível `passiveAt`: cedo demais não há o que multiplicar.
+  **Ela tem eixo**, mas o eixo não é um preço: é um filtro de quais chegam à
+  mesa, decidido lá atrás na abertura (ver "As passivas por eixo").
 - **Peça nova só entra por etapa**, e como `free` — o eixo dela já foi pago pelo
   ponto que a carta deixou de dar.
 - **Muletas que saíram junto.** O peso extra para caminho já começado e o sort
@@ -2689,6 +2679,56 @@ de um eixo que pode nem ter aberto, oferecido porque não há mais spell que cai
 Ela não pode se disfarçar de `locked` — `locked` promete slot fixo em toda
 etapa, e esta não promete nada. Com o pacto de dois eixos sobram até duas
 dessas, e "+2 na Corrupção ou +2 no Cataclismo" continua sendo uma decisão.
+
+### As passivas por eixo, e o excedente que virou pressa
+
+**Toda passiva declara `axis`, e só aparecem as do eixo escolhido na ABERTURA.**
+Era o último pedaço da progressão que ignorava aquela escolha: um multiplicador
+genérico sorteado de um bolo que não olhava para a run. Hoje a família decide as
+três coisas — quais spells a run recebe garantidas na etapa, qual capstone ela
+alcança, e como ela multiplica o que tem.
+
+Três regras, e `driver_cards` cobra as três:
+
+- **Par exclusivo mora no MESMO eixo.** `furiaContida`/`pesDeCinza` (e, no
+  hunter, `municaoLeve`/`municaoPesada`) só significam algo se as duas puderem
+  cair na mesma mesa: a escolha *é* a exclusão. Separadas por eixo, o jogador
+  nunca vê as duas na mesma run e `exclusive` vira um campo que não faz nada —
+  uma mecânica morrendo em silêncio.
+- **Nenhum eixo fica sem.** Um eixo vazio seria um terço das aberturas jogando
+  uma run inteira sem passiva nenhuma.
+- **Passiva sem `axis` nunca seria oferecida**, então o driver reprova o campo
+  ausente em vez de deixá-la sumir do bolo.
+
+O preço declarado é **variedade**: das 8 do warlock, uma run vê 2 ou 3. Em
+troca, a passiva parou de ser sorteio e virou parte da identidade escolhida.
+
+#### E o nível sem oferta virou PRESSA
+
+O bolo vazio deixou de ser caso de borda. Com o teto de 5 spells e uma linha por
+vez, a build inteira cabe em ~45 tiers e uma run passa dos 70 níveis: a partir
+do momento em que o bolo esvazia, **todo** nível cai ali.
+
+A resposta era curar 35%, e cura **não acumula** — ela responde bem uma vez e
+responde mal quarenta: o jogador continuava subindo de nível e parava de
+progredir. `BALANCE.levelup.overflow` troca isso por um stack de pressa.
+
+- **O canal já existia**: `game.cooldownMul` é o que `TRIGGERS.cd` aplica na
+  recarga de **toda** peça. Um stack acelera a build inteira sem saber quais
+  spells ela tem, inclusive as que entrarem depois — e `js/systems/dps.js` lê o
+  mesmo número, então a régua da carta não diverge do jogo de graça.
+- **`floor` existe pela mesma razão que `self_damage` nunca reduz abaixo de um
+  piso.** "Sempre aumentar" sem limite é uma recarga convergindo para zero, e
+  recarga zero não é uma build rápida: é um disparo por sub-step. Em `0.97` por
+  stack são ~30 níveis excedentes até o piso de `0.4`.
+- **O piso é sobre a contribuição do excedente, não sobre o total.** Um capstone
+  que *penaliza* recarga (Nihilam cobra `1.3`) tem o direito de deixar o total
+  acima de 1; um piso no total apagaria a penalidade em silêncio.
+- **`overflowHaste` é contador, não fator acumulado.** `applyGlobals` reconstrói
+  do zero a cada mudança — ele não soma, ele refaz —, então guardar o fator já
+  multiplicado o faria ser reaplicado sobre si mesmo a cada aquisição.
+- A cura fica: ela não atrapalha, e o excedente acontece justamente quando a
+  horda está no teto.
 
 ### A tela de level-up: o que a compra muda
 

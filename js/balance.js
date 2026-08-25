@@ -314,6 +314,28 @@ const BALANCE = {
    multiplicador. */
 BALANCE.levelup = {
   passiveAt: 10,   // nivel a partir do qual passiva pode ser oferecida
+
+  /* O EXCEDENTE — o que o nivel entrega quando nao ha mais o que oferecer.
+
+     Ele deixou de ser caso raro. Com o teto de 5 spells e uma linha por vez, a
+     build inteira cabe em ~45 tiers e uma run passa dos 70 niveis: o bolo
+     esvazia, e a partir dali TODO nivel cai aqui. Uma cura de 35% era resposta
+     boa para um caso de borda e e resposta ruim para metade da run — ela nao
+     acumula, entao o jogador para de progredir enquanto continua subindo de
+     nivel.
+
+     A resposta e PRESSA, e ela e global de proposito: `game.cooldownMul` ja e o
+     canal que `TRIGGERS.cd` aplica na recarga de toda peca, entao um stack aqui
+     acelera a build inteira sem saber quais spells ela tem — inclusive as que
+     entrarem depois. A regua da tela de level up (`js/systems/dps.js`) tambem
+     ja le esse mesmo numero, entao a previsao nao diverge do jogo de graca.
+
+     `floor` existe pela mesma razao que `self_damage` nunca reduz abaixo de um
+     piso: "sempre aumentar" sem limite e uma recarga convergindo para zero, e
+     recarga zero nao e uma build rapida, e um `while` disparando dentro do
+     sub-step. Em 0.97 por stack sao ~30 niveis excedentes ate o piso — o
+     suficiente para a recompensa compor por uma run inteira sem estourar. */
+  overflow: { step: 0.97, floor: 0.4, heal: 0.35 },
 };
 
 /* --- O CAMPO PADRAO: a regua da tela de level up -------------------------
@@ -731,39 +753,33 @@ const AXIS_RULES = {
    razao pela qual o Apice mora la: bau, capstone ou peca que credite eixo no
    futuro respeitam o pacto sem uma linha nova. */
 
-/* Regra dos caminhos (Bloons): no maximo 2 caminhos podem passar do tier 2.
+/* Regra das linhas: uma peca sobe por UMA linha por vez.
 
-   `axisGate` e a segunda cobranca, e ela e de EIXO: profundidade era de graca
-   desde que o tier deixou de custar ponto, entao a unica pergunta do level up
-   era em qual trilha gastar um recurso que nao existia. Agora o tier 3 de uma
-   spell pede 1 ponto no eixo DELA, o tier 4 pede 5 e o tier 5 pede 10 — o
-   ponto continua vindo so da etapa, entao as duas telas voltam a conversar:
-   a etapa decide QUAIS spells podem ficar fundas, o level up decide qual delas
-   fica.
+   O GATE DE EIXO SAIU. `axisGate` cobrava pontos no eixo DA PECA para liberar
+   os tiers de cima (tier 2 e 3 pediam 1, o 4 pedia 5, o 5 pedia 10), e o
+   argumento era que as duas telas conversavam: a etapa decidia QUAIS spells
+   podiam ficar fundas e o level up decidia qual delas ficava.
 
-   Indexado pelo tier ATUAL: `axisGate[cur]` e o que o eixo precisa ter para
-   comprar o tier `cur + 1`.
+   Ele cobrava a mesma escolha duas vezes. O jogador ja tinha pago comprometimento
+   na etapa (o ponto nao volta) e pagava de novo no level up, em ofertas que
+   simplesmente sumiam do bolo; e quem mais sentia era quem espalhou eixo, que
+   terminava a run com toda trilha parada no tier 2 sem nenhuma tela ter dito
+   que aquele era o preco. A escada ja tinha sido baixada uma vez por causa
+   disso (era 5/10/15, os limiares de capstone) e o defeito voltou menor, nao
+   corrigido.
 
-   The ladder used to BE the capstone thresholds (5/10/15). It read well — tier
-   5 cost the same purity as the pure capstone — and it priced depth out of the
-   run: closing a path demanded a MAXED axis, so anything short of a pure build
-   ended with every trail parked at tier 2, which is the defect the gate was
-   never meant to cause. The shape stays, the ladder moves down: the first gate
-   is ONE point (the earliest thing a run can pay — a single milestone), and the
-   top costs what the main leg of a hybrid capstone costs. Depth still asks for
-   commitment; it stops asking for the whole run before the first tier 3.
+   O que segura profundidade agora nao depende de recurso nenhum:
 
-   E `freeTier` continua nao sendo uma segunda regra: o tier de graca e
-   exatamente o que o gate nao cobra. O invariante e load-bearing e
-   `driver_cards` o cobra — quando `freeTier` caiu de 2 para 1, `axisGate`
-   tinha que perder um zero junto, senao o tier 2 ficava fora da zona franca E
-   fora do gate, que e um degrau que ninguem cobra.
+     `maxDeep`/`maxLines`  uma linha por vez, duas na vida da peca
+     `BALANCE.loadout`     cinco spells na build
 
-   Cobrar o tier 2 tem uma consequencia boa e ela e de desenho, nao de
-   contabilidade: o tier 2 e agora a compra que TRAVA a linha, e travar passou a
-   custar um ponto de eixo. A decisao mais pesada do level up so acontece depois
-   que a etapa entregou o primeiro ponto — que e exatamente a conversa entre as
-   duas telas que o gate existe para ter.
+   As duas cobram FOCO, que e o que o gate queria cobrar — e cobram sem uma
+   segunda moeda no meio. `freeTier` deixa de ter invariante com o gate porque
+   nao ha mais gate: ele volta a ser so o que era, a zona franca em que qualquer
+   linha sobe antes de a peca casar com uma.
+
+   O que a etapa ainda decide, e e bastante: quais spells a run tem, o capstone
+   que ela alcanca e a familia que aparece garantida em toda mesa.
 
    --- UMA LINHA POR VEZ ---------------------------------------------------
 
@@ -812,9 +828,6 @@ const PATH_RULES = {
   freeTier: 1,     // ate este tier qualquer caminho pode subir (a zona franca)
   maxDeep: 1,      // quantas linhas EM PROGRESSO podem passar de `freeTier`
   maxLines: 2,     // quantas linhas podem passar de `freeTier` na vida da peca
-  // tier 2 (a trava) e tier 3 com 1 ponto, tier 4 com `hybridSide`, tier 5 com
-  // `hybridMain` — o unico zero e o da zona franca, e e assim que tem que ser
-  axisGate: [0, 1, 1, AXIS_RULES.hybridSide, AXIS_RULES.hybridMain],
 };
 /* Classes como data — e agora a classe e quem diz QUAL catalogo existe.
 

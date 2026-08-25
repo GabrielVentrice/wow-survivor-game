@@ -46,92 +46,179 @@ g.player.pendingLevels = 0;
 let problems = 0;
 const bad = (m) => { problems++; console.log("X   " + m); };
 
-/* --- o gate de eixo -------------------------------------------------------
-   Profundidade voltou a cobrar comprometimento, e a moeda e o eixo DA PECA:
-   tier 3 pede 1 ponto, tier 4 pede 5, tier 5 pede 10. A tabela abaixo mede as
-   duas bordas de cada degrau — um ponto antes e o ponto exato —, porque gate
-   que abre cedo demais nao aparece jogando: a trilha so sobe mais rapido.
-   O que este bloco cobra sao as tres pontas que podem mentir:
+/* --- profundidade NAO depende de eixo ------------------------------------
+   Este bloco media o gate de eixo (`PATH_RULES.axisGate`): tier 3 pedia 1
+   ponto, o 4 pedia 5, o 5 pedia 10. O gate saiu, e o bloco inverteu junto —
+   ele agora cobra a AUSENCIA, que e uma coisa que so um driver percebe.
 
-     - a trava fecha e abre no ponto exato (nem antes, nem depois);
-     - ela e do eixo DA PECA, e nao do eixo mais alto da run — senao investir
-       em Cataclismo aprofundaria uma spell de Corrupcao e o gate deixaria de
-       significar comprometimento;
-     - e a tela DIZ que travou. Oferta bloqueada some do bolo, e bolo vazio sem
-       explicacao e a tela cobrando atencao e devolvendo silencio. */
+   Sem inversao, um gate reintroduzido por acidente (ou um `axisGate` que volte
+   como dado morto e alguem religue) faria as trilhas pararem em silencio: o
+   sintoma jogando e "a spell parou de aparecer no level up", e nenhuma tela
+   diz por que. O que segura profundidade agora e `maxDeep`/`maxLines`, e o
+   segundo bloco cobra que ELES continuem segurando. */
 const primeira = () => g.build.pieces.values().next().value;
 {
-  /* O teto sai do DADO, nao de uma tabela copiada. A escada era escrita a mao
-     aqui ([[0,2],[1,3],...]) e envelheceu na primeira vez que `axisGate` mexeu:
-     quando `freeTier` caiu de 2 para 1, o gate perdeu um zero junto e a tabela
-     passou a reprovar o comportamento CERTO. Uma segunda lista de numeros e
-     exatamente o que o resto deste projeto passa o tempo evitando.
-
-     `axisGate` e nao-decrescente, entao o tier mais alto alcancavel com `n`
-     pontos e simplesmente quantos degraus cobram `<= n`. */
-  const tetoPara = (n) =>
-    PATH_RULES.axisGate.filter((need) => need <= n).length;
-  for (const pontos of [0, 1, 4, 5, 9, 10, 15]) {
-    const teto = tetoPara(pontos);
-    g.start(STARTER_TESTE);
+  /* Com ZERO ponto no eixo da peca, uma linha vai do tier 0 ao 5. E o teste
+     inteiro: nao ha degrau nenhum cobrando recurso pelo caminho. */
+  g.start(STARTER_TESTE);
+  {
     const inst = primeira();
-    g.build.axis[inst.def.axis] = pontos;
+    for (const a of g.build.axes) g.build.axis[a] = 0;
     const pathId = Object.keys(inst.def.paths)[0];
     let guard = 0;
     while (g.build.upgradePath(inst, pathId) && guard++ < 20);
-    if (inst.paths[pathId] !== teto) {
-      bad(`com ${pontos} de ${inst.def.axis} a trilha parou no tier ` +
-          `${inst.paths[pathId]}, esperado ${teto}`);
+    if (inst.paths[pathId] !== PATH_RULES.tiers) {
+      bad(`com 0 de ${inst.def.axis} a trilha parou no tier ` +
+          `${inst.paths[pathId]}, e sem gate ela devia fechar em ${PATH_RULES.tiers}`);
     }
   }
 
-  /* Eixo cheio no eixo ERRADO nao destrava nada.
-
-     O eixo da peca e ZERADO antes: a abertura credita `starterPoints` no eixo
-     que ela escolheu, e o starter de teste e justamente uma peca desta build.
-     Sem zerar, a peca comecaria com 1 no proprio eixo e subiria por merito
-     dela — o teste passaria a medir a abertura em vez do gate. */
+  /* E o que SOBROU segurando: uma linha por vez, duas na vida da peca. Com a
+     primeira linha fechada, a segunda abre; a terceira nao. */
   g.start(STARTER_TESTE);
-  const inst = primeira();
-  g.build.axis[inst.def.axis] = 0;
-  const outro = Object.keys(g.build.axis).find((a) => a !== inst.def.axis);
-  g.build.axis[outro] = AXIS_RULES.pureAt;
-  const pid0 = Object.keys(inst.def.paths)[0];
-  let guard = 0;
-  while (g.build.upgradePath(inst, pid0) && guard++ < 20);
-  if (inst.paths[pid0] !== PATH_RULES.freeTier) {
-    bad(`${AXIS_RULES.pureAt} pontos em ${outro} levaram uma spell de ` +
-        `${inst.def.axis} ao tier ${inst.paths[pid0]}`);
+  {
+    const inst = primeira();
+    for (const a of g.build.axes) g.build.axis[a] = 0;
+    const ids = Object.keys(inst.def.paths);
+    let guard = 0;
+    while (g.build.upgradePath(inst, ids[0]) && guard++ < 20);
+    // com a primeira EM PROGRESSO a segunda nao passa da zona franca — mas a
+    // primeira ja fechou aqui, entao a segunda tem que andar.
+    guard = 0;
+    while (g.build.upgradePath(inst, ids[1]) && guard++ < 20);
+    if (inst.paths[ids[1]] !== PATH_RULES.tiers) {
+      bad(`fechar a 1a linha nao devolveu a escolha: 2a parou no tier ${inst.paths[ids[1]]}`);
+    }
+    guard = 0;
+    while (g.build.upgradePath(inst, ids[2]) && guard++ < 20);
+    if (inst.paths[ids[2]] > PATH_RULES.freeTier) {
+      bad(`a 3a linha passou da zona franca (tier ${inst.paths[ids[2]]}): ` +
+          `maxLines ${PATH_RULES.maxLines} nao esta segurando`);
+    }
   }
 
-  // com tudo travado o bolo esvazia, e a tira precisa dizer por que
+  /* Uma linha EM PROGRESSO tranca as outras — e este e o `maxDeep`, que e o
+     que tira as duas cartas da mesma spell da tela. */
+  g.start(STARTER_TESTE);
+  {
+    const inst = primeira();
+    for (const a of g.build.axes) g.build.axis[a] = 0;
+    const ids = Object.keys(inst.def.paths);
+    g.build.upgradePath(inst, ids[0]);              // sai da zona franca...
+    g.build.upgradePath(inst, ids[0]);              // ...e trava as outras
+    let guard = 0;
+    while (g.build.upgradePath(inst, ids[1]) && guard++ < 20);
+    if (inst.paths[ids[1]] > PATH_RULES.freeTier) {
+      bad(`com a 1a linha em progresso a 2a chegou ao tier ${inst.paths[ids[1]]}: ` +
+          `maxDeep ${PATH_RULES.maxDeep} nao esta segurando`);
+    }
+  }
+
+  // com tudo fechado o bolo esvazia — e ai a tela diz "arsenal completo".
   g.start(STARTER_TESTE);
   const trancada = primeira();
-  g.build.axis[trancada.def.axis] = 0;
   for (const pid in trancada.paths) { let n = 0; while (g.build.upgradePath(trancada, pid) && n++ < 20); }
   if (g.build.getOffers(9).some((o) => o.kind === "path")) {
-    bad("gate fechado e o level up ainda oferece tier");
-  }
-  /* O `need` sai do tier em que a trilha REALMENTE parou, e nao de um indice
-     fixo. Escrever `axisGate[freeTier]` era assumir que a zona franca e o
-     unico degrau de graca — verdade hoje e nao amanha, e foi assim que a
-     tabela copiada logo acima envelheceu uma vez. */
-  const gate = g.build.nearestGate();
-  const parou = Math.min(...Object.values(trancada.paths));
-  if (!gate || gate.need !== PATH_RULES.axisGate[parou]) {
-    bad(`nearestGate() nao aponta a trava: ${JSON.stringify(gate)}, ` +
-        `trilha parada no tier ${parou} (pede ${PATH_RULES.axisGate[parou]})`);
+    bad("peca sem caminho para subir e o level up ainda oferece tier");
   }
   g.ui.lvOffers = [];
-  const tira = g.ui.buildStripHtml(-1);
-  if (!tira.includes("lv-sp-lock")) {
-    bad("a tira nao diz que a spell travou — nada na tela liga o level up a etapa");
+  if (g.ui.buildStripHtml(-1).includes("lv-sp-lock")) {
+    bad("a tira ainda desenha a trava de eixo, que saiu junto com o gate");
   }
-  if (gate && !tira.includes(`${gate.have}/${gate.need}`)) bad("a tira nao diz quanto falta de eixo");
-  // e com o eixo cheio a trava some da tira
-  g.build.axis[trancada.def.axis] = AXIS_RULES.pureAt;
-  if (g.build.nearestGate()) bad("eixo no teto e a peca continua reportando trava");
-  if (g.ui.buildStripHtml(-1).includes("lv-sp-lock")) bad("eixo no teto e a tira ainda mostra trava");
+}
+
+/* --- o excedente vira PRESSA ---------------------------------------------
+   Bolo vazio deixou de ser caso de borda: com cinco spells e uma linha por vez
+   a build cabe em ~45 tiers e a run passa dos 70 niveis, entao a partir de
+   certo ponto TODO nivel cai aqui. O que o driver cobra sao as duas pontas que
+   um "sempre aumentar" sem cuidado erra:
+
+     - ele de fato acumula, e acumula na build INTEIRA (`cooldownMul`, o mesmo
+       numero que `TRIGGERS.cd` aplica em toda peca);
+     - e ele TEM PISO. Recarga convergindo para zero nao e uma build rapida, e
+       um disparo por sub-step. */
+{
+  g.start(STARTER_TESTE);
+  const b = g.build, ov = BALANCE.levelup.overflow;
+  if (b.overflowHaste !== 0) bad("a run nasce com stack de pressa");
+  const base = g.cooldownMul;
+
+  const um = b.addOverflowHaste();
+  if (!(g.cooldownMul < base)) {
+    bad(`um nivel excedente nao acelerou nada: cooldownMul ${base} -> ${g.cooldownMul}`);
+  }
+  if (!(um.total > 0)) bad(`addOverflowHaste devolveu total ${um.total}`);
+
+  const dois = b.addOverflowHaste();
+  if (!(dois.total > um.total)) {
+    bad(`a pressa nao acumulou: ${um.total} -> ${dois.total}`);
+  }
+
+  // o PISO: duzentos niveis excedentes nao podem levar a recarga a zero.
+  for (let i = 0; i < 200; i++) b.addOverflowHaste();
+  if (b.overflowFactor() < ov.floor - 1e-9) {
+    bad(`a pressa furou o piso: ${b.overflowFactor()} < ${ov.floor}`);
+  }
+  if (Math.abs(b.overflowFactor() - ov.floor) > 1e-9) {
+    bad(`200 niveis excedentes deveriam cravar o piso, deu ${b.overflowFactor()}`);
+  }
+  // e um capstone que PENALIZA recarga continua penalizando: o piso e sobre a
+  // contribuicao do excedente, nao sobre o total.
+  if (!(g.cooldownMul <= ov.floor + 1e-9)) {
+    bad(`o piso vazou para o total: cooldownMul ${g.cooldownMul}`);
+  }
+  // reiniciar a run zera os stacks
+  g.start(STARTER_TESTE);
+  if (g.build.overflowHaste !== 0) bad("reiniciar a run manteve a pressa acumulada");
+}
+
+/* --- passiva e do EIXO DA ABERTURA ---------------------------------------
+   Toda passiva declara `axis`, e so aparecem as do eixo escolhido na abertura.
+   Tres coisas podem mentir aqui, e as tres sao silenciosas jogando: */
+{
+  const semEixo = [];
+  for (const id in PASSIVES) if (!PASSIVES[id].axis) semEixo.push(id);
+  if (semEixo.length) {
+    bad(`passiva sem eixo: ${semEixo.join(", ")} — ela nunca seria oferecida`);
+  }
+
+  /* PAR EXCLUSIVO MORA NO MESMO EIXO. Separadas, o jogador nunca ve as duas na
+     mesma run e o `exclusive` vira um campo que nao faz nada. */
+  for (const id in PASSIVES) {
+    const p = PASSIVES[id], par = p.exclusive && PASSIVES[p.exclusive];
+    if (par && par.axis !== p.axis) {
+      bad(`${id} (${p.axis}) e ${p.exclusive} (${par.axis}) sao exclusivas em ` +
+          "eixos diferentes: a escolha entre as duas nunca acontece");
+    }
+  }
+
+  /* NENHUM EIXO SEM PASSIVA. Um eixo vazio seria um terco das aberturas
+     jogando uma run inteira sem passiva nenhuma. */
+  for (const cid in CLASSES) {
+    const cls = CLASSES[cid];
+    if (!cls.available || !cls.axes) continue;
+    for (const a of cls.axes) {
+      const n = Object.keys(PASSIVES)
+        .filter((id) => PASSIVES[id].cls === cid && PASSIVES[id].axis === a).length;
+      if (!n) bad(`${cid}: o eixo ${a} nao tem passiva nenhuma`);
+    }
+  }
+
+  /* E o filtro cobra de verdade: com a abertura num eixo, o bolo so traz
+     passiva DELE. */
+  g.start(STARTER_TESTE);
+  const alvo = g.build.startAxis;
+  g.player.level = BALANCE.levelup.passiveAt;
+  g.player.pendingLevels = 0;
+  if (!alvo) bad("startAxis vazio depois da abertura — o filtro de passiva nao teria como valer");
+  else {
+    const fora = g.build.getOffers(40)
+      .filter((o) => o.kind === "passive" && o.def.axis !== alvo);
+    if (fora.length) {
+      bad(`abertura em ${alvo} e o bolo trouxe passiva de outro eixo: ` +
+          fora.map((o) => `${o.id} (${o.def.axis})`).join(", "));
+    }
+  }
 }
 
 /* O resto do driver mede a CARTA, e carta de tier 5 (evolucao, chip de marco)

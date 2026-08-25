@@ -35,6 +35,11 @@ class BuildSystem {
        sempre nas classes sem `starters`), e por isso a garantia da etapa e
        escrita como "se houver", nunca como "o eixo do jogador". */
     this.startAxis = null;
+    /* Stacks de PRESSA do excedente — ver `BALANCE.levelup.overflow`. Contador
+       e nao fator acumulado: `applyGlobals` reconstroi do zero a cada mudanca
+       (ele nao soma, ele refaz), entao guardar o fator ja multiplicado o faria
+       ser reaplicado sobre si mesmo em toda aquisicao. */
+    this.overflowHaste = 0;
   }
 
   reset(cls) {
@@ -49,6 +54,7 @@ class BuildSystem {
     this.vfx.length = 0;
     this.apexed.clear();
     this.startAxis = null;
+    this.overflowHaste = 0;
     this.game.critBy.clear();
     this.wireEvents();
     this.applyGlobals();
@@ -207,8 +213,38 @@ class BuildSystem {
     g.bigHitCrit = false;
     for (const id of this.passives.keys()) this._mergeGlobal(PASSIVES[id].global);
     for (const id of this.capstones) this._mergeGlobal(CAPSTONES[id].global);
+    /* A pressa do excedente entra DEPOIS das passivas e com piso PROPRIO. O
+       piso e sobre a contribuicao dela e nao sobre o `cooldownMul` final: um
+       capstone que PENALIZA recarga (Nihilam cobra 1.3) tem o direito de deixar
+       o total acima de 1, e um piso no total apagaria essa penalidade em
+       silencio. */
+    g.cooldownMul *= this.overflowFactor();
     g.player.noExternalHeal = g.noExternalHeal;
   }
+  /* O fator de pressa que os stacks de excedente valem hoje. */
+  overflowFactor() {
+    const o = BALANCE.levelup.overflow;
+    if (!this.overflowHaste) return 1;
+    return Math.max(o.floor, Math.pow(o.step, this.overflowHaste));
+  }
+
+  /* Um nivel excedente: o bolo estava vazio e o nivel virou pressa. Devolve o
+     quanto a build inteira ficou mais rapida, em fracao, para a tela dizer o
+     numero em vez de dizer "voce ganhou alguma coisa".
+
+     `resolveAll` no fim porque `cooldownMul` e lido por `TRIGGERS.cd` a cada
+     disparo, mas `js/systems/dps.js` le os stats RESOLVIDOS — sem re-resolver,
+     a regua da proxima carta ficaria falando de uma build mais lenta do que a
+     que esta em campo. */
+  addOverflowHaste() {
+    const antes = this.overflowFactor();
+    this.overflowHaste++;
+    this.applyGlobals();
+    this.resolveAll();
+    const agora = this.overflowFactor();
+    return { total: 1 - agora, ganho: antes - agora, noPiso: agora <= BALANCE.levelup.overflow.floor };
+  }
+
   _mergeGlobal(gl) {
     if (!gl) return;
     const g = this.game;
@@ -314,13 +350,20 @@ class BuildSystem {
      Uma linha no tier 5 nao esta mais em progresso: ela conta para `maxLines` e
      nao para `maxDeep`. Contar nos dois lugares e o que mataria a corrente.
 
-     E o gate de eixo (`PATH_RULES.axisGate`): o tier so abre se o eixo DA PECA
-     ja tiver os pontos. Vale para toda fonte de tier — level up, bau e
-     qualquer coisa que venha depois —, porque quem pergunta e este metodo. */
+     O GATE DE EIXO SAIU DAQUI. `PATH_RULES.axisGate` cobrava pontos no eixo DA
+     PECA para liberar os tiers de cima, e a ideia era boa no papel: as duas
+     telas conversavam, porque a etapa decidia QUAIS spells podiam ficar fundas
+     e o level up decidia qual delas ficava. Na pratica ele cobrava duas vezes
+     pela mesma escolha e punia justamente quem ja tinha se comprometido pouco —
+     a build que espalhou eixo terminava a run com toda trilha parada, sem que
+     nenhuma tela tivesse dito que aquele era o preco.
+
+     O que segura profundidade agora sao `maxDeep`/`maxLines` acima (uma linha
+     por vez) e o teto de spells: as duas cobram FOCO, que e o que o gate queria
+     cobrar, e nenhuma delas depende de um recurso que a outra tela distribui. */
   canUpgradePath(inst, pathId) {
     const cur = inst.paths[pathId];
     if (cur >= PATH_RULES.tiers) return false;
-    if (this.axis[inst.def.axis] < PATH_RULES.axisGate[cur]) return false;
     if (cur < PATH_RULES.freeTier) return true;
     let emProgresso = 0, jaAbertas = 0;
     for (const p in inst.paths) {
@@ -348,41 +391,6 @@ class BuildSystem {
     let n = 0;
     for (const p in inst.paths) if (inst.paths[p] > PATH_RULES.freeTier) n++;
     return n;
-  }
-
-  /* O que falta de eixo para esta peca voltar a subir. Devolve null quando ela
-     nao esta travada POR EIXO — ou porque algum caminho ja pode subir, ou
-     porque o que trava e `maxDeep`/tier 5, que sao outra conversa.
-
-     A UI precisa disto porque oferta travada simplesmente NAO entra no bolo do
-     level up: sem dizer o motivo, a tela some com a trilha em silencio e o
-     jogador nao tem como saber que a etapa e quem destrava. */
-  pieceGate(inst) {
-    let best = null;
-    for (const pathId in inst.paths) {
-      if (this.canUpgradePath(inst, pathId)) return null;
-      const cur = inst.paths[pathId];
-      if (cur >= PATH_RULES.tiers) continue;
-      const need = PATH_RULES.axisGate[cur];
-      if (this.axis[inst.def.axis] >= need) continue;   // travado por maxDeep
-      if (!best || need < best.need) {
-        best = { axisId: inst.def.axis, need, have: this.axis[inst.def.axis], tier: cur + 1 };
-      }
-    }
-    return best;
-  }
-
-  /* A trava mais PERTO de cair, entre todas as pecas — nao a de menor tier.
-     Quem le esta mensagem quer saber onde investir o proximo ponto, e o eixo
-     que esta a um ponto do tier 4 vale mais que o que esta a cinco do tier 3. */
-  nearestGate() {
-    let best = null;
-    for (const inst of this.pieces.values()) {
-      const g = this.pieceGate(inst);
-      if (!g) continue;
-      if (!best || g.need - g.have < best.need - best.have) best = g;
-    }
-    return best;
   }
 
   upgradePath(inst, pathId) {
@@ -673,11 +681,23 @@ class BuildSystem {
        rotulo da tela ja faz (`UI.openLevelUp`). */
     const lv = this.game.player
       ? this.game.player.level - this.game.player.pendingLevels : 1;
+    /* E ela e do EIXO DA ABERTURA, e so dele. Toda passiva declara `axis` (ver
+       o cabecalho de `js/content/passives.js`), e o filtro fecha o circuito que
+       a abertura abriu: a familia escolhida decide quais spells a run recebe de
+       gracia na etapa E como ela multiplica o que tem. Sem isso a passiva era o
+       unico pedaco da progressao que ignorava a escolha da abertura — um
+       multiplicador generico sorteado de um bolo que nao olhava para a run.
+
+       `startAxis` nulo (classe sem `starters`, ou build montada direto pela
+       pasta `tools/`) volta ao bolo inteiro: o filtro e uma consequencia da
+       abertura, entao sem abertura ele nao tem o que cobrar. */
     if (lv >= BALANCE.levelup.passiveAt) {
       for (const id in PASSIVES) {
-        if (!this.owns(PASSIVES[id])) continue;
+        const def = PASSIVES[id];
+        if (!this.owns(def)) continue;
+        if (this.startAxis && def.axis !== this.startAxis) continue;
         if (this.passives.has(id) || this.passiveBlocked(id)) continue;
-        pool.push({ kind: "passive", id, def: PASSIVES[id] });
+        pool.push({ kind: "passive", id, def });
       }
     }
 
