@@ -48,6 +48,14 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
+    v: "0.16.1",
+    data: "2026-08-25",
+    titulo: "Sem chuva no fundo",
+    notas: [
+      { t: "ajuste", txt: "A trilha de chuva saiu do jogo. Ela subia na seção cheia, sumia no break e respondia com trovão — bom numa faixa, e um cutucão atrás de uma run de doze minutos —, e ainda ocupava a mesma faixa aguda em que os efeitos avisam que algo morreu. Fica a Vigília, e N agora é liga e desliga." },
+    ],
+  },
+  {
     v: "0.16.0",
     data: "2026-08-25",
     titulo: "Sem pedágio de eixo",

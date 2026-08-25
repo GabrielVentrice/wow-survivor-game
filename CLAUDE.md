@@ -3355,13 +3355,14 @@ O fluxo, e ele é curto de propósito:
 5. O commit que sobe leva `js/version.js` junto. `VERSION` acompanha o código
    que ela nomeia: bumpar depois é carimbar run com a versão errada até lá.
 
-### Duas trilhas, e a padrão é a que NÃO acontece
+### Uma trilha, e ela é a que NÃO acontece
 
-`TRACKS` (`js/track.js`) é a lista, e a tecla `N` percorre ela mais o silêncio:
-**Vigília → Tempestade → mudo**. A ordem é a decisão — a primeira é a que o
-jogo abre.
+`TRACKS` (`js/track.js`) é a lista, e a tecla `N` percorre ela mais o silêncio.
+Hoje há uma entrada — **Vigília → mudo** —, então `N` é liga/desliga. A lista
+continua sendo uma lista porque a máquina de troca é o que torna barato voltar
+a ter duas.
 
-| | **Vigília** (`focus-vigil.mp3`) | **Tempestade** (`rain-lofi.mp3`) |
+| | **Vigília** (`focus-vigil.mp3`) | **Tempestade** (`rain-lofi.mp3`, fora de `TRACKS`) |
 |---|---|---|
 | o que é | leito de foco: nada acontece | lofi de chuva, com arranjo |
 | gerador | `tools/make_focus_track.py` | `tools/make_track.py` |
@@ -3369,12 +3370,15 @@ jogo abre.
 | maior salto de 250 ms sobre o fundo | **2,3 dB** | 7,8 dB |
 | janelas de 250 ms saltando > 6 dB | **0** de 640 | 7 de 426 |
 
-**A Vigília é a padrão porque uma run dura doze minutos.** Trilha de fundo de
-jogo longo não é faixa: é o lugar onde o jogo acontece. O que a Tempestade faz
+**A Vigília é a única porque uma run dura doze minutos.** Trilha de fundo de
+jogo longo não é faixa: é o lugar onde o jogo acontece. O que a Tempestade fazia
 de propósito — subir na seção cheia, sumir no break, responder com um trovão —
 é exatamente o que um ouvinte desatento não consegue ignorar; os sete saltos
 dela são os três trovões, os dois cymbal swells e as duas viradas. Cada um é
-bom numa faixa e é um cutucão num fundo.
+bom numa faixa e é um cutucão num fundo. Some a isso a banda: a chuva é dona de
+tudo acima de 6 kHz, que é onde os efeitos dizem que alguém morreu. Foi essa
+coluna da direita que tirou a Tempestade da lista; o arquivo continua em
+`audio/` como alternativa, e trazê-la de volta é uma linha.
 
 Cinco regras caem daí, e valem para qualquer mexida no leito:
 
@@ -3397,27 +3401,28 @@ Cinco regras caem daí, e valem para qualquer mexida no leito:
   alguém levantar a cabeça de um leito estável.
 - **Camada nova entra pelo teste de evento.** Os dois geradores imprimem o
   passeio de RMS e o maior salto de 250 ms; no leito o alvo é `< 1,5 dB` e zero
-  janelas acima de 6 dB. Passou disso, é um som — e som avulso mora na
-  Tempestade.
+  janelas acima de 6 dB. Passou disso, é um som avulso — e som avulso não entra
+  num leito.
 
-**Carregar é preguiçoso e a troca espera.** As duas juntas são 3,2 MB; a segunda
-só desce se alguém apertar `N`, e a troca só efetiva quando o arquivo novo fica
-pronto — até lá continua tocando o antigo, e se o novo falhar fica o antigo. O
-jogo nunca fica mudo por causa de um download. `driver_track` cobra os três.
+**Carregar é preguiçoso e a troca espera.** Só desce a trilha que vai tocar, e a
+troca só efetiva quando o arquivo novo fica pronto — até lá continua tocando o
+antigo, e se o novo falhar fica o antigo. O jogo nunca fica mudo por causa de um
+download. `driver_track` cobra os três com uma lista de duas montada só para o
+teste, porque a máquina não pode enferrujar enquanto `TRACKS` tem uma.
 
 ### Assets: três, e todos com plano B
 
 Sprites, chão, efeitos sonoros e a trilha de reserva são gerados em runtime.
-**Não adicione arquivos de imagem.** Os três assets de áudio que existem seguem
-duas regras diferentes, e a diferença é `file://`. Nenhum vem de banco de sons:
-as duas trilhas são sintetizadas por `tools/make_focus_track.py` e
-`tools/make_track.py` — **inclusive a chuva**, que é ruído modelado no espectro
-e não gravação de campo — e o estalo de osso está embutido; não há licença de
-terceiro a conferir em nada que o jogo toca.
+**Não adicione arquivos de imagem.** Os assets de áudio que existem seguem duas
+regras diferentes, e a diferença é `file://`. Nenhum vem de banco de sons: as
+trilhas são sintetizadas por `tools/make_focus_track.py` e `tools/make_track.py`
+— **inclusive a chuva** da Tempestade, que era ruído modelado no espectro e não
+gravação de campo — e o estalo de osso está embutido; não há licença de terceiro
+a conferir em nada que o jogo toca.
 
 | Asset | Como carrega | Por quê |
 |---|---|---|
-| `audio/focus-vigil.mp3` e `audio/rain-lofi.mp3` (trilhas) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
+| `audio/focus-vigil.mp3` (trilha; as alternativas em `audio/` entram do mesmo jeito) | `<audio src>` em `js/track.js` | `fetch`/XHR são bloqueados em `file://` (origem opaca); elemento de mídia com caminho relativo carrega. Volume por `.volume`, não por GainNode — `createMediaElementSource` sobre mídia de origem opaca sai em silêncio. |
 | osso quebrando (efeito) | base64 → `atob` → `decodeAudioData` | Precisa sobrepor e variar de tom dezenas de vezes por segundo; `<audio>` não dá isso. Base64 não passa por rede, então funciona em `file://`. 21 KB. |
 
 **Os dois caminhos têm fallback e o jogo nunca fica mudo:** `Soundtrack` cai
@@ -3428,11 +3433,11 @@ esses caminhos.
 
 **Modo de repetição da trilha.** `Track` tem dois, e escolher errado estraga a
 faixa. `seamless` (padrão) usa `loop = true` nativo, para faixa montada para
-emendar — é o caso das **duas**, que fecham em si mesmas por construção
-(compassos inteiros, caudas dobradas de volta no começo, LFOs com número
-inteiro de ciclos dentro do loop, filtros de master circulares, e as camadas de
-ruído — chuva lá, leito aqui — geradas no domínio da frequência, periódicas por
-construção). Na Vigília entra mais uma: toda frequência de oscilador é
+emendar — é o caso de **todas as do projeto**, que fecham em si mesmas por
+construção (compassos inteiros, caudas dobradas de volta no começo, LFOs com
+número inteiro de ciclos dentro do loop, filtros de master circulares, e as
+camadas de ruído — leito aqui, chuva na Tempestade — geradas no domínio da
+frequência, periódicas por construção). Na Vigília entra mais uma: toda frequência de oscilador é
 arredondada para um número inteiro de ciclos por loop, correção de no máximo
 0,00625 Hz, senão cada voz sustentada termina no meio de um ciclo e a volta é um
 clique. `{ crossfade: 3.5 }` usa dois elementos que se cruzam no fim, para faixa

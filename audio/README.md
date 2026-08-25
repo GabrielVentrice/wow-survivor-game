@@ -1,24 +1,28 @@
 # audio/
 
-**Duas trilhas, e a tecla `N` percorre as duas mais o silêncio.** A ordem está
-em `TRACKS` (`js/track.js`) e a primeira é a que o jogo abre.
+**Uma trilha em `TRACKS` (`js/track.js`), e a tecla `N` alterna entre ela e o
+silêncio.**
 
-| | `focus-vigil.mp3` — **Vigília** | `rain-lofi.mp3` — **Tempestade** |
-|---|---|---|
-| o que é | leito de foco: nada acontece | lofi de chuva: uma faixa, com arranjo |
-| gerada por | `tools/make_focus_track.py` | `tools/make_track.py` |
-| duração / tamanho | 160 s / 1,92 MB | 106,7 s / 1,28 MB |
+| | `focus-vigil.mp3` — **Vigília** |
+|---|---|
+| o que é | leito de foco: nada acontece |
+| gerada por | `tools/make_focus_track.py` |
+| duração / tamanho | 160 s / 1,92 MB |
 
-Nenhuma das duas veio de banco de sons: as duas são sintetizadas aqui — a
-chuva da Tempestade também, ruído modelado no domínio da frequência e não
-gravação de campo. Não há licença de terceiro a conferir em nada que o jogo
-toca.
+**A Tempestade — o lofi de chuva — saiu de `TRACKS`.** O arquivo continua aqui,
+junto com as outras alternativas (ver o fim deste documento), e o argumento
+está na seção abaixo: ela cobrava atenção de propósito, e o que este jogo
+precisa é de fundo. Voltar a ter duas é uma linha em `js/track.js`.
 
-**Carregar é preguiçoso, uma por vez.** As duas juntas são 3,2 MB; a segunda só
-desce se alguém apertar `N`. E a troca só acontece quando o arquivo novo fica
-pronto: até lá continua tocando o antigo, e se o novo nunca carregar fica o
-antigo — o jogo nunca fica mudo por causa de um download. `driver_track` cobra
-os três.
+Ela não veio de banco de sons: é sintetizada aqui — como era a chuva da
+Tempestade, ruído modelado no domínio da frequência e não gravação de campo.
+Não há licença de terceiro a conferir em nada que o jogo toca.
+
+**Carregar é preguiçoso, uma por vez**, e a máquina de troca continua de pé
+para a próxima trilha que entrar: a troca só acontece quando o arquivo novo
+fica pronto, até lá continua tocando o antigo, e se o novo nunca carregar fica
+o antigo — o jogo nunca fica mudo por causa de um download. `driver_track`
+cobra os três, com uma lista de duas montada só para o teste.
 
 ---
 
@@ -29,12 +33,13 @@ cinco harmonias que passam por cima dele sem nunca chegar, e um pulso de 60 BPM
 — um por segundo, batida de repouso. Sem bateria, sem melodia, sem estalo de
 vinil, sem trovão, sem seções.
 
-**Ela é a padrão porque uma run dura doze minutos.** Trilha de fundo de jogo
-longo não é faixa: é o lugar onde o jogo acontece. E o que a Tempestade faz de
-propósito — subir na seção cheia, sumir no break, responder com um trovão — é
-exatamente o que uma pessoa com TDAH não consegue ignorar. Todo degrau de
+**Ela é a única porque uma run dura doze minutos.** Trilha de fundo de jogo
+longo não é faixa: é o lugar onde o jogo acontece. E o que a Tempestade fazia
+de propósito — subir na seção cheia, sumir no break, responder com um trovão —
+é exatamente o que uma pessoa com TDAH não consegue ignorar. Todo degrau de
 volume e todo som avulso é um evento de novidade, e novidade é o que tira o
-olho da tela. Medido nas duas, mesmas ferramentas:
+olho da tela. Foi essa medição, feita nas duas com as mesmas ferramentas, que
+tirou a Tempestade da lista:
 
 | | Vigília | Tempestade |
 |---|---|---|
@@ -45,7 +50,10 @@ olho da tela. Medido nas duas, mesmas ferramentas:
 | emenda: degrau na volta / degrau típico | 0,041 / 0,112 | 0,023 / 0,134 |
 
 Os sete saltos da Tempestade são os três trovões, os dois cymbal swells e as
-duas viradas de rim. Cada um é bom numa faixa e é um cutucão num fundo.
+duas viradas de rim. Cada um é bom numa faixa e é um cutucão num fundo. E há
+uma segunda razão para a chuva ter saído: ela é dona de tudo acima de 6 kHz, a
+mesma banda em que os efeitos dizem que alguém morreu — fundo que disputa
+banda com o combate custa informação de jogo, não só atenção.
 
 ### As seis regras do arranjo
 
@@ -98,7 +106,7 @@ Mexeu no arranjo, roda e confere.
 
 - **Camada nova entra pelo teste de evento, não pelo de gosto.** Se ela mover o
   "maior salto de 250 ms" acima de ~3 dB, ela não é uma camada de fundo — é um
-  som, e som avulso mora na Tempestade.
+  som avulso, e som avulso não entra num leito.
 - **Nada de saturação, fita, estalo ou brilho.** As três são energia transiente
   de alta frequência, que é precisamente o que um leito de fundo não pode ter.
   O teto está em 9 kHz e não há nenhum estágio não-linear no master.
@@ -137,7 +145,11 @@ demais". Leito alto demais é `LEVELS["bed"]`; pulso audível demais é
 
 ---
 
-## `rain-lofi.mp3` — a segunda trilha
+## Faixas fora de `TRACKS`, mantidas como alternativa
+
+Nenhuma delas toca hoje; entrar é uma linha em `js/track.js`.
+
+### `rain-lofi.mp3` — **Tempestade**, a trilha que saiu
 
 Lofi de chuva: uma tempestade ouvida de dentro, com um boom-bap lento por baixo
 — fita com wow e flutter, estalo de vinil, Rhodes no contratempo, caixa
@@ -146,8 +158,9 @@ Castlevania: Ré menor descendo `Dm – C – Bb – A`, com o A maior do menor
 harmônico puxando de volta para o Dm. 72 BPM, 106,666667 s, 96 kbps estéreo,
 1,28 MB.
 
-Ela deixou de ser a padrão (ver a tabela acima) e continua inteira: quem quer
-uma faixa em vez de um leito aperta `N`.
+Ela deixou de ser a padrão e depois saiu de `TRACKS` (a medição está na tabela
+acima), mas o arquivo continua inteiro e o arranjo abaixo continua valendo para
+quem quiser trazê-la de volta ou reaproveitar as camadas.
 
 **A chuva entra DEPOIS da fita, e isso não é detalhe de implementação.** A
 música passa pela coloração lofi (corte em 6,8 kHz, saturação, poeira); a sala
@@ -201,9 +214,7 @@ sala está na mesma tabela que a música mesmo entrando depois da fita: uma
 tabela só, um lugar só para discutir equilíbrio. Chuva alta demais é
 `LEVELS["rain"]`, e o quanto ela cresce quando a bateria sai é o `swell`.
 
-## Faixas antigas, mantidas como alternativa
-
-Não estão em `TRACKS`; entrar é uma linha em `js/track.js`.
+### As faixas anteriores
 
 `gothic-lofi.mp3` — a trilha anterior, também gerada por `make_track.py` (a
 versão do arranjo está no histórico do git). Boom-bap a 84 BPM com órgão, coro,

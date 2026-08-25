@@ -145,27 +145,30 @@ class Track {
    ========================================================================= */
 
 /* As trilhas, na ordem em que a tecla N as percorre — e a PRIMEIRA é a que o
-   jogo abre.
+   jogo abre. Hoje é uma só, então N vira liga/desliga; a lista continua sendo
+   uma lista porque a máquina de troca (carregar preguiçoso, só entrar quando o
+   arquivo novo estiver pronto, ficar com a antiga se ele falhar) é o que torna
+   barato voltar a ter duas.
 
-   Vigília vem antes de Tempestade porque ela é a única das duas desenhada para
-   ficar horas no fundo sem cobrar atenção: nada acontece nela, o volume não
-   passeia (1,4 dB contra 6,8 dB da Tempestade ao longo do loop) e nenhuma
-   janela de 250 ms salta acima do fundo (a Tempestade tem sete, que são os
-   trovões e as viradas). Um jogo em que a run dura doze minutos é fundo, não
-   faixa. O argumento inteiro e a medição estão em `audio/README.md`.
+   A Tempestade — o lofi de chuva — SAIU da lista. O arquivo continua em
+   `audio/`, junto com as outras alternativas, e o argumento inteiro está em
+   `audio/README.md`: uma run dura doze minutos, e trilha de jogo longo é
+   fundo, não faixa. A chuva era a camada que mais cobrava atenção (6,8 dB de
+   passeio de volume contra 1,4 dB da Vigília, e sete janelas de 250 ms
+   saltando acima do fundo), e é dona de tudo acima de 6 kHz — a mesma banda
+   onde o jogo diz que alguém morreu.
 
-   Carregar é preguiçoso, uma trilha por vez: as duas juntas são 3,2 MB, e a
-   segunda só desce se alguém pedir. */
+   Carregar continua preguiçoso: só desce a trilha que vai tocar. */
 const TRACKS = [
   { id: "vigil", name: "Vigília", src: "audio/focus-vigil.mp3" },
-  { id: "storm", name: "Tempestade", src: "audio/rain-lofi.mp3" },
 ];
 
 /* Volume por estado. Trilha de fundo tem que ficar bem ATRAS dos efeitos: se
    competir com o som de morte e de acerto, o jogador perde informacao de
    combate. Todo o ajuste de "esta alta demais" mora nestes quatro numeros —
-   um so par de niveis para as duas trilhas, porque elas estao a 0,3 dB de RMS
-   uma da outra e um volume por faixa seria uma segunda tabela para divergir. */
+   um so par de niveis para toda trilha que entrar, porque as faixas do projeto
+   estao a 0,3 dB de RMS uma da outra e um volume por faixa seria uma segunda
+   tabela para divergir. */
 const TRACK_LEVEL = { menu: 0.07, playing: 0.055, paused: 0.022, gameover: 0, off: 0 };
 
 class Soundtrack {
@@ -193,9 +196,9 @@ class Soundtrack {
   get trackName() { return this.list[this.idx].name; }
 
   /* Pede a troca. Quem efetiva e `_route`, e so quando o arquivo novo estiver
-     pronto: a segunda trilha custa 1,9 MB, e parar a que esta tocando para
-     esperar o download deixaria o jogo mudo por segundos justo no gesto em
-     que o jogador esta mexendo no som. Se o novo arquivo falhar, fica o
+     pronto: uma trilha custa por volta de 1,9 MB, e parar a que esta tocando
+     para esperar o download deixaria o jogo mudo por segundos justo no gesto
+     em que o jogador esta mexendo no som. Se o novo arquivo falhar, fica o
      antigo. */
   setTrack(i) {
     i = ((i % this.list.length) + this.list.length) % this.list.length;
@@ -207,7 +210,8 @@ class Soundtrack {
   /* A tecla N. O ciclo e trilha 1 -> trilha 2 -> ... -> mudo -> trilha 1:
      silencio e um estado do ciclo e nao uma segunda tecla, porque "desligar a
      musica" e "trocar a musica" sao a mesma pergunta ("o que eu quero ouvir
-     agora?") e duas teclas para uma pergunta e uma a mais.
+     agora?") e duas teclas para uma pergunta e uma a mais. Com uma trilha so
+     na lista o ciclo tem dois estados, e N e liga/desliga.
      Devolve a trilha que passou a tocar, ou null se agora esta mudo. */
   cycleTrack() {
     if (this.muted) { this.setMuted(false); this.setTrack(0); return this.list[0]; }

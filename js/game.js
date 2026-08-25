@@ -106,12 +106,11 @@ class Game {
     this.spawner = new SpawnManager();
     this.lastBossChestAt = -BALANCE.spawn.bossChestCooldown;
     this.sfx = new Sfx();
-    /* Both tracks are generated here (tools/make_focus_track.py and
-       tools/make_track.py) and both close on themselves — whole bars, tails
-       folded back onto the start, room and bed built circularly. So: native
-       loop, no crossfade. Crossfading a track that already wraps doubles the
-       beat on the way round. The order of TRACKS is which one the game opens
-       with; see audio/README.md. */
+    /* The track is generated here (tools/make_focus_track.py) and closes on
+       itself — whole bars, tails folded back onto the start, bed built
+       circularly. So: native loop, no crossfade. Crossfading a track that
+       already wraps doubles the beat on the way round. The order of TRACKS is
+       which one the game opens with; see audio/README.md. */
     this.music = new Soundtrack(TRACKS);
     this.grid = new SpatialGrid(48);
     this.events = new EventBus();
