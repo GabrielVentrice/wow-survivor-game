@@ -415,13 +415,12 @@ class UI {
 
     this.lvOffers = offers;
     this.lvViews = offers.map((o) => this.offerView(o));
-    this.lvScale(this.lvViews);
     this.lvHover = -1;
     this.el.lvRows.innerHTML = "";
     for (let i = 0; i < offers.length; i++) {
       const v = this.lvViews[i];
       const row = document.createElement("div");
-      row.className = "lv-card ch2" + (v.top ? " lv-top" : "");
+      row.className = "lv-card ch2";
       row.setAttribute("style", this.eixoVars(v.axisId));
       row.innerHTML = this.cardHtml(v, i + 1);
       row.onclick = () => this.applyOffer(offers[i]);
@@ -438,39 +437,6 @@ class UI {
        fica, e ele e o proprio da tela (`.lv-timer`). */
     this.el.hud.classList.add("hidden");
     this.el.levelup.classList.remove("hidden");
-  }
-
-  /* A ESCALA COMPARTILHADA. Ela e a tela inteira: comparar tres barras so
-     significa alguma coisa se as tres estiverem na mesma regua, e e por isso
-     que ela e calculada sobre a MESA e nao dentro de `offerView`, que so ve
-     uma oferta por vez.
-
-     So uma carta pode ser marcada como maior ganho, e a marcacao e um FATO
-     aritmetico, nao uma recomendacao de estilo de jogo — por isso ela e osso e
-     nao cor de eixo. Empate nao marca ninguem: duas cartas em osso cheio na
-     mesma tela colidiriam, e "as duas rendem igual" nao e o que a marcacao
-     existe para dizer. */
-  lvScale(views) {
-    let topo = 0, topoIdx = -1, empate = false;
-    for (let i = 0; i < views.length; i++) {
-      const d = views[i].dps;
-      if (!(d > 0)) continue;
-      if (d > topo * 1.001) { topo = d; topoIdx = i; empate = false; }
-      else if (d > topo * 0.999) empate = true;
-    }
-    if (empate) topoIdx = -1;
-    for (let i = 0; i < views.length; i++) {
-      const v = views[i];
-      /* PISO DE 3%. Uma evolucao pode render trinta vezes o que o tier vizinho
-         rende, e a barra proporcional daquele vizinho sai com meio pixel — o
-         que le como zero, e zero e outra coisa: "esta oferta nao move o dano".
-         O piso mantem a distincao que importa (rende alguma coisa / nao rende)
-         sem mexer na ordem, que e o que a barra promete. */
-      v.pct = topo > 0 && v.dps > 0
-        ? Math.max(3, Math.min(100, v.dps / topo * 100)) : 0;
-      v.top = i === topoIdx;
-    }
-    return views;
   }
 
   /* As tres cartas atendem por `1`, `2` e `3`. Nao e atalho de conveniencia: e
@@ -499,17 +465,16 @@ class UI {
      primeiro rebalanceamento. */
   offerView(o) {
     const axis = o.axis || null;
-    const v = { axisId: axis ? axis.id : null, axis, pips: null, delta: [] };
-    /* A REGUA. O ganho em dano/s e a unica coisa da carta que nao sai do
-       catalogo: ele e simulado contra a build de agora (`BuildSystem.offerGain`
-       -> `js/systems/dps.js`), entao ele ja tem tier, passiva e capstone
-       dentro. Zero e resposta legitima — tier de controle, de cura ou de
-       deslocamento nao move a regua —, e a carta diz isso com palavra em vez
-       de fingir um numero. */
-    v.dps = this.game.build.offerGain(o);
-    v.pct = 0;
-    v.top = false;
+    const v = { axisId: axis ? axis.id : null, axis, pips: null, delta: [], crus: [] };
+    /* A CARTA NAO PREVE MAIS DANO. A regua (o "+106 dano/s", a barra e o selo
+       de maior ganho) saiu da tela: ela respondia "qual rende mais" com um
+       numero simulado, e o que a carta mostra agora e so o que a compra
+       realmente muda — o antes -> depois, que nao e estimativa nenhuma.
 
+       `BuildSystem.offerGain` e `js/systems/dps.js` continuam de pe: o modelo
+       segue medido por `driver_bench` (bloco REGUA x CAMPO) e por
+       `driver_cards`, e volta a desenhar no dia em que a tela quiser prever de
+       novo. O que nao existe mais e a previsao NA CARTA. */
     if (o.kind === "passive") {
       v.kind = "Passiva";
       v.glyph = "✦";
@@ -523,16 +488,6 @@ class UI {
          com razao. */
       v.hits = this.passiveReach(o.def);
       v.subtitle = `não dispara · ${v.hits} peça${v.hits === 1 ? "" : "s"} na build`;
-      /* A linha de valores crus so existe quando ha valor. "Soma das 5 pecas
-         afetadas" embaixo de "nao muda o dano" seria a carta se contradizendo
-         na mesma coluna. */
-      v.crus = v.dps > 0.5 ? `Soma das ${v.hits} peças afetadas` : "";
-      /* A regua nao ve HOOK. Passiva ligada a evento (`on`) roda codigo
-         imperativo em `js/hooks.js` — Eco do Vazio repete golpe grande,
-         Contagio faz o DoT saltar —, e nada disso esta no dado que o modelo
-         percorre. Dizer "nao muda o dano" ali seria a carta MENTINDO sobre
-         uma passiva que muda o dano; ela diz que o ganho nao cabe na regua. */
-      v.foraDaRegua = !!o.def.on;
       v.plain = o.def.desc;
       /* `why` so aparece quando ACRESCENTA. Numa carta o nome esta logo acima e
          repetir a identidade e ruido; sobram os dois casos com informacao nova
@@ -595,18 +550,13 @@ class UI {
       const ultimo = o.path.tiers[PATH_RULES.tiers - 1];
       v.trava = o.tierIndex === PATH_RULES.freeTier && !evo
         && this.game.build.openLines(o.inst) === 0 ? (ultimo && ultimo.name) || "" : "";
-      /* Os valores crus continuam ali, para quem quiser conferir — em mono,
-         embaixo do numero que decide, e nao no lugar dele. O valor novo sai na
-         BRASA do eixo: e a unica cor da linha, e ela marca exatamente o que
-         mudou. */
-      v.crus = v.delta.length
-        ? v.delta.map((d) => `${d[0]} → <em>${d[1]}</em>`).join(" · ")
-        : "";
-      /* Evolucao nao promete numero: ela troca trigger, efeitos e forma, entao
-         a regua dela e uma ESTIMATIVA de uma peca que ainda nao foi jogada.
-         Dizer isso e o que impede a carta mais espetacular da tela de parecer
-         uma promessa aritmetica. */
-      if (evo) v.crus = "Estimado · muda como a peça joga";
+      /* UMA MUDANCA POR LINHA. Duas mudancas separadas por " · " na mesma
+         linha ("crítico 5% → 30% · dano crítico 2x → 2.5x") pedem que o olho
+         ache o divisor antes de achar o segundo numero — e o antes -> depois
+         ja carrega uma seta por conta propria. Empilhadas, as duas comecam na
+         mesma coluna e se leem de uma vez. O valor novo sai na BRASA do eixo:
+         e a unica cor da linha, e ela marca exatamente o que mudou. */
+      v.crus = v.delta.map((d) => `${d[0]} → <em>${d[1]}</em>`);
     }
 
     return v;
@@ -684,18 +634,10 @@ class UI {
   /* A carta, 348 x min-height 436, em retrato. Da frente para tras: etiqueta
      de tipo, cabecalho, REGUA, efeito, rodape.
 
-     O eixo aparece em QUATRO lugares pequenos — quadrado de 9px, barra da
-     regua, brasa nos valores crus, pips — e nunca na moldura: a marcacao de
-     maior ganho e osso, e osso e cor de eixo na mesma moldura brigariam por
-     dizer coisas diferentes sobre a mesma carta. */
+     O eixo aparece em TRES lugares pequenos — quadrado de 9px, brasa no valor
+     novo, pips — e nunca na moldura: moldura de eixo faria a carta ser lida
+     pela cor antes de ser lida pelo que ela muda. */
   cardHtml(v, tecla) {
-    /* O ganho zero nao vira "+0": "+0 dano/s" le como uma peca quebrada, e o
-       que esta acontecendo e outra coisa — a oferta muda controle, cura ou
-       deslocamento, que a regua nao mede. A carta diz isso com palavra. */
-    const zero = !(v.dps > 0.5);
-    const num = zero ? "—" : `+${fmtNum(Math.round(v.dps))}`;
-    const un = !zero ? "dano/s"
-      : v.foraDaRegua ? "ganho fora da régua" : "não muda o dano";
     return `
       <div class="lv-topo">
         <span class="tag ${v.tagCls} lv-kind ch1"><i>${v.glyph}</i>${v.kind}</span>
@@ -710,15 +652,11 @@ class UI {
         </div>
       </div>
       <div class="lv-hr"></div>
-      <div class="lv-regua">
-        ${v.top ? `<div class="lv-top-lbl">Maior ganho</div>` : ""}
-        <div class="lv-ganho"><b>${num}</b><span>${un}</span></div>
-        <div class="lv-escala"><i style="width:${v.pct.toFixed(1)}%"></i></div>
-        ${v.crus ? `<div class="lv-crus">${v.crus}</div>` : ""}
-      </div>
+      ${v.crus.length ? `<div class="lv-crus">${
+        v.crus.map((l) => `<span>${l}</span>`).join("")}</div>` : ""}
       ${v.trava ? `<div class="lv-trava"><b>Fecha as outras duas linhas</b>termina em ${
         v.trava}</div>` : ""}
-      ${v.plain ? `<div class="lv-hr"></div><div class="lv-plain">${v.plain}</div>` : ""}
+      ${v.plain ? `<div class="lv-plain">${v.plain}</div>` : ""}
       ${v.why ? `<div class="lv-why">${v.why}</div>` : ""}
       <div class="lv-foot-card">
         <div class="lv-foot-row">

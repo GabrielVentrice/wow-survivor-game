@@ -48,7 +48,7 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
-    v: "0.13.0",
+    v: "0.14.0",
     data: "2026-08-25",
     titulo: "Cinco spells, uma linha cada",
     notas: [
@@ -57,6 +57,15 @@ const CHANGELOG = [
       { t: "novo", txt: "Fechar uma linha até o fim devolve a escolha: a spell pode abrir a próxima. É assim que uma peça ainda evolui duas vezes." },
       { t: "ajuste", txt: "Travar uma linha custa um ponto de eixo, então a decisão mais pesada do level up só chega depois da primeira etapa." },
       { t: "ajuste", txt: "Nível que tem uma única coisa a oferecer não abre mais tela: ele aplica e avisa no canto. Tela para escolher entre uma opção só não era escolha." },
+    ],
+  },
+  {
+    v: "0.13.0",
+    data: "2026-08-25",
+    titulo: "A carta diz o fato, não a previsão",
+    notas: [
+      { t: "ajuste", txt: "A tela de level up parou de prever dano: saíram o \"+106 dano/s\", a barra e o selo de maior ganho. O que a carta mostra agora é só o que a compra muda de verdade — \"dano 175 → 263\"." },
+      { t: "ajuste", txt: "Quando a compra muda duas coisas, cada uma vai numa linha própria em vez de dividirem a mesma linha com um ponto no meio." },
     ],
   },
   {

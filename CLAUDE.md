@@ -2626,8 +2626,8 @@ Cinco consequências, e cada uma custou uma decisão:
   perguntar. Com a zona franca em 1, os três primeiros degraus (um por linha)
   são compras livres, então a mesa nasce cheia — e a decisão de linha chega
   depois de o jogador ter visto o tiro sair mais rápido, o número subir e o
-  primeiro crítico. Em 0 a primeira tela seria aposta cega, e a régua não salva
-  isso: ela mede o próximo tier, não o destino.
+  primeiro crítico. Em 0 a primeira tela seria aposta cega, e nada na carta
+  salva isso: o "antes → depois" mede o próximo tier, não o destino.
 - **A carta que trava imprime o DESTINO.** Enquanto duas linhas cabiam na mesma
   peça, anunciar o tier 5 num tier baixo era promessa que o jogador não precisa
   cumprir. Com a trava, escolher a linha **é** escolher o tier 5, e escondê-lo
@@ -2653,9 +2653,9 @@ Ela não pode se disfarçar de `locked` — `locked` promete slot fixo em toda
 etapa, e esta não promete nada. Com o pacto de dois eixos sobram até duas
 dessas, e "+2 na Corrupção ou +2 no Cataclismo" continua sendo uma decisão.
 
-### A tela de level-up: a régua comum
+### A tela de level-up: o que a compra muda
 
-Três **cartas verticais** de 348x436 lado a lado, e abaixo uma tira com a build
+Três **cartas verticais** de 348 x min-height 376 lado a lado, e abaixo uma tira com a build
 de agora. O mundo continua atrás — é isso, e não a cor, que separa esta tela do
 preto chapado da etapa —, mas a **8%**: com mil inimigos em campo os pontos
 brancos do canvas ficavam mais claros que o texto das cartas, e o mundo tem que
@@ -2672,56 +2672,51 @@ cabeça, 17 a 70 vezes por run. Sem denominador comum ninguém compara: ou chuta
 ou escolhe sempre a mesma coisa, e nos dois casos a escolha deixou de ser
 decisão.
 
-O jogo já sabe cadência, alvos e dano de cada peça. Ele pode fazer a conta que o
-jogador não faz — e é isso que a régua é.
+**A resposta a isso foi a RÉGUA — o ganho em dano/s, em mono 38, com uma barra
+comparativa e o selo de `MAIOR GANHO` —, e ela SAIU da carta.** O que ela dizia
+era uma previsão: quanto a oferta ia render num campo suposto
+(`BALANCE.dps` — quantos corpos um raio pega, que fração da horda carrega um
+DoT seu). Ao lado do `dano 175 → 263`, que é o número que o jogador vai passar
+a ter de fato, a previsão era o elemento maior da carta e o único que podia
+estar errado. Ficou o fato.
 
-**A hierarquia interna, e ela trocou de dono:**
+**A hierarquia interna:**
 
-1. **a régua** — o ganho em **dano/s** em mono 38, e a barra de 12px logo
-   abaixo. É o maior elemento da carta depois do nome.
-2. **o próprio upgrade** em `dado-m`, com o valor novo na **brasa** do eixo
-   (`crítico 5% → 30% · dano crítico 2x → 2.5x`). Num tier numérico ele é o
-   **corpo** da carta — a única coisa que a régua não diz é o que o jogador vai
-   passar a ter.
-3. nome da spell, linha de contexto e etiqueta de tipo.
-4. o slot em Eczar (só quando há comportamento novo), `.lv-why`, ícone, pips e
+1. **o próprio upgrade** em `dado-m`, com o valor novo na **brasa** do eixo
+   (`dano 175 → 263`). É o corpo da carta, e ele ocupa o lugar onde a régua
+   morava — logo abaixo do primeiro filete.
+2. nome da spell, linha de contexto e etiqueta de tipo.
+3. o slot em Eczar (só quando há comportamento novo), `.lv-why`, ícone, pips e
    tecla.
-
-**As três barras compartilham a mesma escala** (`UI.lvScale`, calculada sobre a
-mesa e não dentro de `offerView`, que só vê uma oferta por vez): a mais longa
-ganha mais, e isso se lê **sem número**. A legenda embaixo do título ensina a
-régua uma vez; depois disso o jogador só lê as barras.
 
 Regras que caem daí:
 
-- **A régua é honesta, não promocional.** Ela não sabe o que é espetacular —
-  ela sabe quanto rende. Se a evolução não for o maior ganho, ela não é marcada
-  como maior ganho: uma régua que só confirmasse a opção mais vistosa não
-  estaria informando nada.
-- **`MAIOR GANHO` é osso, nunca cor de eixo.** "Esta rende mais" é um fato
-  aritmético, não um eixo falando. A marcação é luz de 2px no topo + moldura de
-  osso + o rótulo na régua + a tecla em osso cheio.
-- **Empate não marca ninguém.** Duas cartas em osso cheio na mesma tela
-  colidiriam, e "as duas rendem igual" não é o que a marcação existe para dizer.
-- **O piso da barra é 3%.** Uma evolução pode render trinta vezes o tier
-  vizinho, e a barra proporcional daquele vizinho sairia com meio pixel — que
-  lê como zero, e zero é outra coisa ("esta oferta não move o dano"). O piso
-  mantém a distinção que importa sem mexer na ordem.
-- **Ganho zero não vira `+0`.** `+0 dano/s` lê como peça quebrada quando o que
-  houve foi a régua não medir aquilo: a carta escreve `—` e diz `não muda o
-  dano` (controle, cura, deslocamento) ou `ganho fora da régua` (passiva ligada
-  a hook, que roda código imperativo que o modelo não percorre).
+- **Uma mudança por linha.** Duas na mesma linha (`crítico 5% → 30% · dano
+  crítico 2x → 2.5x`) pedem que o olho ache o divisor antes de achar o segundo
+  número, e o `antes → depois` já carrega uma seta por conta própria.
+  Empilhadas, as duas começam na mesma coluna e se leem de uma vez. `v.crus` é
+  um **array**, e o `gap` entre as linhas é 6 e não os 14 da carta: são duas
+  faces do mesmo fato.
+- **A carta não prevê mais nada.** Sem régua não há barra, não há escala
+  compartilhada (`UI.lvScale` foi junto) e não há carta vencedora — comparar
+  qual rende mais voltou a ser leitura do jogador, e o que a tela garante é que
+  ele tem o número certo para fazer isso.
+- **O modelo continua de pé, e continua cobrado.** `BuildSystem.offerGain` →
+  `js/systems/dps.js` não foi apagado: `driver_bench` (bloco `REGUA x CAMPO`)
+  continua medindo se ele ordena como o campo, e `driver_cards` passou a
+  chamá-lo por oferta. Modelo sem consumidor apodrece calado — este tem dois, e
+  é isso que permite a régua voltar a ser desenhada no dia em que a tela quiser
+  prever de novo. `driver_cards` reprova `lv-escala`, `lv-ganho` e `lv-top-lbl`
+  de volta na carta sem essa decisão ser tomada.
 - **A tecla substitui os três botões `ESCOLHER`.** 34px no canto em vez de 44px
   na largura inteira, três vezes, repetindo a mesma palavra. A carta inteira
   continua sendo o alvo de clique; `1`/`2`/`3` são o input certo de uma tela que
   aparece 70 vezes por run (`UI.levelUpKey`, chamada do `keydown` do `Game`).
 
-**O eixo aparece em quatro lugares pequenos** — quadrado de 9px, barra da
-régua, brasa nos valores crus, pips — e **nunca na moldura**: moldura de eixo
-faria a carta ser lida pela cor antes de ser lida pelo número, e o número é o
-assunto desta tela. Foi por isso que o chip de recomendação (`acende a aura`)
-saiu: ele era um quinto lugar em cor de eixo, e o mesmo fato cabe no veredito
-do rodapé em texto.
+**O eixo aparece em três lugares pequenos** — quadrado de 9px, brasa no valor
+novo, pips — e **nunca na moldura**: moldura de eixo faria a carta ser lida pela
+cor antes de ser lida pelo que ela muda, e é isso que é o assunto desta tela.
+Foi pela mesma conta que o chip de recomendação (`acende a aura`) saiu.
 
 Regras que continuam valendo:
 
@@ -2772,7 +2767,6 @@ sai do que já existe:
 
 | Campo da carta | De onde vem |
 |---|---|
-| ganho em dano/s | `BuildSystem.offerGain` → `js/systems/dps.js` |
 | antes → depois | `tier.mods` aplicado a `inst.r.stats` (`UI.tierDelta`) |
 | frase em Eczar | `tier.desc` — e só no tier estrutural e na passiva |
 | onde chega | os pips, de `tierIndex` contra `PATH_RULES.tiers` |
@@ -2791,8 +2785,8 @@ Consequências:
   a tabela o delta imprimiria "limiar 0.35 → 0.5". Stat sem entrada não aparece,
   e `driver_cards` reprova mod que mexa em stat fora da tabela.
 - **Tier numérico não tem parágrafo nenhum.** 528 dos 660 tiers são gerados e o
-  texto deles é puro número ("+40% de dano.") — o mesmo dado que a régua imprime
-  em mono 38. O slot já tentou duas saídas e as duas eram a mesma coisa por
+  texto deles é puro número ("+40% de dano.") — o mesmo dado que o próprio
+  upgrade imprime logo acima. O slot já tentou duas saídas e as duas eram a mesma coisa por
   extenso: o `desc` da peça (idêntico nas duas cartas que costumam ser da mesma
   spell) e depois `LINE_ABOUT`, a frase da linha — que dizia "cada vez que a
   peça acontece, ela acontece mais forte" nas cinco cartas daquela linha, run
@@ -2803,9 +2797,16 @@ Consequências:
   lados — que o numérico não escreva parágrafo e que ele traga o "antes →
   depois".
 
-#### A régua: `js/systems/dps.js`
+#### A régua: `js/systems/dps.js` — o modelo que a carta não desenha mais
 
-O ganho é a única coisa da carta que **não** sai do catálogo — ele é simulado.
+**A régua saiu da tela e o modelo ficou.** Ela era a única coisa da carta que
+não saía do catálogo — era simulada —, e é exatamente por isso que ela saiu: ao
+lado do `antes → depois`, que é fato, a previsão era o maior elemento da carta
+e o único que podia estar errado. O que segue de pé é o modelo, com dois
+consumidores que o mantêm honesto (`driver_bench` no bloco `REGUA x CAMPO` e
+`driver_cards`, que o chama por oferta) — e é isso que permite a régua voltar a
+ser desenhada sem ter que ser reescrita.
+
 `BuildSystem.offerGain(o)` monta uma **sombra** (um objeto com `def` e `paths`
 trocados) e a passa pelo mesmo `resolvePiece` que o motor usa, então a previsão
 vem do mesmo pipeline que vai rodar quando a carta for clicada. Passiva é o
@@ -2822,17 +2823,18 @@ Três regras mantêm o modelo honesto:
    tempo o jogador anda, que fração da horda carrega um DoT seu — tudo isso é
    **suposição**, e suposição escondida no meio de um `switch` é a que ninguém
    revisa.
-3. **Ele promete ORDEM, não valor.** A barra é comparativa, então errar a
-   escala não mente para ninguém; inverter duas ofertas mente.
+3. **Ele promete ORDEM, não valor.** Enquanto a barra era comparativa, errar a
+   escala não mentia para ninguém; inverter duas ofertas mentia. É a mesma
+   promessa que os drivers cobram hoje, sem tela nenhuma dependendo dela.
 
 **Quem cobra a terceira é o próprio `driver_bench`**, no bloco `REGUA x CAMPO`:
 ele já mede toda peça com o motor rodando, então a comparação mora ao lado da
 medida em vez de virar um segundo banco. Hoje o **rho de Spearman entre as duas
 ordens é 0.75**, com piso de 0.6 — frouxo de propósito, porque o modelo assume
 **um** campo e o banco mede seis, dois deles de alvo único. E ele reprova mudez
-nos dois sentidos: régua zero com campo medindo dano (a carta diria "não muda o
-dano" sobre uma peça que muda) e régua com dano onde o campo mede zero (a carta
-prometeria um número que não existe). A isenção é a mesma que o banco já
+nos dois sentidos: régua zero com campo medindo dano e régua com dano onde o
+campo mede zero — as duas eram mentira na carta enquanto a carta desenhava o
+número, e continuam sendo modelo quebrado agora que ela não desenha. A isenção é a mesma que o banco já
 carrega: `player_below` e `enemy_below` nunca viram verdade num campo em que o
 jogador é imortal e os dummies também.
 
