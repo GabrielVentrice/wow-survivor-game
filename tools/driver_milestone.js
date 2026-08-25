@@ -166,8 +166,14 @@ function simular(seed, alvo, sempreSpell) {
     const abertos = [];
     for (const a in AXES) if (g.build.axis[a] >= M.unlockAt) abertos.push(a);
 
-    // 3. antes de abrir nada, nenhuma carta tem lado seco.
-    if (!abertos.length) {
+    /* 3. antes de abrir nada, nenhuma carta tem lado seco — ENQUANTO couber
+          spell na build. Com o loadout cheio (`BALANCE.loadout.maxSpells`) nao
+          ha mais peca para oferecer, e a etapa passa a ser so eixo: a carta
+          seca aparece sem nenhum eixo aberto, que e a terceira especie
+          (`dryOnly`). Ela nao pode se disfarcar de slot fixo — `locked`
+          promete slot garantido em toda etapa, e esta nao promete nada. */
+    const cheio = g.build.loadoutFull();
+    if (!abertos.length && !cheio) {
       for (const o of offers) {
         if (o.dry) bad(`etapa ${i}: carta seca com nenhum eixo em ${M.unlockAt}`);
         if (o.locked) bad(`etapa ${i}: carta fixa com nenhum eixo aberto`);
@@ -345,14 +351,40 @@ if (medFecha > ORCAMENTO) {
 }
 
 /* --- quem so leva spell --------------------------------------------------- */
-// O outro extremo: nunca pega a carta seca. Ele anda `spellPoints` por vez, e e
-// o unico que precisa das etapas continuarem depois do que seria uma tabela.
+/* O outro extremo: pega spell sempre que a mesa oferecer. Ele anda
+   `spellPoints` por vez, e e o unico que precisa das etapas continuarem depois
+   do que seria uma tabela.
+
+   O TETO DE SPELLS mudou o que se pode cobrar dele, e a mudanca e de desenho e
+   nao de driver. Antes, largura se pagava em MARCOS: quem levava spell toda
+   etapa andava de 1 em 1 e fechava a pool bem depois de quem mirava, e o driver
+   cobrava a desigualdade estrita. Com `BALANCE.loadout.maxSpells` a largura
+   deixou de ser cobrada e passou a ser TETADA — depois da quinta spell nao ha
+   mais o que levar, e os dois perfis passam a andar de 2 em 2 no mesmo passo.
+   Cobrar `>` aqui seria cobrar um preco que o jogo parou de cobrar de
+   proposito.
+
+   O que continua verdadeiro, e e o que se cobra: os dois perfis CONVERGEM, e
+   convergem porque depois do teto eles jogam a mesma etapa. Divergirem muito
+   voltaria a significar que largura tem preco — o preco que o teto substituiu
+   —, e e por isso que o driver olha a distancia em vez de um lado so. */
 const largo = simular(31, "dominion", true);
 if (largo.pool !== AXIS_RULES.pool) {
   bad(`quem so leva spell nunca fecha a pool: ${largo.pool}/${AXIS_RULES.pool}`);
 }
-if (largo.marcos <= mirando[0].marcos) {
-  bad("levar spell deveria custar MARCOS: o largo fechou em tantos quanto o que mira");
+const dist = Math.abs(largo.marcos - mirando[0].marcos);
+if (dist > 2) {
+  bad(`o teto deveria fazer os dois perfis convergirem: largo em ${largo.marcos} ` +
+      `marcos contra ${mirando[0].marcos} de quem mira`);
+} else {
+  console.log(`  ok os perfis convergiram: largo ${largo.marcos} marcos, ` +
+              `mira ${mirando[0].marcos} — o teto substituiu o preco da largura`);
+}
+if (largo.spells > BALANCE.loadout.maxSpells) {
+  bad(`o teto de spells nao segurou: ${largo.spells} na build, teto ${BALANCE.loadout.maxSpells}`);
+} else {
+  console.log(`  ok o loadout fechou em ${largo.spells}/${BALANCE.loadout.maxSpells} spells ` +
+              `(${largo.marcos} marcos, contra ${mirando[0].marcos} de quem mira)`);
 }
 
 if (!viuRepetido) {

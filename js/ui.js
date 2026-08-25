@@ -389,6 +389,23 @@ class UI {
       return;
     }
 
+    /* UMA OFERTA NAO E UMA ESCOLHA. Com `maxDeep: 1` e o loadout pequeno, o
+       bolo cai para um candidato sempre que a build esta enxuta — no comeco da
+       run com uma spell so e com a linha ja travada, e no fim quando sobra uma
+       trilha aberta. Abrir uma tela modal, parar o mundo e pedir um clique para
+       apresentar a unica coisa que pode acontecer e o jogo cobrando atencao e
+       devolvendo vazio, que e o mesmo defeito que o folego conserta do outro
+       lado (bolo zero).
+
+       Aplica e conta por TOAST. O jogador nao perde a informacao — ele perde a
+       interrupcao. E a fila continua andando: `applyOffer` reabre a tela
+       sozinho enquanto houver nivel pendente, entao varios niveis de uma vez
+       viram varios toasts e nao varias telas mortas. */
+    if (offers.length === 1) {
+      this.applyOffer(offers[0], true);
+      return;
+    }
+
     /* O nivel que ESTA escolha paga. Com varios niveis na fila o jogador
        escolhe uma vez por nivel, entao o rotulo anda com a fila em vez de
        repetir o nivel ja alcancado tres vezes seguidas. */
@@ -564,6 +581,20 @@ class UI {
       v.plain = plain ? plain.charAt(0).toUpperCase() + plain.slice(1) : "";
       v.why = evo ? evo.desc : "";
       v.pips = o.tierIndex + 1;
+      /* A CARTA QUE TRAVA. Com `maxDeep: 1`, comprar o primeiro tier fora da
+         zona franca fecha as outras duas linhas da peca — e essa e a decisao
+         mais pesada que o level up sabe cobrar, porque ela escolhe em qual dos
+         tres tier 5 a spell termina.
+
+         Enquanto duas linhas cabiam na mesma peca, anunciar o tier 5 num tier
+         baixo seria promessa que o jogador nao precisa cumprir (da para comprar
+         a outra linha depois). Com a trava, escolher a linha E escolher o
+         destino, entao esconde-lo seria a tela cobrando a escolha sem dizer o
+         que ela compra. O nome sai do proprio dado — o ultimo tier da linha,
+         que ja e escrito a mao peca por peca. */
+      const ultimo = o.path.tiers[PATH_RULES.tiers - 1];
+      v.trava = o.tierIndex === PATH_RULES.freeTier && !evo
+        && this.game.build.openLines(o.inst) === 0 ? (ultimo && ultimo.name) || "" : "";
       /* Os valores crus continuam ali, para quem quiser conferir — em mono,
          embaixo do numero que decide, e nao no lugar dele. O valor novo sai na
          BRASA do eixo: e a unica cor da linha, e ela marca exatamente o que
@@ -685,6 +716,8 @@ class UI {
         <div class="lv-escala"><i style="width:${v.pct.toFixed(1)}%"></i></div>
         ${v.crus ? `<div class="lv-crus">${v.crus}</div>` : ""}
       </div>
+      ${v.trava ? `<div class="lv-trava"><b>Fecha as outras duas linhas</b>termina em ${
+        v.trava}</div>` : ""}
       ${v.plain ? `<div class="lv-hr"></div><div class="lv-plain">${v.plain}</div>` : ""}
       ${v.why ? `<div class="lv-why">${v.why}</div>` : ""}
       <div class="lv-foot-card">
@@ -822,9 +855,20 @@ class UI {
       ${chips ? `<div class="lv-strip-chips">${chips}</div>` : ""}`;
   }
 
-  applyOffer(o) {
+  applyOffer(o, auto) {
     const g = this.game;
+    /* `auto` = o bolo tinha uma oferta so e a tela nao chegou a abrir. A conta
+       vira toast, e ele e montado ANTES de aplicar: depois da aplicacao o tier
+       ja subiu e `offerView` descreveria a compra seguinte. */
+    const aviso = auto ? this.offerView(o) : null;
     const res = g.build.applyOffer(o);
+
+    /* Evolucao, aura e capstone tem toast proprio e melhor — anunciar a compra
+       tambem seria dizer o mesmo fato duas vezes na mesma pilha de 3. */
+    if (aviso && !res.evolved && !res.completed) {
+      this.toast({ head: aviso.kind, axis: aviso.axisId,
+        name: aviso.name, value: aviso.subtitle });
+    }
 
     if (res.evolved) {
       g.sfx.combo();
@@ -1039,7 +1083,13 @@ class UI {
        a pergunta e descoberta; com um eixo aberto, ela vira quanto investir
        nele — e isso precisa estar dito antes das linhas, nao deduzido delas. */
     const aberta = offers.find((o) => o.locked);
-    this.el.msSub.textContent = aberta
+    /* Com o loadout cheio a mesa nao tem mais spell nenhuma, e o subtitulo nao
+       pode continuar dizendo "a spell vem junto": ele estaria descrevendo uma
+       tela que nao esta ali. A terceira fase da run tem a sua propria frase. */
+    const soEixo = offers.length > 0 && offers.every((o) => !o.piece);
+    this.el.msSub.textContent = soEixo
+      ? "O arsenal está fechado. O que sobra é onde investir — e isso não volta."
+      : aberta
       ? `${aberta.axis.name} já está aberta: o eixo sozinho não cobra mais nada. A spell, sim.`
       : "O único ponto que não volta. Escolha o eixo — a spell vem junto, cobrando um ponto.";
 
@@ -1125,6 +1175,28 @@ class UI {
         </button>
         <div class="ms-take-note">${nota}</div></div>`;
     };
+
+    /* A TERCEIRA ESPECIE: eixo seco de um eixo que pode nem ter aberto,
+       oferecido porque o loadout encheu e nao ha mais spell que caiba. A
+       manchete e o EIXO, como na linha aberta — mas sem o selo `aberto`, que e
+       a promessa de slot fixo que esta carta nao faz. E ela diz por que nao ha
+       spell: a mesa que muda de assunto sem explicar parece a mesa quebrada. */
+    if (o.dryOnly) {
+      return `
+        <span class="ms-eixo"></span>
+        <span class="ms-ic">${Glyph.svg(o.axisId, 64)}</span>
+        <div class="ms-txt">
+          <div class="ms-head">
+            <span class="ms-axis">${o.axis.name}</span>
+            <span class="ms-num">${cur}/${AXIS_RULES.capPerAxis}</span>
+          </div>
+          <div class="ms-tag">${o.axis.tag}</div>
+          <div class="ms-desc">Arsenal completo — ${
+            BALANCE.loadout.maxSpells} spells na build. Daqui em diante a etapa
+            só investe no eixo, e a profundidade vem do level up.</div>
+        </div>
+        <div class="ms-takes">${take(o.dry, false, "Só o eixo")}</div>`;
+    }
 
     if (!o.locked) {
       return `

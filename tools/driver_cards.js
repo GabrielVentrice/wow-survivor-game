@@ -61,8 +61,18 @@ const bad = (m) => { problems++; console.log("X   " + m); };
        explicacao e a tela cobrando atencao e devolvendo silencio. */
 const primeira = () => g.build.pieces.values().next().value;
 {
-  // [pontos no eixo, tier em que a trilha para]
-  for (const [pontos, teto] of [[0, 2], [1, 3], [4, 3], [5, 4], [9, 4], [10, 5], [15, 5]]) {
+  /* O teto sai do DADO, nao de uma tabela copiada. A escada era escrita a mao
+     aqui ([[0,2],[1,3],...]) e envelheceu na primeira vez que `axisGate` mexeu:
+     quando `freeTier` caiu de 2 para 1, o gate perdeu um zero junto e a tabela
+     passou a reprovar o comportamento CERTO. Uma segunda lista de numeros e
+     exatamente o que o resto deste projeto passa o tempo evitando.
+
+     `axisGate` e nao-decrescente, entao o tier mais alto alcancavel com `n`
+     pontos e simplesmente quantos degraus cobram `<= n`. */
+  const tetoPara = (n) =>
+    PATH_RULES.axisGate.filter((need) => need <= n).length;
+  for (const pontos of [0, 1, 4, 5, 9, 10, 15]) {
+    const teto = tetoPara(pontos);
     g.start(STARTER_TESTE);
     const inst = primeira();
     g.build.axis[inst.def.axis] = pontos;

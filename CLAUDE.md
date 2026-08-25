@@ -2087,11 +2087,18 @@ inércia.
   eixos têm pelo menos um ponto, o terceiro se fecha — ver "O pacto".
 - **Ponto de eixo só vem de etapa.** Level-up não cobra nada e o baú entrega tier
   — as duas moedas nunca mais disputam a mesma escolha (ver "As duas batidas").
-- No máximo **2** caminhos por peça passam do tier 2 → impossível maximizar três.
-- **Tier 3, 4 e 5 pedem 1, 5 e 10 pontos no eixo DA PEÇA** (`PATH_RULES.axisGate`)
-  → impossível ter uma spell fechada sem ter escolhido um eixo, e `freeTier`
-  deixa de ser uma segunda regra: os dois tiers de graça são exatamente os que o
-  gate não cobra.
+- **A run cabe em CINCO spells** (`BALANCE.loadout.maxSpells`) → batido o teto, a
+  etapa para de oferecer spell e vira uma pergunta só sobre eixo. Ver "O loadout
+  e a linha única".
+- **Uma linha por vez** (`PATH_RULES.maxDeep` 1), **duas na vida da peça**
+  (`maxLines` 2) → a peça casa com uma linha e só reabre quando fecha o tier 5.
+- **Tier 2, 3, 4 e 5 pedem 1, 1, 5 e 10 pontos no eixo DA PEÇA**
+  (`PATH_RULES.axisGate`) → impossível ter uma spell fechada sem ter escolhido um
+  eixo, e `freeTier` deixa de ser uma segunda regra: o tier de graça é
+  exatamente o que o gate não cobra. **O invariante é load-bearing** — quando
+  `freeTier` caiu de 2 para 1, `axisGate` teve que perder um zero junto, senão o
+  tier 2 ficava fora da zona franca *e* fora do gate, um degrau que ninguém
+  cobra. `driver_cards` deriva a escada do dado em vez de repeti-la.
   **A escada já foi 5/10/15 — os limiares de capstone —, e ela era cara demais
   para o que cobra.** Lida em tabela ficava elegante (o tier 5 custava a mesma
   pureza que o capstone puro); jogada, exigia um eixo MÁXIMO para fechar
@@ -2571,17 +2578,80 @@ Ela conserta duas coisas e cobra uma terceira. Em 20 runs do `driver_balance`:
 | runs com evolução | 11/20 | 7/20 |
 | auras (mediana) | 2 | 1 |
 
-O ganho é a pool fechar e o capstone acontecer. O custo é **profundidade**: a
-fase fechada só aceita spell, então toda build sai dela com 9–12 spells, e os
-tiers do level-up se espalham entre elas em vez de fechar caminhos. Se o alvo
-mudar e evolução voltar a importar mais que capstone, a alavanca é `unlockAt` —
-baixá-lo encurta a fase fechada e é o número que decide quantas spells a run é
-obrigada a carregar.
+O ganho é a pool fechar e o capstone acontecer. O custo era **profundidade**: a
+fase fechada só aceita spell, então toda build saía dela com 9–12 spells, e os
+tiers do level-up se espalhavam entre elas em vez de fechar caminhos.
+
+**Esse custo foi pago pelo teto de spells** — ver "O loadout e a linha única"
+logo abaixo. A alavanca antiga era `unlockAt` (baixá-lo encurta a fase fechada);
+ela continua existindo, mas deixou de ser a única, e é a menos direta das duas:
+`unlockAt` decide quantas spells a run é *obrigada* a carregar, `maxSpells`
+decide quantas ela *pode*.
 
 Efeito colateral bom: o sorteio olha o **catálogo inteiro**, então Domínio
 voltou a aparecer. Enquanto as cartas eram uma por eixo e o kit inicial não
 semeava Domínio, ninguém escolhia aquele eixo e o catálogo de demônios ficava
 sem uso — `driver_balance` listava dez peças em `NUNCA ESCOLHIDA`.
+
+### O loadout e a linha única: menos opção viva, mais build fechada
+
+Duas regras, e elas são a **mesma regra por lados opostos** — uma corta a
+largura da build, a outra a largura da peça:
+
+| | regra | dado |
+|---|---|---|
+| largura | a run cabe em **5 spells** | `BALANCE.loadout.maxSpells` |
+| profundidade | a peça sobe por **uma linha por vez** | `PATH_RULES.maxDeep: 1` |
+
+**O que elas consertam é uma coisa só, e ela aparece em dois lugares.** O
+jogador reclama de informação demais para decidir; o `driver_balance` reprova
+evolução em 1/30 runs e capstone em 4/30. As duas leituras têm a mesma causa: a
+build saía da fase fechada com 9–12 spells × 3 linhas, então o bolo do level-up
+tinha **~30 candidatos vivos** — e uma tela sorteada de trinta candidatos, a
+cada dez segundos, não é escolha nem fecha caminho nenhum. Reduzir opção aqui
+não é concessão de UX; é a alavanca de profundidade que a medição já pedia.
+
+Cinco consequências, e cada uma custou uma decisão:
+
+- **`maxLines: 2` existe para a corrente de evolução não morrer.** Uma peça
+  evolui duas vezes (arcaneShot → aimedShot → killShot), e a segunda evolução
+  precisa de uma linha diferente da primeira — a que evoluiu está no tier 5 e
+  não sobe mais. Contando só `maxDeep`, a corrente ficaria impossível **em
+  silêncio**. Então as duas contagens dizem coisas diferentes de propósito:
+  `maxDeep` é quantas linhas estão **em progresso**, `maxLines` é quantas
+  passaram da zona franca **na vida da peça**. Lido para o jogador é uma frase:
+  *uma linha por vez — feche-a e a peça pode abrir a próxima.*
+- **`freeTier` é a ZONA FRANCA, e ela é o que salva o caso "só uma spell".**
+  Com uma peça na build, o bolo seria de um candidato e a tela não teria o que
+  perguntar. Com a zona franca em 1, os três primeiros degraus (um por linha)
+  são compras livres, então a mesa nasce cheia — e a decisão de linha chega
+  depois de o jogador ter visto o tiro sair mais rápido, o número subir e o
+  primeiro crítico. Em 0 a primeira tela seria aposta cega, e a régua não salva
+  isso: ela mede o próximo tier, não o destino.
+- **A carta que trava imprime o DESTINO.** Enquanto duas linhas cabiam na mesma
+  peça, anunciar o tier 5 num tier baixo era promessa que o jogador não precisa
+  cumprir. Com a trava, escolher a linha **é** escolher o tier 5, e escondê-lo
+  seria a tela cobrando a decisão mais pesada da peça sem dizer o que ela
+  compra. O nome sai do próprio dado (o último tier da linha, já escrito à mão).
+  E a faixa é **osso, nunca cor de eixo**: "isto não volta" é um fato sobre a
+  decisão, não sobre Corrupção — a mesma razão pela qual "Maior ganho" é osso.
+- **Bolo de uma oferta não abre tela.** Parar o mundo e pedir um clique para
+  apresentar a única coisa que pode acontecer é o jogo cobrando atenção e
+  devolvendo vazio — o mesmo defeito que o fôlego conserta do outro lado (bolo
+  zero). `applyOffer(o, true)` aplica e conta por toast, e a fila continua
+  andando, então vários níveis de uma vez viram vários toasts e não várias
+  telas mortas. O toast já tem teto de três com `+N eventos`.
+- **Largura deixou de ter PREÇO e passou a ter TETO**, e isso apagou uma
+  asserção do `driver_milestone`. Antes, quem levava spell toda etapa andava de
+  1 em 1 e fechava a pool bem depois de quem mirava; hoje os dois convergem,
+  porque depois da quinta spell jogam a mesma etapa. O driver passou a cobrar a
+  **convergência** — divergir muito significaria que o preço voltou.
+
+E o teto criou uma **terceira espécie de carta de etapa** (`dryOnly`): eixo seco
+de um eixo que pode nem ter aberto, oferecido porque não há mais spell que caiba.
+Ela não pode se disfarçar de `locked` — `locked` promete slot fixo em toda
+etapa, e esta não promete nada. Com o pacto de dois eixos sobram até duas
+dessas, e "+2 na Corrupção ou +2 no Cataclismo" continua sendo uma decisão.
 
 ### A tela de level-up: a régua comum
 

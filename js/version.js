@@ -48,6 +48,18 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
+    v: "0.13.0",
+    data: "2026-08-25",
+    titulo: "Cinco spells, uma linha cada",
+    notas: [
+      { t: "novo", txt: "A build cabe em cinco spells. Depois da quinta, a etapa para de oferecer spell nova e passa a ser só sobre onde investir o eixo." },
+      { t: "novo", txt: "Cada spell termina numa linha só. O primeiro degrau das três continua aberto para você provar todas; a compra seguinte fecha as outras duas — e a carta passa a dizer em qual final a spell termina." },
+      { t: "novo", txt: "Fechar uma linha até o fim devolve a escolha: a spell pode abrir a próxima. É assim que uma peça ainda evolui duas vezes." },
+      { t: "ajuste", txt: "Travar uma linha custa um ponto de eixo, então a decisão mais pesada do level up só chega depois da primeira etapa." },
+      { t: "ajuste", txt: "Nível que tem uma única coisa a oferecer não abre mais tela: ele aplica e avisa no canto. Tela para escolher entre uma opção só não era escolha." },
+    ],
+  },
+  {
     v: "0.12.1",
     data: "2026-08-25",
     titulo: "As cartas dizem menos",

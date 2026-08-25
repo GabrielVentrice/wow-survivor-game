@@ -564,6 +564,23 @@
               color:var(--osso-400); text-wrap:pretty; }
   .lv-why { font-family:var(--fonte-texto); font-size:var(--rotulo); line-height:1.5;
             color:var(--osso-300); text-wrap:pretty; }
+
+  /* A TRAVA. Esta carta fecha as outras duas linhas da peca e escolhe em qual
+     tier 5 ela termina — e a unica compra irreversivel que o level up sabe
+     cobrar, entao ela precisa PESAR na tela sem virar um segundo emissor (R4:
+     brilho e orcamento, e nesta tela o orcamento e zero).
+
+     Quem carrega o peso e a faixa de osso a 8% com a barra de 2px na ponta —
+     materia, nao luz. E ela NAO usa cor de eixo: "isto nao volta" e um fato
+     sobre a decisao, nao sobre Corrupcao ou Cataclismo, e e a mesma razao pela
+     qual "Maior ganho" e osso. O selo da etapa e o outro lugar do jogo que
+     fala de irreversivel, e la a cor e permitida porque o assunto DA TELA e o
+     eixo. */
+  .lv-trava { border-left:2px solid var(--osso-500); background:rgba(237,231,218,.08);
+              padding:var(--e2) var(--e3); font-family:var(--fonte-dado);
+              font-size:var(--rotulo); line-height:1.45; color:var(--osso-400); }
+  .lv-trava b { display:block; font-weight:700; letter-spacing:.08em;
+                text-transform:uppercase; color:var(--osso-600); }
   .lv-foot-card { margin-top:auto; display:flex; flex-direction:column; gap:var(--e2); }
   .lv-foot-row { display:flex; align-items:center; justify-content:space-between; gap:var(--e2); }
   .lv-pips { display:flex; gap:var(--e1); }

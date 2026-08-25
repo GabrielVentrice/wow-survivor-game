@@ -294,8 +294,20 @@ class BuildSystem {
     return inst;
   }
 
-  /* Regra dos caminhos: no maximo `maxDeep` caminhos podem passar do tier
-     `freeTier`. E o que impede uma peca de virar tudo ao mesmo tempo.
+  /* Regra das linhas: UMA LINHA POR VEZ — feche-a e a peca pode abrir a
+     proxima. Sao duas contagens porque sao duas perguntas diferentes, e o
+     comentario de `PATH_RULES` tem o porque:
+
+       `maxDeep`   quantas linhas podem estar EM PROGRESSO fora da zona franca.
+                   1 = a peca so aprofunda uma coisa de cada vez, e e isso que
+                   tira as duas cartas da mesma spell da tela de level up.
+       `maxLines`  quantas linhas podem passar da zona franca na VIDA da peca.
+                   2 = a corrente de evolucao continua cabendo (arcaneShot ->
+                   aimedShot -> killShot precisa de duas linhas fechadas, e a
+                   segunda so comeca porque a primeira chegou ao tier 5).
+
+     Uma linha no tier 5 nao esta mais em progresso: ela conta para `maxLines` e
+     nao para `maxDeep`. Contar nos dois lugares e o que mataria a corrente.
 
      E o gate de eixo (`PATH_RULES.axisGate`): o tier so abre se o eixo DA PECA
      ja tiver os pontos. Vale para toda fonte de tier — level up, bau e
@@ -305,11 +317,32 @@ class BuildSystem {
     if (cur >= PATH_RULES.tiers) return false;
     if (this.axis[inst.def.axis] < PATH_RULES.axisGate[cur]) return false;
     if (cur < PATH_RULES.freeTier) return true;
-    let deep = 0;
+    let emProgresso = 0, jaAbertas = 0;
     for (const p in inst.paths) {
-      if (p !== pathId && inst.paths[p] > PATH_RULES.freeTier) deep++;
+      if (inst.paths[p] <= PATH_RULES.freeTier) continue;
+      jaAbertas++;
+      if (p !== pathId && inst.paths[p] < PATH_RULES.tiers) emProgresso++;
     }
-    return deep < PATH_RULES.maxDeep;
+    // A propria linha ja conta em `jaAbertas` quando ela ja saiu da zona franca.
+    if (cur <= PATH_RULES.freeTier) jaAbertas++;
+    return emProgresso < PATH_RULES.maxDeep && jaAbertas <= PATH_RULES.maxLines;
+  }
+
+  /* Teto de spells (`BALANCE.loadout.maxSpells`) — a metade "largura" da
+     simplificacao. Mora aqui e nao em `acquirePiece` porque a etapa e o unico
+     caminho pelo qual uma peca entra na build EM JOGO, e a pasta `tools/` monta
+     build direto: `driver_hooks` adquire o catalogo inteiro de proposito. */
+  loadoutFull() {
+    return this.pieces.size >= BALANCE.loadout.maxSpells;
+  }
+
+  /* Quantas linhas desta peca ja passaram da zona franca. Zero = a peca ainda
+     nao casou com nenhuma, e a proxima compra fora da franca e a que TRAVA —
+     e a carta do level up precisa saber disso para anunciar o destino. */
+  openLines(inst) {
+    let n = 0;
+    for (const p in inst.paths) if (inst.paths[p] > PATH_RULES.freeTier) n++;
+    return n;
   }
 
   /* O que falta de eixo para esta peca voltar a subir. Devolve null quando ela
@@ -694,16 +727,23 @@ class BuildSystem {
     const real = (axisId, want) => (this.axisSealed(axisId) ? 0 : Math.max(0,
       Math.min(want, AXIS_RULES.capPerAxis - this.axis[axisId], this.axisLeft)));
 
-    // Catalogo disponivel, por eixo — a mesma lista serve ao slot fixo e ao
-    // sorteio, entao um eixo esgotado some das duas pontas de uma vez.
+    /* Catalogo disponivel, por eixo — a mesma lista serve ao slot fixo e ao
+       sorteio, entao um eixo esgotado some das duas pontas de uma vez.
+
+       Com o LOADOUT CHEIO ela nasce vazia, e e assim que o teto de spells se
+       cobra: as duas pontas param de oferecer peca no mesmo instante e a etapa
+       vira uma pergunta so sobre eixo. Nao ha `if` de teto espalhado em lugar
+       nenhum — ha uma lista que acabou. */
     const porEixo = {}, todas = [];
-    for (const id in PIECES) {
-      const def = PIECES[id];
-      if (!this.owns(def)) continue;
-      if (def.evolutionOnly || this.pieces.has(def.key)) continue;
-      if (!this.meetsRequires(def)) continue;
-      (porEixo[def.axis] || (porEixo[def.axis] = [])).push(def);
-      todas.push(def);
+    if (!this.loadoutFull()) {
+      for (const id in PIECES) {
+        const def = PIECES[id];
+        if (!this.owns(def)) continue;
+        if (def.evolutionOnly || this.pieces.has(def.key)) continue;
+        if (!this.meetsRequires(def)) continue;
+        (porEixo[def.axis] || (porEixo[def.axis] = [])).push(def);
+        todas.push(def);
+      }
     }
     for (const a in porEixo) shuffle(porEixo[a]);
     shuffle(todas);
@@ -754,6 +794,36 @@ class BuildSystem {
         kind: "milestone", axisId: piece.axis, axis: AXES[piece.axis], piece, locked: false,
         dry: null,
         wet: { want: M.spellPoints, gain: real(piece.axis, M.spellPoints) },
+      });
+    }
+
+    /* 3. o eixo seco preenche o que sobrou da mesa — um por eixo que ainda
+          anda, e nunca um segundo do mesmo eixo (o slot fixo ja carrega a
+          opcao seca dele).
+
+          Isto era um fallback de ULTIMO caso: uma carta so, do eixo com mais
+          espaco, e so quando a mesa inteira tivesse zerado. Com o teto de
+          spells ele deixou de ser caso de borda e virou a segunda metade da
+          run — batido o teto, nao ha mais spell para oferecer e TODA etapa cai
+          aqui. Uma carta so seria um botao sem pergunta; com o pacto de dois
+          eixos sobram ate dois, e "+2 na Corrupcao ou +2 no Cataclismo" e a
+          decisao que a tela existe para cobrar. */
+    for (const axisId of this.axes) {
+      if (out.length >= M.cards) break;
+      if (out.some((o) => o.axisId === axisId && o.dry)) continue;
+      const g = real(axisId, M.axisPoints);
+      if (!g) continue;
+      /* `dryOnly` e uma TERCEIRA especie de carta, e ela precisa se declarar.
+         As duas de antes eram "slot fixo de eixo aberto" (`locked`) e "spell
+         sorteada" (`!locked`, sempre com peca), e a tela e o driver liam uma
+         pela ausencia da outra. Esta nao e nenhuma das duas: e eixo seco de um
+         eixo que pode nem ter aberto, oferecido porque nao ha mais spell que
+         caiba na build. Deixa-la passar por `locked` seria dizer que o eixo tem
+         slot garantido, que e a promessa que `unlockAt` faz e esta carta nao. */
+      out.push({
+        kind: "milestone", axisId, axis: AXES[axisId], piece: null,
+        locked: false, dryOnly: true,
+        dry: { want: M.axisPoints, gain: g }, wet: null,
       });
     }
 

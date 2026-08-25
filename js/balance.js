@@ -429,6 +429,36 @@ BALANCE.milestones = {
   warnAt: 0.15,
 };
 
+/* O LOADOUT: a run cabe em CINCO spells.
+
+   E o par do `maxDeep: 1` — ele encolhe a profundidade da peca, este encolhe a
+   largura da build —, e os dois consertam o mesmo defeito medido: a fase
+   fechada da etapa so aceita spell, entao toda build saia dela com 9 a 12
+   spells e o bolo do level up ficava com ~30 candidatos vivos (spells x tres
+   linhas). Trinta opcoes a cada dez segundos nao e escolha, e informacao demais
+   para caber numa decisao.
+
+   E a mesma coisa que o `driver_balance` ja reprovava pelo outro lado: com os
+   tiers espalhados entre dez spells, nenhuma trilha fechava — evolucao em 1 de
+   30 runs, capstone em 4 de 30. Cinco spells x 5 tiers e espaco de sobra para
+   fechar caminho, entao o teto nao e uma concessao de UI: e a alavanca de
+   profundidade que a medicao pedia.
+
+   Cobrado no OFERECIMENTO (`getMilestoneOffers`) e nao em `acquirePiece`, e a
+   razao e a mesma pela qual `owns()` mora la: a etapa e o unico caminho pelo
+   qual uma peca entra na build em jogo, enquanto a pasta `tools/` monta build
+   direto (o `driver_hooks` adquire o catalogo INTEIRO para ver todo hook
+   disparar). Um teto dentro de `acquirePiece` nao protegeria mais nada e
+   quebraria metade da bateria.
+
+   Batido o teto, a etapa para de oferecer spell e passa a oferecer so eixo —
+   entao a segunda metade da run fica com a decisao irreversivel sozinha na
+   tela, que e o que ela merece. TROCAR spell nao existe de proposito: seria
+   uma tela nova e uma decisao pesada, e a medicao precisa vir antes dela. */
+BALANCE.loadout = {
+  maxSpells: 5,
+};
+
 /* Baú: quantos tiers grátis ele entrega. Peso relativo, não porcentagem;
    `lateWeight` substitui `weight` depois de BALANCE.spawn.hardAt — no fim da run
    um tier avulso não muda mais nada, um pacote de 5 sim.
@@ -713,14 +743,68 @@ const AXIS_RULES = {
    top costs what the main leg of a hybrid capstone costs. Depth still asks for
    commitment; it stops asking for the whole run before the first tier 3.
 
-   E `freeTier` continua nao sendo uma segunda regra: os dois tiers de graca sao
-   exatamente os que o gate nao cobra. */
+   E `freeTier` continua nao sendo uma segunda regra: o tier de graca e
+   exatamente o que o gate nao cobra. O invariante e load-bearing e
+   `driver_cards` o cobra — quando `freeTier` caiu de 2 para 1, `axisGate`
+   tinha que perder um zero junto, senao o tier 2 ficava fora da zona franca E
+   fora do gate, que e um degrau que ninguem cobra.
+
+   Cobrar o tier 2 tem uma consequencia boa e ela e de desenho, nao de
+   contabilidade: o tier 2 e agora a compra que TRAVA a linha, e travar passou a
+   custar um ponto de eixo. A decisao mais pesada do level up so acontece depois
+   que a etapa entregou o primeiro ponto — que e exatamente a conversa entre as
+   duas telas que o gate existe para ter.
+
+   --- UMA LINHA POR VEZ ---------------------------------------------------
+
+   `maxDeep` era 2 e virou 1, e essa e a metade "profundidade" da simplificacao
+   que o teto de spells (`BALANCE.loadout`) faz na largura. As duas atacam o
+   MESMO defeito por lados opostos: o bolo do level up tinha ~30 candidatos
+   vivos (9-12 spells x 3 linhas), e nenhum jogador segura trinta opcoes na
+   cabeca a cada dez segundos.
+
+   Com `maxDeep: 1` a peca escolhe UMA linha e termina nela. Tres consequencias,
+   e a segunda e o motivo de a carta ter mudado:
+
+     - o bolo cai para ~1 candidato por peca, e some a leitura mais cara da
+       tela: duas cartas da MESMA spell em linhas diferentes, que hoje e o caso
+       comum e e onde o jogador gasta mais tempo comparando coisas parecidas.
+     - a escolha de linha vira um DESTINO, e por isso a carta agora imprime o
+       tier 5 aonde ela leva ("termina em Chaos Bolt"). Enquanto dava para
+       comprar duas linhas, anunciar o tier 5 num tier 2 seria promessa que o
+       jogador nao precisa cumprir; com a trava, escolher a linha E escolher o
+       destino, e esconder isso seria a tela cobrando a decisao mais pesada da
+       peca sem dizer o que ela compra.
+     - `freeTier` caiu de 2 para 1 junto. Ele e a ZONA FRANCA: quantos degraus
+       de cada linha o jogador prova antes de casar com uma. Em 2 eram seis
+       compras de baixa aposta por peca antes da trava (a tela virava filler);
+       em 1 sao tres — um degrau de cada linha, o suficiente para ter visto o
+       tiro sair mais rapido, o numero subir e o primeiro critico. Em 0 a
+       primeira tela seria aposta cega, e a regua nao salva isso: ela mede o
+       proximo tier, nao o destino.
+
+   `maxLines` e o que impede a simplificacao de matar a CORRENTE DE EVOLUCAO.
+   Uma peca pode evoluir duas vezes (arcaneShot -> aimedShot -> killShot), e a
+   segunda evolucao precisa sair de uma linha diferente da primeira, porque a
+   que evoluiu ja esta no tier 5 e nao sobe mais. Contando so `maxDeep`, a
+   corrente ficaria impossivel e o jogo perderia um final inteiro em silencio.
+   Entao as duas regras dizem coisas diferentes, e e de proposito:
+
+     `maxDeep`   quantas linhas podem estar EM PROGRESSO fora da zona franca
+     `maxLines`  quantas linhas podem passar da zona franca na vida da peca
+
+   Lido para o jogador, isso e uma frase so: **uma linha por vez — feche-a e a
+   peca pode abrir a proxima.** Fechar o tier 5 deixa de ser so o fim da trilha
+   e passa a devolver a escolha, que e o pagamento certo para a unica compra do
+   jogo que custa cinco tiers na mesma spell. */
 const PATH_RULES = {
   tiers: 5,
-  freeTier: 2,     // ate este tier qualquer caminho pode subir
-  maxDeep: 2,      // quantos caminhos podem passar de `freeTier`
-  // tier 3 com 1 ponto, tier 4 com `hybridSide`, tier 5 com `hybridMain`
-  axisGate: [0, 0, 1, AXIS_RULES.hybridSide, AXIS_RULES.hybridMain],
+  freeTier: 1,     // ate este tier qualquer caminho pode subir (a zona franca)
+  maxDeep: 1,      // quantas linhas EM PROGRESSO podem passar de `freeTier`
+  maxLines: 2,     // quantas linhas podem passar de `freeTier` na vida da peca
+  // tier 2 (a trava) e tier 3 com 1 ponto, tier 4 com `hybridSide`, tier 5 com
+  // `hybridMain` — o unico zero e o da zona franca, e e assim que tem que ser
+  axisGate: [0, 1, 1, AXIS_RULES.hybridSide, AXIS_RULES.hybridMain],
 };
 /* Classes como data — e agora a classe e quem diz QUAL catalogo existe.
 
