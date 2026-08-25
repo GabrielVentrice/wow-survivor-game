@@ -48,6 +48,15 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
+    v: "0.16.2",
+    data: "2026-08-25",
+    titulo: "O fundo para de chiar",
+    notas: [
+      { t: "conserto", txt: "A trilha de fundo parou de soar como chuva. O que carrega a Vigília é ruído, e ele ia até 11 kHz — o suficiente para ler como chiado depois de alguns minutos. Agora ele é grave: um rumor embaixo, em vez de um sopro em cima." },
+      { t: "ajuste", txt: "De brinde, a faixa aguda ficou livre para os efeitos: o som de acerto e de morte não disputam mais espaço com o fundo." },
+    ],
+  },
+  {
     v: "0.16.1",
     data: "2026-08-25",
     titulo: "Sem chuva no fundo",

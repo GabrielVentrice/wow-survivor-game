@@ -3383,9 +3383,36 @@ coluna da direita que tirou a Tempestade da lista; o arquivo continua em
 Cinco regras caem daí, e valem para qualquer mexida no leito:
 
 - **Quem carrega a Vigília é o ruído**, não a harmonia — é a camada que por
-  construção não tem evento dentro. E ele não é ruído marrom puro: o jogo toca
-  a trilha em `0.055` de ganho, e um leito a −6 dB/oitava nesse volume é
-  inaudível em laptop. Marrom abaixo de 300 Hz, rosa acima.
+  construção não tem evento dentro. E ele é ESCURO: marrom abaixo do joelho de
+  220 Hz, **−10 dB/oitava acima** e teto de banda em 1,8 kHz.
+  **Esses números já foram 300 Hz / −4,2 dB/oitava / 7,2 kHz, mais uma camada
+  `air` de ruído puro de 900 Hz a 11 kHz — e aquilo não lia como leito, lia
+  como CHUVA.** O argumento antigo era que um leito marrom a `0.055` de ganho
+  some no laptop, e ele estava certo sobre o volume e errado sobre a saída:
+  compensou com rosa até 7 kHz, que é a receita de chiado. Medido, banda a
+  banda, em dB de energia:
+
+| banda | antes | depois |
+|---|---|---|
+| 30–120 Hz | 81,2 | **82,7** |
+| 120–400 Hz | 82,1 | **85,2** |
+| 400–1000 Hz | 78,4 | 75,8 |
+| 1–2 kHz | 75,7 | 63,7 |
+| 2–4 kHz | 74,6 | **45,8** |
+| 4–8 kHz | 71,1 | **17,9** |
+| 8–16 kHz | 56,5 | **−7,0** |
+
+  A correção é de BANDA e não de nível — baixar o ganho só daria um chiado
+  quieto. O grave sobe 3 dB porque a mesma energia se concentrou embaixo, e a
+  faixa de 4–8 kHz, que é onde o som de acerto e de morte falam, ficou vazia.
+- **O `air` saiu inteiro.** Não existe ajuste de banda que faça 900 Hz–11 kHz
+  de ruído puro soar como outra coisa que não chiado: ele *era* o brilho, e
+  brilho feito de ruído é exatamente o som que se foi remover.
+- **E nada mais se move junto.** Levantar as camadas com nota em 1,5 dB para
+  "ocupar o espaço que o `air` deixou" empurrou o passeio de RMS de 1,40 para
+  **1,65 dB**, acima do `< 1,5` a que o leito é preso — o passeio vem das
+  camadas que ANDAM, e o ruído é a que não anda. O `air` estava a −33 dBFS:
+  não havia espaço nenhum para ocupar.
 - **Nada acontece.** Sem bateria, sem virada, sem lead, sem poeira, sem trovão,
   sem seção. A harmonia se move devagar demais para chegar (um acorde a cada
   32 s, 8 s de cruzamento), e ela **não puxa**: Ré menor natural sem sensível,

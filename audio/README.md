@@ -65,11 +65,33 @@ disto com literatura por trás para ouvinte desatento (a linha de trabalho de
 excitação moderada / ressonância estocástica), e é também a camada que, por
 construção, não tem evento nenhum dentro.
 
-**Ele não é ruído marrom puro, e isso é medição e não gosto.** O jogo toca a
-trilha em `0.055` de ganho; um leito a −6 dB/oitava nesse volume é inaudível em
-alto-falante de laptop. O leito é marrom abaixo do joelho de 300 Hz e rosa
-acima dele — peso embaixo, presença em cima. É por isso que o centroide dela é
-mais alto que o da Tempestade mesmo sendo a mais escura das duas de caráter.
+**Ele é ESCURO, e a versão anterior deste parágrafo estava errada.** Ela dizia
+que o leito não podia ser marrom puro — o jogo toca a trilha em `0.055` de
+ganho, e a −6 dB/oitava isso some no alto-falante de laptop — e compensava com
+rosa até 7,2 kHz mais uma camada `air` de ruído de 900 Hz a 11 kHz. O
+diagnóstico do volume estava certo; a saída estava errada. Ruído rosa a −19
+dBFS, o barramento mais alto da faixa por 5 dB, não lê como leito: lê como
+**chuva**, e depois de doze minutos lê como chiado. Foi assim que foi relatado.
+
+Hoje o leito é marrom abaixo do joelho de **220 Hz**, cai a **−10 dB/oitava**
+acima dele e tem teto de banda em **1,8 kHz** (4ª ordem, então ~−24 dB em
+3,6 kHz). O `air` saiu inteiro. Medido, banda a banda, em dB de energia:
+
+| banda | antes | depois |
+|---|---|---|
+| 30–120 Hz | 81,2 | **82,7** |
+| 120–400 Hz | 82,1 | **85,2** |
+| 400–1000 Hz | 78,4 | 75,8 |
+| 1–2 kHz | 75,7 | 63,7 |
+| 2–4 kHz | 74,6 | **45,8** |
+| 4–8 kHz | 71,1 | **17,9** |
+| 8–16 kHz | 56,5 | **−7,0** |
+
+A correção é de **banda e não de nível**: baixar o ganho daria um chiado
+quieto. O grave sobe 3 dB porque a mesma energia se concentrou embaixo — o
+leito continua sendo um chão que se sente — e a faixa de 4–8 kHz, que é onde o
+som de acerto e de morte falam, ficou vazia. O que se ouve agora são as camadas
+que têm ALTURA.
 
 **2. Nada acontece.** Sem bateria, sem virada, sem lead, sem poeira de vinil,
 sem trovão, sem mudança de seção. A única coisa que se move é a harmonia, e ela

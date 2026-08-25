@@ -288,17 +288,24 @@ print("bed...")
 b_bed = np.zeros((N, 2))
 # the two channels are DIFFERENT noise, not one noise panned: decorrelated
 # channels are what make a bed feel like a room instead of a line in the middle
-b_bed[:, 0] = shaped_noise(300.0, 5.5, -4.2, 34.0, 7200.0, 11)
-b_bed[:, 1] = shaped_noise(300.0, 5.5, -4.2, 34.0, 7200.0, 12)
+# The bed is DARK, and this is the second time these numbers moved for the
+# same reason. It used to be 34-7200 Hz with -4.2 dB/oct over the knee, which
+# is pink over most of its range - and pink noise at -19 dBFS, the loudest bus
+# in the track by 5 dB, does not read as a bed. It reads as RAIN. Played for
+# twelve minutes it reads as hiss, which is what it was reported as.
+#
+# The fix is BAND, not level: dropping the gain would only make a quiet hiss.
+# Brown under the knee keeps the weight, -10 dB/oct over it puts the energy
+# below ~400 Hz, and the 1800 Hz limit (4th order, so ~-24 dB by 3.6 kHz) is
+# under the band the hit and death sounds speak in. What is left is a rumble,
+# and the layers that have PITCH become the thing you hear.
+b_bed[:, 0] = shaped_noise(220.0, 5.5, -10.0, 30.0, 1800.0, 11)
+b_bed[:, 1] = shaped_noise(220.0, 5.5, -10.0, 30.0, 1800.0, 12)
 
-print("air...")
-b_air = np.zeros((N, 2))
-b_air[:, 0] = shaped_noise(2000.0, 3.0, -6.0, 900.0, 11000.0, 21)
-b_air[:, 1] = shaped_noise(2000.0, 3.0, -6.0, 900.0, 11000.0, 22)
-# very slow opening and closing, a whole cycle each, opposite in the two
-# channels so the width breathes instead of the level
-b_air[:, 0] *= 1.0 + 0.30 * lfo(1)
-b_air[:, 1] *= 1.0 + 0.30 * lfo(1, np.pi)
+# THE AIR BUS IS GONE. It was 900 Hz to 11 kHz of pure noise, and there is no
+# band setting that makes that anything other than hiss - it was the shimmer on
+# top of the bed, and shimmer made of noise is the exact sound being removed.
+# Width now comes from the bed alone, which is already decorrelated per channel.
 
 def loud(x):
     """RMS after a 120 Hz high-pass — a stand-in for how loud a chord SOUNDS.
@@ -370,9 +377,17 @@ def active_dbrms(x):
 # Where each bus sits, in dBFS, while it is sounding. This IS the mix. The bed
 # is the loudest thing on purpose: it is the layer the track is FOR, and every
 # tonal layer is quiet enough that losing it would not change the character.
-LEVELS = dict(bed=-19.0, air=-33.0, pedal=-25.0, drone=-24.5, swell=-33.0,
-              pulse=-27.0)
-BUSES = dict(bed=b_bed, air=b_air, pedal=b_pedal, drone=b_drone,
+# The bed keeps its level. It got DARKER, not quieter: -19 dBFS of energy
+# under 400 Hz is a floor you feel, and the same number spread to 7 kHz was
+# the rain.
+#
+# NOTHING ELSE MOVED, and that was measured. Lifting the pitched buses 1.5 dB
+# to "fill the room the air bus left" pushed the RMS walk from 1.40 to 1.65 dB,
+# over the < 1.5 the bed is held to - because the walk comes from the layers
+# that MOVE, and noise is the one that does not. The air bus sat at -33 dBFS;
+# there was no room to fill.
+LEVELS = dict(bed=-19.0, pedal=-25.0, drone=-24.5, swell=-33.0, pulse=-27.0)
+BUSES = dict(bed=b_bed, pedal=b_pedal, drone=b_drone,
              swell=b_swell, pulse=b_pulse)
 
 
