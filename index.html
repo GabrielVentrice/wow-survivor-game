@@ -503,7 +503,7 @@
   .lv-cards { display:flex; justify-content:center; gap:20px; align-items:stretch; }
   .lv-card {
     cursor:pointer; pointer-events:auto;
-    width:348px; min-height:436px; padding:20px; display:flex; flex-direction:column; gap:14px;
+    width:348px; min-height:376px; padding:20px; display:flex; flex-direction:column; gap:14px;
     background:rgba(20,18,27,.94); border:1px solid var(--osso-200); box-shadow:var(--placa);
     transition:background .12s, border-color .12s;
   }
@@ -550,10 +550,11 @@
   .lv-ganho > span { font-family:var(--fonte-dado); font-size:19px; color:var(--osso-300); }
   .lv-escala { height:12px; background:var(--obs-600); display:flex; }
   .lv-escala > i { display:block; height:100%; background:var(--eixo); }
-  /* Os valores crus continuam ali, em mono, para quem quiser conferir — mas
-     agora embaixo do numero que decide, e nao no lugar dele. */
-  .lv-crus { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.08em;
-             text-transform:uppercase; color:var(--osso-300); text-wrap:pretty; }
+  /* O "antes -> depois" deixou de ser nota de rodape: num tier numerico ele e
+     o CORPO da carta — a unica coisa que a regua nao diz e que o jogador vai
+     passar a ter. Por isso mono `dado-m` e nao o piso de 14. */
+  .lv-crus { font-family:var(--fonte-dado); font-size:var(--dado-m); letter-spacing:.08em;
+             text-transform:uppercase; color:var(--osso-400); text-wrap:pretty; }
   .lv-crus em { font-style:normal; color:var(--eixo-300); }
 
   /* O efeito diz COMO a peca se comporta — a unica coisa que o numero nao diz.
@@ -564,8 +565,6 @@
   .lv-why { font-family:var(--fonte-texto); font-size:var(--rotulo); line-height:1.5;
             color:var(--osso-300); text-wrap:pretty; }
   .lv-foot-card { margin-top:auto; display:flex; flex-direction:column; gap:var(--e2); }
-  .lv-prog-head { font-family:var(--fonte-dado); font-size:var(--rotulo); letter-spacing:.10em;
-                  text-transform:uppercase; color:var(--osso-300); }
   .lv-foot-row { display:flex; align-items:center; justify-content:space-between; gap:var(--e2); }
   .lv-pips { display:flex; gap:var(--e1); }
   .lv-pips i { width:14px; height:8px; background:var(--osso-100); }

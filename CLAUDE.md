@@ -2609,11 +2609,13 @@ jogador não faz — e é isso que a régua é.
 
 1. **a régua** — o ganho em **dano/s** em mono 38, e a barra de 12px logo
    abaixo. É o maior elemento da carta depois do nome.
-2. **os valores crus** em `rotulo`, com o valor novo na **brasa** do eixo
-   (`crítico 5% → 30% · dano crítico 2x → 2.5x`). Continuam ali para quem
-   quiser conferir; deixaram de ser o único lugar onde a diferença aparecia.
+2. **o próprio upgrade** em `dado-m`, com o valor novo na **brasa** do eixo
+   (`crítico 5% → 30% · dano crítico 2x → 2.5x`). Num tier numérico ele é o
+   **corpo** da carta — a única coisa que a régua não diz é o que o jogador vai
+   passar a ter.
 3. nome da spell, linha de contexto e etiqueta de tipo.
-4. o slot em Eczar, `.lv-why`, ícone, pips e tecla.
+4. o slot em Eczar (só quando há comportamento novo), `.lv-why`, ícone, pips e
+   tecla.
 
 **As três barras compartilham a mesma escala** (`UI.lvScale`, calculada sobre a
 mesa e não dentro de `offerView`, que só vê uma oferta por vez): a mais longa
@@ -2666,10 +2668,12 @@ Regras que continuam valendo:
   E o peso da etiqueta também informa: **melhoria e passiva são contornadas**
   (falam de categoria) e **evolução é cheia em osso** (fala de raridade) — ela
   não é um degrau a mais, é conversão.
-- **Veredito, não coordenada.** A linha de contexto já diz `Aceleração · tier
-  2 → 3`; o rodapé diz o que aquilo *significa* (`Fecha o caminho`, `A um tier
-  do fim`). Ele deixou de imprimir `Tier N de 5` justamente porque isso era a
-  coordenada duas vezes na mesma carta.
+- **A coordenada do tier é DESENHO, não texto.** Os cinco pips do rodapé já
+  dizem em que degrau a compra deixa a trilha; o `· tier 2 → 3` do subtítulo e
+  o `Faltam 3 para fechar` do rodapé eram o mesmo fato escrito ao lado do
+  desenho dele, duas vezes na mesma carta. Saíram os dois, e o subtítulo ficou
+  com a **linha** sozinha (`Maestria`). `driver_cards` cobra que nenhum dos
+  dois volte.
 - **`.lv-why` só aparece quando acrescenta** — passiva **exclusiva** (fecha uma
   porta) e **evolução** (a peça troca de identidade inteira). Numa carta o nome
   está logo acima, e repetir a identidade é ruído.
@@ -2700,8 +2704,8 @@ sai do que já existe:
 |---|---|
 | ganho em dano/s | `BuildSystem.offerGain` → `js/systems/dps.js` |
 | antes → depois | `tier.mods` aplicado a `inst.r.stats` (`UI.tierDelta`) |
-| frase em Eczar | `LINE_ABOUT[pathId]` no tier numérico, `tier.desc` no estrutural |
-| onde chega | `tierIndex` contra `PATH_RULES.tiers` |
+| frase em Eczar | `tier.desc` — e só no tier estrutural e na passiva |
+| onde chega | os pips, de `tierIndex` contra `PATH_RULES.tiers` |
 | porquê | só em evolução e passiva exclusiva |
 | tira inteira | `build.pieces`, `build.passives` |
 
@@ -2716,16 +2720,18 @@ Consequências:
   segundos, `frac: 0.06` é seis por cento e `radius: 440` não tem sufixo — sem
   a tabela o delta imprimiria "limiar 0.35 → 0.5". Stat sem entrada não aparece,
   e `driver_cards` reprova mod que mexa em stat fora da tabela.
-- **O slot em Eczar nunca repete o número, e por isso ele não é o `desc` da
-  peça.** 528 dos 660 tiers são gerados e o texto deles é puro número ("+40% de
-  dano.") — o mesmo dado que a régua imprime em mono 38 e que os valores crus
-  imprimem em "antes → depois". Trocar por `def.desc` conserta a repetição e
-  cria outra: **duas das três cartas costumam ser da mesma spell em linhas
-  diferentes**, e o `desc` sairia idêntico nas duas. Quem ocupa o slot é
-  `LINE_ABOUT` (`js/content/paths.js`), a frase da **linha** — o que precisa
-  diferir entre as duas cartas é exatamente o que a linha muda; nome, ícone e
-  tira já dizem qual spell é. Tier estrutural fica com o próprio texto: ali ele
-  **é** o comportamento novo. `driver_cards` cobra a regra.
+- **Tier numérico não tem parágrafo nenhum.** 528 dos 660 tiers são gerados e o
+  texto deles é puro número ("+40% de dano.") — o mesmo dado que a régua imprime
+  em mono 38. O slot já tentou duas saídas e as duas eram a mesma coisa por
+  extenso: o `desc` da peça (idêntico nas duas cartas que costumam ser da mesma
+  spell) e depois `LINE_ABOUT`, a frase da linha — que dizia "cada vez que a
+  peça acontece, ela acontece mais forte" nas cinco cartas daquela linha, run
+  atrás de run. Hoje **quem fala pelo tier numérico é o próprio upgrade**
+  (`dano 175 → 263`), e o parágrafo simplesmente não é desenhado. Tier
+  estrutural e passiva ficam com o próprio texto: ali ele **é** o comportamento
+  novo, e é a única carta em que ele aparece. `driver_cards` cobra os dois
+  lados — que o numérico não escreva parágrafo e que ele traga o "antes →
+  depois".
 
 #### A régua: `js/systems/dps.js`
 

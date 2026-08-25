@@ -583,9 +583,12 @@ que virou o herói da carta:
   palavra, contra 34px no canto;
 - ganho zero **não imprime `+0`** — "+0 dano/s" lê como peça quebrada quando o
   que houve foi a régua não medir aquilo;
-- **tier numérico não repete o número no slot em Eczar**: 528 dos 660 tiers são
-  gerados e o texto deles é puro número, o mesmo dado que a régua e os valores
-  crus já imprimem. Ali vai `LINE_ABOUT[pathId]`, a frase da linha.
+- **tier numérico não tem parágrafo nenhum**, e tem o "antes → depois": a frase
+  da linha que morava ali dizia por extenso o mesmo que a régua já diz em mono
+  38, igual nas cinco cartas daquela linha. Quem fala pelo tier numérico é o
+  próprio upgrade (`lv-crus`);
+- **o subtítulo não escreve a coordenada do tier** e o rodapé não escreve o
+  veredito de progresso: os pips desenham os dois.
 
 Quem confere se a régua ORDENA como o campo é `driver_bench`, não este — ver o
 bloco `REGUA x CAMPO` acima.

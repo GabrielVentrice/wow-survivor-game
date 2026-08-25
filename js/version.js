@@ -48,6 +48,15 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
+    v: "0.12.1",
+    data: "2026-08-25",
+    titulo: "As cartas dizem menos",
+    notas: [
+      { t: "ajuste", txt: "As cartas de melhoria pararam de explicar a linha por extenso: o que a compra muda agora é o próprio upgrade, \"dano 175 → 263\", logo abaixo da barra." },
+      { t: "ajuste", txt: "Saíram da carta o \"faltam N para fechar\" e o \"tier 0 → 1\": os pips do rodapé já desenham os dois." },
+    ],
+  },
+  {
     v: "0.12.0",
     data: "2026-08-25",
     titulo: "O tiro do Hunter vira tiro",
