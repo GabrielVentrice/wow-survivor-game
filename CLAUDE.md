@@ -73,7 +73,7 @@ O argumento de cada ferramenta está em `tools/README.md`. O que existe:
 | `js/engine.js` | `Pool`, `SpatialGrid`, `Sfx`, `InputManager`, `Camera`, `EventBus`, `EVENTS` |
 | `js/voices.js` | `VOICES` — o que cada evento visual SOA (o irmão de `js/render/vfx.js`) |
 | `js/music.js` | `MUSIC` + `Music` — trilha procedural (a **reserva**) |
-| `js/track.js` | `Track` + `Soundtrack` + `TRACKS` — as duas trilhas em arquivo, com fallback |
+| `js/track.js` | `Track` + `Soundtrack` + `TRACKS` — a trilha em arquivo, com fallback |
 | `js/assets/sfx-bone.js` | amostra de osso quebrando embutida em base64 |
 | `js/entities.js` | `Player`, `Enemy`, `Projectile`, `Minion`, `AreaEffect`, `DotInstance`, `XPOrb`, `Pickup`, `Particle`, `SpawnManager` |
 | `js/systems/resolve.js` | registries (`PIECES`, `PASSIVES`, `CAPSTONES`, `MINIONS`) + pipeline de stats |
@@ -185,10 +185,20 @@ arbitrária, **o argumento existe** — vá lê-lo antes de contrariá-la.
   afrouxar a condição no mesmo tier que crava `crit: { set: 1 }`.
 - **O sorteio de crítico mora em `Game.damageEnemy`**, nunca dentro de um efeito.
   Peça sem dano dobra o número principal via `critRoll`.
-- **Pool de 20, teto de 15 por eixo, no máximo 2 eixos** (o pacto), gate de eixo
-  de 1/5/10 pontos nos tiers 3/4/5, no máximo 2 caminhos por peça acima do tier 2.
-- **Ponto de eixo só vem de etapa.** Nada no level-up pode chamar `addAxis` —
-  `driver_cards` compara o pool antes e depois de toda escolha.
+- **Pool de 21, teto de 15 por eixo, no máximo 2 eixos** (o pacto) — 1 ponto da
+  abertura e 20 das etapas.
+- **A run cabe em 5 spells** (`BALANCE.loadout.maxSpells`) e a peça sobe por
+  **uma linha por vez** (`PATH_RULES.maxDeep` 1), **duas na vida dela**
+  (`maxLines` 2). Quem segura profundidade são esses três, e nenhum deles gasta
+  um recurso que a outra tela distribui.
+- **O gate de eixo SAIU** (`PATH_RULES.axisGate`): ele cobrava a mesma escolha
+  duas vezes. `driver_cards` cobra a **ausência** dele — reintroduzido por
+  acidente, as trilhas param em silêncio.
+- **Ponto de eixo vem de etapa, e da abertura uma vez.** Nada no level-up pode
+  chamar `addAxis` — `driver_cards` compara o pool antes e depois de toda
+  escolha.
+- **Passiva é do eixo da ABERTURA** (`PASSIVES.<id>.axis`), e par `exclusive`
+  mora no mesmo eixo — separados, a exclusão nunca acontece.
 - **Quem credita eixo é `addAxis`**, e por isso o pacto e o Ápice moram lá: baú,
   capstone e fonte futura respeitam os dois de graça.
 - **Carta que credita +0 não é oferta, é botão morto** — o sorteio pula.
@@ -210,8 +220,9 @@ parecer deste jogo:
 E mais:
 
 - **Duas telas de escolha, e não podem voltar a ser uma.** Level-up **aprofunda**
-  (não custa nada, o mundo fica vivo atrás a 8%); etapa **compromete** (é a única
-  fonte de ponto de eixo, apaga o canvas, e não desfaz).
+  (não custa nada, o mundo fica vivo atrás a 8%); etapa **compromete** (apaga o
+  canvas e não desfaz). A abertura é da família da etapa: ela cobra o eixo antes
+  do primeiro quadro, e é a única exceção declarada.
 - **Preenchimento é custo.** Nunca dois botões cheios na mesma tela; o **selo**
   (cor de eixo cheia) só existe onde a resposta não volta.
 - **Nada abaixo de 14px, nada arredondado, alvo de clique de 44px**, `min-height`
@@ -223,8 +234,12 @@ E mais:
   (`dano 175 → 263`). Parágrafo é só de tier estrutural e passiva.
 - **A coordenada do tier é desenho, não texto.** Os pips já a dizem; escrevê-la ao
   lado deles é o mesmo fato duas vezes na mesma carta.
-- **A régua (`js/systems/dps.js`) lê a instância RESOLVIDA**, o campo dela é dado
-  em `BALANCE.dps`, e ela promete **ordem**, não valor. `driver_bench` confere.
+- **A régua saiu da carta, o modelo ficou.** `js/systems/dps.js` lê a instância
+  RESOLVIDA, o campo dela é dado em `BALANCE.dps`, e ela promete **ordem**, não
+  valor — hoje quem a consome é `driver_bench` (`REGUA x CAMPO`) e
+  `driver_cards`, não a tela.
+- **Bolo de uma oferta não abre tela**, e bolo vazio vira pressa
+  (`BALANCE.levelup.overflow`), nunca cura repetida.
 - **O HUD tem cinco lugares fixos e nada no meio** (a cadeia é a exceção, e só
   porque não está sempre lá).
 
@@ -280,8 +295,11 @@ E mais:
   `lookahead` de 250ms; a trilha vive em tempo real e ignora `timeScale`.
 - **`exponentialRampToValueAtTime` precisa de alvo e valor inicial > 0.**
 - **Gap por voz, duck por leva, e distância corta antes de agendar.**
-- **Nenhum arquivo de imagem novo.** Os três assets de áudio existentes têm plano
-  B; áudio novo precisa de um também.
+- **Nenhum arquivo de imagem novo.** Os assets de áudio existentes têm plano B;
+  áudio novo precisa de um também.
+- **`TRACKS` tem uma entrada hoje, e continua sendo uma lista.** A máquina de
+  troca é o que torna barato voltar a ter duas — `driver_track` a exercita com
+  uma lista de duas montada só para o teste.
 
 ### Fora da run — `docs/meta.md`
 

@@ -48,6 +48,66 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
+    v: "0.16.2",
+    data: "2026-08-25",
+    titulo: "O fundo para de chiar",
+    notas: [
+      { t: "conserto", txt: "A trilha de fundo parou de soar como chuva. O que carrega a Vigília é ruído, e ele ia até 11 kHz — o suficiente para ler como chiado depois de alguns minutos. Agora ele é grave: um rumor embaixo, em vez de um sopro em cima." },
+      { t: "ajuste", txt: "De brinde, a faixa aguda ficou livre para os efeitos: o som de acerto e de morte não disputam mais espaço com o fundo." },
+    ],
+  },
+  {
+    v: "0.16.1",
+    data: "2026-08-25",
+    titulo: "Sem chuva no fundo",
+    notas: [
+      { t: "ajuste", txt: "A trilha de chuva saiu do jogo. Ela subia na seção cheia, sumia no break e respondia com trovão — bom numa faixa, e um cutucão atrás de uma run de doze minutos —, e ainda ocupava a mesma faixa aguda em que os efeitos avisam que algo morreu. Fica a Vigília, e N agora é liga e desliga." },
+    ],
+  },
+  {
+    v: "0.16.0",
+    data: "2026-08-25",
+    titulo: "Sem pedágio de eixo",
+    notas: [
+      { t: "ajuste", txt: "Aprofundar uma spell não pede mais ponto de eixo. Os tiers de cima cobravam pontos na família da peça, e isso cobrava duas vezes a mesma escolha — o que segura profundidade agora é só a regra de uma linha por vez." },
+      { t: "novo", txt: "Cada passiva pertence a uma família, e só aparecem as da família que você escolheu na abertura. A abertura passou a decidir também como a run multiplica o que ela tem." },
+      { t: "novo", txt: "Nível sem nada para oferecer virou PRESSA: todas as recargas ficam mais rápidas, e isso acumula pelo resto da run. Antes ele só curava, e cura não acumula — depois que a build fecha, quase todo nível cai aí." },
+      { t: "ajuste", txt: "Saíram da tela os avisos que só existiam por causa do pedágio: a trava numerada na tira de spells, os traços na barra de eixo e o \"trilha travada\"." },
+    ],
+  },
+  {
+    v: "0.15.0",
+    data: "2026-08-25",
+    titulo: "A run abre escolhendo a família",
+    notas: [
+      { t: "ajuste", txt: "A abertura pergunta a FAMÍLIA, não a spell. Você escolhe Corrupção, Domínio ou Cataclismo — e a spell daquela família vem junto, de graça, como vinha antes." },
+      { t: "novo", txt: "A família escolhida entra com 1 ponto de eixo. Ela é a primeira das duas que cabem na run, então a abertura passou a dizer para onde a run vai, e não só com o que ela começa." },
+      { t: "novo", txt: "E ela nunca mais some da mesa: toda etapa passa a ter uma spell daquela família garantida, mesmo antes dos 5 pontos que abrem o slot fixo. O resto da mesa continua sorteado." },
+      { t: "ajuste", txt: "As etapas continuam entregando os mesmos 20 pontos — o ponto da abertura é um a mais, não um adiantamento." },
+    ],
+  },
+  {
+    v: "0.14.0",
+    data: "2026-08-25",
+    titulo: "Cinco spells, uma linha cada",
+    notas: [
+      { t: "novo", txt: "A build cabe em cinco spells. Depois da quinta, a etapa para de oferecer spell nova e passa a ser só sobre onde investir o eixo." },
+      { t: "novo", txt: "Cada spell termina numa linha só. O primeiro degrau das três continua aberto para você provar todas; a compra seguinte fecha as outras duas — e a carta passa a dizer em qual final a spell termina." },
+      { t: "novo", txt: "Fechar uma linha até o fim devolve a escolha: a spell pode abrir a próxima. É assim que uma peça ainda evolui duas vezes." },
+      { t: "ajuste", txt: "Travar uma linha custa um ponto de eixo, então a decisão mais pesada do level up só chega depois da primeira etapa." },
+      { t: "ajuste", txt: "Nível que tem uma única coisa a oferecer não abre mais tela: ele aplica e avisa no canto. Tela para escolher entre uma opção só não era escolha." },
+    ],
+  },
+  {
+    v: "0.13.0",
+    data: "2026-08-25",
+    titulo: "A carta diz o fato, não a previsão",
+    notas: [
+      { t: "ajuste", txt: "A tela de level up parou de prever dano: saíram o \"+106 dano/s\", a barra e o selo de maior ganho. O que a carta mostra agora é só o que a compra muda de verdade — \"dano 175 → 263\"." },
+      { t: "ajuste", txt: "Quando a compra muda duas coisas, cada uma vai numa linha própria em vez de dividirem a mesma linha com um ponto no meio." },
+    ],
+  },
+  {
     v: "0.12.1",
     data: "2026-08-25",
     titulo: "As cartas dizem menos",

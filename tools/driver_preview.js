@@ -41,13 +41,11 @@ const take = (id, label, offers, hoverIdx) => {
   if (took[id]) return;
   took[id] = true;
   g.ui.lvOffers = offers;
-  // A escala e compartilhada entre as tres cartas, entao a previa tem que
-  // passar pelo mesmo calculo da tela — senao ela mostra tres barras vazias.
-  g.ui.lvViews = g.ui.lvScale(offers.map((o) => g.ui.offerView(o)));
+  g.ui.lvViews = offers.map((o) => g.ui.offerView(o));
   let cards = "";
   for (let i = 0; i < g.ui.lvViews.length; i++) {
     const v = g.ui.lvViews[i];
-    cards += `<div class="lv-card ch2${v.top ? " lv-top" : ""}" style="${g.ui.eixoVars(v.axisId)}">` +
+    cards += `<div class="lv-card ch2" style="${g.ui.eixoVars(v.axisId)}">` +
              `${g.ui.cardHtml(v, i + 1)}</div>`;
   }
   shots.push({

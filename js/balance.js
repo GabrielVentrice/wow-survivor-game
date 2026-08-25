@@ -314,6 +314,28 @@ const BALANCE = {
    multiplicador. */
 BALANCE.levelup = {
   passiveAt: 10,   // nivel a partir do qual passiva pode ser oferecida
+
+  /* O EXCEDENTE — o que o nivel entrega quando nao ha mais o que oferecer.
+
+     Ele deixou de ser caso raro. Com o teto de 5 spells e uma linha por vez, a
+     build inteira cabe em ~45 tiers e uma run passa dos 70 niveis: o bolo
+     esvazia, e a partir dali TODO nivel cai aqui. Uma cura de 35% era resposta
+     boa para um caso de borda e e resposta ruim para metade da run — ela nao
+     acumula, entao o jogador para de progredir enquanto continua subindo de
+     nivel.
+
+     A resposta e PRESSA, e ela e global de proposito: `game.cooldownMul` ja e o
+     canal que `TRIGGERS.cd` aplica na recarga de toda peca, entao um stack aqui
+     acelera a build inteira sem saber quais spells ela tem — inclusive as que
+     entrarem depois. A regua da tela de level up (`js/systems/dps.js`) tambem
+     ja le esse mesmo numero, entao a previsao nao diverge do jogo de graca.
+
+     `floor` existe pela mesma razao que `self_damage` nunca reduz abaixo de um
+     piso: "sempre aumentar" sem limite e uma recarga convergindo para zero, e
+     recarga zero nao e uma build rapida, e um `while` disparando dentro do
+     sub-step. Em 0.97 por stack sao ~30 niveis excedentes ate o piso — o
+     suficiente para a recompensa compor por uma run inteira sem estourar. */
+  overflow: { step: 0.97, floor: 0.4, heal: 0.35 },
 };
 
 /* --- O CAMPO PADRAO: a regua da tela de level up -------------------------
@@ -427,6 +449,36 @@ BALANCE.milestones = {
      numero de corpos, porque o marco custa 40 no comeco e ~1,3 mil no fim: 20
      abates seriam meio minuto de aviso no primeiro e um piscar no ultimo. */
   warnAt: 0.15,
+};
+
+/* O LOADOUT: a run cabe em CINCO spells.
+
+   E o par do `maxDeep: 1` — ele encolhe a profundidade da peca, este encolhe a
+   largura da build —, e os dois consertam o mesmo defeito medido: a fase
+   fechada da etapa so aceita spell, entao toda build saia dela com 9 a 12
+   spells e o bolo do level up ficava com ~30 candidatos vivos (spells x tres
+   linhas). Trinta opcoes a cada dez segundos nao e escolha, e informacao demais
+   para caber numa decisao.
+
+   E a mesma coisa que o `driver_balance` ja reprovava pelo outro lado: com os
+   tiers espalhados entre dez spells, nenhuma trilha fechava — evolucao em 1 de
+   30 runs, capstone em 4 de 30. Cinco spells x 5 tiers e espaco de sobra para
+   fechar caminho, entao o teto nao e uma concessao de UI: e a alavanca de
+   profundidade que a medicao pedia.
+
+   Cobrado no OFERECIMENTO (`getMilestoneOffers`) e nao em `acquirePiece`, e a
+   razao e a mesma pela qual `owns()` mora la: a etapa e o unico caminho pelo
+   qual uma peca entra na build em jogo, enquanto a pasta `tools/` monta build
+   direto (o `driver_hooks` adquire o catalogo INTEIRO para ver todo hook
+   disparar). Um teto dentro de `acquirePiece` nao protegeria mais nada e
+   quebraria metade da bateria.
+
+   Batido o teto, a etapa para de oferecer spell e passa a oferecer so eixo —
+   entao a segunda metade da run fica com a decisao irreversivel sozinha na
+   tela, que e o que ela merece. TROCAR spell nao existe de proposito: seria
+   uma tela nova e uma decisao pesada, e a medicao precisa vir antes dela. */
+BALANCE.loadout = {
+  maxSpells: 5,
 };
 
 /* Baú: quantos tiers grátis ele entrega. Peso relativo, não porcentagem;
@@ -665,7 +717,17 @@ const AXES = {
 };
 
 const AXIS_RULES = {
-  pool: 20,        // pontos totais que uma run pode acumular
+  /* 21 e nao 20, e o ponto extra e o da ABERTURA. A escolha de abertura passou
+     a creditar `starterPoints` no eixo escolhido, e o pool subiu junto de
+     proposito: as ETAPAS continuam entregando 20, entao a cadencia de marcos —
+     que este projeto mediu com dor para achar `first/every/ramp` — nao se mexe.
+     Tirar o ponto dos 20 seria pagar a abertura com uma etapa a menos, e a
+     abertura deixaria de ser vantagem para virar adiantamento.
+
+     O teto continua intacto: 21 nao maximiza dois eixos (precisaria de 30), e
+     `capPerAxis` segue sendo o que impede pureza dupla. */
+  pool: 21,        // pontos totais que uma run pode acumular (20 de etapa + 1 da abertura)
+  starterPoints: 1,// o que a escolha de abertura credita no eixo escolhido
   capPerAxis: 15,  // teto por eixo
   maxAxes: 2,      // quantos eixos uma run pode ABRIR — ver "O pacto"
   pureAt: 15,      // limiar do capstone puro
@@ -691,36 +753,81 @@ const AXIS_RULES = {
    razao pela qual o Apice mora la: bau, capstone ou peca que credite eixo no
    futuro respeitam o pacto sem uma linha nova. */
 
-/* Regra dos caminhos (Bloons): no maximo 2 caminhos podem passar do tier 2.
+/* Regra das linhas: uma peca sobe por UMA linha por vez.
 
-   `axisGate` e a segunda cobranca, e ela e de EIXO: profundidade era de graca
-   desde que o tier deixou de custar ponto, entao a unica pergunta do level up
-   era em qual trilha gastar um recurso que nao existia. Agora o tier 3 de uma
-   spell pede 1 ponto no eixo DELA, o tier 4 pede 5 e o tier 5 pede 10 — o
-   ponto continua vindo so da etapa, entao as duas telas voltam a conversar:
-   a etapa decide QUAIS spells podem ficar fundas, o level up decide qual delas
-   fica.
+   O GATE DE EIXO SAIU. `axisGate` cobrava pontos no eixo DA PECA para liberar
+   os tiers de cima (tier 2 e 3 pediam 1, o 4 pedia 5, o 5 pedia 10), e o
+   argumento era que as duas telas conversavam: a etapa decidia QUAIS spells
+   podiam ficar fundas e o level up decidia qual delas ficava.
 
-   Indexado pelo tier ATUAL: `axisGate[cur]` e o que o eixo precisa ter para
-   comprar o tier `cur + 1`.
+   Ele cobrava a mesma escolha duas vezes. O jogador ja tinha pago comprometimento
+   na etapa (o ponto nao volta) e pagava de novo no level up, em ofertas que
+   simplesmente sumiam do bolo; e quem mais sentia era quem espalhou eixo, que
+   terminava a run com toda trilha parada no tier 2 sem nenhuma tela ter dito
+   que aquele era o preco. A escada ja tinha sido baixada uma vez por causa
+   disso (era 5/10/15, os limiares de capstone) e o defeito voltou menor, nao
+   corrigido.
 
-   The ladder used to BE the capstone thresholds (5/10/15). It read well — tier
-   5 cost the same purity as the pure capstone — and it priced depth out of the
-   run: closing a path demanded a MAXED axis, so anything short of a pure build
-   ended with every trail parked at tier 2, which is the defect the gate was
-   never meant to cause. The shape stays, the ladder moves down: the first gate
-   is ONE point (the earliest thing a run can pay — a single milestone), and the
-   top costs what the main leg of a hybrid capstone costs. Depth still asks for
-   commitment; it stops asking for the whole run before the first tier 3.
+   O que segura profundidade agora nao depende de recurso nenhum:
 
-   E `freeTier` continua nao sendo uma segunda regra: os dois tiers de graca sao
-   exatamente os que o gate nao cobra. */
+     `maxDeep`/`maxLines`  uma linha por vez, duas na vida da peca
+     `BALANCE.loadout`     cinco spells na build
+
+   As duas cobram FOCO, que e o que o gate queria cobrar — e cobram sem uma
+   segunda moeda no meio. `freeTier` deixa de ter invariante com o gate porque
+   nao ha mais gate: ele volta a ser so o que era, a zona franca em que qualquer
+   linha sobe antes de a peca casar com uma.
+
+   O que a etapa ainda decide, e e bastante: quais spells a run tem, o capstone
+   que ela alcanca e a familia que aparece garantida em toda mesa.
+
+   --- UMA LINHA POR VEZ ---------------------------------------------------
+
+   `maxDeep` era 2 e virou 1, e essa e a metade "profundidade" da simplificacao
+   que o teto de spells (`BALANCE.loadout`) faz na largura. As duas atacam o
+   MESMO defeito por lados opostos: o bolo do level up tinha ~30 candidatos
+   vivos (9-12 spells x 3 linhas), e nenhum jogador segura trinta opcoes na
+   cabeca a cada dez segundos.
+
+   Com `maxDeep: 1` a peca escolhe UMA linha e termina nela. Tres consequencias,
+   e a segunda e o motivo de a carta ter mudado:
+
+     - o bolo cai para ~1 candidato por peca, e some a leitura mais cara da
+       tela: duas cartas da MESMA spell em linhas diferentes, que hoje e o caso
+       comum e e onde o jogador gasta mais tempo comparando coisas parecidas.
+     - a escolha de linha vira um DESTINO, e por isso a carta agora imprime o
+       tier 5 aonde ela leva ("termina em Chaos Bolt"). Enquanto dava para
+       comprar duas linhas, anunciar o tier 5 num tier 2 seria promessa que o
+       jogador nao precisa cumprir; com a trava, escolher a linha E escolher o
+       destino, e esconder isso seria a tela cobrando a decisao mais pesada da
+       peca sem dizer o que ela compra.
+     - `freeTier` caiu de 2 para 1 junto. Ele e a ZONA FRANCA: quantos degraus
+       de cada linha o jogador prova antes de casar com uma. Em 2 eram seis
+       compras de baixa aposta por peca antes da trava (a tela virava filler);
+       em 1 sao tres — um degrau de cada linha, o suficiente para ter visto o
+       tiro sair mais rapido, o numero subir e o primeiro critico. Em 0 a
+       primeira tela seria aposta cega, e a regua nao salva isso: ela mede o
+       proximo tier, nao o destino.
+
+   `maxLines` e o que impede a simplificacao de matar a CORRENTE DE EVOLUCAO.
+   Uma peca pode evoluir duas vezes (arcaneShot -> aimedShot -> killShot), e a
+   segunda evolucao precisa sair de uma linha diferente da primeira, porque a
+   que evoluiu ja esta no tier 5 e nao sobe mais. Contando so `maxDeep`, a
+   corrente ficaria impossivel e o jogo perderia um final inteiro em silencio.
+   Entao as duas regras dizem coisas diferentes, e e de proposito:
+
+     `maxDeep`   quantas linhas podem estar EM PROGRESSO fora da zona franca
+     `maxLines`  quantas linhas podem passar da zona franca na vida da peca
+
+   Lido para o jogador, isso e uma frase so: **uma linha por vez — feche-a e a
+   peca pode abrir a proxima.** Fechar o tier 5 deixa de ser so o fim da trilha
+   e passa a devolver a escolha, que e o pagamento certo para a unica compra do
+   jogo que custa cinco tiers na mesma spell. */
 const PATH_RULES = {
   tiers: 5,
-  freeTier: 2,     // ate este tier qualquer caminho pode subir
-  maxDeep: 2,      // quantos caminhos podem passar de `freeTier`
-  // tier 3 com 1 ponto, tier 4 com `hybridSide`, tier 5 com `hybridMain`
-  axisGate: [0, 0, 1, AXIS_RULES.hybridSide, AXIS_RULES.hybridMain],
+  freeTier: 1,     // ate este tier qualquer caminho pode subir (a zona franca)
+  maxDeep: 1,      // quantas linhas EM PROGRESSO podem passar de `freeTier`
+  maxLines: 2,     // quantas linhas podem passar de `freeTier` na vida da peca
 };
 /* Classes como data — e agora a classe e quem diz QUAL catalogo existe.
 

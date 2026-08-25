@@ -97,6 +97,13 @@ if (AXIS_RULES.maxAxes * AXIS_RULES.capPerAxis < AXIS_RULES.pool) {
      classes, entao contra ela um warlock selaria "4 de 6" e o teste cobraria
      um numero que o `build.axis` dele nao tem como produzir. */
   const eixos = b.axes;
+  /* A abertura ja abriu UM eixo (`starterPoints` no eixo escolhido), e este
+     bloco mede o pacto em isolamento: quantos eixos abertos selam o resto. Ele
+     parte de zero para que "eixos[0]" e "eixos[1]" sejam de fato o primeiro e o
+     segundo a abrir — com o ponto da abertura no meio, qual eixo sela dependeria
+     de qual starter o RNG pegou. Que a abertura abre um e so um e cobrado em
+     `driver.js`. */
+  for (const a of eixos) b.axis[a] = 0;
   if (b.sealedAxes().length) bad("run recem-comecada ja nasce com eixo selado");
   b.addAxis(eixos[0], 1);
   if (b.sealedAxes().length) bad("um eixo aberto ja selou o resto");
@@ -166,8 +173,36 @@ function simular(seed, alvo, sempreSpell) {
     const abertos = [];
     for (const a in AXES) if (g.build.axis[a] >= M.unlockAt) abertos.push(a);
 
-    // 3. antes de abrir nada, nenhuma carta tem lado seco.
-    if (!abertos.length) {
+    /* 3. antes de abrir nada, nenhuma carta tem lado seco — ENQUANTO couber
+          spell na build. Com o loadout cheio (`BALANCE.loadout.maxSpells`) nao
+          ha mais peca para oferecer, e a etapa passa a ser so eixo: a carta
+          seca aparece sem nenhum eixo aberto, que e a terceira especie
+          (`dryOnly`). Ela nao pode se disfarcar de slot fixo — `locked`
+          promete slot garantido em toda etapa, e esta nao promete nada. */
+    /* 3.5 A GARANTIA DA ABERTURA: o eixo escolhido la sempre tem uma spell na
+           mesa. Ela e o que faz a abertura ser uma declaracao de estilo e nao
+           um presente — sem ela o jogador escolhe a familia e o sorteio da
+           fase fechada pode ignora-la por seis etapas seguidas.
+
+           Cobrada so enquanto ela e POSSIVEL: com o loadout cheio nao ha spell
+           nenhuma para oferecer, e com o catalogo daquele eixo esgotado (ou o
+           eixo sem credito) tambem nao. Cobrar nesses casos seria exigir da
+           tela uma carta que o dado nao tem. */
+    const cheio = g.build.loadoutFull();
+    const ini = g.build.startAxis;
+    if (ini && !cheio) {
+      const sobrou = Object.keys(PIECES).some((id) => {
+        const d = PIECES[id];
+        return d.axis === ini && g.build.owns(d) && !d.evolutionOnly
+          && !g.build.pieces.has(d.key) && g.build.meetsRequires(d);
+      });
+      const podeCreditar = !g.build.axisSealed(ini)
+        && g.build.axis[ini] < AXIS_RULES.capPerAxis && g.build.axisLeft > 0;
+      if (sobrou && podeCreditar && !offers.some((o) => o.axisId === ini && o.piece)) {
+        bad(`etapa ${i}: o eixo da abertura (${ini}) ficou sem spell na mesa`);
+      }
+    }
+    if (!abertos.length && !cheio) {
       for (const o of offers) {
         if (o.dry) bad(`etapa ${i}: carta seca com nenhum eixo em ${M.unlockAt}`);
         if (o.locked) bad(`etapa ${i}: carta fixa com nenhum eixo aberto`);
@@ -345,14 +380,40 @@ if (medFecha > ORCAMENTO) {
 }
 
 /* --- quem so leva spell --------------------------------------------------- */
-// O outro extremo: nunca pega a carta seca. Ele anda `spellPoints` por vez, e e
-// o unico que precisa das etapas continuarem depois do que seria uma tabela.
+/* O outro extremo: pega spell sempre que a mesa oferecer. Ele anda
+   `spellPoints` por vez, e e o unico que precisa das etapas continuarem depois
+   do que seria uma tabela.
+
+   O TETO DE SPELLS mudou o que se pode cobrar dele, e a mudanca e de desenho e
+   nao de driver. Antes, largura se pagava em MARCOS: quem levava spell toda
+   etapa andava de 1 em 1 e fechava a pool bem depois de quem mirava, e o driver
+   cobrava a desigualdade estrita. Com `BALANCE.loadout.maxSpells` a largura
+   deixou de ser cobrada e passou a ser TETADA — depois da quinta spell nao ha
+   mais o que levar, e os dois perfis passam a andar de 2 em 2 no mesmo passo.
+   Cobrar `>` aqui seria cobrar um preco que o jogo parou de cobrar de
+   proposito.
+
+   O que continua verdadeiro, e e o que se cobra: os dois perfis CONVERGEM, e
+   convergem porque depois do teto eles jogam a mesma etapa. Divergirem muito
+   voltaria a significar que largura tem preco — o preco que o teto substituiu
+   —, e e por isso que o driver olha a distancia em vez de um lado so. */
 const largo = simular(31, "dominion", true);
 if (largo.pool !== AXIS_RULES.pool) {
   bad(`quem so leva spell nunca fecha a pool: ${largo.pool}/${AXIS_RULES.pool}`);
 }
-if (largo.marcos <= mirando[0].marcos) {
-  bad("levar spell deveria custar MARCOS: o largo fechou em tantos quanto o que mira");
+const dist = Math.abs(largo.marcos - mirando[0].marcos);
+if (dist > 2) {
+  bad(`o teto deveria fazer os dois perfis convergirem: largo em ${largo.marcos} ` +
+      `marcos contra ${mirando[0].marcos} de quem mira`);
+} else {
+  console.log(`  ok os perfis convergiram: largo ${largo.marcos} marcos, ` +
+              `mira ${mirando[0].marcos} — o teto substituiu o preco da largura`);
+}
+if (largo.spells > BALANCE.loadout.maxSpells) {
+  bad(`o teto de spells nao segurou: ${largo.spells} na build, teto ${BALANCE.loadout.maxSpells}`);
+} else {
+  console.log(`  ok o loadout fechou em ${largo.spells}/${BALANCE.loadout.maxSpells} spells ` +
+              `(${largo.marcos} marcos, contra ${mirando[0].marcos} de quem mira)`);
 }
 
 if (!viuRepetido) {

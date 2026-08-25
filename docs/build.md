@@ -231,9 +231,9 @@ linha e mais nada.
 
 O que sobra de custo é honesto e continua de pé: tiers estruturais de peças que
 **já** causam dano ("os tiros explodem em área", "as mordidas sangram") hoje só
-existem no tier 5. Quem espalha eixo sente isso, e é o preço declarado do gate
-(`PATH_RULES.axisGate`) — a diferença é que agora ele atrasa o teto da peça em
-vez de decidir se ela existe.
+existem no tier 5. Isso já foi cobrado **duas** vezes — o tier 5 era caro *e* o
+gate de eixo pedia 10 pontos para chegar nele. O gate saiu; o que atrasa o teto
+agora é só a profundidade em si.
 
 ### Onde isto está, medido
 
@@ -269,8 +269,10 @@ capacidade e passou a comprar só multiplicadores pequenos espalhados.
 
 As alavancas, em ordem de quanto mexem e de quanto custam:
 
-1. **`PATH_RULES.axisGate`/`freeTier`** — deixar o tier 5 chegar mais cedo.
-   Testado uma vez (`[0,0,0,1,5]`) e **não** foi suficiente sozinho.
+1. **`PATH_RULES.freeTier`** — a zona franca, e o que sobrou desta alavanca
+   depois que o gate de eixo saiu. O gate já foi testado em duas escadas
+   (`[0,0,0,1,5]` e `[0,1,1,5,10]`) e **nenhuma** foi suficiente sozinha; a
+   terceira tentativa foi remover a régua inteira.
 2. **Um segundo salto estrutural no tier 3** de cada linha, além do tier 5. É a
    mudança que ataca o mecanismo de frente, e é a mais cara de escrever: são
    132 tiers novos à mão.
@@ -283,25 +285,30 @@ fechado rendendo mais que o equivalente antigo em quase toda peça.
 
 ## Regras estruturais que forçam comprometimento
 
-- Pool de **20** pontos de eixo, teto de **15** por eixo → impossível maximizar dois.
+- Pool de **21** pontos de eixo (1 da abertura + 20 das etapas), teto de **15**
+  por eixo → impossível maximizar dois.
 - **O pacto: a run cabe em DOIS eixos** (`AXIS_RULES.maxAxes`). Assim que dois
   eixos têm pelo menos um ponto, o terceiro se fecha — ver "O pacto".
-- **Ponto de eixo só vem de etapa.** Level-up não cobra nada e o baú entrega tier
-  — as duas moedas nunca mais disputam a mesma escolha (ver "As duas batidas").
-- No máximo **2** caminhos por peça passam do tier 2 → impossível maximizar três.
-- **Tier 3, 4 e 5 pedem 1, 5 e 10 pontos no eixo DA PEÇA** (`PATH_RULES.axisGate`)
-  → impossível ter uma spell fechada sem ter escolhido um eixo, e `freeTier`
-  deixa de ser uma segunda regra: os dois tiers de graça são exatamente os que o
-  gate não cobra.
-  **A escada já foi 5/10/15 — os limiares de capstone —, e ela era cara demais
-  para o que cobra.** Lida em tabela ficava elegante (o tier 5 custava a mesma
-  pureza que o capstone puro); jogada, exigia um eixo MÁXIMO para fechar
-  qualquer caminho, então toda build que não fosse pura terminava a run com
-  cada trilha parada no tier 2 — que é justamente o defeito que o gate existe
-  para consertar, e não para causar. Hoje o primeiro degrau é **um ponto**, a
-  coisa mais cedo que uma run pode pagar (uma etapa), e o topo custa a perna
-  principal de um capstone híbrido (`hybridMain`). Profundidade continua pedindo
-  comprometimento; ela parou de pedir a run inteira antes do primeiro tier 3.
+- **Ponto de eixo vem de etapa — e da abertura, uma vez.** Level-up não cobra
+  nada e o baú entrega tier: as duas moedas nunca mais disputam a mesma escolha
+  (ver "As duas batidas"). A abertura é a exceção declarada, e ela é única
+  porque acontece antes do primeiro quadro (ver "A abertura").
+- **A run cabe em CINCO spells** (`BALANCE.loadout.maxSpells`) → batido o teto, a
+  etapa para de oferecer spell e vira uma pergunta só sobre eixo. Ver "O loadout
+  e a linha única".
+- **Uma linha por vez** (`PATH_RULES.maxDeep` 1), **duas na vida da peça**
+  (`maxLines` 2) → a peça casa com uma linha e só reabre quando fecha o tier 5.
+- **O gate de eixo SAIU.** `PATH_RULES.axisGate` cobrava pontos no eixo da peça
+  para liberar os tiers de cima, e a ideia era que as duas telas conversassem.
+  Na prática ele cobrava a mesma escolha duas vezes — o jogador já pagara
+  comprometimento na etapa — e punia mais quem tinha se comprometido menos: a
+  build que espalhou eixo terminava a run com toda trilha parada, sem que
+  nenhuma tela dissesse que aquele era o preço. Quem segura profundidade agora
+  são `maxDeep`/`maxLines` e o teto de spells, e nenhum dos dois depende de um
+  recurso que a outra tela distribui. `driver_cards` cobra a **ausência**: um
+  gate reintroduzido por acidente faria as trilhas pararem em silêncio.
+- **Passiva é do EIXO DA ABERTURA** (`PASSIVES.<id>.axis`) → a família escolhida
+  decide também como a run multiplica o que tem. Ver "As passivas por eixo".
 - Passivas podem declarar `exclusive` → `Fúria Contida` e `Pés de Cinza` nunca coexistem.
 - Peça com `requires` só é oferecida depois que a habilitadora está na build.
 - **A run começa numa ESCOLHA, não num presente** (`CLASSES.<id>.starters`) —

@@ -492,8 +492,6 @@
                 letter-spacing:.24em; text-transform:uppercase; color:var(--osso-300); }
   .lv-title { font-family:var(--fonte-display); font-size:58px; line-height:.96; font-weight:800;
               text-transform:uppercase; color:var(--osso-600); }
-  /* A legenda ensina a REGUA uma vez; depois disso o jogador so le as barras. */
-  .lv-legenda { font-family:var(--fonte-texto); font-size:19px; color:var(--osso-300); }
 
   /* --- as tres cartas (8.6): 348 x min-height 436, retrato -----------------
      O EIXO aparece em QUATRO lugares pequenos — quadrado de 9px, barra da
@@ -508,11 +506,6 @@
     transition:background .12s, border-color .12s;
   }
   .lv-card:hover { border-color:var(--osso-600); background:rgba(30,26,38,.96); }
-  /* A carta VENCEDORA — a de maior ganho. A marcacao e osso e nao cor de eixo:
-     "esta rende mais" e um fato aritmetico, nao um eixo falando. Luz de 2px no
-     topo + moldura de osso + o rotulo na regua + a tecla cheia. */
-  .lv-card.lv-top { border-color:var(--osso-600);
-                    box-shadow:inset 0 2px 0 var(--osso-600), inset 0 -1px 0 rgba(0,0,0,.7); }
   .lv-topo { display:flex; align-items:center; justify-content:space-between; }
   .lv-topo > b { width:9px; height:9px; background:var(--eixo); }
   .lv-kind { display:inline-flex; }
@@ -533,27 +526,18 @@
                  text-transform:uppercase; color:var(--osso-300); }
   .lv-hr { height:1px; background:var(--obs-500); }
 
-  /* --- a REGUA, o heroi da carta -----------------------------------------
-     As tres barras compartilham a MESMA escala, entao comparar deixou de
-     exigir numero: a mais longa ganha mais. E o ganho vem em UMA unidade
-     (dano/s) porque a tela antiga mostrava em destaque o que era igual entre
-     as ofertas ("+40% de dano", duas vezes) e escondia em mono cinza o que
-     diferia — `27/s -> 38/s` contra `270 -> 378`, duas unidades que o jogador
-     tinha que converter de cabeca 17 a 70 vezes por run. */
-  .lv-regua { display:flex; flex-direction:column; gap:9px; }
-  .lv-top-lbl { font-family:var(--fonte-dado); font-size:var(--rotulo); font-weight:600;
-                letter-spacing:.14em; text-transform:uppercase; color:var(--osso-600); }
-  .lv-ganho { display:flex; align-items:baseline; gap:10px; }
-  .lv-ganho > b { font-family:var(--fonte-dado); font-size:38px; font-weight:500;
-                  line-height:1; color:var(--osso-500); }
-  .lv-card.lv-top .lv-ganho > b { color:var(--osso-600); }
-  .lv-ganho > span { font-family:var(--fonte-dado); font-size:19px; color:var(--osso-300); }
-  .lv-escala { height:12px; background:var(--obs-600); display:flex; }
-  .lv-escala > i { display:block; height:100%; background:var(--eixo); }
-  /* O "antes -> depois" deixou de ser nota de rodape: num tier numerico ele e
-     o CORPO da carta — a unica coisa que a regua nao diz e que o jogador vai
-     passar a ter. Por isso mono `dado-m` e nao o piso de 14. */
-  .lv-crus { font-family:var(--fonte-dado); font-size:var(--dado-m); letter-spacing:.08em;
+  /* --- O QUE A COMPRA MUDA, o heroi da carta ------------------------------
+     Onde morava a regua (o "+106 dano/s", a barra e o selo de maior ganho)
+     mora agora o antes -> depois, e a troca e de previsao por fato: a regua
+     simulava quanto a oferta ia render, isto e o numero que o jogador vai
+     passar a ter.
+
+     UMA MUDANCA POR LINHA. Duas na mesma linha pedem que o olho ache o
+     divisor antes de achar o segundo numero, e o antes -> depois ja carrega
+     uma seta por conta propria; empilhadas, as duas comecam na mesma coluna.
+     O `gap` e 6 e nao o 14 da carta: sao duas faces do mesmo fato. */
+  .lv-crus { display:flex; flex-direction:column; gap:6px;
+             font-family:var(--fonte-dado); font-size:var(--dado-m); letter-spacing:.08em;
              text-transform:uppercase; color:var(--osso-400); text-wrap:pretty; }
   .lv-crus em { font-style:normal; color:var(--eixo-300); }
 
@@ -564,6 +548,23 @@
               color:var(--osso-400); text-wrap:pretty; }
   .lv-why { font-family:var(--fonte-texto); font-size:var(--rotulo); line-height:1.5;
             color:var(--osso-300); text-wrap:pretty; }
+
+  /* A TRAVA. Esta carta fecha as outras duas linhas da peca e escolhe em qual
+     tier 5 ela termina — e a unica compra irreversivel que o level up sabe
+     cobrar, entao ela precisa PESAR na tela sem virar um segundo emissor (R4:
+     brilho e orcamento, e nesta tela o orcamento e zero).
+
+     Quem carrega o peso e a faixa de osso a 8% com a barra de 2px na ponta —
+     materia, nao luz. E ela NAO usa cor de eixo: "isto nao volta" e um fato
+     sobre a decisao, nao sobre Corrupcao ou Cataclismo, e e a mesma razao pela
+     qual "Maior ganho" e osso. O selo da etapa e o outro lugar do jogo que
+     fala de irreversivel, e la a cor e permitida porque o assunto DA TELA e o
+     eixo. */
+  .lv-trava { border-left:2px solid var(--osso-500); background:rgba(237,231,218,.08);
+              padding:var(--e2) var(--e3); font-family:var(--fonte-dado);
+              font-size:var(--rotulo); line-height:1.45; color:var(--osso-400); }
+  .lv-trava b { display:block; font-weight:700; letter-spacing:.08em;
+                text-transform:uppercase; color:var(--osso-600); }
   .lv-foot-card { margin-top:auto; display:flex; flex-direction:column; gap:var(--e2); }
   .lv-foot-row { display:flex; align-items:center; justify-content:space-between; gap:var(--e2); }
   .lv-pips { display:flex; gap:var(--e1); }
@@ -573,16 +574,12 @@
   /* cinco cheios = OSSO: a peca sai do sistema de eixo, porque nao ha mais
      decisao ali. Vale nas duas telas e na tira. */
   .lv-pips.max i.on { background:var(--osso-600); }
-  /* O pip TRAVADO nao e o pip vazio: vazio e "ainda nao comprei", travado e
-     "nao posso comprar". Vazado na cor do eixo, porque quem destrava e o eixo. */
-  .lv-pips i.lock { background:transparent; box-shadow:inset 0 0 0 1px var(--eixo-900); }
   /* A TECLA substitui os tres botoes `ESCOLHER`: 34px no canto em vez de 44px
      na largura inteira, e com 70 escolhas por run o teclado e o input certo.
      A carta inteira continua sendo o alvo de clique. */
   .lv-tecla { flex:none; width:34px; height:34px; display:grid; place-items:center;
               font-family:var(--fonte-dado); font-size:17px; font-weight:600;
               color:var(--osso-400); border:1px solid var(--osso-200); }
-  .lv-card.lv-top .lv-tecla { border:0; background:var(--osso-600); color:var(--obs-800); }
 
   /* a tira da build: UMA LINHA, sempre. O que passa do teto vira contador —
      overlay de jogo nao rola. */
@@ -603,11 +600,6 @@
   .lv-sp.hit { box-shadow:inset 0 1px 0 rgba(237,231,218,.08), inset 0 0 0 1px var(--eixo); }
   .lv-sp.hit .lv-sp-name { color:var(--osso-600); }
   .lv-sp.done .lv-sp-name { color:var(--osso-500); }
-  /* Trava de eixo: o unico numero da tira, e ele so aparece quando a spell
-     parou. Cor de eixo porque e do eixo que ele fala (R2). */
-  .lv-sp.lock .lv-sp-name { color:var(--osso-300); }
-  .lv-sp-lock { font-family:var(--fonte-dado); font-size:var(--rotulo); color:var(--eixo);
-                white-space:nowrap; }
   .lv-sp.more, .lv-chip.more { flex:none; font-family:var(--fonte-dado);
                               font-size:var(--rotulo); color:var(--osso-200); white-space:nowrap; }
   .lv-chip { flex:none; width:32px; height:32px; display:grid; place-items:center; border-radius:50%;
@@ -739,11 +731,6 @@
   .lv-ax-track { position:relative; height:8px; background:var(--obs-600); overflow:hidden; }
   .lv-ax-track > i { position:absolute; left:0; top:0; height:100%; display:block; background:var(--eixo); }
   .lv-ax-track > i.ghost { background:var(--eixo-900); }
-  /* Os tiers que o ponto destrava, marcados na propria barra: 1px de osso por
-     cima do preenchimento, entao o traco continua legivel cheio ou vazio. */
-  .lv-ax-track > b.lv-ax-gate { position:absolute; top:0; width:1px; height:100%;
-                                background:var(--osso-200); }
-
   /* --- 9.6 PAUSA — silhueta: bloco largo a esquerda + pilha estreita ------- */
   .tela-pausa { background:rgba(4,3,8,.96); padding:56px 80px 48px; }
   .pa-wrap { flex:1; min-height:0; display:flex; flex-direction:column; gap:var(--e5); pointer-events:auto; }
@@ -1071,7 +1058,6 @@
       <div class="lv-head">
         <div class="lv-eyebrow" id="lvEyebrow">Nível 1 → 2</div>
         <div class="lv-title">Aprofunde uma</div>
-        <div class="lv-legenda">a barra mede o ganho de dano por segundo — a mais longa ganha mais</div>
       </div>
       <div id="lvRows" class="lv-cards"></div>
     </div>

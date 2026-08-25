@@ -161,9 +161,17 @@ disputa canto com nada. Lugar fixo novo continua sendo cinco.
 ## A abertura: a primeira coisa que a run faz é perguntar
 
 Antes, a run começava com `incinerate` na mão e o jogador assistindo. Hoje a
-primeira tela do jogo é uma escolha entre **três spells, uma por eixo**
-(`CLASSES.<id>.starters` — Corruption, Wild Imps, Incinerate no warlock), e o
-jogo só roda o primeiro quadro depois que ela é respondida.
+primeira tela do jogo é uma escolha entre as **três famílias** da classe, e o
+jogo só roda o primeiro quadro depois que ela é respondida. Cada família entrega
+três coisas de uma vez: `AXIS_RULES.starterPoints` no eixo dela, a spell dela de
+graça (`CLASSES.<id>.starters` — Corruption, Wild Imps, Incinerate no warlock) e
+uma **spell garantida em toda etapa** pelo resto da run.
+
+**A manchete é o EIXO, e isso já foi a spell.** A tela sempre teve uma linha por
+eixo e mesmo assim perguntava "qual spell?", com o eixo em cinza no subtítulo —
+e a resposta que ela colhia era sobre a família, não sobre a peça. Hoje a
+pergunta é a que a resposta de fato responde: o ponto, a família garantida e o
+capstone lá na frente saem todos do eixo, e a spell é só o primeiro deles.
 
 **O defeito era que a peça de abertura não tinha dono.** Uma peça escolhida por
 nós ensina o jogo (o tiro persegue sozinho, o único input é movimento) e não diz
@@ -187,23 +195,49 @@ O que as três têm que ser, e o que `driver.js` cobra de qualquer classe nova:
   tirar do jogador a única escolha da run que ele pode planejar antes de
   apertar Iniciar.
 
-**Ela NÃO cobra ponto de eixo**, e essa é a linha que separa esta tela da etapa.
-O que a abertura decide é *com o que* a run começa; para onde ela vai continua
-sendo pergunta da etapa. Misturar as duas devolveria a run pré-comprometida
-antes do primeiro marco — que é exatamente o defeito que tirou a segunda peça do
-kit inicial em primeiro lugar. O preço declarado é que a spell de abertura pode
-ficar órfã: quem começa com Wild Imps e nunca abre Domínio para no tier 2 pelo
-gate de eixo. É a mesma conta de qualquer spell levada num eixo abandonado, e a
-tira do level-up já mostra o `have/need` que explica isso.
+**Ela CREDITA ponto de eixo**, e essa frase já disse o contrário. A versão
+anterior mantinha a abertura de graça para não devolver "a run pré-comprometida
+antes do primeiro marco", e o preço declarado era a **spell órfã**: quem começa
+com Wild Imps e nunca abre Domínio para no tier 2 pelo gate de eixo. Esse preço
+era pago em silêncio, e o jogador não tinha como saber que estava pagando.
+
+Três regras substituem aquela, e as três saem de a abertura ser uma declaração
+de estilo:
+
+- **`starterPoints` no eixo escolhido, e o pool subiu junto** (`AXIS_RULES.pool`
+  20 → 21). As ETAPAS continuam entregando 20, então a cadência de marcos — que
+  custou uma bateria inteira para achar em `first/every/ramp` — não se mexe.
+  Tirar o ponto dos 20 seria pagar a abertura com uma etapa a menos, e ela
+  deixaria de ser vantagem para virar adiantamento.
+- **A garantia mata a spell órfã na raiz.** `BuildSystem.startAxis` guarda o
+  eixo escolhido, e `getMilestoneOffers` reserva uma das `cards` para uma spell
+  dele em toda etapa. Sem isso o jogador declara "esta run é de Corrupção" e o
+  sorteio da fase fechada pode passar seis etapas sem oferecer nada daquela
+  família — a tela teria cobrado uma escolha irreversível e ignorado a resposta.
+  `unlockAt` (5 pontos) resolveria isso tarde demais: com `spellPoints` de 1,
+  chegar lá exige exatamente as cinco primeiras etapas, que são as que o sorteio
+  pode desperdiçar.
+- **Ela abre UM eixo, e o pacto conta.** Com `maxAxes: 2`, a run passa a nascer
+  com metade do pacto gasta: sobra uma vaga, e todo capstone híbrido vai ter a
+  família de abertura como uma das pernas. É comprometimento de verdade, e é o
+  que a palavra "estilo" promete — mas é uma porta que fecha antes do primeiro
+  marco, e `driver.js` cobra que ela feche **uma** e não duas.
+
+A garantia vem DEPOIS dos slots fixos e ANTES do sorteio, e por isso não
+duplica: se o eixo já abriu, o slot fixo dele já carrega uma spell daquela
+família. E ela **não é um slot a mais** — ocupa uma das `cards`, então a mesa
+não cresce; o que encolhe é o espaço do sorteio.
 
 **Ela é da família da Etapa, não do Level up**, e o motivo é o tamanho da
 pergunta: level up é uma batida *dentro* da run (o mundo continua vivo atrás),
 abertura é capítulo — o canvas apaga, porque ainda não há run. Daí a mesma placa
 sobre preto, o mesmo título à esquerda e as mesmas linhas.
 
-E o botão é **selo**, apesar de não cobrar ponto. O selo nunca falou de custo,
-falou de **irreversível**: não há como devolver a spell com que a run começou.
-Esta é a única tela além da etapa em que isso vale.
+E o botão é **selo** — e agora pelos dois motivos ao mesmo tempo. Ele nunca
+falou de custo, falou de **irreversível**, e isso já bastava quando a tela só
+entregava uma spell; hoje ela também cobra o ponto que a etapa cobra. As duas
+telas que usam selo são exatamente as duas que gastam eixo, o que deixou de ser
+coincidência e virou a regra.
 
 Duas consequências no código:
 
@@ -250,28 +284,21 @@ Consequências que valem para qualquer coisa nova:
 - **Nada no level-up pode chamar `addAxis`.** `driver_cards` compara o pool
   antes e depois de toda escolha. Um tier que voltasse a cobrar eixo
   recolocaria o imposto sobre profundidade sem que a tela dissesse isso.
-- **Mas o level-up CONSULTA o eixo, e é isso que faz as duas telas
-  conversarem.** Depois que o tier deixou de custar ponto, profundidade virou
-  de graça e a etapa passou a decidir só a largura da run. O gate de eixo
-  (`PATH_RULES.axisGate`, cobrado em `canUpgradePath`) devolve a conversa sem
-  devolver o imposto: **a etapa decide QUAIS spells podem ficar fundas, o
-  level-up decide qual delas fica.** Espalhar eixo continua sendo uma escolha —
-  ela só passou a ter preço, e o preço é chegar ao fim da run com spells largas
-  em vez de uma fechada.
-- **A trava vale para TODA fonte de tier**, porque quem pergunta é
-  `canUpgradePath`: level-up, baú e o que vier depois. Isentar o baú faria dele
-  a brecha que desmonta a regra — ele é a única fonte de tier grátis.
-- **Oferta travada some do bolo, então a tela tem que dizer por quê.** A tira da
-  build marca a spell parada (`lv-sp-lock`, `have/need` na cor do eixo, pip
-  vazado no degrau bloqueado) e o nível sem oferta troca "Arsenal completo" por
-  "Trilha travada" com o número que falta — `build.nearestGate()`. Sumir com a
-  trilha em silêncio é a tela cobrando atenção e devolvendo vazio, que é o
-  mesmo defeito que o fôlego já conserta do outro lado.
-- **Passiva fica no level-up, e não é exceção.** Ela não tem tier, não tem eixo
-  e não pede investimento depois: só multiplica o que a build já tem
-  (`pieceMods` sobre um `match`). Isso é aprofundar, não alargar — e é a mesma
-  razão pela qual ela só entra a partir do nível `passiveAt`: cedo demais não
-  há o que multiplicar.
+- **E o level-up NÃO consulta mais o eixo.** Por um tempo ele consultava: o
+  gate (`PATH_RULES.axisGate`) existia para as duas telas conversarem sem o
+  tier voltar a custar ponto — "a etapa decide QUAIS spells podem ficar fundas,
+  o level-up decide qual delas fica". Medido, isso cobrava a mesma escolha duas
+  vezes e a conta caía em cima de quem espalhou eixo. O gate saiu; a conversa
+  entre as telas mudou de canal e ficou mais forte: a etapa decide **quais
+  spells a run tem** (teto de 5), **qual família aparece garantida em toda
+  mesa** e **qual capstone ela alcança**. Nada disso passa por
+  `canUpgradePath`.
+- **Passiva fica no level-up, e não é exceção.** Ela não tem tier e não pede
+  investimento depois: só multiplica o que a build já tem (`pieceMods` sobre um
+  `match`). Isso é aprofundar, não alargar — e é a mesma razão pela qual ela só
+  entra a partir do nível `passiveAt`: cedo demais não há o que multiplicar.
+  **Ela tem eixo**, mas o eixo não é um preço: é um filtro de quais chegam à
+  mesa, decidido lá atrás na abertura (ver "As passivas por eixo").
 - **Peça nova só entra por etapa**, e como `free` — o eixo dela já foi pago pelo
   ponto que a carta deixou de dar.
 - **Muletas que saíram junto.** O peso extra para caminho já começado e o sort
@@ -481,21 +508,134 @@ Ela conserta duas coisas e cobra uma terceira. Em 20 runs do `driver_balance`:
 | runs com evolução | 11/20 | 7/20 |
 | auras (mediana) | 2 | 1 |
 
-O ganho é a pool fechar e o capstone acontecer. O custo é **profundidade**: a
-fase fechada só aceita spell, então toda build sai dela com 9–12 spells, e os
-tiers do level-up se espalham entre elas em vez de fechar caminhos. Se o alvo
-mudar e evolução voltar a importar mais que capstone, a alavanca é `unlockAt` —
-baixá-lo encurta a fase fechada e é o número que decide quantas spells a run é
-obrigada a carregar.
+O ganho é a pool fechar e o capstone acontecer. O custo era **profundidade**: a
+fase fechada só aceita spell, então toda build saía dela com 9–12 spells, e os
+tiers do level-up se espalhavam entre elas em vez de fechar caminhos.
+
+**Esse custo foi pago pelo teto de spells** — ver "O loadout e a linha única"
+logo abaixo. A alavanca antiga era `unlockAt` (baixá-lo encurta a fase fechada);
+ela continua existindo, mas deixou de ser a única, e é a menos direta das duas:
+`unlockAt` decide quantas spells a run é *obrigada* a carregar, `maxSpells`
+decide quantas ela *pode*.
 
 Efeito colateral bom: o sorteio olha o **catálogo inteiro**, então Domínio
 voltou a aparecer. Enquanto as cartas eram uma por eixo e o kit inicial não
 semeava Domínio, ninguém escolhia aquele eixo e o catálogo de demônios ficava
 sem uso — `driver_balance` listava dez peças em `NUNCA ESCOLHIDA`.
 
-## A tela de level-up: a régua comum
+## O loadout e a linha única: menos opção viva, mais build fechada
 
-Três **cartas verticais** de 348x436 lado a lado, e abaixo uma tira com a build
+Duas regras, e elas são a **mesma regra por lados opostos** — uma corta a
+largura da build, a outra a largura da peça:
+
+| | regra | dado |
+|---|---|---|
+| largura | a run cabe em **5 spells** | `BALANCE.loadout.maxSpells` |
+| profundidade | a peça sobe por **uma linha por vez** | `PATH_RULES.maxDeep: 1` |
+
+**O que elas consertam é uma coisa só, e ela aparece em dois lugares.** O
+jogador reclama de informação demais para decidir; o `driver_balance` reprova
+evolução em 1/30 runs e capstone em 4/30. As duas leituras têm a mesma causa: a
+build saía da fase fechada com 9–12 spells × 3 linhas, então o bolo do level-up
+tinha **~30 candidatos vivos** — e uma tela sorteada de trinta candidatos, a
+cada dez segundos, não é escolha nem fecha caminho nenhum. Reduzir opção aqui
+não é concessão de UX; é a alavanca de profundidade que a medição já pedia.
+
+Cinco consequências, e cada uma custou uma decisão:
+
+- **`maxLines: 2` existe para a corrente de evolução não morrer.** Uma peça
+  evolui duas vezes (arcaneShot → aimedShot → killShot), e a segunda evolução
+  precisa de uma linha diferente da primeira — a que evoluiu está no tier 5 e
+  não sobe mais. Contando só `maxDeep`, a corrente ficaria impossível **em
+  silêncio**. Então as duas contagens dizem coisas diferentes de propósito:
+  `maxDeep` é quantas linhas estão **em progresso**, `maxLines` é quantas
+  passaram da zona franca **na vida da peça**. Lido para o jogador é uma frase:
+  *uma linha por vez — feche-a e a peça pode abrir a próxima.*
+- **`freeTier` é a ZONA FRANCA, e ela é o que salva o caso "só uma spell".**
+  Com uma peça na build, o bolo seria de um candidato e a tela não teria o que
+  perguntar. Com a zona franca em 1, os três primeiros degraus (um por linha)
+  são compras livres, então a mesa nasce cheia — e a decisão de linha chega
+  depois de o jogador ter visto o tiro sair mais rápido, o número subir e o
+  primeiro crítico. Em 0 a primeira tela seria aposta cega, e nada na carta
+  salva isso: o "antes → depois" mede o próximo tier, não o destino.
+- **A carta que trava imprime o DESTINO.** Enquanto duas linhas cabiam na mesma
+  peça, anunciar o tier 5 num tier baixo era promessa que o jogador não precisa
+  cumprir. Com a trava, escolher a linha **é** escolher o tier 5, e escondê-lo
+  seria a tela cobrando a decisão mais pesada da peça sem dizer o que ela
+  compra. O nome sai do próprio dado (o último tier da linha, já escrito à mão).
+  E a faixa é **osso, nunca cor de eixo**: "isto não volta" é um fato sobre a
+  decisão, não sobre Corrupção — a mesma razão pela qual "Maior ganho" é osso.
+- **Bolo de uma oferta não abre tela.** Parar o mundo e pedir um clique para
+  apresentar a única coisa que pode acontecer é o jogo cobrando atenção e
+  devolvendo vazio — o mesmo defeito que o fôlego conserta do outro lado (bolo
+  zero). `applyOffer(o, true)` aplica e conta por toast, e a fila continua
+  andando, então vários níveis de uma vez viram vários toasts e não várias
+  telas mortas. O toast já tem teto de três com `+N eventos`.
+- **Largura deixou de ter PREÇO e passou a ter TETO**, e isso apagou uma
+  asserção do `driver_milestone`. Antes, quem levava spell toda etapa andava de
+  1 em 1 e fechava a pool bem depois de quem mirava; hoje os dois convergem,
+  porque depois da quinta spell jogam a mesma etapa. O driver passou a cobrar a
+  **convergência** — divergir muito significaria que o preço voltou.
+
+E o teto criou uma **terceira espécie de carta de etapa** (`dryOnly`): eixo seco
+de um eixo que pode nem ter aberto, oferecido porque não há mais spell que caiba.
+Ela não pode se disfarçar de `locked` — `locked` promete slot fixo em toda
+etapa, e esta não promete nada. Com o pacto de dois eixos sobram até duas
+dessas, e "+2 na Corrupção ou +2 no Cataclismo" continua sendo uma decisão.
+
+## As passivas por eixo, e o excedente que virou pressa
+
+**Toda passiva declara `axis`, e só aparecem as do eixo escolhido na ABERTURA.**
+Era o último pedaço da progressão que ignorava aquela escolha: um multiplicador
+genérico sorteado de um bolo que não olhava para a run. Hoje a família decide as
+três coisas — quais spells a run recebe garantidas na etapa, qual capstone ela
+alcança, e como ela multiplica o que tem.
+
+Três regras, e `driver_cards` cobra as três:
+
+- **Par exclusivo mora no MESMO eixo.** `furiaContida`/`pesDeCinza` (e, no
+  hunter, `municaoLeve`/`municaoPesada`) só significam algo se as duas puderem
+  cair na mesma mesa: a escolha *é* a exclusão. Separadas por eixo, o jogador
+  nunca vê as duas na mesma run e `exclusive` vira um campo que não faz nada —
+  uma mecânica morrendo em silêncio.
+- **Nenhum eixo fica sem.** Um eixo vazio seria um terço das aberturas jogando
+  uma run inteira sem passiva nenhuma.
+- **Passiva sem `axis` nunca seria oferecida**, então o driver reprova o campo
+  ausente em vez de deixá-la sumir do bolo.
+
+O preço declarado é **variedade**: das 8 do warlock, uma run vê 2 ou 3. Em
+troca, a passiva parou de ser sorteio e virou parte da identidade escolhida.
+
+### E o nível sem oferta virou PRESSA
+
+O bolo vazio deixou de ser caso de borda. Com o teto de 5 spells e uma linha por
+vez, a build inteira cabe em ~45 tiers e uma run passa dos 70 níveis: a partir
+do momento em que o bolo esvazia, **todo** nível cai ali.
+
+A resposta era curar 35%, e cura **não acumula** — ela responde bem uma vez e
+responde mal quarenta: o jogador continuava subindo de nível e parava de
+progredir. `BALANCE.levelup.overflow` troca isso por um stack de pressa.
+
+- **O canal já existia**: `game.cooldownMul` é o que `TRIGGERS.cd` aplica na
+  recarga de **toda** peça. Um stack acelera a build inteira sem saber quais
+  spells ela tem, inclusive as que entrarem depois — e `js/systems/dps.js` lê o
+  mesmo número, então a régua da carta não diverge do jogo de graça.
+- **`floor` existe pela mesma razão que `self_damage` nunca reduz abaixo de um
+  piso.** "Sempre aumentar" sem limite é uma recarga convergindo para zero, e
+  recarga zero não é uma build rápida: é um disparo por sub-step. Em `0.97` por
+  stack são ~30 níveis excedentes até o piso de `0.4`.
+- **O piso é sobre a contribuição do excedente, não sobre o total.** Um capstone
+  que *penaliza* recarga (Nihilam cobra `1.3`) tem o direito de deixar o total
+  acima de 1; um piso no total apagaria a penalidade em silêncio.
+- **`overflowHaste` é contador, não fator acumulado.** `applyGlobals` reconstrói
+  do zero a cada mudança — ele não soma, ele refaz —, então guardar o fator já
+  multiplicado o faria ser reaplicado sobre si mesmo a cada aquisição.
+- A cura fica: ela não atrapalha, e o excedente acontece justamente quando a
+  horda está no teto.
+
+## A tela de level-up: o que a compra muda
+
+Três **cartas verticais** de 348 x min-height 376 lado a lado, e abaixo uma tira com a build
 de agora. O mundo continua atrás — é isso, e não a cor, que separa esta tela do
 preto chapado da etapa —, mas a **8%**: com mil inimigos em campo os pontos
 brancos do canvas ficavam mais claros que o texto das cartas, e o mundo tem que
@@ -512,56 +652,51 @@ cabeça, 17 a 70 vezes por run. Sem denominador comum ninguém compara: ou chuta
 ou escolhe sempre a mesma coisa, e nos dois casos a escolha deixou de ser
 decisão.
 
-O jogo já sabe cadência, alvos e dano de cada peça. Ele pode fazer a conta que o
-jogador não faz — e é isso que a régua é.
+**A resposta a isso foi a RÉGUA — o ganho em dano/s, em mono 38, com uma barra
+comparativa e o selo de `MAIOR GANHO` —, e ela SAIU da carta.** O que ela dizia
+era uma previsão: quanto a oferta ia render num campo suposto
+(`BALANCE.dps` — quantos corpos um raio pega, que fração da horda carrega um
+DoT seu). Ao lado do `dano 175 → 263`, que é o número que o jogador vai passar
+a ter de fato, a previsão era o elemento maior da carta e o único que podia
+estar errado. Ficou o fato.
 
-**A hierarquia interna, e ela trocou de dono:**
+**A hierarquia interna:**
 
-1. **a régua** — o ganho em **dano/s** em mono 38, e a barra de 12px logo
-   abaixo. É o maior elemento da carta depois do nome.
-2. **o próprio upgrade** em `dado-m`, com o valor novo na **brasa** do eixo
-   (`crítico 5% → 30% · dano crítico 2x → 2.5x`). Num tier numérico ele é o
-   **corpo** da carta — a única coisa que a régua não diz é o que o jogador vai
-   passar a ter.
-3. nome da spell, linha de contexto e etiqueta de tipo.
-4. o slot em Eczar (só quando há comportamento novo), `.lv-why`, ícone, pips e
+1. **o próprio upgrade** em `dado-m`, com o valor novo na **brasa** do eixo
+   (`dano 175 → 263`). É o corpo da carta, e ele ocupa o lugar onde a régua
+   morava — logo abaixo do primeiro filete.
+2. nome da spell, linha de contexto e etiqueta de tipo.
+3. o slot em Eczar (só quando há comportamento novo), `.lv-why`, ícone, pips e
    tecla.
-
-**As três barras compartilham a mesma escala** (`UI.lvScale`, calculada sobre a
-mesa e não dentro de `offerView`, que só vê uma oferta por vez): a mais longa
-ganha mais, e isso se lê **sem número**. A legenda embaixo do título ensina a
-régua uma vez; depois disso o jogador só lê as barras.
 
 Regras que caem daí:
 
-- **A régua é honesta, não promocional.** Ela não sabe o que é espetacular —
-  ela sabe quanto rende. Se a evolução não for o maior ganho, ela não é marcada
-  como maior ganho: uma régua que só confirmasse a opção mais vistosa não
-  estaria informando nada.
-- **`MAIOR GANHO` é osso, nunca cor de eixo.** "Esta rende mais" é um fato
-  aritmético, não um eixo falando. A marcação é luz de 2px no topo + moldura de
-  osso + o rótulo na régua + a tecla em osso cheio.
-- **Empate não marca ninguém.** Duas cartas em osso cheio na mesma tela
-  colidiriam, e "as duas rendem igual" não é o que a marcação existe para dizer.
-- **O piso da barra é 3%.** Uma evolução pode render trinta vezes o tier
-  vizinho, e a barra proporcional daquele vizinho sairia com meio pixel — que
-  lê como zero, e zero é outra coisa ("esta oferta não move o dano"). O piso
-  mantém a distinção que importa sem mexer na ordem.
-- **Ganho zero não vira `+0`.** `+0 dano/s` lê como peça quebrada quando o que
-  houve foi a régua não medir aquilo: a carta escreve `—` e diz `não muda o
-  dano` (controle, cura, deslocamento) ou `ganho fora da régua` (passiva ligada
-  a hook, que roda código imperativo que o modelo não percorre).
+- **Uma mudança por linha.** Duas na mesma linha (`crítico 5% → 30% · dano
+  crítico 2x → 2.5x`) pedem que o olho ache o divisor antes de achar o segundo
+  número, e o `antes → depois` já carrega uma seta por conta própria.
+  Empilhadas, as duas começam na mesma coluna e se leem de uma vez. `v.crus` é
+  um **array**, e o `gap` entre as linhas é 6 e não os 14 da carta: são duas
+  faces do mesmo fato.
+- **A carta não prevê mais nada.** Sem régua não há barra, não há escala
+  compartilhada (`UI.lvScale` foi junto) e não há carta vencedora — comparar
+  qual rende mais voltou a ser leitura do jogador, e o que a tela garante é que
+  ele tem o número certo para fazer isso.
+- **O modelo continua de pé, e continua cobrado.** `BuildSystem.offerGain` →
+  `js/systems/dps.js` não foi apagado: `driver_bench` (bloco `REGUA x CAMPO`)
+  continua medindo se ele ordena como o campo, e `driver_cards` passou a
+  chamá-lo por oferta. Modelo sem consumidor apodrece calado — este tem dois, e
+  é isso que permite a régua voltar a ser desenhada no dia em que a tela quiser
+  prever de novo. `driver_cards` reprova `lv-escala`, `lv-ganho` e `lv-top-lbl`
+  de volta na carta sem essa decisão ser tomada.
 - **A tecla substitui os três botões `ESCOLHER`.** 34px no canto em vez de 44px
   na largura inteira, três vezes, repetindo a mesma palavra. A carta inteira
   continua sendo o alvo de clique; `1`/`2`/`3` são o input certo de uma tela que
   aparece 70 vezes por run (`UI.levelUpKey`, chamada do `keydown` do `Game`).
 
-**O eixo aparece em quatro lugares pequenos** — quadrado de 9px, barra da
-régua, brasa nos valores crus, pips — e **nunca na moldura**: moldura de eixo
-faria a carta ser lida pela cor antes de ser lida pelo número, e o número é o
-assunto desta tela. Foi por isso que o chip de recomendação (`acende a aura`)
-saiu: ele era um quinto lugar em cor de eixo, e o mesmo fato cabe no veredito
-do rodapé em texto.
+**O eixo aparece em três lugares pequenos** — quadrado de 9px, brasa no valor
+novo, pips — e **nunca na moldura**: moldura de eixo faria a carta ser lida pela
+cor antes de ser lida pelo que ela muda, e é isso que é o assunto desta tela.
+Foi pela mesma conta que o chip de recomendação (`acende a aura`) saiu.
 
 Regras que continuam valendo:
 
@@ -612,7 +747,6 @@ sai do que já existe:
 
 | Campo da carta | De onde vem |
 |---|---|
-| ganho em dano/s | `BuildSystem.offerGain` → `js/systems/dps.js` |
 | antes → depois | `tier.mods` aplicado a `inst.r.stats` (`UI.tierDelta`) |
 | frase em Eczar | `tier.desc` — e só no tier estrutural e na passiva |
 | onde chega | os pips, de `tierIndex` contra `PATH_RULES.tiers` |
@@ -631,8 +765,8 @@ Consequências:
   a tabela o delta imprimiria "limiar 0.35 → 0.5". Stat sem entrada não aparece,
   e `driver_cards` reprova mod que mexa em stat fora da tabela.
 - **Tier numérico não tem parágrafo nenhum.** 528 dos 660 tiers são gerados e o
-  texto deles é puro número ("+40% de dano.") — o mesmo dado que a régua imprime
-  em mono 38. O slot já tentou duas saídas e as duas eram a mesma coisa por
+  texto deles é puro número ("+40% de dano.") — o mesmo dado que o próprio
+  upgrade imprime logo acima. O slot já tentou duas saídas e as duas eram a mesma coisa por
   extenso: o `desc` da peça (idêntico nas duas cartas que costumam ser da mesma
   spell) e depois `LINE_ABOUT`, a frase da linha — que dizia "cada vez que a
   peça acontece, ela acontece mais forte" nas cinco cartas daquela linha, run
@@ -643,9 +777,16 @@ Consequências:
   lados — que o numérico não escreva parágrafo e que ele traga o "antes →
   depois".
 
-### A régua: `js/systems/dps.js`
+### A régua: `js/systems/dps.js` — o modelo que a carta não desenha mais
 
-O ganho é a única coisa da carta que **não** sai do catálogo — ele é simulado.
+**A régua saiu da tela e o modelo ficou.** Ela era a única coisa da carta que
+não saía do catálogo — era simulada —, e é exatamente por isso que ela saiu: ao
+lado do `antes → depois`, que é fato, a previsão era o maior elemento da carta
+e o único que podia estar errado. O que segue de pé é o modelo, com dois
+consumidores que o mantêm honesto (`driver_bench` no bloco `REGUA x CAMPO` e
+`driver_cards`, que o chama por oferta) — e é isso que permite a régua voltar a
+ser desenhada sem ter que ser reescrita.
+
 `BuildSystem.offerGain(o)` monta uma **sombra** (um objeto com `def` e `paths`
 trocados) e a passa pelo mesmo `resolvePiece` que o motor usa, então a previsão
 vem do mesmo pipeline que vai rodar quando a carta for clicada. Passiva é o
@@ -662,17 +803,18 @@ Três regras mantêm o modelo honesto:
    tempo o jogador anda, que fração da horda carrega um DoT seu — tudo isso é
    **suposição**, e suposição escondida no meio de um `switch` é a que ninguém
    revisa.
-3. **Ele promete ORDEM, não valor.** A barra é comparativa, então errar a
-   escala não mente para ninguém; inverter duas ofertas mente.
+3. **Ele promete ORDEM, não valor.** Enquanto a barra era comparativa, errar a
+   escala não mentia para ninguém; inverter duas ofertas mentia. É a mesma
+   promessa que os drivers cobram hoje, sem tela nenhuma dependendo dela.
 
 **Quem cobra a terceira é o próprio `driver_bench`**, no bloco `REGUA x CAMPO`:
 ele já mede toda peça com o motor rodando, então a comparação mora ao lado da
 medida em vez de virar um segundo banco. Hoje o **rho de Spearman entre as duas
 ordens é 0.75**, com piso de 0.6 — frouxo de propósito, porque o modelo assume
 **um** campo e o banco mede seis, dois deles de alvo único. E ele reprova mudez
-nos dois sentidos: régua zero com campo medindo dano (a carta diria "não muda o
-dano" sobre uma peça que muda) e régua com dano onde o campo mede zero (a carta
-prometeria um número que não existe). A isenção é a mesma que o banco já
+nos dois sentidos: régua zero com campo medindo dano e régua com dano onde o
+campo mede zero — as duas eram mentira na carta enquanto a carta desenhava o
+número, e continuam sendo modelo quebrado agora que ela não desenha. A isenção é a mesma que o banco já
 carrega: `player_below` e `enemy_below` nunca viram verdade num campo em que o
 jogador é imortal e os dummies também.
 

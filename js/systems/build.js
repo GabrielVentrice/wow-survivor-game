@@ -31,6 +31,15 @@ class BuildSystem {
     this.reactives = new Map();    // evento -> [instancias]
     this.vfx = [];                 // pecas com efeito visual no personagem
     this.apexed = new Set();       // eixos que ja soltaram o Apice nesta run
+    /* O eixo escolhido na abertura. `null` ate a tela ser respondida (e para
+       sempre nas classes sem `starters`), e por isso a garantia da etapa e
+       escrita como "se houver", nunca como "o eixo do jogador". */
+    this.startAxis = null;
+    /* Stacks de PRESSA do excedente — ver `BALANCE.levelup.overflow`. Contador
+       e nao fator acumulado: `applyGlobals` reconstroi do zero a cada mudanca
+       (ele nao soma, ele refaz), entao guardar o fator ja multiplicado o faria
+       ser reaplicado sobre si mesmo em toda aquisicao. */
+    this.overflowHaste = 0;
   }
 
   reset(cls) {
@@ -44,6 +53,8 @@ class BuildSystem {
     this.reactives.clear();
     this.vfx.length = 0;
     this.apexed.clear();
+    this.startAxis = null;
+    this.overflowHaste = 0;
     this.game.critBy.clear();
     this.wireEvents();
     this.applyGlobals();
@@ -202,8 +213,38 @@ class BuildSystem {
     g.bigHitCrit = false;
     for (const id of this.passives.keys()) this._mergeGlobal(PASSIVES[id].global);
     for (const id of this.capstones) this._mergeGlobal(CAPSTONES[id].global);
+    /* A pressa do excedente entra DEPOIS das passivas e com piso PROPRIO. O
+       piso e sobre a contribuicao dela e nao sobre o `cooldownMul` final: um
+       capstone que PENALIZA recarga (Nihilam cobra 1.3) tem o direito de deixar
+       o total acima de 1, e um piso no total apagaria essa penalidade em
+       silencio. */
+    g.cooldownMul *= this.overflowFactor();
     g.player.noExternalHeal = g.noExternalHeal;
   }
+  /* O fator de pressa que os stacks de excedente valem hoje. */
+  overflowFactor() {
+    const o = BALANCE.levelup.overflow;
+    if (!this.overflowHaste) return 1;
+    return Math.max(o.floor, Math.pow(o.step, this.overflowHaste));
+  }
+
+  /* Um nivel excedente: o bolo estava vazio e o nivel virou pressa. Devolve o
+     quanto a build inteira ficou mais rapida, em fracao, para a tela dizer o
+     numero em vez de dizer "voce ganhou alguma coisa".
+
+     `resolveAll` no fim porque `cooldownMul` e lido por `TRIGGERS.cd` a cada
+     disparo, mas `js/systems/dps.js` le os stats RESOLVIDOS — sem re-resolver,
+     a regua da proxima carta ficaria falando de uma build mais lenta do que a
+     que esta em campo. */
+  addOverflowHaste() {
+    const antes = this.overflowFactor();
+    this.overflowHaste++;
+    this.applyGlobals();
+    this.resolveAll();
+    const agora = this.overflowFactor();
+    return { total: 1 - agora, ganho: antes - agora, noPiso: agora <= BALANCE.levelup.overflow.floor };
+  }
+
   _mergeGlobal(gl) {
     if (!gl) return;
     const g = this.game;
@@ -294,57 +335,62 @@ class BuildSystem {
     return inst;
   }
 
-  /* Regra dos caminhos: no maximo `maxDeep` caminhos podem passar do tier
-     `freeTier`. E o que impede uma peca de virar tudo ao mesmo tempo.
+  /* Regra das linhas: UMA LINHA POR VEZ — feche-a e a peca pode abrir a
+     proxima. Sao duas contagens porque sao duas perguntas diferentes, e o
+     comentario de `PATH_RULES` tem o porque:
 
-     E o gate de eixo (`PATH_RULES.axisGate`): o tier so abre se o eixo DA PECA
-     ja tiver os pontos. Vale para toda fonte de tier — level up, bau e
-     qualquer coisa que venha depois —, porque quem pergunta e este metodo. */
+       `maxDeep`   quantas linhas podem estar EM PROGRESSO fora da zona franca.
+                   1 = a peca so aprofunda uma coisa de cada vez, e e isso que
+                   tira as duas cartas da mesma spell da tela de level up.
+       `maxLines`  quantas linhas podem passar da zona franca na VIDA da peca.
+                   2 = a corrente de evolucao continua cabendo (arcaneShot ->
+                   aimedShot -> killShot precisa de duas linhas fechadas, e a
+                   segunda so comeca porque a primeira chegou ao tier 5).
+
+     Uma linha no tier 5 nao esta mais em progresso: ela conta para `maxLines` e
+     nao para `maxDeep`. Contar nos dois lugares e o que mataria a corrente.
+
+     O GATE DE EIXO SAIU DAQUI. `PATH_RULES.axisGate` cobrava pontos no eixo DA
+     PECA para liberar os tiers de cima, e a ideia era boa no papel: as duas
+     telas conversavam, porque a etapa decidia QUAIS spells podiam ficar fundas
+     e o level up decidia qual delas ficava. Na pratica ele cobrava duas vezes
+     pela mesma escolha e punia justamente quem ja tinha se comprometido pouco —
+     a build que espalhou eixo terminava a run com toda trilha parada, sem que
+     nenhuma tela tivesse dito que aquele era o preco.
+
+     O que segura profundidade agora sao `maxDeep`/`maxLines` acima (uma linha
+     por vez) e o teto de spells: as duas cobram FOCO, que e o que o gate queria
+     cobrar, e nenhuma delas depende de um recurso que a outra tela distribui. */
   canUpgradePath(inst, pathId) {
     const cur = inst.paths[pathId];
     if (cur >= PATH_RULES.tiers) return false;
-    if (this.axis[inst.def.axis] < PATH_RULES.axisGate[cur]) return false;
     if (cur < PATH_RULES.freeTier) return true;
-    let deep = 0;
+    let emProgresso = 0, jaAbertas = 0;
     for (const p in inst.paths) {
-      if (p !== pathId && inst.paths[p] > PATH_RULES.freeTier) deep++;
+      if (inst.paths[p] <= PATH_RULES.freeTier) continue;
+      jaAbertas++;
+      if (p !== pathId && inst.paths[p] < PATH_RULES.tiers) emProgresso++;
     }
-    return deep < PATH_RULES.maxDeep;
+    // A propria linha ja conta em `jaAbertas` quando ela ja saiu da zona franca.
+    if (cur <= PATH_RULES.freeTier) jaAbertas++;
+    return emProgresso < PATH_RULES.maxDeep && jaAbertas <= PATH_RULES.maxLines;
   }
 
-  /* O que falta de eixo para esta peca voltar a subir. Devolve null quando ela
-     nao esta travada POR EIXO — ou porque algum caminho ja pode subir, ou
-     porque o que trava e `maxDeep`/tier 5, que sao outra conversa.
-
-     A UI precisa disto porque oferta travada simplesmente NAO entra no bolo do
-     level up: sem dizer o motivo, a tela some com a trilha em silencio e o
-     jogador nao tem como saber que a etapa e quem destrava. */
-  pieceGate(inst) {
-    let best = null;
-    for (const pathId in inst.paths) {
-      if (this.canUpgradePath(inst, pathId)) return null;
-      const cur = inst.paths[pathId];
-      if (cur >= PATH_RULES.tiers) continue;
-      const need = PATH_RULES.axisGate[cur];
-      if (this.axis[inst.def.axis] >= need) continue;   // travado por maxDeep
-      if (!best || need < best.need) {
-        best = { axisId: inst.def.axis, need, have: this.axis[inst.def.axis], tier: cur + 1 };
-      }
-    }
-    return best;
+  /* Teto de spells (`BALANCE.loadout.maxSpells`) — a metade "largura" da
+     simplificacao. Mora aqui e nao em `acquirePiece` porque a etapa e o unico
+     caminho pelo qual uma peca entra na build EM JOGO, e a pasta `tools/` monta
+     build direto: `driver_hooks` adquire o catalogo inteiro de proposito. */
+  loadoutFull() {
+    return this.pieces.size >= BALANCE.loadout.maxSpells;
   }
 
-  /* A trava mais PERTO de cair, entre todas as pecas — nao a de menor tier.
-     Quem le esta mensagem quer saber onde investir o proximo ponto, e o eixo
-     que esta a um ponto do tier 4 vale mais que o que esta a cinco do tier 3. */
-  nearestGate() {
-    let best = null;
-    for (const inst of this.pieces.values()) {
-      const g = this.pieceGate(inst);
-      if (!g) continue;
-      if (!best || g.need - g.have < best.need - best.have) best = g;
-    }
-    return best;
+  /* Quantas linhas desta peca ja passaram da zona franca. Zero = a peca ainda
+     nao casou com nenhuma, e a proxima compra fora da franca e a que TRAVA —
+     e a carta do level up precisa saber disso para anunciar o destino. */
+  openLines(inst) {
+    let n = 0;
+    for (const p in inst.paths) if (inst.paths[p] > PATH_RULES.freeTier) n++;
+    return n;
   }
 
   upgradePath(inst, pathId) {
@@ -635,11 +681,23 @@ class BuildSystem {
        rotulo da tela ja faz (`UI.openLevelUp`). */
     const lv = this.game.player
       ? this.game.player.level - this.game.player.pendingLevels : 1;
+    /* E ela e do EIXO DA ABERTURA, e so dele. Toda passiva declara `axis` (ver
+       o cabecalho de `js/content/passives.js`), e o filtro fecha o circuito que
+       a abertura abriu: a familia escolhida decide quais spells a run recebe de
+       gracia na etapa E como ela multiplica o que tem. Sem isso a passiva era o
+       unico pedaco da progressao que ignorava a escolha da abertura — um
+       multiplicador generico sorteado de um bolo que nao olhava para a run.
+
+       `startAxis` nulo (classe sem `starters`, ou build montada direto pela
+       pasta `tools/`) volta ao bolo inteiro: o filtro e uma consequencia da
+       abertura, entao sem abertura ele nao tem o que cobrar. */
     if (lv >= BALANCE.levelup.passiveAt) {
       for (const id in PASSIVES) {
-        if (!this.owns(PASSIVES[id])) continue;
+        const def = PASSIVES[id];
+        if (!this.owns(def)) continue;
+        if (this.startAxis && def.axis !== this.startAxis) continue;
         if (this.passives.has(id) || this.passiveBlocked(id)) continue;
-        pool.push({ kind: "passive", id, def: PASSIVES[id] });
+        pool.push({ kind: "passive", id, def });
       }
     }
 
@@ -694,16 +752,23 @@ class BuildSystem {
     const real = (axisId, want) => (this.axisSealed(axisId) ? 0 : Math.max(0,
       Math.min(want, AXIS_RULES.capPerAxis - this.axis[axisId], this.axisLeft)));
 
-    // Catalogo disponivel, por eixo — a mesma lista serve ao slot fixo e ao
-    // sorteio, entao um eixo esgotado some das duas pontas de uma vez.
+    /* Catalogo disponivel, por eixo — a mesma lista serve ao slot fixo e ao
+       sorteio, entao um eixo esgotado some das duas pontas de uma vez.
+
+       Com o LOADOUT CHEIO ela nasce vazia, e e assim que o teto de spells se
+       cobra: as duas pontas param de oferecer peca no mesmo instante e a etapa
+       vira uma pergunta so sobre eixo. Nao ha `if` de teto espalhado em lugar
+       nenhum — ha uma lista que acabou. */
     const porEixo = {}, todas = [];
-    for (const id in PIECES) {
-      const def = PIECES[id];
-      if (!this.owns(def)) continue;
-      if (def.evolutionOnly || this.pieces.has(def.key)) continue;
-      if (!this.meetsRequires(def)) continue;
-      (porEixo[def.axis] || (porEixo[def.axis] = [])).push(def);
-      todas.push(def);
+    if (!this.loadoutFull()) {
+      for (const id in PIECES) {
+        const def = PIECES[id];
+        if (!this.owns(def)) continue;
+        if (def.evolutionOnly || this.pieces.has(def.key)) continue;
+        if (!this.meetsRequires(def)) continue;
+        (porEixo[def.axis] || (porEixo[def.axis] = [])).push(def);
+        todas.push(def);
+      }
     }
     for (const a in porEixo) shuffle(porEixo[a]);
     shuffle(todas);
@@ -739,6 +804,38 @@ class BuildSystem {
       });
     }
 
+    /* 1.5 A GARANTIA DA ABERTURA: o eixo escolhido na abertura sempre tem uma
+           spell na mesa.
+
+           Ela existe porque a abertura passou a ser uma declaracao de ESTILO, e
+           nao mais so a spell com que a run comeca. Sem a garantia, o jogador
+           declara "esta run e de Corrupcao", ganha um ponto la, e o sorteio da
+           fase fechada pode passar seis etapas sem nunca lhe oferecer uma peca
+           daquela familia — a tela teria cobrado uma escolha irreversivel e
+           depois ignorado a resposta. `unlockAt` (5 pontos) resolve isso tarde
+           demais: com `spellPoints` de 1, chegar la exige as cinco primeiras
+           etapas, que sao exatamente as que o sorteio pode desperdicar.
+
+           Ela vem DEPOIS dos slots fixos e ANTES do sorteio, e por isso nao
+           duplica nada: se o eixo ja abriu, o slot fixo dele ja carrega uma
+           spell daquela familia e `usadas` impede a segunda. E ela nao e um
+           slot a mais — ocupa uma das `cards`, entao a mesa nao cresce; o que
+           encolhe e o espaco do sorteio. */
+    const inicial = this.startAxis;
+    if (inicial && out.length < M.cards
+        && !out.some((o) => o.axisId === inicial && o.piece)
+        && real(inicial, M.spellPoints) > 0) {
+      const piece = pegar(porEixo[inicial] || []);
+      if (piece) {
+        out.push({
+          kind: "milestone", axisId: inicial, axis: AXES[inicial], piece, locked: false,
+          startAxis: true,
+          dry: null,
+          wet: { want: M.spellPoints, gain: real(inicial, M.spellPoints) },
+        });
+      }
+    }
+
     /* 2. o resto: spell sorteada do catalogo INTEIRO. Sem carta seca — antes de
           abrir um eixo, ganhar ponto e escolher spell.
 
@@ -754,6 +851,36 @@ class BuildSystem {
         kind: "milestone", axisId: piece.axis, axis: AXES[piece.axis], piece, locked: false,
         dry: null,
         wet: { want: M.spellPoints, gain: real(piece.axis, M.spellPoints) },
+      });
+    }
+
+    /* 3. o eixo seco preenche o que sobrou da mesa — um por eixo que ainda
+          anda, e nunca um segundo do mesmo eixo (o slot fixo ja carrega a
+          opcao seca dele).
+
+          Isto era um fallback de ULTIMO caso: uma carta so, do eixo com mais
+          espaco, e so quando a mesa inteira tivesse zerado. Com o teto de
+          spells ele deixou de ser caso de borda e virou a segunda metade da
+          run — batido o teto, nao ha mais spell para oferecer e TODA etapa cai
+          aqui. Uma carta so seria um botao sem pergunta; com o pacto de dois
+          eixos sobram ate dois, e "+2 na Corrupcao ou +2 no Cataclismo" e a
+          decisao que a tela existe para cobrar. */
+    for (const axisId of this.axes) {
+      if (out.length >= M.cards) break;
+      if (out.some((o) => o.axisId === axisId && o.dry)) continue;
+      const g = real(axisId, M.axisPoints);
+      if (!g) continue;
+      /* `dryOnly` e uma TERCEIRA especie de carta, e ela precisa se declarar.
+         As duas de antes eram "slot fixo de eixo aberto" (`locked`) e "spell
+         sorteada" (`!locked`, sempre com peca), e a tela e o driver liam uma
+         pela ausencia da outra. Esta nao e nenhuma das duas: e eixo seco de um
+         eixo que pode nem ter aberto, oferecido porque nao ha mais spell que
+         caiba na build. Deixa-la passar por `locked` seria dizer que o eixo tem
+         slot garantido, que e a promessa que `unlockAt` faz e esta carta nao. */
+      out.push({
+        kind: "milestone", axisId, axis: AXES[axisId], piece: null,
+        locked: false, dryOnly: true,
+        dry: { want: M.axisPoints, gain: g }, wet: null,
       });
     }
 
@@ -810,9 +937,29 @@ class BuildSystem {
     return out;
   }
 
-  /* A abertura escolhida. `free` porque nenhum ponto de eixo foi cobrado —
-     ver getStarterOffers. */
+  /* A ABERTURA ESCOLHIDA — e ela deixou de ser uma escolha de SPELL para ser
+     uma escolha de EIXO.
+
+     A pergunta que a tela faz mudou de "com o que a run comeca?" para "que
+     estilo esta run vai jogar?", e as duas respostas vem juntas: o eixo ganha
+     `starterPoints`, a spell daquele eixo entra de graca, e o eixo escolhido
+     fica marcado em `startAxis` pelo resto da run.
+
+     A spell continua `free`. Ela nao e paga pelo ponto — o ponto e o
+     comprometimento com a FAMILIA, a spell e o que voce leva para o campo. Se
+     ela cobrasse, a abertura estaria cobrando duas vezes a mesma escolha.
+
+     `startAxis` nao e enfeite: e ele que faz a etapa garantir uma spell daquele
+     eixo em toda mesa (ver `getMilestoneOffers`). Sem isso, o jogador declara
+     um estilo na abertura e o sorteio da fase fechada pode passar a run inteira
+     sem lhe oferecer nada daquela familia — que e a promessa quebrada mais cara
+     que esta tela sabe fazer. */
   takeStarter(id) {
+    const def = PIECES[id];
+    if (def) {
+      this.startAxis = def.axis;
+      this.addAxis(def.axis, AXIS_RULES.starterPoints);
+    }
     const inst = this.acquirePiece(id, true);
     if (!inst) this.afterChange();
     return inst;

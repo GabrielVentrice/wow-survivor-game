@@ -374,18 +374,45 @@ class UI {
        delas: a que faz o jogador parar de procurar o que destrava. */
     if (!offers.length) {
       g.player.pendingLevels = 0;
-      g.player.hp = Math.min(g.player.maxHp, g.player.hp + g.player.maxHp * 0.35);
-      /* O toast tem 340px e uma linha so: a frase inteira ("ponto de eixo so
-         vem de etapa") sairia cortada por reticencias, e frase cortada nao
-         ensina nada. O numero vai no campo `value`, que e mono e alinhado a
-         direita — e ele e o que o jogador precisa levar para a etapa. */
-      const gate = g.build.nearestGate();
-      this.toast(gate
-        ? { head: "Trilha travada", axis: gate.axisId,
-            name: `Tier ${gate.tier} · ${AXES[gate.axisId].name}`,
-            value: `${gate.have}/${gate.need}` }
-        : { head: "Arsenal completo", name: "Todo caminho fechado — o nível virou fôlego." });
+      const ov = BALANCE.levelup.overflow;
+      g.player.hp = Math.min(g.player.maxHp, g.player.hp + g.player.maxHp * ov.heal);
+      /* O EXCEDENTE VIRA PRESSA, e nao mais so folego.
+
+         Bolo vazio tinha dois motivos e agora tem um: "Trilha travada" existia
+         para o gate de eixo, que saiu. O que sobrou — toda trilha fechada e
+         toda passiva do eixo tomada — deixou de ser caso de borda: com cinco
+         spells e uma linha por vez a build cabe em ~45 tiers, e uma run passa
+         dos 70 niveis. A partir do momento em que o bolo esvazia, TODO nivel
+         cai aqui.
+
+         Uma cura nao acumula, entao ela responde bem uma vez e responde mal
+         quarenta: o jogador continuava subindo de nivel e parava de progredir.
+         A pressa acumula, vale para a build inteira (`game.cooldownMul`, que
+         `TRIGGERS.cd` aplica na recarga de toda peca) e tem piso, entao ela
+         responde as duas pontas. A cura fica: ela nao atrapalha, e o excedente
+         acontece justamente quando a horda esta no teto. */
+      const h = g.build.addOverflowHaste();
+      this.toast({ head: h.noPiso ? "Pressa no teto" : "Pressa",
+                   name: "Todas as recargas mais rápidas",
+                   value: `−${Math.round(h.total * 100)}%` });
       g.state = STATE.PLAYING;
+      return;
+    }
+
+    /* UMA OFERTA NAO E UMA ESCOLHA. Com `maxDeep: 1` e o loadout pequeno, o
+       bolo cai para um candidato sempre que a build esta enxuta — no comeco da
+       run com uma spell so e com a linha ja travada, e no fim quando sobra uma
+       trilha aberta. Abrir uma tela modal, parar o mundo e pedir um clique para
+       apresentar a unica coisa que pode acontecer e o jogo cobrando atencao e
+       devolvendo vazio, que e o mesmo defeito que o folego conserta do outro
+       lado (bolo zero).
+
+       Aplica e conta por TOAST. O jogador nao perde a informacao — ele perde a
+       interrupcao. E a fila continua andando: `applyOffer` reabre a tela
+       sozinho enquanto houver nivel pendente, entao varios niveis de uma vez
+       viram varios toasts e nao varias telas mortas. */
+    if (offers.length === 1) {
+      this.applyOffer(offers[0], true);
       return;
     }
 
@@ -398,13 +425,12 @@ class UI {
 
     this.lvOffers = offers;
     this.lvViews = offers.map((o) => this.offerView(o));
-    this.lvScale(this.lvViews);
     this.lvHover = -1;
     this.el.lvRows.innerHTML = "";
     for (let i = 0; i < offers.length; i++) {
       const v = this.lvViews[i];
       const row = document.createElement("div");
-      row.className = "lv-card ch2" + (v.top ? " lv-top" : "");
+      row.className = "lv-card ch2";
       row.setAttribute("style", this.eixoVars(v.axisId));
       row.innerHTML = this.cardHtml(v, i + 1);
       row.onclick = () => this.applyOffer(offers[i]);
@@ -421,39 +447,6 @@ class UI {
        fica, e ele e o proprio da tela (`.lv-timer`). */
     this.el.hud.classList.add("hidden");
     this.el.levelup.classList.remove("hidden");
-  }
-
-  /* A ESCALA COMPARTILHADA. Ela e a tela inteira: comparar tres barras so
-     significa alguma coisa se as tres estiverem na mesma regua, e e por isso
-     que ela e calculada sobre a MESA e nao dentro de `offerView`, que so ve
-     uma oferta por vez.
-
-     So uma carta pode ser marcada como maior ganho, e a marcacao e um FATO
-     aritmetico, nao uma recomendacao de estilo de jogo — por isso ela e osso e
-     nao cor de eixo. Empate nao marca ninguem: duas cartas em osso cheio na
-     mesma tela colidiriam, e "as duas rendem igual" nao e o que a marcacao
-     existe para dizer. */
-  lvScale(views) {
-    let topo = 0, topoIdx = -1, empate = false;
-    for (let i = 0; i < views.length; i++) {
-      const d = views[i].dps;
-      if (!(d > 0)) continue;
-      if (d > topo * 1.001) { topo = d; topoIdx = i; empate = false; }
-      else if (d > topo * 0.999) empate = true;
-    }
-    if (empate) topoIdx = -1;
-    for (let i = 0; i < views.length; i++) {
-      const v = views[i];
-      /* PISO DE 3%. Uma evolucao pode render trinta vezes o que o tier vizinho
-         rende, e a barra proporcional daquele vizinho sai com meio pixel — o
-         que le como zero, e zero e outra coisa: "esta oferta nao move o dano".
-         O piso mantem a distincao que importa (rende alguma coisa / nao rende)
-         sem mexer na ordem, que e o que a barra promete. */
-      v.pct = topo > 0 && v.dps > 0
-        ? Math.max(3, Math.min(100, v.dps / topo * 100)) : 0;
-      v.top = i === topoIdx;
-    }
-    return views;
   }
 
   /* As tres cartas atendem por `1`, `2` e `3`. Nao e atalho de conveniencia: e
@@ -482,17 +475,16 @@ class UI {
      primeiro rebalanceamento. */
   offerView(o) {
     const axis = o.axis || null;
-    const v = { axisId: axis ? axis.id : null, axis, pips: null, delta: [] };
-    /* A REGUA. O ganho em dano/s e a unica coisa da carta que nao sai do
-       catalogo: ele e simulado contra a build de agora (`BuildSystem.offerGain`
-       -> `js/systems/dps.js`), entao ele ja tem tier, passiva e capstone
-       dentro. Zero e resposta legitima — tier de controle, de cura ou de
-       deslocamento nao move a regua —, e a carta diz isso com palavra em vez
-       de fingir um numero. */
-    v.dps = this.game.build.offerGain(o);
-    v.pct = 0;
-    v.top = false;
+    const v = { axisId: axis ? axis.id : null, axis, pips: null, delta: [], crus: [] };
+    /* A CARTA NAO PREVE MAIS DANO. A regua (o "+106 dano/s", a barra e o selo
+       de maior ganho) saiu da tela: ela respondia "qual rende mais" com um
+       numero simulado, e o que a carta mostra agora e so o que a compra
+       realmente muda — o antes -> depois, que nao e estimativa nenhuma.
 
+       `BuildSystem.offerGain` e `js/systems/dps.js` continuam de pe: o modelo
+       segue medido por `driver_bench` (bloco REGUA x CAMPO) e por
+       `driver_cards`, e volta a desenhar no dia em que a tela quiser prever de
+       novo. O que nao existe mais e a previsao NA CARTA. */
     if (o.kind === "passive") {
       v.kind = "Passiva";
       v.glyph = "✦";
@@ -506,16 +498,6 @@ class UI {
          com razao. */
       v.hits = this.passiveReach(o.def);
       v.subtitle = `não dispara · ${v.hits} peça${v.hits === 1 ? "" : "s"} na build`;
-      /* A linha de valores crus so existe quando ha valor. "Soma das 5 pecas
-         afetadas" embaixo de "nao muda o dano" seria a carta se contradizendo
-         na mesma coluna. */
-      v.crus = v.dps > 0.5 ? `Soma das ${v.hits} peças afetadas` : "";
-      /* A regua nao ve HOOK. Passiva ligada a evento (`on`) roda codigo
-         imperativo em `js/hooks.js` — Eco do Vazio repete golpe grande,
-         Contagio faz o DoT saltar —, e nada disso esta no dado que o modelo
-         percorre. Dizer "nao muda o dano" ali seria a carta MENTINDO sobre
-         uma passiva que muda o dano; ela diz que o ganho nao cabe na regua. */
-      v.foraDaRegua = !!o.def.on;
       v.plain = o.def.desc;
       /* `why` so aparece quando ACRESCENTA. Numa carta o nome esta logo acima e
          repetir a identidade e ruido; sobram os dois casos com informacao nova
@@ -564,18 +546,27 @@ class UI {
       v.plain = plain ? plain.charAt(0).toUpperCase() + plain.slice(1) : "";
       v.why = evo ? evo.desc : "";
       v.pips = o.tierIndex + 1;
-      /* Os valores crus continuam ali, para quem quiser conferir — em mono,
-         embaixo do numero que decide, e nao no lugar dele. O valor novo sai na
-         BRASA do eixo: e a unica cor da linha, e ela marca exatamente o que
-         mudou. */
-      v.crus = v.delta.length
-        ? v.delta.map((d) => `${d[0]} → <em>${d[1]}</em>`).join(" · ")
-        : "";
-      /* Evolucao nao promete numero: ela troca trigger, efeitos e forma, entao
-         a regua dela e uma ESTIMATIVA de uma peca que ainda nao foi jogada.
-         Dizer isso e o que impede a carta mais espetacular da tela de parecer
-         uma promessa aritmetica. */
-      if (evo) v.crus = "Estimado · muda como a peça joga";
+      /* A CARTA QUE TRAVA. Com `maxDeep: 1`, comprar o primeiro tier fora da
+         zona franca fecha as outras duas linhas da peca — e essa e a decisao
+         mais pesada que o level up sabe cobrar, porque ela escolhe em qual dos
+         tres tier 5 a spell termina.
+
+         Enquanto duas linhas cabiam na mesma peca, anunciar o tier 5 num tier
+         baixo seria promessa que o jogador nao precisa cumprir (da para comprar
+         a outra linha depois). Com a trava, escolher a linha E escolher o
+         destino, entao esconde-lo seria a tela cobrando a escolha sem dizer o
+         que ela compra. O nome sai do proprio dado — o ultimo tier da linha,
+         que ja e escrito a mao peca por peca. */
+      const ultimo = o.path.tiers[PATH_RULES.tiers - 1];
+      v.trava = o.tierIndex === PATH_RULES.freeTier && !evo
+        && this.game.build.openLines(o.inst) === 0 ? (ultimo && ultimo.name) || "" : "";
+      /* UMA MUDANCA POR LINHA. Duas mudancas separadas por " · " na mesma
+         linha ("crítico 5% → 30% · dano crítico 2x → 2.5x") pedem que o olho
+         ache o divisor antes de achar o segundo numero — e o antes -> depois
+         ja carrega uma seta por conta propria. Empilhadas, as duas comecam na
+         mesma coluna e se leem de uma vez. O valor novo sai na BRASA do eixo:
+         e a unica cor da linha, e ela marca exatamente o que mudou. */
+      v.crus = v.delta.map((d) => `${d[0]} → <em>${d[1]}</em>`);
     }
 
     return v;
@@ -653,18 +644,10 @@ class UI {
   /* A carta, 348 x min-height 436, em retrato. Da frente para tras: etiqueta
      de tipo, cabecalho, REGUA, efeito, rodape.
 
-     O eixo aparece em QUATRO lugares pequenos — quadrado de 9px, barra da
-     regua, brasa nos valores crus, pips — e nunca na moldura: a marcacao de
-     maior ganho e osso, e osso e cor de eixo na mesma moldura brigariam por
-     dizer coisas diferentes sobre a mesma carta. */
+     O eixo aparece em TRES lugares pequenos — quadrado de 9px, brasa no valor
+     novo, pips — e nunca na moldura: moldura de eixo faria a carta ser lida
+     pela cor antes de ser lida pelo que ela muda. */
   cardHtml(v, tecla) {
-    /* O ganho zero nao vira "+0": "+0 dano/s" le como uma peca quebrada, e o
-       que esta acontecendo e outra coisa — a oferta muda controle, cura ou
-       deslocamento, que a regua nao mede. A carta diz isso com palavra. */
-    const zero = !(v.dps > 0.5);
-    const num = zero ? "—" : `+${fmtNum(Math.round(v.dps))}`;
-    const un = !zero ? "dano/s"
-      : v.foraDaRegua ? "ganho fora da régua" : "não muda o dano";
     return `
       <div class="lv-topo">
         <span class="tag ${v.tagCls} lv-kind ch1"><i>${v.glyph}</i>${v.kind}</span>
@@ -679,13 +662,11 @@ class UI {
         </div>
       </div>
       <div class="lv-hr"></div>
-      <div class="lv-regua">
-        ${v.top ? `<div class="lv-top-lbl">Maior ganho</div>` : ""}
-        <div class="lv-ganho"><b>${num}</b><span>${un}</span></div>
-        <div class="lv-escala"><i style="width:${v.pct.toFixed(1)}%"></i></div>
-        ${v.crus ? `<div class="lv-crus">${v.crus}</div>` : ""}
-      </div>
-      ${v.plain ? `<div class="lv-hr"></div><div class="lv-plain">${v.plain}</div>` : ""}
+      ${v.crus.length ? `<div class="lv-crus">${
+        v.crus.map((l) => `<span>${l}</span>`).join("")}</div>` : ""}
+      ${v.trava ? `<div class="lv-trava"><b>Fecha as outras duas linhas</b>termina em ${
+        v.trava}</div>` : ""}
+      ${v.plain ? `<div class="lv-plain">${v.plain}</div>` : ""}
       ${v.why ? `<div class="lv-why">${v.why}</div>` : ""}
       <div class="lv-foot-card">
         <div class="lv-foot-row">
@@ -697,12 +678,17 @@ class UI {
 
   /* Cinco pips. O degrau que ACABOU DE SUBIR sai na brasa (`-300`), e cinco
      cheios saem em OSSO: a peca deixa o sistema de eixo, porque nao ha mais
-     decisao ali. */
-  pipsHtml(n, lockAt) {
+     decisao ali.
+
+     O terceiro estado (`lock`, o pip vazado na cor do eixo) saiu com o gate:
+     ele dizia "nao posso comprar POR FALTA DE PONTO", e falta de ponto deixou
+     de travar tier. O que trava agora e `maxDeep`/`maxLines`, e isso nao e um
+     degrau da trilha — e a OUTRA trilha estar aberta, que a tira mostra pelos
+     pips dela. */
+  pipsHtml(n) {
     let s = `<span class="lv-pips${n >= PATH_RULES.tiers ? " max" : ""}">`;
     for (let i = 0; i < PATH_RULES.tiers; i++) {
-      const cls = i < n ? (i === n - 1 ? "on brasa" : "on") : (i === lockAt ? "lock" : "");
-      s += `<i class="${cls}"></i>`;
+      s += `<i class="${i < n ? (i === n - 1 ? "on brasa" : "on") : ""}"></i>`;
     }
     return s + `</span>`;
   }
@@ -716,21 +702,17 @@ class UI {
     const b = this.game.build;
     const pct = (n) => Math.min(100, n / AXIS_RULES.capPerAxis * 100);
 
-    /* Os tracos na barra sao os tiers que o ponto DESTRAVA. Sem eles a barra
-       diz quanto o eixo cresceu e nao o que o crescimento compra — e o gate de
-       profundidade e justamente a razao de a etapa importar. Sao marca e nao
-       texto porque a barra tem 8px de altura: quem quer o numero passa o mouse,
-       quem quer a distancia ve a previa cravar antes ou depois do traco. */
-    let marcos = "";
-    for (let t = 0; t < PATH_RULES.axisGate.length; t++) {
-      const need = PATH_RULES.axisGate[t];
-      if (!need) continue;
-      // O traco do tier 5 cai no teto do eixo, e `left:100%` num filho de um
-      // `overflow:hidden` desenha fora da barra. Encostar pela direita.
-      const p = pct(need);
-      marcos += `<b class="lv-ax-gate" style="${p >= 100 ? "right:0" : `left:${p}%`}"` +
-                ` title="tier ${t + 1} das spells deste eixo · ${need} ponto${need > 1 ? "s" : ""}"></b>`;
-    }
+    /* Os tracos na barra eram os tiers que o ponto DESTRAVA, e sairam com o
+       gate de eixo: marcar um limiar que nao existe mais e a barra prometendo
+       uma compra que o ponto nao faz. O que a barra diz agora e so o que ela
+       sempre disse de verdade — quanto o eixo cresceu — e o que o crescimento
+       compra mudou de lugar: e o capstone, e ele tem a propria linha no rodape.
+
+       Os LIMIARES DE CAPSTONE seriam os candidatos naturais a ocupar o vago, e
+       de proposito nao ocupam: sao tres por eixo (`pureAt`, `hybridMain`,
+       `hybridSide`) e dependem de QUAL capstone, entao um traco generico
+       mentiria para dois dos tres. */
+    const marcos = "";
 
     let out = "";
     for (const id of b.axes) {
@@ -775,7 +757,7 @@ class UI {
         if (inst.paths[pid] > top) { top = inst.paths[pid]; nome = inst.def.paths[pid].name; }
       }
       rows.push({ def: inst.def, top, nome, hit: inst.key === alvo,
-                  done: b.isComplete(inst), gate: b.pieceGate(inst) });
+                  done: b.isComplete(inst) });
     }
     // A spell afetada vai para a frente: numa tira ela nunca pode cair no "+N".
     rows.sort((a, z) => (z.hit ? 1 : 0) - (a.hit ? 1 : 0));
@@ -784,18 +766,15 @@ class UI {
     let list = "";
     for (let i = 0; i < rows.length && i < teto; i++) {
       const r = rows[i];
-      /* A trava vem NUMERADA e na cor do eixo. Pip apagado diz que a spell
-         parou; so o numero diz onde ela volta a andar, e e ele que liga esta
-         tela a etapa, que e a unica que entrega ponto de eixo. */
-      const trava = r.gate
-        ? `<span class="lv-sp-lock">${r.gate.have}/${r.gate.need}</span>` : "";
-      list += `<div class="lv-sp${r.hit ? " hit" : ""}${r.done ? " done" : ""}${
-        r.gate ? " lock" : ""}"
+      /* A TRAVA SAIU DA TIRA junto com o gate de eixo. Ela existia para dizer
+         "esta spell parou e quem a destrava e a etapa" — sem gate, nenhuma
+         spell para por falta de recurso: ela para por `maxDeep`/`maxLines`, e
+         isso os pips ja desenham. */
+      list += `<div class="lv-sp${r.hit ? " hit" : ""}${r.done ? " done" : ""}"
         style="${this.eixoVars(r.def.axis)}" title="${r.def.name}${
-        r.nome ? ` — ${r.nome} tier ${r.top}` : ""}${
-        r.gate ? ` · tier ${r.gate.tier} pede ${r.gate.need} de ${AXES[r.gate.axisId].name}` : ""}">
+        r.nome ? ` — ${r.nome} tier ${r.top}` : ""}">
         <span class="lv-sp-name">${r.def.name}</span>
-        ${this.pipsHtml(r.top, r.gate ? r.top : -1)}${trava}</div>`;
+        ${this.pipsHtml(r.top)}</div>`;
     }
     /* O contador fica FORA da lista: ela corta o que nao cabe (`overflow`
        hidden, porque a tira e uma linha so), e o contador cortado pela metade
@@ -822,9 +801,20 @@ class UI {
       ${chips ? `<div class="lv-strip-chips">${chips}</div>` : ""}`;
   }
 
-  applyOffer(o) {
+  applyOffer(o, auto) {
     const g = this.game;
+    /* `auto` = o bolo tinha uma oferta so e a tela nao chegou a abrir. A conta
+       vira toast, e ele e montado ANTES de aplicar: depois da aplicacao o tier
+       ja subiu e `offerView` descreveria a compra seguinte. */
+    const aviso = auto ? this.offerView(o) : null;
     const res = g.build.applyOffer(o);
+
+    /* Evolucao, aura e capstone tem toast proprio e melhor — anunciar a compra
+       tambem seria dizer o mesmo fato duas vezes na mesma pilha de 3. */
+    if (aviso && !res.evolved && !res.completed) {
+      this.toast({ head: aviso.kind, axis: aviso.axisId,
+        name: aviso.name, value: aviso.subtitle });
+    }
 
     if (res.evolved) {
       g.sfx.combo();
@@ -935,11 +925,15 @@ class UI {
     const cls = CLASSES[g.selectedClass];
     this.el.stEyebrow.innerHTML =
       `<span>Abertura</span><s></s><span>${cls.name}</span><s></s>` +
-      `<span>${offers.length} spells · uma escolha</span>`;
+      `<span>${offers.length} famílias · uma escolha</span>`;
+    /* O subtitulo dizia "não cobra ponto de eixo" e agora cobra — mas o que ele
+       precisa explicar mudou junto: a pergunta virou de estilo, e as tres
+       consequencias (o ponto, a spell, a familia garantida na etapa) sao o que
+       o jogador nao tem como deduzir da linha sozinho. */
     this.el.stSub.textContent =
-      "Uma por família, e todas disparam sozinhas desde o primeiro segundo. " +
-      "Ela não cobra ponto de eixo: o que você escolhe aqui é com o que a run " +
-      "começa, não para onde ela vai.";
+      "Escolha a família com que esta run vai jogar. Ela entra com " +
+      `${AXIS_RULES.starterPoints} ponto, traz a spell dela de graça, e passa a ` +
+      "ter uma spell garantida em toda etapa — o resto da mesa continua sorteado.";
 
     this.el.stRows.innerHTML = "";
     for (const o of offers) {
@@ -961,8 +955,9 @@ class UI {
 
   /* Como nas outras duas telas de escolha, o hover re-renderiza so o RODAPE:
      mexer nas linhas mataria a transicao que o CSS esta rodando naquele
-     instante. Aqui ele nao move barra nenhuma (a abertura nao da eixo) — o que
-     ele faz e acender a familia da linha sob o mouse. */
+     instante. E agora ele MOVE a barra: a abertura passou a creditar eixo,
+     entao a previa de `axesHtml` vale aqui pelo mesmo motivo que vale na
+     etapa — e o unico jeito de ver o custo antes de pagar. */
   stHoverTo(o) {
     const tag = o ? o.axisId : null;
     if (this.stHover === tag) return;
@@ -971,7 +966,8 @@ class UI {
   }
 
   stRender(o) {
-    this.el.stPool.innerHTML = this.axesHtml(o ? o.axisId : null, 0);
+    this.el.stPool.innerHTML =
+      this.axesHtml(o ? o.axisId : null, AXIS_RULES.starterPoints);
     this.el.stPacto.innerHTML =
       `<div class="ms-pacto">Uma run cabe em <b>${AXIS_RULES.maxAxes} famílias</b> — ` +
       `a terceira fecha quando a segunda abrir</div>`;
@@ -980,19 +976,34 @@ class UI {
   /* A manchete e a SPELL, como na carta sorteada da etapa: e ela que esta
      sendo escolhida. O eixo vira etiqueta abaixo, na cor dele — por ele no
      topo seria anunciar como titulo algo que nao e a decisao desta tela. */
+  /* A MANCHETE E O EIXO, e a spell virou o que ele entrega.
+
+     A tela sempre teve uma linha por eixo, e mesmo assim perguntava "qual
+     spell?" — o eixo era subtitulo em cinza. Agora ela pergunta "que estilo?",
+     que e a pergunta que a resposta de fato responde: o ponto de eixo, a
+     familia garantida em toda etapa e o capstone la na frente saem todos do
+     eixo, e a spell e so o primeiro deles.
+
+     A ordem da linha e a mesma da linha ABERTA da etapa (eixo, tag, o que vem
+     junto), e de proposito: as duas dizem "invista nesta familia". O que muda
+     e o botao — aqui ele nao tem alternativa seca, porque a abertura nao deixa
+     ninguem levar o eixo sem a spell. */
   stRowHtml(o) {
     return `
       <span class="ms-eixo"></span>
       <span class="ms-ic">${Glyph.svg(o.piece.id, 54)}</span>
       <div class="ms-txt">
-        <div class="ms-head"><span class="ms-axis">${o.piece.name}</span></div>
-        <div class="ms-tag">${o.axis.name} · ${o.axis.tag}</div>
-        <div class="ms-desc">${o.piece.desc}</div>
+        <div class="ms-head">
+          <span class="ms-axis">${o.axis.name}</span>
+          <span class="ms-num">+${AXIS_RULES.starterPoints}</span>
+        </div>
+        <div class="ms-tag">${o.axis.tag}</div>
+        <div class="ms-desc"><b>${o.piece.name}</b> — ${o.piece.desc}</div>
       </div>
       <div class="ms-takes">
         <div>
-          <button class="ms-take"><span>Começar</span></button>
-          <div class="ms-take-note">não custa eixo</div>
+          <button class="ms-take"><span>Começar</span><em>+${AXIS_RULES.starterPoints}</em></button>
+          <div class="ms-take-note">${o.axis.name} 0 → ${AXIS_RULES.starterPoints}</div>
         </div>
       </div>`;
   }
@@ -1000,7 +1011,9 @@ class UI {
   takeStarter(o) {
     this.el.starter.classList.add("hidden");
     this.game.takeStarter(o.piece.id);
-    this.toast({ head: "Abertura", axis: o.piece.axis, name: o.piece.name });
+    this.toast({ head: "Abertura", axis: o.piece.axis,
+      name: o.axis.name, value: `+${AXIS_RULES.starterPoints}` });
+    this.toast({ head: "Spell", axis: o.piece.axis, name: o.piece.name });
   }
 
   openMilestone() {
@@ -1039,7 +1052,13 @@ class UI {
        a pergunta e descoberta; com um eixo aberto, ela vira quanto investir
        nele — e isso precisa estar dito antes das linhas, nao deduzido delas. */
     const aberta = offers.find((o) => o.locked);
-    this.el.msSub.textContent = aberta
+    /* Com o loadout cheio a mesa nao tem mais spell nenhuma, e o subtitulo nao
+       pode continuar dizendo "a spell vem junto": ele estaria descrevendo uma
+       tela que nao esta ali. A terceira fase da run tem a sua propria frase. */
+    const soEixo = offers.length > 0 && offers.every((o) => !o.piece);
+    this.el.msSub.textContent = soEixo
+      ? "O arsenal está fechado. O que sobra é onde investir — e isso não volta."
+      : aberta
       ? `${aberta.axis.name} já está aberta: o eixo sozinho não cobra mais nada. A spell, sim.`
       : "O único ponto que não volta. Escolha o eixo — a spell vem junto, cobrando um ponto.";
 
@@ -1125,6 +1144,28 @@ class UI {
         </button>
         <div class="ms-take-note">${nota}</div></div>`;
     };
+
+    /* A TERCEIRA ESPECIE: eixo seco de um eixo que pode nem ter aberto,
+       oferecido porque o loadout encheu e nao ha mais spell que caiba. A
+       manchete e o EIXO, como na linha aberta — mas sem o selo `aberto`, que e
+       a promessa de slot fixo que esta carta nao faz. E ela diz por que nao ha
+       spell: a mesa que muda de assunto sem explicar parece a mesa quebrada. */
+    if (o.dryOnly) {
+      return `
+        <span class="ms-eixo"></span>
+        <span class="ms-ic">${Glyph.svg(o.axisId, 64)}</span>
+        <div class="ms-txt">
+          <div class="ms-head">
+            <span class="ms-axis">${o.axis.name}</span>
+            <span class="ms-num">${cur}/${AXIS_RULES.capPerAxis}</span>
+          </div>
+          <div class="ms-tag">${o.axis.tag}</div>
+          <div class="ms-desc">Arsenal completo — ${
+            BALANCE.loadout.maxSpells} spells na build. Daqui em diante a etapa
+            só investe no eixo, e a profundidade vem do level up.</div>
+        </div>
+        <div class="ms-takes">${take(o.dry, false, "Só o eixo")}</div>`;
+    }
 
     if (!o.locked) {
       return `

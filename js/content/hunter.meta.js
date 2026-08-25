@@ -12,13 +12,13 @@
 Object.assign(PASSIVES, {
 
   instinto: {
-    id: "instinto", cls: "hunter", name: "Instinto", color: "#e0b833",
+    id: "instinto", cls: "hunter", axis: "pack", name: "Instinto", color: "#e0b833",
     desc: "Todo bicho invocado dura +60% — matilha que fica é matilha que conta.",
     global: { minionDuration: 1.6 },
   },
 
   municaoLeve: {
-    id: "municaoLeve", cls: "hunter", name: "Munição Leve", color: "#6ea6f5",
+    id: "municaoLeve", cls: "hunter", axis: "precision", name: "Munição Leve", color: "#6ea6f5",
     // Exclusiva com Munição Pesada: a build escolhe entre volume e peso. Sem a
     // exclusão, a resposta certa seria sempre "as duas".
     exclusive: "municaoPesada",
@@ -28,7 +28,7 @@ Object.assign(PASSIVES, {
   },
 
   municaoPesada: {
-    id: "municaoPesada", cls: "hunter", name: "Munição Pesada", color: "#1c4aa8",
+    id: "municaoPesada", cls: "hunter", axis: "precision", name: "Munição Pesada", color: "#1c4aa8",
     exclusive: "municaoLeve",
     desc: "Toda peça de tiro atira 30% mais devagar e bate 80% mais forte por tiro.",
     match: { tag: "shot" },
@@ -36,35 +36,35 @@ Object.assign(PASSIVES, {
   },
 
   rastreador: {
-    id: "rastreador", cls: "hunter", name: "Rastreador", color: "#2fd47e",
+    id: "rastreador", cls: "hunter", axis: "trapping", name: "Rastreador", color: "#2fd47e",
     desc: "Toda armadilha rearma na metade do tempo.",
     match: { trigger: "trap" },
     pieceMods: { cooldown: { mul: 0.5 } },
   },
 
   camuflagem: {
-    id: "camuflagem", cls: "hunter", name: "Camuflagem", color: "#3878e0",
+    id: "camuflagem", cls: "hunter", axis: "precision", name: "Camuflagem", color: "#3878e0",
     desc: "Todo golpe pesado tem 40% de chance de crítico, e o crítico bate mais forte.",
     match: { tag: "shot" },
     pieceMods: { crit: { add: 0.4 }, critMul: { min: 2.2 } },
   },
 
   vinculoAnimal: {
-    id: "vinculoAnimal", cls: "hunter", name: "Vínculo Animal", color: "#f5d45c",
+    id: "vinculoAnimal", cls: "hunter", axis: "pack", name: "Vínculo Animal", color: "#f5d45c",
     desc: "Toda peça que invoca bicho dura +80% e o bicho bate 25% mais forte.",
     match: { tag: "beast" },
     pieceMods: { duration: { mul: 1.8 }, damage: { mul: 1.25 } },
   },
 
   olhoDeAguia: {
-    id: "olhoDeAguia", cls: "hunter", name: "Olho de Águia", color: "#3878e0",
+    id: "olhoDeAguia", cls: "hunter", axis: "precision", name: "Olho de Águia", color: "#3878e0",
     desc: "Toda peça de tiro alcança 40% mais longe. Em troca, o corpo a corpo bate 20% menos.",
     match: { tag: "shot" },
     pieceMods: { range: { mul: 1.4 } },
   },
 
   faroDeSangue: {
-    id: "faroDeSangue", cls: "hunter", name: "Faro de Sangue", color: "#9c7a12",
+    id: "faroDeSangue", cls: "hunter", axis: "trapping", name: "Faro de Sangue", color: "#9c7a12",
     desc: "Toda armadilha e toda bomba cobrem 35% mais chão.",
     match: { tag: "trap" },
     pieceMods: { radius: { mul: 1.35 }, blastRadius: { mul: 1.35 } },
@@ -77,21 +77,21 @@ Object.assign(CAPSTONES, {
   /* --- puros (15 pontos) -------------------------------------------------- */
 
   alcateia: {
-    id: "alcateia", cls: "hunter", name: "Alcateia", color: "#f5d45c",
+    id: "alcateia", cls: "hunter", axis: "pack", name: "Alcateia", color: "#f5d45c",
     axis: "pack", req: { pack: 15 },
     desc: "Todo bicho invocado fica permanente. Em troca, você não recebe mais cura externa.",
     global: { minionPermanent: true, noExternalHeal: true },
   },
 
   tiroCerteiro: {
-    id: "tiroCerteiro", cls: "hunter", name: "Tiro Certeiro", color: "#6ea6f5",
+    id: "tiroCerteiro", cls: "hunter", axis: "precision", name: "Tiro Certeiro", color: "#6ea6f5",
     axis: "precision", req: { precision: 15 },
     desc: "Seu maior golpe sempre crita e ignora resistência. Em troca, todas as recargas ficam 30% mais lentas.",
     global: { bigHitCrit: true, cooldownMul: 1.3 },
   },
 
   terraArrasada: {
-    id: "terraArrasada", cls: "hunter", name: "Terra Arrasada", color: "#5cf0a4",
+    id: "terraArrasada", cls: "hunter", axis: "trapping", name: "Terra Arrasada", color: "#5cf0a4",
     axis: "trapping", req: { trapping: 15 },
     desc: "Toda zona que você deixa no chão dura o triplo. Em troca, você não recebe mais cura externa.",
     global: { minionDuration: 0.7, noExternalHeal: true },
