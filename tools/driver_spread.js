@@ -220,5 +220,115 @@ function step(seconds) {
   else ok("bala solta homa desde o primeiro frame");
 }
 
+/* --- 8. o TIRO: reto, antecipado, e nunca de volta -----------------------
+   `shot: true` e a bandeira que separa um tiro de uma spell viajando, e as
+   tres coisas que ela liga tem que ser medidas em simulacao — nenhuma delas
+   aparece lendo o dado.
+
+   O contrario de cada uma ja existiu no jogo: o tiro do hunter curvava (era
+   `homing` com `turnRate`), o leque abria em volta de um alvo so, e o quique
+   nao existia — quem cobrava varios corpos era um `pierce` alto, que so
+   alcancava doze corpos porque a curva ia atras deles. */
+{
+  fresh();
+  /* O jogador fica LONGE da boca do tiro de proposito. Todo corpo anda em
+     direcao ao jogador, entao um tiro que sai DO jogador encontra o alvo quase
+     de frente e a antecipacao nao tem componente perpendicular para corrigir —
+     a mesa mediria zero e nao estaria medindo nada. Com o jogador de lado, o
+     alvo cruza a linha do tiro, que e o caso que a antecipacao existe para
+     resolver (e o caso real de uma perna de quique, que nasce num corpo). */
+  g.player.x = 0; g.player.y = 600;
+  const alvo = put(360, 0);
+  alvo.speed = alvo.baseSpeed = 200;
+  reindex();
+  const c = pushCtx(g);
+  c.key = "fixture"; c.color = "#3878e0"; c.now = g.clock;
+  c.x = 0; c.y = 0; c.target = alvo; c.dirX = 1; c.dirY = 0;
+
+  // a mira ANTECIPA: com o alvo cruzando, o tiro nao sai no rumo dele
+  g.projectiles.clear();
+  EFFECTS.projectile(g, { type: "projectile", shot: true, damage: 1,
+                          speed: 600, radius: 5, count: 1 }, c);
+  const reto = g.projectiles.active[0];
+  const direto = Math.atan2(alvo.y - 0, alvo.x - 0);
+  const saiu = Math.atan2(reto.vy, reto.vx);
+  if (Math.abs(saiu - direto) < 1e-4)
+    fail("tiro com `shot` nao antecipou: saiu no rumo atual do alvo");
+  else ok(`a mira antecipa: ${(Math.abs(saiu - direto) * 180 / Math.PI).toFixed(1)} grau(s) a frente do alvo`);
+
+  // e ele NAO curva: o rumo do primeiro quadro e o mesmo do decimo
+  const a0 = Math.atan2(reto.vy, reto.vx);
+  step(10 / 60);
+  if (!reto.dead && Math.abs(Math.atan2(reto.vy, reto.vx) - a0) > 1e-6)
+    fail("tiro com `shot` mudou de rumo no ar — isso e curva, nao tiro");
+  else ok("o tiro nao curva: mesmo rumo do primeiro ao decimo quadro");
+
+  // cada flecha da rajada pega um CORPO proprio
+  fresh();
+  const corpos = [put(300, -90), put(300, 0), put(300, 90)];
+  reindex();
+  const c2 = pushCtx(g);
+  c2.key = "fixture"; c2.color = "#3878e0"; c2.now = g.clock;
+  c2.x = 0; c2.y = 0; c2.target = corpos[1]; c2.dirX = 1; c2.dirY = 0;
+  g.projectiles.clear();
+  EFFECTS.projectile(g, { type: "projectile", shot: true, damage: 1,
+                          speed: 900, radius: 5, count: 3 }, c2);
+  const mirados = new Set(g.projectiles.active.map((p) => p.target));
+  if (mirados.size < 3) fail(`rajada de 3 mirou ${mirados.size} corpo(s) — o leque nao virou salva`);
+  else ok("cada flecha da rajada mira um corpo proprio");
+  popCtx(g); popCtx(g);
+}
+
+/* --- 9. o quique cobra corpos DIFERENTES e nao volta --------------------- */
+{
+  fresh();
+  const corpos = [];
+  for (let i = 0; i < 5; i++) corpos.push(put(260 + i * 10, -160 + i * 80));
+  reindex();
+  const cobrados = new Map();
+  const orig = g.damageEnemy.bind(g);
+  g.damageEnemy = function (e, amt, key, big, dotKey, cont) {
+    if (key === "fixture") cobrados.set(e, (cobrados.get(e) || 0) + 1);
+    return orig(e, amt, key, big, dotKey, cont);
+  };
+  const c = pushCtx(g);
+  c.key = "fixture"; c.color = "#3878e0"; c.now = g.clock;
+  c.x = 0; c.y = 0; c.target = corpos[0]; c.dirX = 1; c.dirY = 0;
+  g.projectiles.clear();
+  EFFECTS.projectile(g, { type: "projectile", shot: true, damage: 10, speed: 900,
+                          radius: 6, count: 1, bounce: 4, bounceRange: 400 }, c);
+  popCtx(g);
+  step(2);
+  g.damageEnemy = orig;
+
+  if (cobrados.size < 2)
+    fail(`o quique cobrou ${cobrados.size} corpo(s) — nao quicou`);
+  else if ([...cobrados.values()].some((n) => n > 1))
+    fail("o quique voltou para um corpo ja atingido — `hits` nao viajou com a perna nova");
+  else ok(`o quique cobrou ${cobrados.size} corpos distintos, nenhum duas vezes`);
+
+  // sem corpo no alcance ele MORRE, nao vira tiro para o vazio
+  fresh();
+  const so = put(300, 0);
+  reindex();
+  /* Chave PROPRIA. O registro de rajada e (peca, boca, instante) e `fresh()`
+     zera o relogio, entao duas mesas que disparam do mesmo ponto com a mesma
+     chave contam como UMA rajada — e `claimAngle` desvia a segunda em `minSep`
+     para nao empilhar. Media: o tiro saia 7,2 graus torto (0.14 * 0.9 rad) e
+     errava um alvo parado a 300 unidades. A mesa mediria o registro de rajada
+     e chamaria isso de "o quique virou tiro para o vazio". */
+  const c2 = pushCtx(g);
+  c2.key = "fixture-solo"; c2.color = "#3878e0"; c2.now = g.clock;
+  c2.x = 0; c2.y = 0; c2.target = so; c2.dirX = 1; c2.dirY = 0;
+  g.projectiles.clear();
+  EFFECTS.projectile(g, { type: "projectile", shot: true, damage: 10, speed: 900,
+                          radius: 6, count: 1, bounce: 3, bounceRange: 200 }, c2);
+  popCtx(g);
+  step(1.5);
+  const vivos = g.projectiles.active.filter((p) => !p.dead).length;
+  if (vivos) fail(`${vivos} tiro(s) sobraram sem alvo — o quique virou tiro para o vazio`);
+  else ok("sem corpo no alcance, o quique acaba em vez de sair para o vazio");
+}
+
 if (fails) throw new Error(`${fails} falha(s) no leque/alvo de projetil`);
 console.log("\nok  leque e alvo de projetil validados");

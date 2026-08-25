@@ -271,6 +271,22 @@ class Game {
   nearestEnemyExcept(x, y, maxDist, exclude) {
     return this.grid.nearest(x, y, maxDist || 4000, exclude, null);
   }
+  /* O mais proximo que NAO esta num conjunto — o que o ricochete pergunta.
+     `exclude` do grid compara um corpo so por identidade; aqui o que precisa
+     ficar de fora e tudo que este tiro ja acertou, senao dois inimigos ficam
+     se revezando o mesmo quique.
+
+     O filtro e um fechamento unico, reaproveitado: ele e criado uma vez e le o
+     conjunto de um campo, em vez de alocar uma funcao nova por quique. */
+  nearestEnemyOutside(x, y, maxDist, set, exclude) {
+    if (!this._foraFiltro) {
+      this._foraFiltro = (e) => !(this._foraSet && this._foraSet.has(e));
+    }
+    this._foraSet = set;
+    const r = this.grid.nearest(x, y, maxDist || 4000, exclude || null, this._foraFiltro);
+    this._foraSet = null;
+    return r;
+  }
   nearestRangedEnemy(x, y, maxDist) {
     return this.grid.nearest(x, y, maxDist || 4000, null, (e) => !!e.type.ranged);
   }
@@ -1184,12 +1200,68 @@ class Game {
                a shot through the pack, and pinning it cost 37% of the damage of
                the 7-shot tier. Measured, not guessed. */
             if (p.pierce > 0) { p.pierce--; p.target = null; }
+            else if (p.bounce > 0) this.ricochet(p, e);
             else p.dead = true;
           }
         });
       }
     }
     this.projectiles.sweep(DEAD);
+  }
+
+  /* O RICOCHETE — o tiro morre no corpo que acertou e SAI OUTRO dali para o
+     proximo. E a maneira de um tiro pegar varios corpos sem deixar de ser um
+     tiro: a flecha nao curva no ar (isso e spell) e nao atravessa a horda em
+     serpentina — ela bate, e o quique manda a proxima para outro lado.
+
+     Ele substitui o que a perfuracao alta fazia quando o tiro perseguia: um
+     `pierce` de 12 so alcancava doze corpos porque a curva ia atras deles.
+     Reta, a perfuracao cobra quem esta na LINHA — que e o certo, e e pouco. O
+     quique devolve o alcance com a leitura certa: cada perna e visivel, sai do
+     corpo que acabou de ser atingido, e o jogador consegue contar.
+
+     Quatro regras, e cada uma fecha um jeito de isto sair errado:
+
+     - **Nunca volta para quem ja foi atingido.** `hits` e herdado pela perna
+       nova, entao um par de inimigos nao fica trocando o mesmo tiro entre si
+       ate a contagem acabar.
+     - **A perna nova NASCE no corpo**, nao na boca da arma. Saindo do jogador,
+       o quique seria um segundo disparo e nao um ricochete: o que conta a
+       historia e a perna curta ligando um corpo ao outro.
+     - **Sem alvo, o quique acaba.** Ele nao vira tiro para o vazio — se nao ha
+       outro corpo no alcance, o tiro simplesmente morreu onde bateu.
+     - **A conta desce e o dano cai** (`bounceFalloff`), senao um tiro em horda
+       densa vira dano ilimitado: `bounce` e o teto e a queda e o que faz a
+       primeira perna valer mais que a quinta. */
+  ricochet(p, de) {
+    const alvo = this.nearestEnemyOutside(de.x, de.y, p.bounceRange || 260, p.hits, de);
+    if (!alvo) { p.dead = true; return; }
+    const sp = p.speed || Math.hypot(p.vx, p.vy) || 1;
+    const ang = Math.atan2(alvo.y - de.y, alvo.x - de.x);
+    const novo = this.projectiles.spawn({
+      x: de.x, y: de.y,
+      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+      speed: sp,
+      damage: p.damage * (p.bounceFalloff != null ? p.bounceFalloff : 0.85),
+      radius: p.radius,
+      color: p.color,
+      source: p.source,
+      payload: p.payload,
+      life: p.life > 0 ? p.life : 1.2,
+      pierce: 0,
+      look: p.look,
+      trail: p.trailSpan || 0,
+      target: alvo,
+      bounce: p.bounce - 1,
+      inheritHits: true,
+      bounceRange: p.bounceRange,
+      bounceFalloff: p.bounceFalloff,
+    });
+    /* Os corpos ja atingidos viajam com a perna nova. Sem isto o quique volta
+       para quem acabou de ser acertado e dois inimigos se revezam o tiro. */
+    if (novo && novo.hits && p.hits) for (const h of p.hits) novo.hits.add(h);
+    if (novo && novo.hits) novo.hits.add(de);
+    p.dead = true;
   }
 
   updateAreas(dt) {

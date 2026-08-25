@@ -97,6 +97,77 @@ function effectTargets(game, e, c) {
    por disparo. */
 const PROJ_BURST = { key: null, x: 0, y: 0, now: -1, angles: [] };
 
+/* `shot: true` — ESTE PROJETIL E UM TIRO, e nao uma spell viajando.
+
+   Uma bandeira so, porque as tres coisas que separam os dois sao a mesma
+   decisao e nunca se querem em separado:
+
+     1. a mira ANTECIPA (`aimAt` logo abaixo) — reta e certeira, sem curvar;
+     2. cada tiro da rajada escolhe o PROPRIO corpo, em vez de abrir leque;
+     3. ele se desenha como risca (`look: "tracer"`), nao como orbe com cauda.
+
+   E ela e OPT-IN, declarada no dado da peca, e nao o comportamento novo de
+   todo projetil. O motivo e medido: a antecipacao nao muda o angulo de forma
+   perceptivel numa horda que anda para cima do jogador (o desvio mediano deu
+   0,0 grau e a taxa de acerto do warlock e 100% dos dois jeitos), mas ela muda
+   os ultimos bits do float — e uma simulacao de 12 minutos e caotica. Ligada
+   para todo mundo, ela nao tirava dano nenhum do warlock (5 seeds, medianas a
+   3% uma da outra) e mesmo assim mandava a run de semente fixa do smoke para
+   outro lugar: 22,5 mil abates viravam 4,9 mil, e o `driver_chest` passava de
+   230s para 365s. Nao era regressao — era outra run. Perturbar de graca a
+   classe que ninguem pediu para mexer custa isso: toda leitura de semente fixa
+   do repositorio deixa de ser comparavel com a de ontem. */
+
+/* MIRA COM ANTECIPACAO — o tiro sai para onde o alvo VAI ESTAR.
+
+   O tiro reto e o tiro que parece tiro; o que curva no ar parece spell. Mas
+   trocar curva por reta sem mais nada troca "certeiro" por "as vezes": mirar
+   onde o corpo esta e acertar onde ele estava, e a diferenca cresce com a
+   distancia dividida pela velocidade do tiro.
+
+   Quem conserta isso e a interceptacao, que e o que um atirador faz: resolve
+   o instante `t` em que o tiro e o alvo ocupam o mesmo ponto e aponta para la.
+   Com `d` a posicao relativa do alvo, `v` a velocidade dele e `sp` a do tiro:
+
+     |d + v·t| = sp·t   ->   (v·v - sp²)·t² + 2(d·v)·t + (d·d) = 0
+
+   A menor raiz positiva e o encontro. Sem raiz positiva — alvo mais rapido que
+   o tiro e fugindo — a mira cai na posicao atual, que e o melhor palpite
+   disponivel e nunca e pior que nao antecipar nada.
+
+   Nesta horda a correcao costuma ser pequena, e isso e uma propriedade do jogo
+   e nao sorte: todo corpo anda em direcao ao jogador e o tiro sai DO jogador,
+   entao o encontro e quase de frente. Quem ela salva e o caso que a reta
+   perdia — alvo cruzando de lado, corpo empurrado, corpo com medo fugindo.
+
+   Alvo que nao e inimigo (nao tem `velocityAt`) cai na mira direta. */
+const AIM_VEL = { x: 0, y: 0 };
+function aimAt(game, c, target, sp) {
+  const dx = target.x - c.x, dy = target.y - c.y;
+  if (!(sp > 0) || !target.velocityAt) return Math.atan2(dy, dx);
+
+  const v = target.velocityAt(game.player, c.now, AIM_VEL);
+  const a = v.x * v.x + v.y * v.y - sp * sp;
+  const b = 2 * (dx * v.x + dy * v.y);
+  const cc = dx * dx + dy * dy;
+  let t = 0;
+  if (Math.abs(a) < 1e-6) {
+    if (Math.abs(b) > 1e-6) t = -cc / b;
+  } else {
+    const disc = b * b - 4 * a * cc;
+    if (disc >= 0) {
+      const raiz = Math.sqrt(disc);
+      const t1 = (-b + raiz) / (2 * a), t2 = (-b - raiz) / (2 * a);
+      let melhor = Infinity;
+      if (t1 > 0 && t1 < melhor) melhor = t1;
+      if (t2 > 0 && t2 < melhor) melhor = t2;
+      if (melhor !== Infinity) t = melhor;
+    }
+  }
+  if (!(t > 0)) return Math.atan2(dy, dx);
+  return Math.atan2(dy + v.y * t, dx + v.x * t);
+}
+
 // Menor angulo com sinal entre dois rumos, em [-PI, PI].
 function angleDelta(a, b) {
   let d = (a - b) % (Math.PI * 2);
@@ -238,14 +309,15 @@ const EFFECTS = {
   /* --- projetil ---------------------------------------------------------- */
 
   projectile(game, e, c) {
-    let base;
-    if (e.useDir) base = Math.atan2(c.dirY, c.dirX);
-    else if (c.target) base = Math.atan2(c.target.y - c.y, c.target.x - c.x);
-    else base = Math.atan2(c.dirY, c.dirX);
-
     const n = Math.max(1, Math.round(e.count || 1));
     const spread = e.spread != null ? e.spread : 0.14;
     const sp = e.speed || 480;
+
+    let base;
+    if (e.useDir) base = Math.atan2(c.dirY, c.dirX);
+    else if (c.target) base = e.shot ? aimAt(game, c, c.target, sp) 
+                                    : Math.atan2(c.target.y - c.y, c.target.x - c.x);
+    else base = Math.atan2(c.dirY, c.dirX);
 
     // Mesma boca, mesmo instante, mesma peca = mesma rajada.
     if (PROJ_BURST.key !== c.key || PROJ_BURST.now !== c.now ||
@@ -261,8 +333,33 @@ const EFFECTS = {
        delay — a lone bolt stays stubborn from frame one. */
     const fanDelay = n > 1 && e.homing ? BALANCE.projectile.fanDelay : 0;
 
+    /* `aimEach`: cada tiro da rajada escolhe o PROPRIO corpo, em vez de abrir
+       um leque em volta de um alvo so.
+
+       E o que separa uma salva de flechas de um cone de spell. Um leque e uma
+       area disfarcada: as flechas de fora saem para o vazio e quem decide se
+       elas acertam e a densidade da horda, nao a mira. Medido quando os tiros
+       do hunter deixaram de perseguir, a linha de Aceleracao fechada — que e a
+       que ACRESCENTA tiros — perdia quase metade do dano, porque o que segurava
+       o leque antes era a curva trazendo toda flecha de volta ao alvo.
+
+       Com um corpo por flecha o tiro volta a ser tiro: reto, rapido e certeiro,
+       e a quantidade passa a valer o que ela promete — mais tiros, mais alvos.
+       Sem corpo para todos, as que sobram abrem o leque no ultimo alvo, que e o
+       comportamento antigo e continua sendo o certo: e melhor uma flecha a mais
+       no alvo que existe do que uma flecha mirando o nada. */
+    const alvos = n > 1 && e.shot && !e.useDir
+      ? game.nearestEnemies(c.x, c.y, e.range || 900, n) : null;
+
     for (let i = 0; i < n; i++) {
-      const a = claimAngle(base + (i - (n - 1) / 2) * spread, minSep);
+      let a;
+      if (alvos && alvos.length) {
+        const alvo = alvos[Math.min(i, alvos.length - 1)];
+        const sobra = i - (alvos.length - 1);   // 0 enquanto houver corpo proprio
+        a = claimAngle(aimAt(game, c, alvo, sp) + (sobra > 0 ? sobra * spread : 0), minSep);
+      } else {
+        a = claimAngle(base + (i - (n - 1) / 2) * spread, minSep);
+      }
       game.projectiles.spawn({
         x: c.x, y: c.y,
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
@@ -274,12 +371,17 @@ const EFFECTS = {
         payload: e.onHit || null,
         life: e.life || 2.4,
         pierce: e.pierce || 0,
+        look: e.shot ? "tracer" : (e.look || null),
+        bounce: e.bounce || 0,
+        bounceRange: e.bounceRange || 0,
+        bounceFalloff: e.bounceFalloff,
         homing: !!e.homing,
         turnRate: e.turnRate || 0,
         trail: e.trail || 0,
         // This shot's own target, not "whoever is nearest right now": it is
         // what makes `targets > 1` hit N enemies instead of one enemy N times.
-        target: c.target || null,
+        target: (alvos && alvos.length
+          ? alvos[Math.min(i, alvos.length - 1)] : c.target) || null,
         fanDelay: fanDelay,
       });
     }

@@ -60,8 +60,7 @@ Object.assign(PIECES, {
              tickInterval: 0.5, speedMul: 0.35, duration: 5, targets: 1 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
-      { type: "projectile", damage: "@damage", speed: 620, radius: 5, trail: 150,
-        homing: true, turnRate: 5, color: "#9c7a12",
+      { type: "projectile", shot: true, damage: "@damage", speed: 1400, radius: 5, trail: 150, color: "#9c7a12",
         onHit: [
           { type: "damage_over_time", key: "barbedShot", dps: "@dotDps",
             duration: "@dotTime", tickInterval: "@tickInterval",
@@ -243,7 +242,7 @@ Object.assign(PIECES, {
     effects: [
       { type: "summon", kind: "wyvern", ai: "ranged", count: "@count", cap: 3,
         damage: "@damage", duration: "@duration", attackInterval: "@attackInterval",
-        projectile: { damage: "@damage", speed: 560, radius: 5, trail: 120, color: "#f5d45c" } },
+        projectile: { damage: "@damage", speed: 1250, radius: 5, trail: 120, color: "#f5d45c" } },
     ],
     paths: {
       haste: HASTE({ rate: { stat: "cooldown", verb: "O uivo responde" },

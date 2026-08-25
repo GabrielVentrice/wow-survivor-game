@@ -33,7 +33,7 @@ DRIVER=driver_feel.js  node tools/harness.js .   # impacto: hitstop, soco de câ
 DRIVER=driver_vfx.js   node tools/harness.js .   # vfx: assinatura de cada peça, cor no render, voz de cada evento, ceifa e cadeia
 DRIVER=driver_dano.js  node tools/harness.js .   # número de dano: as três travas, a densidade no minuto 8, e a resposta de vida baixa
 DRIVER=driver_dano.js  node tools/harness.js . 11  # o mesmo, medindo a cauda (~130s)
-DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque que o homing não fecha, e alvo próprio por tiro
+DRIVER=driver_spread.js node tools/harness.js .   # projétil: leque, alvo próprio por tiro, e o contrato do `shot` (reto, antecipado, quique)
 DRIVER=driver_trigger.js node tools/harness.js .  # os triggers do hunter: trap inerte/carga/rearme, leading parado, pack em formação
 DRIVER=driver_aspect.js node tools/harness.js .   # aspectos: as seis condições, exclusão mútua, e o pisca
 DRIVER=driver_class.js node tools/harness.js . 12          # a classe fecha a própria progressão, e nada vaza entre classes
@@ -107,6 +107,28 @@ Quatro travas que o próprio driver precisou ganhar:
   vazio), então não existe cenário único que ligue as seis — e sem cravar, três
   peças de aspecto sairiam como "irmãs visuais" por causa da mesa, não por causa
   delas.
+
+## `driver_spread` — e o contrato do `shot`
+
+Além do leque (ver o cabeçalho do próprio driver), ele guarda as três coisas que
+`shot: true` liga e as duas do quique. Duas armadilhas de mesa que ele já
+cobrou, e as duas valem para quem for escrever a próxima:
+
+- **Corpo vindo DE FRENTE não mostra antecipação nenhuma.** Todo inimigo anda em
+  direção ao jogador, então um tiro que sai do jogador encontra o alvo quase de
+  frente e a correção não tem componente perpendicular. A mesa mediria zero e
+  passaria sem medir nada — por isso ela põe o jogador de lado, que é também o
+  caso real de uma perna de quique (ela nasce num corpo, não no jogador).
+- **O registro de rajada é (peça, boca, instante), e `fresh()` zera o relógio.**
+  Duas mesas disparando do mesmo ponto com a mesma chave contam como UMA
+  rajada, e `claimAngle` desvia a segunda em `minSep` para não empilhar.
+  Medido: o tiro saía 7,2 graus torto (0.14 × 0.9 rad) e errava um alvo parado a
+  300 unidades — e a mesa chamava isso de "o quique virou tiro para o vazio".
+  Chave própria por mesa resolve.
+
+E o bug que ele pegou de verdade: a **última** perna do quique nascia sem
+`hits` (ela já não quica, então o campo não era criado) e podia cobrar de novo
+um corpo que o mesmo tiro já havia acertado.
 
 ## `driver_class` — a classe fecha, e não vaza
 

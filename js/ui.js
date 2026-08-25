@@ -1788,6 +1788,7 @@ const STAT_FMT = {
   impCount:   { name: "imps", fmt: SF.i },
   revives:    { name: "renascimentos", fmt: SF.i },
   pierce:     { name: "perfuração", fmt: SF.i },
+  bounce:     { name: "quiques", fmt: SF.i },
   cleave:     { name: "corte em arco", fmt: SF.i },
   charges:    { name: "cargas", fmt: SF.i },
   minEnemies: { name: "mínimo de alvos", fmt: SF.i },

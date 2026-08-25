@@ -111,7 +111,7 @@ Object.assign(PIECES, {
     effects: [
       { type: "summon", kind: "turtle", ai: "turret", count: 1, cap: "@count",
         damage: "@damage", duration: "@duration", attackInterval: "@attackInterval",
-        projectile: { damage: "@damage", speed: 420, radius: 6, trail: 80, color: "#9c7a12" } },
+        projectile: { damage: "@damage", speed: 1100, radius: 6, trail: 80, color: "#9c7a12" } },
     ],
     paths: {
       haste: HASTE({ rate: { stat: "attackInterval", verb: "A tartaruga cospe" },
@@ -341,11 +341,11 @@ Object.assign(PIECES, {
     tags: ["shot", "control", "slow"],
     desc: "Mira sozinha e crava um tiro de concussão: o alvo perde o passo e fica muito mais lento pelo resto da perseguição.",
     stats: { ...CRIT_BASE, cooldown: 1.6, range: 500, damage: 128, factor: 0.4,
-             duration: 4, speed: 660, count: 1 },
+             duration: 4, speed: 1450, count: 1 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range" },
     effects: [
-      { type: "projectile", damage: "@damage", speed: "@speed", radius: 5, trail: 130,
-        count: "@count", homing: true, turnRate: 5, color: "#3878e0",
+      { type: "projectile", shot: true, damage: "@damage", speed: "@speed", radius: 5, trail: 130,
+        count: "@count", color: "#3878e0",
         onHit: [{ type: "slow", factor: "@factor", duration: "@duration" }] },
     ],
     paths: {

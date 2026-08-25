@@ -225,11 +225,11 @@ Object.assign(PIECES, {
     tags: ["shot", "blast", "area"], vfx: "ember",
     desc: "Mira sozinha e crava um tiro que fica preso no alvo por um instante e então detona em área.",
     stats: { ...CRIT_BASE, cooldown: 2.1, range: 470, damage: 96, blast: 260,
-             blastRadius: 128, speed: 640, count: 1 },
+             blastRadius: 128, speed: 1400, count: 1 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range" },
     effects: [
-      { type: "projectile", damage: "@damage", speed: "@speed", radius: 6, trail: 160,
-        count: "@count", homing: true, turnRate: 5, color: "#5cf0a4",
+      { type: "projectile", shot: true, damage: "@damage", speed: "@speed", radius: 6, trail: 160,
+        count: "@count", color: "#5cf0a4",
         onHit: [
           { type: "damage_instant", amount: "@blast", radius: "@blastRadius",
             big: true, tell: 0.16, shape: "bloom", color: "#5cf0a4" },
@@ -347,8 +347,7 @@ Object.assign(PIECES, {
              dotTime: 8, tickInterval: 0.5, targets: 1 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
-      { type: "projectile", damage: "@damage", speed: 600, radius: 5, trail: 140,
-        homing: true, turnRate: 5, color: "#2fd47e",
+      { type: "projectile", shot: true, damage: "@damage", speed: 1350, radius: 5, trail: 140, color: "#2fd47e",
         onHit: [
           { type: "damage_over_time", key: "serpentSting", dps: "@dotDps",
             duration: "@dotTime", tickInterval: "@tickInterval",

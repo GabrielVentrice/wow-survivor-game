@@ -48,6 +48,16 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
+    v: "0.12.0",
+    data: "2026-08-25",
+    titulo: "O tiro do Hunter vira tiro",
+    notas: [
+      { t: "ajuste", txt: "Os tiros do Hunter não dão mais a volta atrás do alvo: eles saem retos, muito mais rápidos, e miram onde o inimigo VAI estar em vez de onde ele está." },
+      { t: "novo", txt: "Ricochete: quando a flecha acerta, sai outra dali para o próximo corpo — e ela nunca volta para quem já foi atingido. É o que a Rajada Arcana passou a comprar no lugar da perfuração." },
+      { t: "ajuste", txt: "A flecha se desenha como uma risca dura em vez de um orbe com cauda brilhante. O comprimento da risca sai da velocidade: tiro mais rápido risca mais." },
+    ],
+  },
+  {
     v: "0.11.0",
     data: "2026-08-24",
     titulo: "O Hunter entra em campo",

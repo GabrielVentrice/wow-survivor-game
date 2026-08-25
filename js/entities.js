@@ -443,6 +443,31 @@ class Enemy {
     this.charmed = false;     // convertido pelo player (Enslave Demon)
     this.dead = false;
   }
+  /* Como este corpo esta se movendo AGORA, pela mesma regra que o `update`
+     logo abaixo usa para mover.
+
+     E um metodo derivado e nao um par `vx/vy` cacheado por dois motivos. O
+     primeiro e que um par cacheado e uma segunda lista para divergir da
+     primeira — o defeito que este projeto documenta em paleta, em voz e em
+     galeria —, e a regra de movimento cabe em quatro linhas. O segundo e o
+     custo: quem pergunta e o tiro, uma vez por disparo, e nao o laco de
+     update, milhares de vezes por quadro.
+
+     Escreve num objeto emprestado (`out`) porque quem chama esta no caminho
+     quente do disparo, e alocar um par por tiro e lixo por nada. */
+  velocityAt(player, now, out) {
+    const v = out || { x: 0, y: 0 };
+    if (now < this.stunUntil) { v.x = 0; v.y = 0; return v; }
+    const dx = player.x - this.x, dy = player.y - this.y;
+    const d = Math.hypot(dx, dy) || 1;
+    let sp = this.baseSpeed;
+    if (now < this.slowUntil) sp *= this.slowFactor;
+    const sign = now < this.fearUntil ? -1 : 1;
+    v.x = (dx / d) * sp * sign;
+    v.y = (dy / d) * sp * sign;
+    return v;
+  }
+
   update(dt, player, now) {
     if (now < this.stunUntil) { if (this.hitFlash > 0) this.hitFlash -= dt; return; }
 
@@ -654,9 +679,25 @@ class Projectile {
     // Seconds until homing kicks in. > 0 only on a shot born in a fan.
     this.fanDelay = o.fanDelay || 0;
     this.pierce = o.pierce || 0;
+    this.look = o.look || null;      // "tracer" = tiro; nulo = projetil magico
+    /* Quique: quantas pernas ainda restam, o alcance de cada busca e quanto o
+       dano cai por perna. `trailSpan` guarda o rastro PEDIDO — `trail` vira
+       buffer logo abaixo, e a perna nova precisa do numero, nao do array. */
+    this.bounce = o.bounce || 0;
+    this.bounceRange = o.bounceRange || 0;
+    this.bounceFalloff = o.bounceFalloff != null ? o.bounceFalloff : 0.85;
+    this.trailSpan = o.trail || 0;
     this.reflected = false;
-    if (this.pierce > 0) { this.hits = this.hits || new Set(); this.hits.clear(); }
-    else this.hits = null;
+    /* `hits` existe para perfuracao E para quique: um tiro que atravessa nao
+       pode cobrar o mesmo corpo duas vezes, e um que quica nao pode voltar
+       para quem acabou de acertar. */
+    /* `inheritHits` mantem a lista viva na ULTIMA perna do quique, que ja nao
+       quica mais. Sem ele a perna final nasce sem memoria e pode cobrar de novo
+       um corpo que o mesmo tiro ja acertou — o quique volta para tras bem no
+       ponto em que ninguem esta mais olhando. */
+    if (this.pierce > 0 || this.bounce > 0 || o.inheritHits) {
+      this.hits = this.hits || new Set(); this.hits.clear();
+    } else this.hits = null;
     // rastro: buffer plano [x0,y0,...] amostrado por DISTANCIA, nao por frame,
     // p/ o rastro ter o mesmo comprimento em qualquer fps/velocidade de jogo.
     /* `rgb` fica FORA do ramo do rastro, e ja esteve dentro dele.
@@ -703,6 +744,7 @@ class Projectile {
   }
   draw(ctx, cam) {
     const sx = this.x - cam.left, sy = this.y - cam.top, r = this.radius;
+    if (this.look === "tracer") { this.drawTracer(ctx, sx, sy, r); return; }
     if (this.trail) { this.drawComet(ctx, cam, sx, sy, r); return; }
     const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 2);
     g.addColorStop(0, "#fff");
@@ -714,6 +756,50 @@ class Projectile {
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(sx, sy, r * 2, 0, Math.PI * 2); ctx.fill();
   }
+  /* TRACER — o desenho de um TIRO, e nao de um projetil magico.
+
+     O cometa e a outra metade deste arquivo e ele esta certo para o que e: um
+     orbe com halo pulsante, cauda de blobs em `lighter` e nucleo branco. Isso
+     e uma spell viajando. Uma flecha nao brilha, nao pulsa e nao deixa
+     fumaca — ela e uma risca dura que sai da boca e some.
+
+     Tres decisoes, e as tres sao para tirar o "magico":
+
+     - **Risca, nao bola.** O comprimento sai da VELOCIDADE (o tiro rapido
+       risca mais), entao a leitura de "isto e rapido" mora na forma e nao numa
+       particula extra.
+     - **Sem `lighter` e sem pulso.** Aditivo e o que faz vinte tiros virarem
+       uma mancha branca; a risca fica legivel em cima da horda por CONTRASTE,
+       que e a mesma escolha do contorno do warlock e do numero de dano.
+     - **A cabeca e o unico ponto claro**, e ela e pequena. O corpo da risca
+       desbota para a propria cor indo a zero — nunca para outro matiz, que e a
+       regra que o gradiente do tiro comum ja aprendeu uma vez. */
+  drawTracer(ctx, sx, sy, r) {
+    const v = Math.hypot(this.vx, this.vy) || 1;
+    const ux = this.vx / v, uy = this.vy / v;
+    // comprimento pela velocidade, com teto: tiro rapido risca mais
+    const len = Math.min(46, 10 + v * 0.019);
+    const tx = sx - ux * len, ty = sy - uy * len;
+
+    const g = ctx.createLinearGradient(tx, ty, sx, sy);
+    g.addColorStop(0, `rgba(${this.rgb},0)`);
+    g.addColorStop(0.55, `rgba(${this.rgb},0.75)`);
+    g.addColorStop(1, this.color);
+    ctx.strokeStyle = g;
+    ctx.lineWidth = Math.max(1.5, r * 0.85);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(sx, sy);
+    ctx.stroke();
+
+    // a ponta: um unico ponto claro, do tamanho do proprio tiro
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(sx, sy, Math.max(1, r * 0.5), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // rastro em cometa: blobs suaves ao longo das ultimas posicoes + cabeca esticada
   drawComet(ctx, cam, sx, sy, r) {
     const t = this.trail, n = t.length >> 1;

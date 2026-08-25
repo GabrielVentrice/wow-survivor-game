@@ -18,21 +18,33 @@ Object.assign(PIECES, {
     color: "#3878e0", axis: "precision", axisPoints: 2,
     tags: ["shot", "pierce", "bolt"], vfx: "ember",
     desc: "Mira sozinha e dispara um tiro que atravessa a armadura: dano cheio, sem redução, no inimigo mais próximo.",
-    stats: { ...CRIT_BASE, cooldown: 1.2, range: 480, damage: 175, speed: 700, projRadius: 5,
-             pierce: 1, targets: 1, factor: 0.7, weakTime: 3 },
+    stats: { ...CRIT_BASE, cooldown: 1.2, range: 480, damage: 175, speed: 1550, projRadius: 5,
+             count: 1, targets: 1, bounce: 1, factor: 0.7, weakTime: 3 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
-      { type: "projectile", damage: "@damage", speed: "@speed", radius: "@projRadius",
-        pierce: "@pierce", trail: 170, homing: true, turnRate: 6, color: "#3878e0",
+      { type: "projectile", shot: true, damage: "@damage", speed: "@speed", radius: "@projRadius",
+        count: "@count", spread: 0.07, trail: 170, color: "#3878e0",
+        bounce: "@bounce", bounceRange: 340, bounceFalloff: 0.92,
         onHit: [{ type: "weaken", factor: "@factor", duration: "@weakTime" }] },
     ],
     paths: {
+      /* A quantidade e QUIQUE, e nao perfuracao. Com o tiro perseguindo, um
+         `pierce` de 12 era alcancavel: a flecha serpenteava pela horda atras
+         dos doze corpos. Reta, a perfuracao so cobra quem esta na LINHA — que
+         e o certo e e pouco, e foi medido: a linha fechada caiu de 44,7k para
+         23,1k so por causa disso. O numero estava calibrado para um
+         comportamento de spell.
+
+         O ricochete e a versao da mesma coisa que continua sendo um tiro: a
+         flecha bate, morre, e sai outra dali para o proximo corpo. Cada perna e
+         visivel e sai de um corpo, entao o jogador consegue contar — que e o
+         contrario da serpentina, que so parecia um tiro teimoso. */
       haste: HASTE({ rate: { stat: "cooldown", verb: "Atira" },
                      qty: { stat: "targets", noun: "alvos por disparo", steps: [2, 3],
-                            also: { stat: "pierce", steps: [2, 5],
-                                    noun: "atravessando {n} corpos" } } },
-        T("Rajada Arcana", "Cinco alvos, atravessando quase tudo.",
-          { targets: { set: 5 }, pierce: { set: 12 } })),
+                            also: { stat: "bounce", steps: [2, 4],
+                                    noun: "quicando {n} vezes" } } },
+        T("Rajada Arcana", "Cinco alvos, e cada flecha quica seis vezes pela horda.",
+          { targets: { set: 5 }, bounce: { set: 6 } })),
       mastery: MASTERY({ dmg: "damage", evolvesInto: "aimedShot" },
         T("Aimed Shot", "EVOLUÇÃO — o tiro rápido vira uma flecha só, alinhada parado.")),
       crit: CRIT({},
@@ -48,11 +60,11 @@ Object.assign(PIECES, {
     color: "#1c4aa8", axis: "precision", axisPoints: 0,
     tags: ["shot", "charge", "heavy"], evolutionOnly: true, vfx: "meteor",
     desc: "Enquanto você fica parado, respira e alinha o tiro: uma flecha só, pesada, que atravessa a horda inteira e sai do outro lado.",
-    stats: { ...CRIT_BASE, chargeTime: 0.9, range: 720, damage: 620, speed: 760, projRadius: 8,
+    stats: { ...CRIT_BASE, chargeTime: 0.9, range: 720, damage: 620, speed: 1900, projRadius: 8,
              pierce: 8, punch: 120, punchRadius: 64 },
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: "@range", needsTarget: true },
     effects: [
-      { type: "projectile", damage: "@damage", speed: "@speed", radius: "@projRadius",
+      { type: "projectile", shot: true, damage: "@damage", speed: "@speed", radius: "@projRadius",
         pierce: "@pierce", trail: 260, life: 2.6, color: "#1c4aa8",
         onHit: [{ type: "damage_instant", amount: "@punch", radius: "@punchRadius",
           shape: "implode", color: "#1c4aa8" }] },
@@ -75,13 +87,12 @@ Object.assign(PIECES, {
     color: "#6ea6f5", axis: "precision", axisPoints: 2,
     tags: ["shot", "channel", "burst"], vfx: "chain",
     desc: "Enquanto você fica parado, solta uma rajada em leque de flechas rápidas na direção do alvo mais próximo.",
-    stats: { ...CRIT_BASE, chargeTime: 0.85, range: 560, damage: 105, count: 5, speed: 780,
+    stats: { ...CRIT_BASE, chargeTime: 0.85, range: 560, damage: 105, count: 5, speed: 1650,
              projRadius: 4, pierce: 1, burn: 24 },
     trigger: { type: "rooted", chargeTime: "@chargeTime", range: "@range", needsTarget: true },
     effects: [
-      { type: "projectile", damage: "@damage", speed: "@speed", count: "@count",
-        radius: "@projRadius", pierce: "@pierce", spread: 0.1, trail: 130,
-        homing: true, turnRate: 4, color: "#6ea6f5",
+      { type: "projectile", shot: true, damage: "@damage", speed: "@speed", count: "@count",
+        radius: "@projRadius", pierce: "@pierce", spread: 0.1, trail: 130, color: "#6ea6f5",
         onHit: [{ type: "damage_over_time", key: "rapidFire", dps: "@burn",
           duration: 3, tickInterval: 0.5, look: "fire", color: "#6ea6f5" }] },
     ],
@@ -103,12 +114,12 @@ Object.assign(PIECES, {
     color: "#3878e0", axis: "precision", axisPoints: 2,
     tags: ["shot", "spread", "cleave"],
     desc: "Mira sozinha vários inimigos de uma vez e manda uma flecha para cada um — quanto mais horda, mais alvos.",
-    stats: { ...CRIT_BASE, cooldown: 1.7, range: 470, damage: 118, targets: 3, speed: 660,
+    stats: { ...CRIT_BASE, cooldown: 1.7, range: 470, damage: 118, targets: 3, speed: 1450,
              projRadius: 5, cleave: 40, cleaveRadius: 66 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
-      { type: "projectile", damage: "@damage", speed: "@speed", radius: "@projRadius",
-        trail: 140, homing: true, turnRate: 5, color: "#3878e0",
+      { type: "projectile", shot: true, damage: "@damage", speed: "@speed", radius: "@projRadius",
+        trail: 140, color: "#3878e0",
         onHit: [{ type: "damage_instant", amount: "@cleave", radius: "@cleaveRadius",
           shape: "nova", color: "#3878e0" }] },
     ],
@@ -227,11 +238,11 @@ Object.assign(PIECES, {
     requires: { tag: "shot" },
     desc: "Mira sozinha e cada disparo sai dobrado: duas flechas, alvos separados, na mesma cadência.",
     stats: { ...CRIT_BASE, cooldown: 1.5, range: 500, damage: 140, count: 2, targets: 2,
-             speed: 700, projRadius: 5, venom: 30 },
+             speed: 1500, projRadius: 5, venom: 30 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range", targets: "@targets" },
     effects: [
-      { type: "projectile", damage: "@damage", speed: "@speed", count: "@count",
-        radius: "@projRadius", spread: 0.16, trail: 150, homing: true, turnRate: 5,
+      { type: "projectile", shot: true, damage: "@damage", speed: "@speed", count: "@count",
+        radius: "@projRadius", spread: 0.16, trail: 150,
         color: "#6ea6f5",
         onHit: [{ type: "damage_over_time", key: "aspectOfTheHydra", dps: "@venom",
           duration: 5, tickInterval: 0.5, look: "curse", color: "#1c4aa8" }] },
@@ -287,8 +298,7 @@ Object.assign(PIECES, {
              spectreDamage: 130, spectreTime: 10 },
     trigger: { type: "auto_target", cooldown: "@cooldown", range: "@range" },
     effects: [
-      { type: "projectile", damage: "@damage", speed: 620, radius: 6, trail: 190,
-        homing: true, turnRate: 5, color: "#1c4aa8",
+      { type: "projectile", shot: true, damage: "@damage", speed: 1800, radius: 6, trail: 190, color: "#1c4aa8",
         onHit: [
           { type: "damage_over_time", key: "blackArrow", dps: "@dotDps",
             duration: "@dotTime", tickInterval: "@tickInterval",

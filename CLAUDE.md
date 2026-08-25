@@ -786,6 +786,65 @@ perto ele fecha no corpo — sem essa morte ele orbitaria o alvo sem encostar, q
 cerco sai do `radius` do alvo, não de tabela: cercar um ghoul e cercar um chefe
 são distâncias diferentes.
 
+### O tiro do Hunter: reto, antecipado e com quique
+
+Um projétil que **curva no ar é uma spell**. Foi assim que o hunter nasceu — as
+nove peças de tiro declaravam `homing: true` com `turnRate` de 4 a 6 —, e o
+resultado era um míssil mágico com nome de flecha: ele dava a volta, alcançava
+qualquer corpo e nunca errava porque perseguia.
+
+`shot: true` no efeito `projectile` é a bandeira que separa as duas coisas, e
+ela liga **três** comportamentos porque as três são a mesma decisão:
+
+| o que liga | por quê |
+|---|---|
+| a mira **antecipa** (`aimAt`) | reto e certeiro, sem curvar |
+| cada tiro da rajada pega **um corpo** | salva de flechas, não cone de spell |
+| desenha como **risca** (`look: "tracer"`) | não é orbe com cauda |
+
+**A antecipação é interceptação, não chute.** Resolve o instante em que tiro e
+alvo ocupam o mesmo ponto — `(v·v − sp²)t² + 2(d·v)t + d·d = 0` — e aponta para
+lá. A velocidade do alvo é DERIVADA (`Enemy.velocityAt`) e não um par `vx/vy`
+cacheado: a regra de movimento cabe em quatro linhas, e um par cacheado é a
+segunda lista para divergir da primeira.
+
+**Nesta horda a correção costuma ser zero, e isso é geometria e não sorte:**
+todo corpo anda em direção ao jogador e o tiro sai DO jogador, então o encontro
+é quase de frente. Medido numa run de warlock, o desvio mediano é **0,0 grau** e
+a taxa de acerto é **100%** com ou sem antecipação. Quem ela salva é o caso que
+a reta perdia — alvo cruzando de lado, corpo empurrado, e a **perna de um
+quique**, que nasce num corpo e não no jogador.
+
+**Ela é OPT-IN por causa disso, e o motivo é medido.** Ligada para todo mundo,
+ela não tirava dano do warlock (5 seeds, medianas a 3% uma da outra) e mesmo
+assim mandava a run de semente fixa do smoke para outro lugar: 22,5 mil abates
+viravam 4,9 mil e o `driver_chest` ia de 230s para 365s. Não era regressão — era
+**outra run**, porque a antecipação muda os últimos bits do float e doze minutos
+de simulação são caóticos. Perturbar de graça a classe que ninguém pediu para
+mexer custa toda leitura de semente fixa do repositório.
+
+#### O quique: o tiro morre no corpo e sai outro dali
+
+O que cobrava vários corpos antes era `pierce` alto — e um `pierce` de 12 só
+alcançava doze corpos porque a curva ia atrás deles. Reta, a perfuração cobra
+quem está **na linha**, que é o certo e é pouco: medido, a linha de Aceleração
+fechada do Arcane Shot caiu de 44,7k para 23,1k só por isso.
+
+O ricochete (`bounce`, `bounceRange`, `bounceFalloff`) devolve o alcance com a
+leitura certa: cada perna sai de um corpo e vai para outro, então o jogador
+**consegue contar**. Quatro regras, e cada uma fecha um jeito de sair errado:
+
+- **Nunca volta para quem já foi atingido.** O conjunto `hits` é herdado pela
+  perna nova — inclusive pela ÚLTIMA, que já não quica (`inheritHits`). Sem
+  isso o quique volta para trás exatamente onde ninguém mais está olhando; foi
+  o que `driver_spread` pegou.
+- **A perna nova nasce NO CORPO**, não na boca da arma. Saindo do jogador seria
+  um segundo disparo, não um ricochete.
+- **Sem alvo no alcance o quique acaba** — ele não vira tiro para o vazio.
+- **O dano cai por perna**, senão um tiro em horda densa é dano ilimitado.
+
+`driver_spread` guarda as três coisas do `shot` e as duas do quique.
+
 ### O Aspecto: canal vivo, porque stat é cozido na aquisição
 
 O subsistema exclusivo do Hunter, declarado em `CLASSES.hunter.systems`. Uma
