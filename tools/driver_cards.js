@@ -183,25 +183,33 @@ for (let round = 0; round < 400; round++) {
     }
     if (v.delta.length) seen.delta++;
 
-    /* --- a REGUA (9.3) ---------------------------------------------------
-       O heroi da carta e o ganho em dano/s, e ele so vale se for COMPARAVEL:
-       a barra e comparativa, entao o que ela mede tem que ser um numero, ter
-       a mesma unidade nas tres cartas e nunca ser negativo — um tier que
-       PIORASSE a peca seria uma barra crescendo para tras.
+    /* --- A REGUA SAIU DA CARTA, E O MODELO CONTINUA MEDIDO AQUI ----------
+       O "+106 dano/s", a barra e o selo de maior ganho nao sao mais
+       desenhados: a carta parou de PREVER e passou a dizer so o que a compra
+       muda de fato. Mas `BuildSystem.offerGain` -> `js/systems/dps.js`
+       continua de pe (e continua cobrado por `driver_bench`, bloco REGUA x
+       CAMPO), entao quem exercita o modelo por oferta e este driver — sem
+       isso, um modelo sem consumidor apodrece calado ate o dia em que a tela
+       quiser prever de novo.
 
-       Zero e resposta legitima (controle, cura, deslocamento nao movem a
-       regua), e por isso a carta nao pode imprimir "+0": "+0 dano/s" le como
-       peca quebrada quando o que houve foi a regua nao medir aquilo. */
-    if (typeof v.dps !== "number" || !isFinite(v.dps)) {
-      bad(`${o.kind} (${o.def.name}): ganho em dano/s nao e numero (${v.dps})`);
-    } else if (v.dps < -0.5) {
-      bad(`${o.kind} (${o.def.name}): a oferta PIORA a peca (${v.dps.toFixed(1)} dano/s)`);
-    } else if (v.dps > 0.5) seen.regua++;
-    else { seen.zero++; if (html.includes("+0")) bad(`${o.kind} (${o.def.name}): carta com "+0"`); }
-    if (!html.includes("lv-escala")) bad(`${o.kind} (${o.def.name}): carta sem a barra da regua`);
+       O que ele promete e ORDEM: numero finito e nunca negativo. Uma oferta
+       que PIORASSE a peca seria uma barra crescendo para tras. */
+    let ganho;
+    try { ganho = g.build.offerGain(o); }
+    catch (e) { bad(`${o.kind} (${o.def.name}): offerGain explodiu — ${e.message}`); ganho = 0; }
+    if (typeof ganho !== "number" || !isFinite(ganho)) {
+      bad(`${o.kind} (${o.def.name}): ganho em dano/s nao e numero (${ganho})`);
+    } else if (ganho < -0.5) {
+      bad(`${o.kind} (${o.def.name}): a oferta PIORA a peca (${ganho.toFixed(1)} dano/s)`);
+    } else if (ganho > 0.5) seen.regua++;
+    else seen.zero++;
+    // E ela nao pode voltar a ser desenhada sem passar por aqui.
+    for (const c of ["lv-escala", "lv-ganho", "lv-top-lbl"]) {
+      if (html.includes(c)) bad(`${o.kind} (${o.def.name}): a regua voltou para a carta (${c})`);
+    }
     /* Tier puramente numerico NAO tem paragrafo: a frase da linha que morava
-       ali dizia por extenso o mesmo que a regua ja diz em mono 38, igual nas
-       cinco cartas daquela linha. Quem fala por ele e o proprio upgrade. */
+       ali dizia por extenso o mesmo que o proprio upgrade diz, igual nas cinco
+       cartas daquela linha. Quem fala por ele e o antes -> depois. */
     if (o.kind === "path" && o.tier.mods && !o.tier.patch && v.delta.length) {
       if (v.plain) {
         bad(`path ${o.def.name} (${o.pathId}): tier numerico com paragrafo — ` +

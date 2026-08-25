@@ -568,29 +568,31 @@ sempre, para as medições continuarem comparáveis). Sem argumento a run para e
 level-up** e **escolha de level-up que mova o pool de eixo** — as duas são a
 mesma regressão vista de dois lados: uma tela em que largura e profundidade
 disputam a mesma escolha, e largura ganha sempre. Depois que a tela virou
-cartas, ele cobra mais três: **carta sem `.lv-plain`** (o slot em Eczar existe em
-toda carta), **`lv-ax` de volta na tira** (eixo não é assunto desta tela) e a
+cartas, ele cobra mais três: **carta sem manchete nem upgrade** (ou o parágrafo
+em Eczar, ou o "antes → depois" — sem nenhum dos dois a carta é um rótulo
+sozinho), **`lv-ax` de volta na tira** (eixo não é assunto desta tela) e a
 **trava de nível das passivas**, verificada no nível 1 antes de subir o nível
 para medir o resto.
 
-Desde a **régua comum** ele cobra outras quatro, e as quatro são sobre o número
-que virou o herói da carta:
+Desde que a **régua saiu da carta** ele cobra outras quatro:
 
-- o ganho em dano/s é **número finito e nunca negativo** — uma oferta que
-  piorasse a peça seria uma barra crescendo para trás;
-- **a barra existe** (`lv-escala`) e **a tecla existe** (`lv-tecla`), e o botão
-  `ESCOLHER` não voltou: 44px de largura inteira, três vezes, repetindo a mesma
-  palavra, contra 34px no canto;
-- ganho zero **não imprime `+0`** — "+0 dano/s" lê como peça quebrada quando o
-  que houve foi a régua não medir aquilo;
+- **o modelo continua exercitado por oferta.** A carta não desenha mais o ganho
+  em dano/s, mas `build.offerGain` é chamado aqui em toda oferta e tem que
+  devolver **número finito e nunca negativo** — uma oferta que piorasse a peça
+  seria uma inversão de ordem, que é a única coisa que o modelo promete. Sem
+  esta chamada, um modelo sem consumidor apodreceria calado;
+- **a régua não volta sozinha:** `lv-escala`, `lv-ganho` e `lv-top-lbl` na carta
+  reprovam. A **tecla existe** (`lv-tecla`) e o botão `ESCOLHER` não voltou:
+  44px de largura inteira, três vezes, repetindo a mesma palavra, contra 34px
+  no canto;
 - **tier numérico não tem parágrafo nenhum**, e tem o "antes → depois": a frase
-  da linha que morava ali dizia por extenso o mesmo que a régua já diz em mono
-  38, igual nas cinco cartas daquela linha. Quem fala pelo tier numérico é o
-  próprio upgrade (`lv-crus`);
+  da linha que morava ali dizia por extenso o mesmo que o upgrade diz em
+  números, igual nas cinco cartas daquela linha. Quem fala pelo tier numérico é
+  o próprio upgrade (`lv-crus`), uma mudança por linha;
 - **o subtítulo não escreve a coordenada do tier** e o rodapé não escreve o
   veredito de progresso: os pips desenham os dois.
 
-Quem confere se a régua ORDENA como o campo é `driver_bench`, não este — ver o
+Quem confere se o modelo ORDENA como o campo é `driver_bench`, não este — ver o
 bloco `REGUA x CAMPO` acima.
 
 `driver_milestone` guarda a tela em suas duas fases, e a parte que mais importa

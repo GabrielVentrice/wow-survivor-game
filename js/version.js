@@ -48,6 +48,15 @@ const CHANGELOG_TIPOS = {
 
 const CHANGELOG = [
   {
+    v: "0.13.0",
+    data: "2026-08-25",
+    titulo: "A carta diz o fato, não a previsão",
+    notas: [
+      { t: "ajuste", txt: "A tela de level up parou de prever dano: saíram o \"+106 dano/s\", a barra e o selo de maior ganho. O que a carta mostra agora é só o que a compra muda de verdade — \"dano 175 → 263\"." },
+      { t: "ajuste", txt: "Quando a compra muda duas coisas, cada uma vai numa linha própria em vez de dividirem a mesma linha com um ponto no meio." },
+    ],
+  },
+  {
     v: "0.12.1",
     data: "2026-08-25",
     titulo: "As cartas dizem menos",
